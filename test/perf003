@@ -1,0 +1,19 @@
+a:draw[_1e6;_1e6]
+b:draw[100;_1e6]
+\t a &/ b
+a:draw[_1e6;_1e6]
+b:draw[100;0]
+\t a &/ b
+a:draw[_1e6;0]
+b:draw[100;_1e6]
+\t a &/ b
+a:draw[_1e6;0]
+b:draw[100;0]
+\t a &/ b
+a:ci'97+draw[_1e6;26]
+b:ci'97+draw[100;26]
+\t a &/ b
+a:`$/ci'97+draw[_1e6;26]
+b:`$/ci'97+draw[100;26]
+\t a &/ b
+\\

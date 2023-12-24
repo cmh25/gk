@@ -1,0 +1,12 @@
+a:1000 draw 100
+b:1000 draw 100
+a
+b
+c:&a=b
+c
+a:draw[10;10]
+a
+a@s:<a
+a
+s
+\\

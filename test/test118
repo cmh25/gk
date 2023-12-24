@@ -1,0 +1,30 @@
+ci 65
+ic "A"
+ci ic "A"
+ci !256
+ic ci !256
+
+ci[65]
+ic["A"]
+ci[ic["A"]]
+ci[!256]
+ic[ci[!256]]
+
+ic'("asdf";"ghij")
+ci'(97 115 100 102;103 104 105 106)
+ci'ic'("asdf";"ghij")
+ic'ci'(97 115 100 102;103 104 105 106)
+
+4:ci 65
+4:ci 65 66
+
+ic ci 0
+ic ci 255 
+
+ic ""
+ic ("";"";"")
+
+ic "asdf"
+ic ("asdf";"ghij";"klmn")
+
+\\

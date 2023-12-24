@@ -1,0 +1,1177 @@
+log 0
+log 0.0
+log 10
+log 10.0
+log !10
+log 0.0+!10
+log (!9),9.0
+log (0.0+!9),9
+log 2#,(!9),9.0
+log 2#,(0.0+!9),9
+log 2#,2#,(!9),9.0
+log 2#,2#,(0.0+!9),9
+log -0
+log -0.0
+log -10
+log -10.0
+log -!10
+log -0.1+!10
+log (-!9),-9.0
+log (-0.1+-!9),9
+log 2#,(-!9),-9.0
+log 2#,(-0.1+!9),-9
+log 2#,2#,(-!9),-9.0
+log 2#,2#,(-0.1+!9),-9
+log 0I 0N -0I
+log 0i 0n -0i
+log 0i 0n -0i 0i 0n -0i
+
+exp 0
+exp 0.0
+exp 10
+exp 10.0
+exp !10
+exp 0.0+!10
+exp (!9),9.0
+exp (0.0+!9),9
+exp 2#,(!9),9.0
+exp 2#,(0.0+!9),9
+exp 2#,2#,(!9),9.0
+exp 2#,2#,(0.0+!9),9
+exp -0
+exp -0.0
+exp -10
+exp -10.0
+exp -!10
+exp -0.1+!10
+exp (-!9),-9.0
+exp (-0.1+-!9),9
+exp 2#,(-!9),-9.0
+exp 2#,(-0.1+!9),-9
+exp 2#,2#,(-!9),-9.0
+exp 2#,2#,(-0.1+!9),-9
+exp 0I 0N -0I
+exp 0i 0n -0i
+exp 0i 0n -0i 0i 0n -0i
+
+abs 0
+abs 0.0
+abs 10
+abs 10.0
+abs !10
+abs 0.0+!10
+abs (!9),9.0
+abs (0.0+!9),9
+abs 2#,(!9),9.0
+abs 2#,(0.0+!9),9
+abs 2#,2#,(!9),9.0
+abs 2#,2#,(0.0+!9),9
+abs -0
+/_abs -0.0  / e reports -0.0 for this vs 0.0, which seems wrong
+abs -10
+abs -10.0
+abs -!10
+abs -0.1+!10
+abs (-!9),-9.0
+abs (-0.1+-!9),9
+abs 2#,(-!9),-9.0
+abs 2#,(-0.1+!9),-9
+abs 2#,2#,(-!9),-9.0
+abs 2#,2#,(-0.1+!9),-9
+abs 0I 0N -0I
+abs 0i 0n -0i
+abs 0i 0n -0i 0i 0n -0i
+
+sqr 0
+sqr 0.0
+sqr 10
+sqr 10.0
+sqr !10
+sqr 0.0+!10
+sqr (!9),9.0
+sqr (0.0+!9),9
+sqr 2#,(!9),9.0
+sqr 2#,(0.0+!9),9
+sqr 2#,2#,(!9),9.0
+sqr 2#,2#,(0.0+!9),9
+sqr -0
+sqr -0.0
+sqr -10
+sqr -10.0
+sqr -!10
+sqr -0.1+!10
+sqr (-!9),-9.0
+sqr (-0.1+-!9),9
+sqr 2#,(-!9),-9.0
+sqr 2#,(-0.1+!9),-9
+sqr 2#,2#,(-!9),-9.0
+sqr 2#,2#,(-0.1+!9),-9
+sqr 0I 0N -0I
+sqr 0i 0n -0i
+sqr 0i 0n -0i 0i 0n -0i
+
+floor 0
+floor 0.0
+floor 10
+floor 10.3
+floor !10
+floor 0.3+!10
+floor (!9),9.3
+floor (0.3+!9),9
+floor 2#,(!9),9.3
+floor 2#,(0.3+!9),9
+floor 2#,2#,(!9),9.0
+floor 2#,2#,(0.3+!9),9
+floor -0
+floor -0.0
+floor -10
+floor -10.3
+floor -!10
+floor -0.1+!10
+floor (-!9),-9.3
+floor (-0.1+-!9),9
+floor 2#,(-!9),-9.3
+floor 2#,(-0.1+!9),-9
+floor 2#,2#,(-!9),-9.3
+floor 2#,2#,(-0.1+!9),-9
+floor 0I 0N -0I
+floor 0i 0n -0i
+floor 0i 0n -0i 0i 0n -0i
+
+ceil 0
+ceil 0.0
+ceil 10
+ceil 10.0
+ceil !10
+ceil 0.0+!10
+ceil (!9),9.0
+ceil (0.0+!9),9
+ceil 2#,(!9),9.0
+ceil 2#,(0.0+!9),9
+ceil 2#,2#,(!9),9.0
+ceil 2#,2#,(0.0+!9),9
+ceil -0
+ceil -0.0
+ceil -10
+ceil -10.0
+ceil -!10
+ceil -0.1+!10
+ceil (-!9),-9.0
+ceil (-0.1+-!9),9
+ceil 2#,(-!9),-9.0
+ceil 2#,(-0.1+!9),-9
+ceil 2#,2#,(-!9),-9.0
+ceil 2#,2#,(-0.1+!9),-9
+ceil 0I 0N -0I
+ceil 0i 0n -0i
+ceil 0i 0n -0i 0i 0n -0i
+
+sin 0
+sin 0.0
+sin 10
+sin 10.0
+sin !10
+sin 0.0+!10
+sin (!9),9.0
+sin (0.0+!9),9
+sin 2#,(!9),9.0
+sin 2#,(0.0+!9),9
+sin 2#,2#,(!9),9.0
+sin 2#,2#,(0.0+!9),9
+sin -0
+sin -0.0
+sin -10
+sin -10.0
+sin -!10
+sin -0.1+!10
+sin (-!9),-9.0
+sin (-0.1+-!9),9
+sin 2#,(-!9),-9.0
+sin 2#,(-0.1+!9),-9
+sin 2#,2#,(-!9),-9.0
+sin 2#,2#,(-0.1+!9),-9
+sin 0I 0N -0I
+sin 0i 0n -0i
+sin 0i 0n -0i 0i 0n -0i
+
+cos 0
+cos 0.0
+cos 10
+cos 10.0
+cos !10
+cos 0.0+!10
+cos (!9),9.0
+cos (0.0+!9),9
+cos 2#,(!9),9.0
+cos 2#,(0.0+!9),9
+cos 2#,2#,(!9),9.0
+cos 2#,2#,(0.0+!9),9
+cos -0
+cos -0.0
+cos -10
+cos -10.0
+cos -!10
+cos -0.1+!10
+cos (-!9),-9.0
+cos (-0.1+-!9),9
+cos 2#,(-!9),-9.0
+cos 2#,(-0.1+!9),-9
+cos 2#,2#,(-!9),-9.0
+cos 2#,2#,(-0.1+!9),-9
+cos 0I 0N -0I
+cos 0i 0n -0i
+cos 0i 0n -0i 0i 0n -0i
+
+tan 0
+tan 0.0
+tan 10
+tan 10.0
+tan !10
+tan 0.0+!10
+tan (!9),9.0
+tan (0.0+!9),9
+tan 2#,(!9),9.0
+tan 2#,(0.0+!9),9
+tan 2#,2#,(!9),9.0
+tan 2#,2#,(0.0+!9),9
+tan -0
+tan -0.0
+tan -10
+tan -10.0
+tan -!10
+tan -0.1+!10
+tan (-!9),-9.0
+tan (-0.1+-!9),9
+tan 2#,(-!9),-9.0
+tan 2#,(-0.1+!9),-9
+tan 2#,2#,(-!9),-9.0
+tan 2#,2#,(-0.1+!9),-9
+tan 0I 0N -0I
+tan 0i 0n -0i
+tan 0i 0n -0i 0i 0n -0i
+
+asin 0
+asin 0.0
+asin 10
+asin 10.0
+asin !10
+asin 0.0+!10
+asin (!9),9.0
+asin (0.0+!9),9
+asin 2#,(!9),9.0
+asin 2#,(0.0+!9),9
+asin 2#,2#,(!9),9.0
+asin 2#,2#,(0.0+!9),9
+asin -0
+asin -0.0
+asin -10
+asin -10.0
+asin -!10
+asin -0.1+!10
+asin (-!9),-9.0
+asin (-0.1+-!9),9
+asin 2#,(-!9),-9.0
+asin 2#,(-0.1+!9),-9
+asin 2#,2#,(-!9),-9.0
+asin 2#,2#,(-0.1+!9),-9
+asin 0I 0N -0I
+asin 0i 0n -0i
+asin 0i 0n -0i 0i 0n -0i
+
+acos 0
+acos 0.0
+acos 10
+acos 10.0
+acos !10
+acos 0.0+!10
+acos (!9),9.0
+acos (0.0+!9),9
+acos 2#,(!9),9.0
+acos 2#,(0.0+!9),9
+acos 2#,2#,(!9),9.0
+acos 2#,2#,(0.0+!9),9
+acos -0
+acos -0.0
+acos -10
+acos -10.0
+acos -!10
+acos -0.1+!10
+acos (-!9),-9.0
+acos (-0.1+-!9),9
+acos 2#,(-!9),-9.0
+acos 2#,(-0.1+!9),-9
+acos 2#,2#,(-!9),-9.0
+acos 2#,2#,(-0.1+!9),-9
+acos 0I 0N -0I
+acos 0i 0n -0i
+acos 0i 0n -0i 0i 0n -0i
+
+atan 0
+atan 0.0
+atan 10
+atan 10.0
+atan !10
+atan 0.0+!10
+atan (!9),9.0
+atan (0.0+!9),9
+atan 2#,(!9),9.0
+atan 2#,(0.0+!9),9
+atan 2#,2#,(!9),9.0
+atan 2#,2#,(0.0+!9),9
+atan -0
+atan -0.0
+atan -10
+atan -10.0
+atan -!10
+atan -0.1+!10
+atan (-!9),-9.0
+atan (-0.1+-!9),9
+atan 2#,(-!9),-9.0
+atan 2#,(-0.1+!9),-9
+atan 2#,2#,(-!9),-9.0
+atan 2#,2#,(-0.1+!9),-9
+atan 0I 0N -0I
+atan 0i 0n -0i
+atan 0i 0n -0i 0i 0n -0i
+
+sinh 0
+sinh 0.0
+sinh 10
+sinh 10.0
+sinh !10
+sinh 0.0+!10
+sinh (!9),9.0
+sinh (0.0+!9),9
+sinh 2#,(!9),9.0
+sinh 2#,(0.0+!9),9
+sinh 2#,2#,(!9),9.0
+sinh 2#,2#,(0.0+!9),9
+sinh -0
+sinh -0.0
+sinh -10
+sinh -10.0
+sinh -!10
+sinh -0.1+!10
+sinh (-!9),-9.0
+sinh (-0.1+-!9),9
+sinh 2#,(-!9),-9.0
+sinh 2#,(-0.1+!9),-9
+sinh 2#,2#,(-!9),-9.0
+sinh 2#,2#,(-0.1+!9),-9
+sinh 0I 0N -0I
+sinh 0i 0n -0i
+sinh 0i 0n -0i 0i 0n -0i
+
+cosh 0
+cosh 0.0
+cosh 10
+cosh 10.0
+cosh !10
+cosh 0.0+!10
+cosh (!9),9.0
+cosh (0.0+!9),9
+cosh 2#,(!9),9.0
+cosh 2#,(0.0+!9),9
+cosh 2#,2#,(!9),9.0
+cosh 2#,2#,(0.0+!9),9
+cosh -0
+cosh -0.0
+cosh -10
+cosh -10.0
+cosh -!10
+cosh -0.1+!10
+cosh (-!9),-9.0
+cosh (-0.1+-!9),9
+cosh 2#,(-!9),-9.0
+cosh 2#,(-0.1+!9),-9
+cosh 2#,2#,(-!9),-9.0
+cosh 2#,2#,(-0.1+!9),-9
+cosh 0I 0N -0I
+cosh 0i 0n -0i
+cosh 0i 0n -0i 0i 0n -0i
+
+tanh 0
+tanh 0.0
+tanh 10
+tanh 10.0
+tanh !10
+tanh 0.0+!10
+tanh (!9),9.0
+tanh (0.0+!9),9
+tanh 2#,(!9),9.0
+tanh 2#,(0.0+!9),9
+tanh 2#,2#,(!9),9.0
+tanh 2#,2#,(0.0+!9),9
+tanh -0
+tanh -0.0
+tanh -10
+tanh -10.0
+tanh -!10
+tanh -0.1+!10
+tanh (-!9),-9.0
+tanh (-0.1+-!9),9
+tanh 2#,(-!9),-9.0
+tanh 2#,(-0.1+!9),-9
+tanh 2#,2#,(-!9),-9.0
+tanh 2#,2#,(-0.1+!9),-9
+tanh 0I 0N -0I
+tanh 0i 0n -0i
+tanh 0i 0n -0i 0i 0n -0i
+
+erf 0
+erf 0.0
+erf 10
+erf 10.0
+erf !10
+erf 0.0+!10
+erf (!9),9.0
+erf (0.0+!9),9
+erf 2#,(!9),9.0
+erf 2#,(0.0+!9),9
+erf 2#,2#,(!9),9.0
+erf 2#,2#,(0.0+!9),9
+erf -0
+erf -0.0
+erf -10
+erf -10.0
+erf -!10
+erf -0.1+!10
+erf (-!9),-9.0
+erf (-0.1+-!9),9
+erf 2#,(-!9),-9.0
+erf 2#,(-0.1+!9),-9
+erf 2#,2#,(-!9),-9.0
+erf 2#,2#,(-0.1+!9),-9
+erf 0I 0N -0I
+erf 0i 0n -0i
+erf 0i 0n -0i 0i 0n -0i
+
+erfc 0
+erfc 0.0
+erfc 10
+erfc 10.0
+erfc !10
+erfc 0.0+!10
+erfc (!9),9.0
+erfc (0.0+!9),9
+erfc 2#,(!9),9.0
+erfc 2#,(0.0+!9),9
+erfc 2#,2#,(!9),9.0
+erfc 2#,2#,(0.0+!9),9
+erfc -0
+erfc -0.0
+erfc -10
+erfc -10.0
+erfc -!10
+erfc -0.1+!10
+erfc (-!9),-9.0
+erfc (-0.1+-!9),9
+erfc 2#,(-!9),-9.0
+erfc 2#,(-0.1+!9),-9
+erfc 2#,2#,(-!9),-9.0
+erfc 2#,2#,(-0.1+!9),-9
+erfc 0I 0N -0I
+erfc 0i 0n -0i
+erfc 0i 0n -0i 0i 0n -0i
+
+gamma 0
+gamma 0.0
+gamma 10
+gamma 10.0
+gamma !10
+gamma 0.0+!10
+gamma (!9),9.0
+gamma (0.0+!9),9
+gamma 2#,(!9),9.0
+gamma 2#,(0.0+!9),9
+gamma 2#,2#,(!9),9.0
+gamma 2#,2#,(0.0+!9),9
+gamma -0
+gamma -0.0
+gamma -10
+gamma -10.0
+gamma -!10
+gamma -0.1+!10
+gamma (-!9),-9.0
+gamma (-0.1+-!9),9
+gamma 2#,(-!9),-9.0
+gamma 2#,(-0.1+!9),-9
+gamma 2#,2#,(-!9),-9.0
+gamma 2#,2#,(-0.1+!9),-9
+gamma 0I 0N -0I
+gamma 0i 0n -0i
+gamma 0i 0n -0i 0i 0n -0i
+
+lgamma 0
+lgamma 0.0
+lgamma 10
+lgamma 10.0
+lgamma !10
+lgamma 0.0+!10
+lgamma (!9),9.0
+lgamma (0.0+!9),9
+lgamma 2#,(!9),9.0
+lgamma 2#,(0.0+!9),9
+lgamma 2#,2#,(!9),9.0
+lgamma 2#,2#,(0.0+!9),9
+lgamma -0
+lgamma -0.0
+lgamma -10
+lgamma -10.0
+lgamma -!10
+lgamma -0.1+!10
+lgamma (-!9),-9.0
+lgamma (-0.1+-!9),9
+lgamma 2#,(-!9),-9.0
+lgamma 2#,(-0.1+!9),-9
+lgamma 2#,2#,(-!9),-9.0
+lgamma 2#,2#,(-0.1+!9),-9
+lgamma 0I 0N -0I
+lgamma 0i 0n -0i
+lgamma 0i 0n -0i 0i 0n -0i
+
+rint 0
+rint 0.0
+rint 10
+rint 10.0
+rint !10
+rint 0.0+!10
+rint (!9),9.0
+rint (0.0+!9),9
+rint 2#,(!9),9.0
+rint 2#,(0.0+!9),9
+rint 2#,2#,(!9),9.0
+rint 2#,2#,(0.0+!9),9
+rint -0
+rint -0.0
+rint -10
+rint -10.0
+rint -!10
+rint -0.1+!10
+rint (-!9),-9.0
+rint (-0.1+-!9),9
+rint 2#,(-!9),-9.0
+rint 2#,(-0.1+!9),-9
+rint 2#,2#,(-!9),-9.0
+rint 2#,2#,(-0.1+!9),-9
+rint 0I 0N -0I
+rint 0i 0n -0i
+rint 0i 0n -0i 0i 0n -0i
+
+trunc 0
+trunc 0.0
+trunc 10
+trunc 10.0
+trunc !10
+trunc 0.0+!10
+trunc (!9),9.0
+trunc (0.0+!9),9
+trunc 2#,(!9),9.0
+trunc 2#,(0.0+!9),9
+trunc 2#,2#,(!9),9.0
+trunc 2#,2#,(0.0+!9),9
+trunc -0
+trunc -0.0
+trunc -10
+trunc -10.0
+trunc -!10
+trunc -0.1+!10
+trunc (-!9),-9.0
+trunc (-0.1+-!9),9
+trunc 2#,(-!9),-9.0
+trunc 2#,(-0.1+!9),-9
+trunc 2#,2#,(-!9),-9.0
+trunc 2#,2#,(-0.1+!9),-9
+trunc 0I 0N -0I
+trunc 0i 0n -0i
+trunc 0i 0n -0i 0i 0n -0i
+
+log[0]
+log[0.0]
+log[10]
+log[10.0]
+log[!10]
+log[0.0+!10]
+log[(!9),9.0]
+log[(0.0+!9),9]
+log[2#,(!9),9.0]
+log[2#,(0.0+!9),9]
+log[2#,2#,(!9),9.0]
+log[2#,2#,(0.0+!9),9]
+log[-0]
+log[-0.0]
+log[-10]
+log[-10.0]
+log[-!10]
+log[-0.1+!10]
+log[(-!9),-9.0]
+log[(-0.1+-!9),9]
+log[2#,(-!9),-9.0]
+log[2#,(-0.1+!9),-9]
+log[2#,2#,(-!9),-9.0]
+log[2#,2#,(-0.1+!9),-9]
+log[0I 0N -0I]
+log[0i 0n -0i]
+log[0i 0n -0i 0i 0n -0i]
+
+exp[0]
+exp[0.0]
+exp[10]
+exp[10.0]
+exp[!10]
+exp[0.0+!10]
+exp[(!9),9.0]
+exp[(0.0+!9),9]
+exp[2#,(!9),9.0]
+exp[2#,(0.0+!9),9]
+exp[2#,2#,(!9),9.0]
+exp[2#,2#,(0.0+!9),9]
+exp[-0]
+exp[-0.0]
+exp[-10]
+exp[-10.0]
+exp[-!10]
+exp[-0.1+!10]
+exp[(-!9),-9.0]
+exp[(-0.1+-!9),9]
+exp[2#,(-!9),-9.0]
+exp[2#,(-0.1+!9),-9]
+exp[2#,2#,(-!9),-9.0]
+exp[2#,2#,(-0.1+!9),-9]
+exp[0I 0N -0I]
+exp[0i 0n -0i]
+exp[0i 0n -0i 0i 0n -0i]
+
+abs[0]
+abs[0.0]
+abs[10]
+abs[10.0]
+abs[!10]
+abs[0.0+!10]
+abs[(!9),9.0]
+abs[(0.0+!9),9]
+abs[2#,(!9),9.0]
+abs[2#,(0.0+!9),9]
+abs[2#,2#,(!9),9.0]
+abs[2#,2#,(0.0+!9),9]
+abs[-0]
+/_abs[-0.0]  / e reports -0.0 for this vs 0.0, which seems wrong
+abs[-10]
+abs[-10.0]
+abs[-!10]
+abs[-0.1+!10]
+abs[(-!9),-9.0]
+abs[(-0.1+-!9),9]
+abs[2#,(-!9),-9.0]
+abs[2#,(-0.1+!9),-9]
+abs[2#,2#,(-!9),-9.0]
+abs[2#,2#,(-0.1+!9),-9]
+abs[0I 0N -0I]
+abs[0i 0n -0i]
+abs[0i 0n -0i 0i 0n -0i]
+
+sqr[0]
+sqr[0.0]
+sqr[10]
+sqr[10.0]
+sqr[!10]
+sqr[0.0+!10]
+sqr[(!9),9.0]
+sqr[(0.0+!9),9]
+sqr[2#,(!9),9.0]
+sqr[2#,(0.0+!9),9]
+sqr[2#,2#,(!9),9.0]
+sqr[2#,2#,(0.0+!9),9]
+sqr[-0]
+sqr[-0.0]
+sqr[-10]
+sqr[-10.0]
+sqr[-!10]
+sqr[-0.1+!10]
+sqr[(-!9),-9.0]
+sqr[(-0.1+-!9),9]
+sqr[2#,(-!9),-9.0]
+sqr[2#,(-0.1+!9),-9]
+sqr[2#,2#,(-!9),-9.0]
+sqr[2#,2#,(-0.1+!9),-9]
+sqr[0I 0N -0I]
+sqr[0i 0n -0i]
+sqr[0i 0n -0i 0i 0n -0i]
+
+floor[0]
+floor[0.0]
+floor[10]
+floor[10.3]
+floor[!10]
+floor[0.3+!10]
+floor[(!9),9.3]
+floor[(0.3+!9),9]
+floor[2#,(!9),9.3]
+floor[2#,(0.3+!9),9]
+floor[2#,2#,(!9),9.0]
+floor[2#,2#,(0.3+!9),9]
+floor[-0]
+floor[-0.0]
+floor[-10]
+floor[-10.3]
+floor[-!10]
+floor[-0.1+!10]
+floor[(-!9),-9.3]
+floor[(-0.1+-!9),9]
+floor[2#,(-!9),-9.3]
+floor[2#,(-0.1+!9),-9]
+floor[2#,2#,(-!9),-9.3]
+floor[2#,2#,(-0.1+!9),-9]
+floor[0I 0N -0I]
+floor[0i 0n -0i]
+floor[0i 0n -0i 0i 0n -0i]
+
+ceil[0]
+ceil[0.0]
+ceil[10]
+ceil[10.0]
+ceil[!10]
+ceil[0.0+!10]
+ceil[(!9),9.0]
+ceil[(0.0+!9),9]
+ceil[2#,(!9),9.0]
+ceil[2#,(0.0+!9),9]
+ceil[2#,2#,(!9),9.0]
+ceil[2#,2#,(0.0+!9),9]
+ceil[-0]
+ceil[-0.0]
+ceil[-10]
+ceil[-10.0]
+ceil[-!10]
+ceil[-0.1+!10]
+ceil[(-!9),-9.0]
+ceil[(-0.1+-!9),9]
+ceil[2#,(-!9),-9.0]
+ceil[2#,(-0.1+!9),-9]
+ceil[2#,2#,(-!9),-9.0]
+ceil[2#,2#,(-0.1+!9),-9]
+ceil[0I 0N -0I]
+ceil[0i 0n -0i]
+ceil[0i 0n -0i 0i 0n -0i]
+
+sin[0]
+sin[0.0]
+sin[10]
+sin[10.0]
+sin[!10]
+sin[0.0+!10]
+sin[(!9),9.0]
+sin[(0.0+!9),9]
+sin[2#,(!9),9.0]
+sin[2#,(0.0+!9),9]
+sin[2#,2#,(!9),9.0]
+sin[2#,2#,(0.0+!9),9]
+sin[-0]
+sin[-0.0]
+sin[-10]
+sin[-10.0]
+sin[-!10]
+sin[-0.1+!10]
+sin[(-!9),-9.0]
+sin[(-0.1+-!9),9]
+sin[2#,(-!9),-9.0]
+sin[2#,(-0.1+!9),-9]
+sin[2#,2#,(-!9),-9.0]
+sin[2#,2#,(-0.1+!9),-9]
+sin[0I 0N -0I]
+sin[0i 0n -0i]
+sin[0i 0n -0i 0i 0n -0i]
+
+cos[0]
+cos[0.0]
+cos[10]
+cos[10.0]
+cos[!10]
+cos[0.0+!10]
+cos[(!9),9.0]
+cos[(0.0+!9),9]
+cos[2#,(!9),9.0]
+cos[2#,(0.0+!9),9]
+cos[2#,2#,(!9),9.0]
+cos[2#,2#,(0.0+!9),9]
+cos[-0]
+cos[-0.0]
+cos[-10]
+cos[-10.0]
+cos[-!10]
+cos[-0.1+!10]
+cos[(-!9),-9.0]
+cos[(-0.1+-!9),9]
+cos[2#,(-!9),-9.0]
+cos[2#,(-0.1+!9),-9]
+cos[2#,2#,(-!9),-9.0]
+cos[2#,2#,(-0.1+!9),-9]
+cos[0I 0N -0I]
+cos[0i 0n -0i]
+cos[0i 0n -0i 0i 0n -0i]
+
+tan[0]
+tan[0.0]
+tan[10]
+tan[10.0]
+tan[!10]
+tan[0.0+!10]
+tan[(!9),9.0]
+tan[(0.0+!9),9]
+tan[2#,(!9),9.0]
+tan[2#,(0.0+!9),9]
+tan[2#,2#,(!9),9.0]
+tan[2#,2#,(0.0+!9),9]
+tan[-0]
+tan[-0.0]
+tan[-10]
+tan[-10.0]
+tan[-!10]
+tan[-0.1+!10]
+tan[(-!9),-9.0]
+tan[(-0.1+-!9),9]
+tan[2#,(-!9),-9.0]
+tan[2#,(-0.1+!9),-9]
+tan[2#,2#,(-!9),-9.0]
+tan[2#,2#,(-0.1+!9),-9]
+tan[0I 0N -0I]
+tan[0i 0n -0i]
+tan[0i 0n -0i 0i 0n -0i]
+
+asin[0]
+asin[0.0]
+asin[10]
+asin[10.0]
+asin[!10]
+asin[0.0+!10]
+asin[(!9),9.0]
+asin[(0.0+!9),9]
+asin[2#,(!9),9.0]
+asin[2#,(0.0+!9),9]
+asin[2#,2#,(!9),9.0]
+asin[2#,2#,(0.0+!9),9]
+asin[-0]
+asin[-0.0]
+asin[-10]
+asin[-10.0]
+asin[-!10]
+asin[-0.1+!10]
+asin[(-!9),-9.0]
+asin[(-0.1+-!9),9]
+asin[2#,(-!9),-9.0]
+asin[2#,(-0.1+!9),-9]
+asin[2#,2#,(-!9),-9.0]
+asin[2#,2#,(-0.1+!9),-9]
+asin[0I 0N -0I]
+asin[0i 0n -0i]
+asin[0i 0n -0i 0i 0n -0i]
+
+acos[0]
+acos[0.0]
+acos[10]
+acos[10.0]
+acos[!10]
+acos[0.0+!10]
+acos[(!9),9.0]
+acos[(0.0+!9),9]
+acos[2#,(!9),9.0]
+acos[2#,(0.0+!9),9]
+acos[2#,2#,(!9),9.0]
+acos[2#,2#,(0.0+!9),9]
+acos[-0]
+acos[-0.0]
+acos[-10]
+acos[-10.0]
+acos[-!10]
+acos[-0.1+!10]
+acos[(-!9),-9.0]
+acos[(-0.1+-!9),9]
+acos[2#,(-!9),-9.0]
+acos[2#,(-0.1+!9),-9]
+acos[2#,2#,(-!9),-9.0]
+acos[2#,2#,(-0.1+!9),-9]
+acos[0I 0N -0I]
+acos[0i 0n -0i]
+acos[0i 0n -0i 0i 0n -0i]
+
+atan[0]
+atan[0.0]
+atan[10]
+atan[10.0]
+atan[!10]
+atan[0.0+!10]
+atan[(!9),9.0]
+atan[(0.0+!9),9]
+atan[2#,(!9),9.0]
+atan[2#,(0.0+!9),9]
+atan[2#,2#,(!9),9.0]
+atan[2#,2#,(0.0+!9),9]
+atan[-0]
+atan[-0.0]
+atan[-10]
+atan[-10.0]
+atan[-!10]
+atan[-0.1+!10]
+atan[(-!9),-9.0]
+atan[(-0.1+-!9),9]
+atan[2#,(-!9),-9.0]
+atan[2#,(-0.1+!9),-9]
+atan[2#,2#,(-!9),-9.0]
+atan[2#,2#,(-0.1+!9),-9]
+atan[0I 0N -0I]
+atan[0i 0n -0i]
+atan[0i 0n -0i 0i 0n -0i]
+
+sinh[0]
+sinh[0.0]
+sinh[10]
+sinh[10.0]
+sinh[!10]
+sinh[0.0+!10]
+sinh[(!9),9.0]
+sinh[(0.0+!9),9]
+sinh[2#,(!9),9.0]
+sinh[2#,(0.0+!9),9]
+sinh[2#,2#,(!9),9.0]
+sinh[2#,2#,(0.0+!9),9]
+sinh[-0]
+sinh[-0.0]
+sinh[-10]
+sinh[-10.0]
+sinh[-!10]
+sinh[-0.1+!10]
+sinh[(-!9),-9.0]
+sinh[(-0.1+-!9),9]
+sinh[2#,(-!9),-9.0]
+sinh[2#,(-0.1+!9),-9]
+sinh[2#,2#,(-!9),-9.0]
+sinh[2#,2#,(-0.1+!9),-9]
+sinh[0I 0N -0I]
+sinh[0i 0n -0i]
+sinh[0i 0n -0i 0i 0n -0i]
+
+cosh[0]
+cosh[0.0]
+cosh[10]
+cosh[10.0]
+cosh[!10]
+cosh[0.0+!10]
+cosh[(!9),9.0]
+cosh[(0.0+!9),9]
+cosh[2#,(!9),9.0]
+cosh[2#,(0.0+!9),9]
+cosh[2#,2#,(!9),9.0]
+cosh[2#,2#,(0.0+!9),9]
+cosh[-0]
+cosh[-0.0]
+cosh[-10]
+cosh[-10.0]
+cosh[-!10]
+cosh[-0.1+!10]
+cosh[(-!9),-9.0]
+cosh[(-0.1+-!9),9]
+cosh[2#,(-!9),-9.0]
+cosh[2#,(-0.1+!9),-9]
+cosh[2#,2#,(-!9),-9.0]
+cosh[2#,2#,(-0.1+!9),-9]
+cosh[0I 0N -0I]
+cosh[0i 0n -0i]
+cosh[0i 0n -0i 0i 0n -0i]
+
+tanh[0]
+tanh[0.0]
+tanh[10]
+tanh[10.0]
+tanh[!10]
+tanh[0.0+!10]
+tanh[(!9),9.0]
+tanh[(0.0+!9),9]
+tanh[2#,(!9),9.0]
+tanh[2#,(0.0+!9),9]
+tanh[2#,2#,(!9),9.0]
+tanh[2#,2#,(0.0+!9),9]
+tanh[-0]
+tanh[-0.0]
+tanh[-10]
+tanh[-10.0]
+tanh[-!10]
+tanh[-0.1+!10]
+tanh[(-!9),-9.0]
+tanh[(-0.1+-!9),9]
+tanh[2#,(-!9),-9.0]
+tanh[2#,(-0.1+!9),-9]
+tanh[2#,2#,(-!9),-9.0]
+tanh[2#,2#,(-0.1+!9),-9]
+tanh[0I 0N -0I]
+tanh[0i 0n -0i]
+tanh[0i 0n -0i 0i 0n -0i]
+
+erf[0]
+erf[0.0]
+erf[10]
+erf[10.0]
+erf[!10]
+erf[0.0+!10]
+erf[(!9),9.0]
+erf[(0.0+!9),9]
+erf[2#,(!9),9.0]
+erf[2#,(0.0+!9),9]
+erf[2#,2#,(!9),9.0]
+erf[2#,2#,(0.0+!9),9]
+erf[-0]
+erf[-0.0]
+erf[-10]
+erf[-10.0]
+erf[-!10]
+erf[-0.1+!10]
+erf[(-!9),-9.0]
+erf[(-0.1+-!9),9]
+erf[2#,(-!9),-9.0]
+erf[2#,(-0.1+!9),-9]
+erf[2#,2#,(-!9),-9.0]
+erf[2#,2#,(-0.1+!9),-9]
+erf[0I 0N -0I]
+erf[0i 0n -0i]
+erf[0i 0n -0i 0i 0n -0i]
+
+erfc[0]
+erfc[0.0]
+erfc[10]
+erfc[10.0]
+erfc[!10]
+erfc[0.0+!10]
+erfc[(!9),9.0]
+erfc[(0.0+!9),9]
+erfc[2#,(!9),9.0]
+erfc[2#,(0.0+!9),9]
+erfc[2#,2#,(!9),9.0]
+erfc[2#,2#,(0.0+!9),9]
+erfc[-0]
+erfc[-0.0]
+erfc[-10]
+erfc[-10.0]
+erfc[-!10]
+erfc[-0.1+!10]
+erfc[(-!9),-9.0]
+erfc[(-0.1+-!9),9]
+erfc[2#,(-!9),-9.0]
+erfc[2#,(-0.1+!9),-9]
+erfc[2#,2#,(-!9),-9.0]
+erfc[2#,2#,(-0.1+!9),-9]
+erfc[0I 0N -0I]
+erfc[0i 0n -0i]
+erfc[0i 0n -0i 0i 0n -0i]
+
+gamma[0]
+gamma[0.0]
+gamma[10]
+gamma[10.0]
+gamma[!10]
+gamma[0.0+!10]
+gamma[(!9),9.0]
+gamma[(0.0+!9),9]
+gamma[2#,(!9),9.0]
+gamma[2#,(0.0+!9),9]
+gamma[2#,2#,(!9),9.0]
+gamma[2#,2#,(0.0+!9),9]
+gamma[-0]
+gamma[-0.0]
+gamma[-10]
+gamma[-10.0]
+gamma[-!10]
+gamma[-0.1+!10]
+gamma[(-!9),-9.0]
+gamma[(-0.1+-!9),9]
+gamma[2#,(-!9),-9.0]
+gamma[2#,(-0.1+!9),-9]
+gamma[2#,2#,(-!9),-9.0]
+gamma[2#,2#,(-0.1+!9),-9]
+gamma[0I 0N -0I]
+gamma[0i 0n -0i]
+gamma[0i 0n -0i 0i 0n -0i]
+
+lgamma[0]
+lgamma[0.0]
+lgamma[10]
+lgamma[10.0]
+lgamma[!10]
+lgamma[0.0+!10]
+lgamma[(!9),9.0]
+lgamma[(0.0+!9),9]
+lgamma[2#,(!9),9.0]
+lgamma[2#,(0.0+!9),9]
+lgamma[2#,2#,(!9),9.0]
+lgamma[2#,2#,(0.0+!9),9]
+lgamma[-0]
+lgamma[-0.0]
+lgamma[-10]
+lgamma[-10.0]
+lgamma[-!10]
+lgamma[-0.1+!10]
+lgamma[(-!9),-9.0]
+lgamma[(-0.1+-!9),9]
+lgamma[2#,(-!9),-9.0]
+lgamma[2#,(-0.1+!9),-9]
+lgamma[2#,2#,(-!9),-9.0]
+lgamma[2#,2#,(-0.1+!9),-9]
+lgamma[0I 0N -0I]
+lgamma[0i 0n -0i]
+lgamma[0i 0n -0i 0i 0n -0i]
+
+rint[0]
+rint[0.0]
+rint[10]
+rint[10.0]
+rint[!10]
+rint[0.0+!10]
+rint[(!9),9.0]
+rint[(0.0+!9),9]
+rint[2#,(!9),9.0]
+rint[2#,(0.0+!9),9]
+rint[2#,2#,(!9),9.0]
+rint[2#,2#,(0.0+!9),9]
+rint[-0]
+rint[-0.0]
+rint[-10]
+rint[-10.0]
+rint[-!10]
+rint[-0.1+!10]
+rint[(-!9),-9.0]
+rint[(-0.1+-!9),9]
+rint[2#,(-!9),-9.0]
+rint[2#,(-0.1+!9),-9]
+rint[2#,2#,(-!9),-9.0]
+rint[2#,2#,(-0.1+!9),-9]
+rint[0I 0N -0I]
+rint[0i 0n -0i]
+rint[0i 0n -0i 0i 0n -0i]
+
+trunc[0]
+trunc[0.0]
+trunc[10]
+trunc[10.0]
+trunc[!10]
+trunc[0.0+!10]
+trunc[(!9),9.0]
+trunc[(0.0+!9),9]
+trunc[2#,(!9),9.0]
+trunc[2#,(0.0+!9),9]
+trunc[2#,2#,(!9),9.0]
+trunc[2#,2#,(0.0+!9),9]
+trunc[-0]
+trunc[-0.0]
+trunc[-10]
+trunc[-10.0]
+trunc[-!10]
+trunc[-0.1+!10]
+trunc[(-!9),-9.0]
+trunc[(-0.1+-!9),9]
+trunc[2#,(-!9),-9.0]
+trunc[2#,(-0.1+!9),-9]
+trunc[2#,2#,(-!9),-9.0]
+trunc[2#,2#,(-0.1+!9),-9]
+trunc[0I 0N -0I]
+trunc[0i 0n -0i]
+trunc[0i 0n -0i 0i 0n -0i]
+
+\\

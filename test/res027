@@ -1,0 +1,54 @@
+2
+2.0
+2.0
+2.0
+0 1 0.0
+0 1 0
+1 0 0.0
+1 0 0
+0 1 0.0
+0 1 0
+1 0 0.0
+1 0 0
+0 1 0.0
+0 1 0
+1 0 0.0
+1 0 0
+"harlesc"
+"arlesch"
+"rlescha"
+"leschar"
+"escharl"
+"scharle"
+"charles"
+"scharle"
+"escharl"
+"leschar"
+"rlescha"
+"arlesch"
+"harlesc"
+"charles"
+`b `c `a
+`c `a `b
+`a `b `c
+`c `a `b
+`b `c `a
+`a `b `c
+(1.2
+ `a `b
+ 1)
+(`a `b
+ 1
+ 1.2)
+(1
+ 1.2
+ `a `b)
+(`a `b
+ 1
+ 1.2)
+(1.2
+ `a `b
+ 1)
+(1
+ 1.2
+ `a `b)

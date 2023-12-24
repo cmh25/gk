@@ -1,0 +1,10 @@
+val[+]
+val[~=]
+val[{}]
+val[{x}]
+val[{x+y}]
+val[{x+y+z}]
+val[{x+y+z}[1]]
+val[{x+y+z}[1;2]]
+val[{x+y+z}[1][2]]
+\\

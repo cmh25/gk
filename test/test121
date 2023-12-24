@@ -1,0 +1,9 @@
+ltime 0
+ltime 1
+ltime 2
+gtime 0
+gtime 1
+gtime 2
+ltime 0 1 2
+gtime 0 1 2
+\\

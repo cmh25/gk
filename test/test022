@@ -1,0 +1,16 @@
+"a"
+"asdf"
+a:"a"
+a
+a:"asdf"
+a
+a:b:"a"
+a
+b
+a:b:"asdf"
+a
+b
+,"a"
+a:,"a"
+a
+\\

@@ -1,0 +1,82 @@
+show:{[t]                                 / show
+ if[(@*t[])|1<#?#'t[]                     / if not a table
+  :((-|/#'$k)$k:!t),/" : ",/5:'t[]]       / use dict display
+ i:(^t[])1                                / count
+ j:@[t;nul;{(1|i)#x}]                     / empty
+ f:{$[4:x;x;1_,/" ",/x]}                  / nested
+ k:f''+$+j[]                              / data
+ l:+,$!j                                  / labels
+ m:1 -1(4:'t[])lin 0 -4                   / data justifications
+ n:(|/#')'{x,y}'[l;k]                     / widths
+ l:" ",//(-n)$l                           / padded labels
+ k:" ",//(m*n)$k                          / padded data
+ o:+," ",/n#\"-"                          / separators
+ p:&-2=4:'t[]                             / where float
+ p@:&{|/"."in/x}'k p                      / where decimals
+ q:(*&)''"."=k p                          / where decimals in
+ r:q-&/'q dv\0                            / rotation matrix
+ k:.[k;(p;);{y!x};r]                      / align on decimals
+ t:{x,y,z}'[l;o;k]                        / pre result
+ s:{,/t[;x]}'!#*t                         / result
+ s}                                       / matrix
+
+c:10
+
+d:.()
+d.a:7 2 7 6 6 3 6 2 5 8
+d.b:7 1 4 1 1 5 5 7 1 6
+d.c:7 9 2 7 6 1 5 0 8 2
+
+e:.()
+e.a:6 8 6 0 8 2 1 2 1 9
+e.b:6 6 3 4 4 7 3 2 8 7
+e.c:6 6 5 4 5 2 8 6 6 0
+
+"d"
+if[c<101;`0:show d]
+"e"
+if[c<101;`0:show e]
+
+"select"
+i:&2=d`a
+t:.()
+t.a:d[`a;i]
+t.b:d[`b;i]
+t.c:d[`c;i]
+if[c<101;`0:show t]
+
+"sort"
+i:<d.a
+t:.()
+t.a:d[`a;i]
+t.b:d[`b;i]
+t.c:d[`c;i]
+if[c<101;`0:show t]
+
+"tabulate"
+g:=d`a
+r:+/'g
+t:.()
+t.a:d[`a;*'g]
+t.c:r
+if[c<101;`0:show t]
+
+"link"
+t:.()
+t.a:d`a
+t.b:d`b
+t.c:d`c
+
+i:e.a?/d`a
+eb:e[`b],nul
+ec:e[`c],nul
+t.eb:eb[i]
+t.ec:ec[i]
+if[c<101;`0:show t]
+
+"willbe"
+t:d
+t[`d]:t[`a]%t`b
+if[c<101;`0:show t]
+
+\\

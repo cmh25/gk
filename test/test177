@@ -1,0 +1,15 @@
+/ opencl unique doesn't preserve order, but the sorted results should match
+/\uorder 0
+a:draw[_1e7;_1e8]
+u0:?a
+u1:?a
+s0:u0@<u0
+s1:u1@<u1
+s0~s1
+/\uorder 1
+u2:?a
+u3:?a
+u2~u3
+s2:u2@<u2
+s0~s2
+\\

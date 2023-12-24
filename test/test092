@@ -1,0 +1,24 @@
+a:10
+b:0
+c:0
+a
+b
+c
+while[a
+  a:a-1
+  b:b+1
+  c:c+1]
+a
+b
+c
+a:10
+b:0
+c:0
+do[10
+  a:a-1
+  b:b+1
+  c:c+1]
+a
+b
+c
+\\

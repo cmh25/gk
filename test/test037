@@ -1,0 +1,13 @@
+a:draw[_1e8;1000]
+b:draw[_1e8;1000]
+c:a+b
+#a
+#b
+#c
+c:nul
+b:nul
+a:nul
+#a
+#b
+#c
+\\

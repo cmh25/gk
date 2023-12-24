@@ -1,0 +1,20 @@
+db bd 1
+db bd 1.0
+db bd "a"
+db bd `a
+db bd `a`b`c
+db bd "asdf"
+db bd 1 2 3.0
+db bd 1 2 3
+db bd {x}
+4:db bd nul
+a:draw[_1e6;_1e6]
+b:bd a
+c:db b
+a~c
+db bd (1;2.0;"a";`b;.();;{};2 3;2 3.0;"asdf";`a`b`c)
+db bd (1;2.0;"a";`b;.();;{x+y}[1];2 3;2 3.0;"asdf";`a`b`c)
+db bd (1;2.0;"a";`b;.((`a;1);(`b;2);(`c;3));;{x+y}[1];2 3;2 3.0;"asdf";`a`b`c)
+db bd (1;2.0;"a";`b;.((`a;1);(`b;2);(`c;3));;{x+y}[1];2 3;2 3.0;"asdf";`a`b`c;~=;+[1;];+[;1])
+db bd 3#,5#,(1;2.0;"a";`b;.((`a;1);(`b;2);(`c;3));;{x+y}[1];2 3;2 3.0;"asdf";`a`b`c;~=;+[1;];+[;1])
+\\
