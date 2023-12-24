@@ -12,6 +12,17 @@ https://codeberg.org/ngn/k
 
 https://github.com/kevinlawler/kona
 
+## build instructions
+linux/mac:
+```
+make
+make test
+```
+win: (requires visual studio cli)
+```
+make.bat
+```
+
 ## gk differences from k32
 
 ### verbs
