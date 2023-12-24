@@ -1270,6 +1270,12 @@ K* kv1_(K *a, char *av) {
 }
 MC1A(kv1_);
 
+K* vk1_(K *a, char *av) {
+  if(at) return kerror("type");
+  return knorm(a);
+}
+MC1A(vk1_);
+
 K* timer1_(K *a, char *av) {
   return null;
 }

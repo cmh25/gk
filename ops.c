@@ -2090,8 +2090,10 @@ K* help1_(K *a, char *av) {
 "\\0 data\n"
 "\\+ verbs\n"
 "\\' adverbs\n"
+"\\_ reserved verbs/nouns\n"
 "\\. assign define control debug\n"
 "\\: input/output\n"
+"\\- client/server\n"
 "\\? commands\n");
   }
   else if(a->i=='0') {
@@ -2160,11 +2162,80 @@ K* help1_(K *a, char *av) {
 "prefix dyad: overd     f/x\n"
 "      other: over      f/[x;y;z]\n");
   }
+  else if(a->i=='_') {
+    fprintf(stderr,""
+"variables/constants:\n"
+"      ts    seconds since 2035 (int)\n"
+"      TS    days since 2035 (float)\n"
+"      nul   null\n"
+"      .z.s  self (reference to current function)\n"
+"\n"
+"math: log exp abs sqr sqrt floor ceil dot mul inv\n"
+"      sin cos tan asin acos atan sinh cosh tanh x atan2 y\n"
+"      x euclid y (hypot) erf erfc gamma lgamma (log gamma) n choose k\n"
+"      rint (round to whole number) x round y (round to y) trunc (nearest)\n"
+"      div  and or xor not rot shift (bitwise)\n"
+"      y lsq A is least squares approximation x for y~+/A*x\n"
+"\n"
+"rand: x draw y (from !y); x draw -y (deal from !y); x draw 0 (from (0,1))\n"
+"\n"
+"time: lt ts (local timestamp, days since 2035)\n"
+"      ltime ts (local day time, ex: 20231225 123005)\n"
+"      gtime ts (gmt day time)\n"
+"      jd yyyymmdd (and dj) to/from julian day number (0 is monday)\n"
+"      sleep ms\n"
+"\n"
+"list: x at y indexes giving appropriate null values instead of index error\n"
+"      x in y is 1 if x is an item of y; 0 otherwise (list: lin)\n"
+"      x dv y and x di y to delete by value and index (list: dvl)\n"
+"      x sv v (scalar from vector) and x vs s (vector from scalar)\n"
+"      ci i (character from integer) and ic c (integer from character)\n"
+"      x sm y is string match. y can have *?[^-].\n"
+"      x ss y is string/symbol search for start indices. y can have ?[^-].\n"
+"      ssr[x;y;z] is string/symbol search and replace. z can be a function.\n"
+"\n"
+"data: bd d (bytes from data) and db b (data from bytes)\n"
+"      val (valence of fun)\n"
+"      kv  (list from vector)  vk  (vector from list)\n"
+"\n"
+"sys:  exit code\n"
+"      del file\n"
+"\n");
+  }
   else if(a->i=='.') {
     fprintf(stderr,""
+"assign\n"
+"a:1   local\n"
+"a::1  global\n"
+"\n"
+"amend\n"
+".[d;i;f]   @[d;i;f]\n"
+".[d;i;f;y] @[d;i;f;y]\n"
+"\n"
+"control\n"
+" $[c;t;f]   conditional\n"
+" if[c;...]\n"
+" do[n;...]\n"
+" while[c;...]\n"
+" /  comment\n"
+" \\  escape/abort\n"
+" :  return\n"
+" '  signal\n"
+"\n"
+"error trap .[f;(x;y;z);:] and @[f;x;:]\n"
 "\n");
   }
   else if(a->i==':') {
+    fprintf(stderr,""
+" 0:f   f 0:x  read/write text (` for console)\n"
+" 1:f   f 1:x  read (map)/write k data\n"
+"       f 5:x  append k data\n"
+" 2:f          read k data\n"
+" 6:f   f 6:x  read/write bytes\n"
+"     (,f)6:x  append bytes\n"
+"\n");
+  }
+  else if(a->i=='-') {
     fprintf(stderr,""
 "coming soon...\n"
 "\n");

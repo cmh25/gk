@@ -948,8 +948,10 @@ static int lex(pgs *pgs) {
     else if(f&&*p=='\\'&&*(p+1)=='0') { p+=2; push(pgs,T019,node_new(0,0,knew(7,0,fnnew("\\0"),179,0,0))); push(pgs,T018,node_new(0,0,k3('0'))); }
     else if(f&&*p=='\\'&&*(p+1)=='+') { p+=2; push(pgs,T019,node_new(0,0,knew(7,0,fnnew("\\0"),179,0,0))); push(pgs,T018,node_new(0,0,k3('+'))); }
     else if(f&&*p=='\\'&&*(p+1)=='\'') { p+=2; push(pgs,T019,node_new(0,0,knew(7,0,fnnew("\\0"),179,0,0))); push(pgs,T018,node_new(0,0,k3('\''))); }
+    else if(f&&*p=='\\'&&*(p+1)=='_') { p+=2; push(pgs,T019,node_new(0,0,knew(7,0,fnnew("\\0"),179,0,0))); push(pgs,T018,node_new(0,0,k3('_'))); }
     else if(f&&*p=='\\'&&*(p+1)=='.') { p+=2; push(pgs,T019,node_new(0,0,knew(7,0,fnnew("\\0"),179,0,0))); push(pgs,T018,node_new(0,0,k3('.'))); }
     else if(f&&*p=='\\'&&*(p+1)==':') { p+=2; push(pgs,T019,node_new(0,0,knew(7,0,fnnew("\\0"),179,0,0))); push(pgs,T018,node_new(0,0,k3(':'))); }
+    else if(f&&*p=='\\'&&*(p+1)=='-') { p+=2; push(pgs,T019,node_new(0,0,knew(7,0,fnnew("\\0"),179,0,0))); push(pgs,T018,node_new(0,0,k3('-'))); }
     else if(f&&*p=='\\'&&*(p+1)=='?') { p+=2; push(pgs,T019,node_new(0,0,knew(7,0,fnnew("\\0"),179,0,0))); push(pgs,T018,node_new(0,0,k3('?'))); }
     else if(*p=='\''||*p=='/'||*p=='\\') gav(pgs);
     else { printf("lex\n  "); break; }

@@ -55,6 +55,7 @@ K* atn2_(K *a, K *b, char *av);     K* atn2_avopt2(K *a, K *b, char *av);
 K* sm2_(K *a, K *b, char *av);      K* sm2_avopt2(K *a, K *b, char *av);
 K* ss2_(K *a, K *b, char *av);      K* ss2_avopt2(K *a, K *b, char *av);
 K* kv1_(K *a, char *av);            K* kv1_avopt(K *a, char *av);
+K* vk1_(K *a, char *av);            K* vk1_avopt(K *a, char *av);
 K* timer1_(K *a, char *av);         K* timer1_avopt(K *a, char *av);
 K* error1_(K *a, char *av);         K* error1_avopt(K *a, char *av);
 

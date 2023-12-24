@@ -134,6 +134,7 @@ void fninit() {
   dt1[180]=del1_;
   dt1[181]=bd1_;
   dt1[182]=db1_;
+  dt1[183]=vk1_;
 
   dt2['+']=plus2_;
   dt2['-']=minus2_;
@@ -228,6 +229,7 @@ void fninit() {
   dt2avo[171]=trunc1_avopt;
   dt2avo[172]=not1_avopt;
   dt2avo[173]=kv1_avopt;
+  dt2avo[183]=vk1_avopt;
 
   dt2avo2['+']=plus2_avopt2;
   dt2avo2['-']=minus2_avopt2;
@@ -317,6 +319,7 @@ void fninit() {
   dset(C,"del",knew(7,1,fnnew("del"),180,0,-1));
   dset(C,"bd",knew(7,1,fnnew("bd"),181,0,-1));
   dset(C,"db",knew(7,1,fnnew("db"),182,0,-1));
+  dset(C,"vk",knew(7,1,fnnew("vk"),183,0,-1));
 
   /* dyadic */
   dset(C,"draw",knew(7,2,fnnew("draw"),139,0,-1));

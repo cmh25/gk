@@ -665,6 +665,9 @@ static K* node_reduce_(node *n, int md) {
     kfree(a);kfree(b);kfree(c);kfree(ao);kfree(co);
     return gk;
   }
+  if(!r) {
+    r=kerror("parse");
+  }
   if(rt==98&&E) {
     e=r->v;
     if(n->line!=-1) { e->i=n->line; e->j=n->linei; }
