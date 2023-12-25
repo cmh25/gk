@@ -276,6 +276,7 @@ void fninit() {
   dset(C,"di",knew(37,0,fnnew("{$[@x;. di[. x;(!x)?/y];x@&@[(#x)#1;y;:;0]]}"),1,0,-1));
   dset(C,"gtime",knew(37,1,fnnew("{(dj _ x%86400;100 sv 24 60 60 vs x!86400)}"),1,0,-1));
   dset(C,"ltime",knew(37,1,fnnew("{gtime lt x}"),1,0,-1));
+  dset(C,"tl",knew(37,1,fnnew("{t+x-lt t:x+x-lt x}"),1,0,-1));
   dset(C,"mul",knew(37,0,fnnew("{x dot\\y}"),1,0,-1));
   dset(C,"inv",knew(37,0,fnnew("{((2##*x)#1,&#*x) lsq x}"),1,0,-1));
   dset(C,"choose",knew(37,0,fnnew("{rint exp lgamma[1+x]-lgamma[1+y]+lgamma[1+x-y]}"),1,0,-1));
