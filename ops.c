@@ -2246,6 +2246,7 @@ K* help1_(K *a, char *av) {
     fprintf(stderr,""
 "\\d [d|^]  k directory [go to]\n"
 "\\e [0|1]  error flag [off|on]\n"
+"\\l f      load script f\n"
 "\\p [n]    print precision\n"
 "\\t x      time in milliseconds to execute x\n"
 "\\v        variables\n"

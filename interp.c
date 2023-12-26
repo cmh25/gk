@@ -4,12 +4,9 @@
 #include "p.h"
 #include "ops.h"
 #include "scope.h"
-#ifdef _WIN32
-#include "unistd.h"
-#else
-#include <unistd.h>
-#endif
 #include "fn.h"
+#include <errno.h>
+#include <string.h>
 
 int ecount;
 
@@ -44,12 +41,8 @@ K* load(char *fnm) {
   int i,j,c,f,m=256;
   node *a;
   pgs *s;
-  if(access(fnm,F_OK)) fprintf(stderr,"%s: file not found\n",fnm);
-  else if(access(fnm,R_OK)) fprintf(stderr,"%s: permission denied\n",fnm);
-  else fp=fopen(fnm,"r");
-  if(!fp) return 0;
-  //fp=fopen(fnm,"r");
-  //if(!fp) return ferr(fnm,errno);
+  fp=fopen(fnm,"r");
+  if(!fp) { fprintf(stderr,"%s: %s\n",fnm,strerror(errno)); return 0; }
   if(!fnames) {
     fnamesm=2;
     fnames=xmalloc(fnamesm*sizeof(char*));
