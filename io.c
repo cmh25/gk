@@ -49,7 +49,7 @@ K* bzcolon1_(K *a, char *av) {
   if(at==3) printf("%c", a->i);
   else if(at==-3) DO(ac,putchar(v3(a)[i]))
   else if(at==0) {
-    DO(ac, if(v0(a)[i]->t!=-3) kerror("type"))
+    DO(ac, if(v0(a)[i]->t!=-3) return kerror("type"))
     DO(ac, s=v3(v0(a)[i]); DO2(v0(a)[i]->c, putchar(s[j]));putchar('\n'))
   }
   else return kerror("type");

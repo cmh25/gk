@@ -1,24 +1,4 @@
-show:{[t]                                 / show
- if[(@*t[])|1<#?#'t[]                     / if not a table
-  :((-|/#'$k)$k:!t),/" : ",/5:'t[]]       / use dict display
- i:(^t[])1                                / count
- j:@[t;nul;{(1|i)#x}]                     / empty
- f:{$[4:x;x;1_,/" ",/x]}                  / nested
- k:f''+$+j[]                              / data
- l:+,$!j                                  / labels
- m:1 -1(4:'t[])lin 0 -4                   / data justifications
- n:(|/#')'{x,y}'[l;k]                     / widths
- l:" ",//(-n)$l                           / padded labels
- k:" ",//(m*n)$k                          / padded data
- o:+," ",/n#\"-"                          / separators
- p:&-2=4:'t[]                             / where float
- p@:&{|/"."in/x}'k p                      / where decimals
- q:(*&)''"."=k p                          / where decimals in
- r:q-&/'q dv\0                            / rotation matrix
- k:.[k;(p;);{y!x};r]                      / align on decimals
- t:{x,y,z}'[l;o;k]                        / pre result
- s:{,/t[;x]}'!#*t                         / result
- s}                                       / matrix
+\l show.k
 
 c:10
 
@@ -33,9 +13,9 @@ e.b:6 6 3 4 4 7 3 2 8 7
 e.c:6 6 5 4 5 2 8 6 6 0
 
 "d"
-if[c<101;`0:show d]
+if[c<101;show d]
 "e"
-if[c<101;`0:show e]
+if[c<101;show e]
 
 "select"
 i:&2=d`a
@@ -43,7 +23,7 @@ t:.()
 t.a:d[`a;i]
 t.b:d[`b;i]
 t.c:d[`c;i]
-if[c<101;`0:show t]
+if[c<101;show t]
 
 "sort"
 i:<d.a
@@ -51,7 +31,7 @@ t:.()
 t.a:d[`a;i]
 t.b:d[`b;i]
 t.c:d[`c;i]
-if[c<101;`0:show t]
+if[c<101;show t]
 
 "tabulate"
 g:=d`a
@@ -59,7 +39,7 @@ r:+/'g
 t:.()
 t.a:d[`a;*'g]
 t.c:r
-if[c<101;`0:show t]
+if[c<101;show t]
 
 "link"
 t:.()
@@ -72,11 +52,11 @@ eb:e[`b],nul
 ec:e[`c],nul
 t.eb:eb[i]
 t.ec:ec[i]
-if[c<101;`0:show t]
+if[c<101;show t]
 
 "willbe"
 t:d
 t[`d]:t[`a]%t`b
-if[c<101;`0:show t]
+if[c<101;show t]
 
 \\

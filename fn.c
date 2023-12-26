@@ -135,6 +135,7 @@ void fninit() {
   dt1[181]=bd1_;
   dt1[182]=db1_;
   dt1[183]=vk1_;
+  dt1[184]=load1_;
 
   dt2['+']=plus2_;
   dt2['-']=minus2_;

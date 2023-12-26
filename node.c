@@ -168,7 +168,7 @@ static K* reduce17(K* c17, node *n) {
     }
     kfree(r);
     ecount++;
-    r=interp(0,1,0);
+    r=interp(0);
     if(rt==7&&((fn*)r->v)->i==':') {
       kfree(r);
       if(ct==17) r=kref(((fn*)c->v)->r);
@@ -366,6 +366,7 @@ static K* node_reduce_(node *n, int md) {
   else if(at==57) { /* +: */
     if(md) {
       if(ct==17) c=reduce17(c,n);
+      if(a7->r) kfree(a7->r);
       a7->r=kref(c);
       r=kref(a);
     }
@@ -684,7 +685,7 @@ static K* node_reduce_(node *n, int md) {
     }
     kfree(r);
     ecount++;
-    r=interp(0,1,0);
+    r=interp(0);
     if(rt==7&&((fn*)r->v)->i==':') {
       kfree(r);
       if(ct==17) r=kref(((fn*)c->v)->r);

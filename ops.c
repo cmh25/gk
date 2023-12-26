@@ -21,6 +21,7 @@
 #include "fn.h"
 #include "mc.h"
 #include "adcd.h"
+#include "interp.h"
 
 #ifdef _WIN32
 #define strtok_r strtok_s
@@ -1671,6 +1672,7 @@ K* unique_(K *a, char *av) {
     break;
   case -3:
     r=kv3(ac);
+    if(!ac) return r;
     c=v3(a);c--;
     pr=v3(r);
     DO(ac, c++; if(!hc[*c]) { hc[*c]=1; *pr++=*c; j++; })
@@ -2333,4 +2335,10 @@ K* db1_(K *a, char *av) {
   memcpy(h,a->v,4);
   s=4+(char*)a->v;
   return deserialize(&s);
+}
+
+K* load1_(K *a, char *av) {
+  if(at!=4) return kerror("type");
+  load(a4);
+  return null;
 }

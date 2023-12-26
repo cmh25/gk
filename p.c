@@ -555,8 +555,7 @@ static int gsym_() {
       break;
     case 1:
       --p;
-      c=*p;
-      *p=0;
+      c=*p; *p=0;
       ss=xunesc(q);
       *p=c;
       if(*p=='"')p++;
@@ -564,8 +563,7 @@ static int gsym_() {
     case 2:
       if(*p=='\\') ++p;
       else if(*p=='"') {
-        c=*p;
-        *p=0;
+        c=*p; *p=0;
         ss=xunesc(q);
         *p=c;
         p++;
@@ -633,8 +631,7 @@ static int gc(pgs *pgs) {
       break;
     case 1: /* accept */
       --p;
-      c=*p;
-      *p=0;
+      c=*p; *p=0;
       ss=xunesc(q);
       if(strlen(ss)==1) { push(pgs,T018,node_new(0,0,knew(3,0,0,*ss,0,0))); xfree(ss); }
       else if(strlen(ss)==0) { push(pgs,T018,node_new(0,0,knew(-3,0,0,0,0,0))); xfree(ss); }
@@ -663,8 +660,7 @@ static int gname(pgs *pgs) {
       else break;
     }
   }
-  c=*p;
-  *p=0;
+  c=*p; *p=0;
   push(pgs,T018,node_newli(0,0,knew(4,0,sp(q),0,0,0),linei,p-ln));
   *p=c;
   return 1;
@@ -684,8 +680,7 @@ static int gv(pgs *pgs) {
       else break;
     }
   }
-  c=*p;
-  *p=0;
+  c=*p; *p=0;
   push(pgs,T018,node_newli(0,0,knew(99,0,sp(q),0,0,0),linei,p-ln));
   *p=c;
   return 1;
@@ -696,8 +691,7 @@ static int gp(pgs *pgs) {
   int a=0;
   q=p++;
   if(*p==':') a=1; /* indicate +: */
-  c=*p;
-  *p=0;
+  c=*p; *p=0;
   if(a) push(pgs,T019,node_newli(0,0,knew(57,0,fnnew(q),*q,0,0),linei,p-ln));
   else push(pgs,T019,node_newli(0,0,knew(7,0,fnnew(q),*q,0,0),linei,p-ln));
   *p=c;
@@ -718,8 +712,7 @@ static int gf(pgs *pgs) {
       else if(*p=='{') fc++;
       break;
     case 1: /* accept */
-      c=*p;
-      *p=0;
+      c=*p; *p=0;
       f=fnnew(q);
       push(pgs,T019,node_new(0,0,knew(37,0,f,0,0,0)));
       *p=c;
@@ -735,8 +728,7 @@ static int gav(pgs *pgs) {
   char *q,c;
   q=p++;
   while(*p=='\''||*p=='/'||*p=='\\') ++p;
-  c=*p;
-  *p=0;
+  c=*p; *p=0;
   push(pgs,T020,node_new(0,0,knew(47,strlen(q),xstrdup(q),0,0,0)));
   *p=c;
   return 1;
@@ -749,8 +741,7 @@ static int gwhile(pgs *pgs) {
   q=p;
   while(1) {
     if(*p==']'&&fc==0) {
-      c=*p;
-      *p=0;
+      c=*p; *p=0;
       push(pgs,T018,node_new(0,0,knew(80,0,q,0,0,0)));
       *p=c;
       ++p; /* ] */
@@ -770,8 +761,7 @@ static int gdo(pgs *pgs) {
   q=p;
   while(1) {
     if(*p==']'&&fc==0) {
-      c=*p;
-      *p=0;
+      c=*p; *p=0;
       push(pgs,T018,node_new(0,0,knew(81,0,q,0,0,0)));
       *p=c;
       ++p; /* ] */
@@ -791,8 +781,7 @@ static int gif(pgs *pgs) {
   q=p;
   while(1) {
     if(*p==']'&&fc==0) {
-      c=*p;
-      *p=0;
+      c=*p; *p=0;
       push(pgs,T018,node_new(0,0,knew(82,0,q,0,0,0)));
       *p=c;
       ++p; /* ] */
@@ -812,8 +801,7 @@ static int gcond(pgs *pgs) {
   q=p;
   while(1) {
     if(*p==']'&&fc==0) {
-      c=*p;
-      *p=0;
+      c=*p; *p=0;
       push(pgs,T018,node_new(0,0,knew(83,0,q,0,0,0)));
       *p=c;
       ++p; /* ] */
@@ -904,7 +892,7 @@ static int lex(pgs *pgs) {
       q=p;
       if(isdigit(*p)) {
         while(isdigit(*p))p++;
-        c=*p;
+        c=*p; *p=0;
         err=xatoi(q);
         if(!err)err=0;
         push(pgs,T018,node_new(0,0,knew(1,0,0,err,0,0)));
@@ -920,7 +908,7 @@ static int lex(pgs *pgs) {
       q=p;
       if(isdigit(*p)) {
         while(isdigit(*p))p++;
-        c=*p;
+        c=*p; *p=0;
         prec=xatoi(q);
         if(!prec)prec=17;
         push(pgs,T018,node_new(0,0,knew(1,0,0,prec,0,0)));
@@ -940,6 +928,17 @@ static int lex(pgs *pgs) {
       if(isalpha(*p)||*p=='.'&&isalpha(p[1])) gname(pgs);
       else if(*p=='^') { push(pgs,T018,node_new(0,0,knew(3,0,0,'^',0,0))); ++p; }
       else push(pgs,T018,node_new(0,0,null));
+    }
+    else if(*p=='\\'&&*(p+1)=='l') {
+      push(pgs,T019,node_newli(0,0,knew(7,0,fnnew("\\l"),184,0,0),linei,p-ln));
+      p+=2;
+      while(*p==' ')p++;
+      q=p;
+      while(*p&&*p!='\n')p++;
+      c=*p; *p=0;
+      if(strlen(q )) push(pgs,T018,node_newli(0,0,knew(4,0,sp(q),0,0,0),linei,p-ln));
+      else push(pgs,T018,node_new(0,0,null));
+      *p=c;
     }
     else if(*p=='`'&&p[1]=='0'&&p[2]==':') { p+=3;  push(pgs,T019,node_new(0,0,knew(7,0,fnnew("`0:"),140,0,0))); }
     else if(*p=='`') gsym(pgs);

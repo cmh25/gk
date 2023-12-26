@@ -74,4 +74,6 @@ K* help1_(K *a, char *av);
 K* bd1_(K *a, char *av);
 K* db1_(K *a, char *av);
 
+K* load1_(K *a, char *av);
+
 #endif /* OPS_H */

@@ -7,10 +7,10 @@
 #include "interp.h"
 
 int main(int argc, char **argv) {
-  int interactive = isatty(fileno(stdin));
-  if(interactive) fprintf(stderr, "gk v004rc\n\n");
+  K *r;
+  if(isatty(fileno(stdin))) fprintf(stderr, "gk v004rc\n\n");
   kinit();
-  if(argc>1) interp(argv[1],interactive,1);
-  else interp(0,interactive,1);
+  if(argc>1) r=load(argv[1]);
+  interp(1);
   return 0;
 }
