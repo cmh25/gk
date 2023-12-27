@@ -109,15 +109,32 @@ void kfree(K *s) {
   else s->r--;
 }
 
-void kdump() {
-  int i;
+void kdump(int l) {
+  int i,t,c=0,m=4,n;;
   K *v;
-  dict *d = cs->d;
-  K *keys = dkeys(d);
-  for(i=0;i<keys->c;i++) {
-    v = d->v[i];
-    printf("n:[%4s] t:[%2d] c:[%10d] v:[%14p] i:[%10d] f:[%10f] r:[%d] k:[%14p]\n",
-      d->k[i], v->t, v->c, (void*)v->v, v->i, v->f, v->r, v);
+  dict *d=cs->d;
+  K *keys=dkeys(d);
+  char *s,*p;
+  if(l) {
+    DO(keys->c,n=strlen(d->k[i]);if(m<n)m=n);
+    for(i=0;i<keys->c;i++) {
+      v=d->v[i];
+      t=v->t; if(t==27||t==37||t==67||t==77||t==87) t=7;
+      if(v->c>100) { c=v->c; v->c=100; }
+      s=kprint5(v,"",0,0);
+      if(c) v->c=c;
+      s=xrealloc(s,strlen(s)+3);
+      if(strlen(s)>30) { s[30]=0; strcat(s,"..."); }
+      if(t==5||t==0) DO(strlen(s),if(s[i]=='\n')s[i]=';');
+      if((p=strchr(s,'\n'))) { *p=0; strcat(s," ..."); }
+      printf("%-*s t:[%2d] c:[%10d] r:[%2d] %s\n",m,d->k[i],t,v->c,v->r,s);
+      xfree(s);
+    }
+  }
+  else {
+    if(keys->c) printf("%s",d->k[0]);
+    for(i=1;i<keys->c;i++) printf(" %s",d->k[i]);
+    printf("\n");
   }
   kfree(keys);
 }

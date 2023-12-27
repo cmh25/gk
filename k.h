@@ -123,7 +123,7 @@ extern K *D,*one,*zero,*null,*inull;
 void kinit();
 K* knew(char t, unsigned int c, void *v, int i, double f, int r);
 void kfree(K *k);
-void kdump();
+void kdump(int l);
 static inline K* kref(K *k) { if(k->r>=0) k->r++; else if(k->r<=-2) k->r--; return k; }
 void kprint(K *p, char *s, int plevel, int nl);
 char* kprint_(K *p, char *s, int plevel, int nl);

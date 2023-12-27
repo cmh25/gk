@@ -36,6 +36,7 @@ scope* scope_newk(scope *p, char *k) { return scope_new_(p,k); }
 
 void scope_free(scope *s) {
   int i;
+  if(s->k) return;
   for(i=0;i<SM;i++) {
     if(!scopea[i]) break;
     if(scopea[i] && scopea[i] == s) scopea[i]=0;

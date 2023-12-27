@@ -521,7 +521,7 @@ K* fne2(K *f, K *a, char *av) {
   if(a&&!at) DO(ac,SG2(v0(a)[i]);if(v0(a)[i]->t==98)return v0(a)[i])
 
   ff->s=scope_cp(ff->s_);
-  ff->s->p=cs; /* dynamic scope */
+  if(!cs->k) ff->s->p=cs; /* function in function */
   if(at==11) { DO(ac,if(v0(a)[i]->t==16)++e); n=ac; }
   else if(at==10) DO(ac,s=v0(a)[i];DO2(s->c,++n;if(v0(s)[j]->t==16)++e))
   else n=1;

@@ -1,4 +1,3 @@
-//#include "sys.h"
 #include <stdio.h>
 #include <time.h>
 #ifndef _WIN32
@@ -342,7 +341,7 @@ K* draw2_(K *a, K *b, char *av) {
       r=kv0(v1(a)[0]);
       if(a0->c == 1) {a_1=first_(a0,0);kfree(a0);}
       else a_1 = a0;
-      DO(rc, v0(r)[i] = draw2_(a_1,b,av))
+      DO(rc, v0(r)[i]=draw2_(a_1,b,av))
       kfree(a_1);
       if(z) deal(0,0,2);
       break;
@@ -353,8 +352,7 @@ K* draw2_(K *a, K *b, char *av) {
       kfree(am); kfree(bm);
       break;
     default: return kerror("type");
-    }
-    break;
+    } break;
   default: return kerror("type");
   }
 
@@ -364,7 +362,6 @@ MC2A(draw2_);
 
 K* ci1_(K *a, char *av) {
   K *r=0;
-
   switch(at) {
   case  1: r=k3(a1%256); break;
   case -1: r=kv3(ac); DO(rc, v3(r)[i]=v1(a)[i]%256); break;
@@ -376,18 +373,11 @@ MC1A(ci1_);
 
 K* ic1_(K *a, char *av) {
   K *r=0;
-  char *s=0;
-  int n;
-
+  unsigned char *s=0;
   switch(at) {
   case  3: r=k1(a1); break;
   case  0: r=kv0(ac); DO(ac, v0(r)[i]=ic1_(v0(a)[i],av)) break;
-  case -3:
-    s=a->v;
-    n=ac;
-    if(n==1) r=k1((unsigned char)s[0]);
-    else { r=kv1(n); DO(n, v1(r)[i]=(unsigned char)s[i]) }
-    break;
+  case -3: s=a->v; if(ac==1) r=k1(s[0]); else { r=kv1(ac); DO(ac,v1(r)[i]=s[i]) } break;
   default: return kerror("type");
   }
   return r->t ? r : knorm(r);
@@ -397,10 +387,9 @@ MC1A(ic1_);
 K* dj1_(K *a, char *av) {
   K *r=0,*am=0;
   int year,month,day,g,b,c,d,e,m;
-
   switch(at) {
   case  1:
-    g = a1 + 32044 + 2464329;//resynch epoch to 20350101
+    g = a1 + 32044 + 2464329; /* 20350101 */
     b = (4*g+3)/146097;
     c = g - (b*146097)/4;
     d = (4*c+3)/1461;
@@ -412,13 +401,12 @@ K* dj1_(K *a, char *av) {
     r = k1(year*10000+month*100+day);
     break;
   case -1:
-    am = kmix(a);
-    r = kv0(am->c); DO(rc, v0(r)[i]=dj1_(v0(am)[i],av));
+    am=kmix(a);
+    r=kv0(am->c); DO(rc,v0(r)[i]=dj1_(v0(am)[i],av));
     kfree(am);
     break;
   default: return kerror("type");
   }
-
   return r->t ? r : knorm(r);
 }
 MC1A(dj1_);
@@ -426,7 +414,6 @@ MC1A(dj1_);
 K* jd1_(K *a, char *av) {
   K *r=0,*am=0;;
   int year,month,day,y,m,g;
-
   switch(at) {
   case  1:
     year = a1/10000;
@@ -438,13 +425,12 @@ K* jd1_(K *a, char *av) {
     r = k1(day + (153*m+2)/5 + y*365 + y/4 - y/100 + y/400 - 32045 - 2464329);
     break;
   case -1:
-    am = kmix(a);
-    r = kv0(am->c); DO(rc, v0(r)[i]=jd1_(v0(am)[i],av));
+    am=kmix(a);
+    r=kv0(am->c); DO(rc,v0(r)[i]=jd1_(v0(am)[i],av));
     kfree(am);
     break;
   default: return kerror("type");
   }
-
   return r->t ? r : knorm(r);
 }
 MC1A(jd1_);
@@ -453,7 +439,6 @@ K* lt1_(K *a, char *av) {
   K *r=0,*am=0;
   time_t t,g,o;
   struct tm *tm;
-
   switch(at) {
   case  1:
     t = a1+2051222400l; /* 2035-1970 */
@@ -473,7 +458,6 @@ K* lt1_(K *a, char *av) {
     break;
   default: return kerror("type");
   }
-
   return r->t ? r : knorm(r);
 }
 MC1A(lt1_);
@@ -796,13 +780,13 @@ K* rot2_(K *a, K *b, char *av) {
   case  1:
     switch(bt) {
     case  1: r=k1(ROT(a1,b1)); break;
-    case -1: r=kv1(bc); DO(bc, v1(r)[i] = ROT(a1,v1(b)[i])) break;
+    case -1: r=kv1(bc); DO(bc, v1(r)[i]=ROT(a1,v1(b)[i])) break;
     default: return kerror("type");
     } break;
   case -1:
     switch(bt) {
-    case  1: r=kv1(ac); DO(ac, v1(r)[i] = ROT(v1(a)[i],b1);) break;
-    case -1: r=kv1(ac); DO(ac, v1(r)[i] = ROT(v1(a)[i],v1(b)[i]);) break;
+    case  1: r=kv1(ac); DO(ac, v1(r)[i]=ROT(v1(a)[i],b1);) break;
+    case -1: r=kv1(ac); DO(ac, v1(r)[i]=ROT(v1(a)[i],v1(b)[i]);) break;
     default: return kerror("type");
     } break;
   default: return kerror("type");
@@ -1085,7 +1069,6 @@ MC2A(lsq2_);
 
 K* atn2_(K *a, K *b, char *av) {
   K *r=0;
-
   switch(at) {
   case -1:
     switch(bt) {
@@ -1272,7 +1255,7 @@ MC1A(kv1_);
 
 K* vk1_(K *a, char *av) {
   if(at) return kerror("type");
-  return knorm(a);
+  return knorm(kref(a));
 }
 MC1A(vk1_);
 

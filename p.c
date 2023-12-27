@@ -639,7 +639,7 @@ static int gc(pgs *pgs) {
       *p=c;
       p++;
       return 1;
-    case 3: return 0; /* error */
+    default: return 0; /* error */
     }
     ++p;
   }
@@ -717,7 +717,7 @@ static int gf(pgs *pgs) {
       push(pgs,T019,node_new(0,0,knew(37,0,f,0,0,0)));
       *p=c;
       return 1;
-    case 3: return 0; /* error */
+    default: return 0; /* error */
     }
     ++p;
   }
@@ -734,75 +734,15 @@ static int gav(pgs *pgs) {
   return 1;
 }
 
-static int gwhile(pgs *pgs) {
+static int gcon(pgs *pgs, int n, int t) {
   char *q,c;
   int fc=0;
-  p+=6; /* while[ */
+  p+=n; /*  while[ do[ if[ $[ */
   q=p;
   while(1) {
     if(*p==']'&&fc==0) {
       c=*p; *p=0;
-      push(pgs,T018,node_new(0,0,knew(80,0,q,0,0,0)));
-      *p=c;
-      ++p; /* ] */
-      return 1;
-    }
-    else if(*p==']') fc--;
-    else if(*p=='[') fc++;
-    ++p;
-  }
-  return 1;
-}
-
-static int gdo(pgs *pgs) {
-  char *q,c;
-  int fc=0;
-  p+=3; /* do[ */
-  q=p;
-  while(1) {
-    if(*p==']'&&fc==0) {
-      c=*p; *p=0;
-      push(pgs,T018,node_new(0,0,knew(81,0,q,0,0,0)));
-      *p=c;
-      ++p; /* ] */
-      return 1;
-    }
-    else if(*p==']') fc--;
-    else if(*p=='[') fc++;
-    ++p;
-  }
-  return 1;
-}
-
-static int gif(pgs *pgs) {
-  char *q,c;
-  int fc=0;
-  p+=3; /* if[ */
-  q=p;
-  while(1) {
-    if(*p==']'&&fc==0) {
-      c=*p; *p=0;
-      push(pgs,T018,node_new(0,0,knew(82,0,q,0,0,0)));
-      *p=c;
-      ++p; /* ] */
-      return 1;
-    }
-    else if(*p==']') fc--;
-    else if(*p=='[') fc++;
-    ++p;
-  }
-  return 1;
-}
-
-static int gcond(pgs *pgs) {
-  char *q,c;
-  int fc=0;
-  p+=2; /* $[ */
-  q=p;
-  while(1) {
-    if(*p==']'&&fc==0) {
-      c=*p; *p=0;
-      push(pgs,T018,node_new(0,0,knew(83,0,q,0,0,0)));
+      push(pgs,T018,node_new(0,0,knew(t,0,q,0,0,0)));
       *p=c;
       ++p; /* ] */
       return 1;
@@ -849,10 +789,10 @@ static int lex(pgs *pgs) {
     else if(*p=='[') { ++p; push(pgs,T021,0); }
     else if(*p==']') { ++p; push(pgs,T022,0); }
     else if(*p=='{') gf(pgs);
-    else if(!strncmp(p,"while[",6)) gwhile(pgs);
-    else if(!strncmp(p,"do[",3)) gdo(pgs);
-    else if(!strncmp(p,"if[",3)) gif(pgs);
-    else if(!strncmp(p,"$[",2)) gcond(pgs);
+    else if(!strncmp(p,"while[",6)) gcon(pgs,6,80);
+    else if(!strncmp(p,"do[",3)) gcon(pgs,3,81);
+    else if(!strncmp(p,"if[",3)) gcon(pgs,3,82);
+    else if(!strncmp(p,"$[",2)) gcon(pgs,2,83);
     else if(!strncmp("0:",p,2)) { p+=2; push(pgs,T019,node_newli(0,0,knew(7,0,fnnew("0:"),128,0,0),linei,p-ln)); }
     else if(!strncmp("1:",p,2)) { p+=2; push(pgs,T019,node_newli(0,0,knew(7,0,fnnew("1:"),129,0,0),linei,p-ln)); }
     else if(!strncmp("2:",p,2)) { p+=2; push(pgs,T019,node_newli(0,0,knew(7,0,fnnew("2:"),131,0,0),linei,p-ln)); }
@@ -917,9 +857,15 @@ static int lex(pgs *pgs) {
       else push(pgs,T018,node_new(0,0,null));
     }
     else if(*p=='\\'&&*(p+1)=='v') {
-      p+=2;
       push(pgs,T019,node_new(0,0,knew(7,0,fnnew("\\v"),143,0,0)));
-      push(pgs,T018,node_new(0,0,null));
+      p+=2;
+      while(*p==' ')p++;
+      q=p;
+      while(*p&&*p!='\n')p++;
+      c=*p; *p=0;
+      if(strlen(q )) push(pgs,T018,node_newli(0,0,knew(4,0,sp(q),0,0,0),linei,p-ln));
+      else push(pgs,T018,node_new(0,0,null));
+      *p=c;
     }
     else if(*p=='\\'&&*(p+1)=='d') {
       push(pgs,T019,node_newli(0,0,knew(7,0,fnnew("\\d"),177,0,0),linei,p-ln));

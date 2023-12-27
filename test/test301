@@ -1,0 +1,17 @@
+a:1
+b:21234123412341.0
+c:"a"
+d:`asdfasdkfajsdfkjasdfjalsdfj
+e:.((`a;1);(`b;2))
+f:nul
+g:{x+y}[1]
+h:!100
+i:.0+!100
+j:"aksdfasdjfaksdjflasjdfljasdlfjas"
+k:10#`aasdf`b`asdf
+l:.((`a;1);(`b;.());(`c;2.3);(`d;"asdfa"))
+m:{[a;b;c;d;e;f;g;h]a,b,c,d,e,f,g,h}
+n:(1;2.0;"a";`b;.();;{x+y};!10;.0+!10)
+\v
+\v -l
+\\
