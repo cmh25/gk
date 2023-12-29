@@ -5,6 +5,7 @@
 #include <errno.h>
 #include <limits.h>
 #include <math.h>
+#include <ctype.h>
 
 void* xmalloc(size_t s) {
   void *p=0;
@@ -87,44 +88,66 @@ uint64_t xfnv1a(char *v, uint64_t n) {
   return h;
 }
 
-char* xesc(char *s) {
-  int i,j=0,n;
-  char *esc=xmalloc(1+strlen(s)*2);
-  if(!s) return 0;
-  n=strlen(s);
+char* xesc(char *p) {
+  char *ss;
+  int n,i,j=0;
+  if(!p) return 0;
+  n=strlen(p);
+  ss=xmalloc(1+strlen(p)*4);
   for(i=0;i<n;i++) {
-    if(s[i]<32||s[i]>126) {
-      if(s[i]=='\b') { esc[j++]='\\'; esc[j++]='b'; }
-      else if(s[i]=='\t') { esc[j++]='\\'; esc[j++]='t'; }
-      else if(s[i]=='\n') { esc[j++]='\\'; esc[j++]='n'; }
-      else if(s[i]=='\r') { esc[j++]='\\'; esc[j++]='r'; }
-      else { esc[j++]='\\'; esc[j++]=s[i]; }
+    if(p[i]<32||p[i]>126) {
+      if(p[i]=='\b') { ss[j++]='\\'; ss[j++]='b'; }
+      else if(p[i]=='\t') { ss[j++]='\\'; ss[j++]='t'; }
+      else if(p[i]=='\n') { ss[j++]='\\'; ss[j++]='n'; }
+      else if(p[i]=='\r') { ss[j++]='\\'; ss[j++]='r'; }
+      else j+=sprintf(&ss[j],"\\%03o",(unsigned char)p[i]);
     } else {
-      if(s[i]=='"') { esc[j++]='\\'; esc[j++]='"'; }
-      else if(s[i]=='\\') { esc[j++]='\\'; esc[j++]='\\'; }
-      else esc[j++]=s[i];
+      if(p[i]=='"') { ss[j++]='\\'; ss[j++]='"'; }
+      else if(p[i]=='\\') { ss[j++]='\\'; ss[j++]='\\'; }
+      else ss[j++]=p[i];
     }
   }
-  esc[j]=0;
-  return esc;
+  ss[j]=0;
+  return ss;
 }
-char* xunesc(char *s) {
-  int i,j=0,n;
-  char *esc=xmalloc(1+strlen(s));
-  if(!s) return 0;
-  n=strlen(s);
+char* xunesc(char *p) {
+  char *ss;
+  int n,i,j=0,s=0;
+  unsigned char o;
+  if(!p) return 0;
+  n=strlen(p);
+  ss=xmalloc(1+n);
   for(i=0;i<n;i++) {
-    if(s[i]=='\\') {
-      i++;
-      if(s[i]=='b') esc[j++]='\b';
-      else if(s[i]=='t') esc[j++]='\t';
-      else if(s[i]=='n') esc[j++]='\n';
-      else if(s[i]=='r') esc[j++]='\r';
-      else if(s[i]=='"') esc[j++]='\"';
-      else if(s[i]=='\\') esc[j++]='\\';
+    switch(s) {
+    case 0:
+      if(*p=='\\') s=1;
+      else ss[j++]=*p;
+      break;
+    case 1: /* escape */
+      if(*p=='b') { ss[j++]='\b'; s=0; }
+      else if(*p=='t') { ss[j++]='\t'; s=0; }
+      else if(*p=='n') { ss[j++]='\n'; s=0; }
+      else if(*p=='r') { ss[j++]='\r'; s=0; }
+      else if(*p=='"') { ss[j++]='"'; s=0; }
+      else if(*p=='\\') { ss[j++]='\\'; s=0; }
+      else if(isdigit(*p)&&*p<='7') { o=*p-48; s=2; } /* octal */
+      else { ss[j++]=*p; s=0; }
+      break;
+    case 2: /* octal */
+      if(isdigit(*p)&&*p<='7') { o*=8; o+=*p-48; s=3; }
+      else if(*p=='\\') { ss[j++]=o; s=1; }
+      else { ss[j++]=o; ss[j++]=*p; s=0; }
+      break;
+    case 3: /* octal */
+      if(isdigit(*p)&&*p<='7') { o*=8; o+=*p-48; ss[j++]=o; s=0; }
+      else if(*p=='\\') { ss[j++]=o; s=1; }
+      else { ss[j++]=o; ss[j++]=*p; s=0; }
+      break;
+    default: return 0; /* error */
     }
-    else esc[j++]=s[i];
+    ++p;
   }
-  esc[j]=0;
-  return esc;
+  if(s==2||s==3) ss[j++]=o;
+  ss[j]=0;
+  return ss;
 }

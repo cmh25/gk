@@ -89,7 +89,8 @@ static int RT[31][4]={
 {T005}
 };
 
-static int RC[31]={1,2,0,2,2,1,1,1,3,0,1,1,1,1,1,0,1,4,0,1,2,1,0,1,1,3,2,0,3,0,1};
+#define RCSIZE 31
+static int RC[RCSIZE]={1,2,0,2,2,1,1,1,3,0,1,1,1,1,1,0,1,4,0,1,2,1,0,1,1,3,2,0,3,0,1};
 int quiet,quiet2,btime;
 
 static void r000(pgs *s) { /* $a > ss */
@@ -405,6 +406,8 @@ static void r030(pgs *s) { /* ee > e */
 static void (*F[31])(pgs *s)={r000,r001,r002,r003,r004,r005,r006,r007,r008,r009,r010,r011,r012,r013,r014,r015,r016,r017,r018,r019,r020,r021,r022,r023,r024,r025,r026,r027,r028,r029,r030};
 
 static void push(pgs *s, int t, node *v) {
+  if(s->tc==s->tm) { s->tm<<=1; s->t=xrealloc(s->t,s->tm*sizeof(int)); }
+  if(s->tc==s->vm) { s->vm<<=1; s->v=xrealloc(s->v,s->vm*sizeof(node*)); }
   s->t[s->tc]=t;
   s->v[s->tc++]=v;
   s->lt=t;
@@ -621,23 +624,47 @@ static int gsym(pgs *pgs) {
 }
 
 static int gc(pgs *pgs) {
-  char *q,c,s=0;
+  char *q,s=0;
+  int j=0,n;
+  unsigned char o;
+  n=32;
+  ss=xmalloc(n);
   q=++p;
   while(1) {
+    if(j>=n-1) { n<<=1; ss=xrealloc(ss,n); }
     switch(s) {
     case 0:
-      if(*p=='"') s=1;
-      else if(*p=='\\') ++p;
+      if(*p=='"') s=10;
+      else if(*p=='\\') s=1;
+      else ss[j++]=*p;
       break;
-    case 1: /* accept */
-      --p;
-      c=*p; *p=0;
-      ss=xunesc(q);
-      if(strlen(ss)==1) { push(pgs,T018,node_new(0,0,knew(3,0,0,*ss,0,0))); xfree(ss); }
-      else if(strlen(ss)==0) { push(pgs,T018,node_new(0,0,knew(-3,0,0,0,0,0))); xfree(ss); }
-      else { push(pgs,T018,node_new(0,0,knew(-3,strlen(ss),ss,0,0,0))); xfree(ss); }
-      *p=c;
-      p++;
+    case 1: /* escape */
+      if(*p=='b') { ss[j++]='\b'; s=0; }
+      else if(*p=='t') { ss[j++]='\t'; s=0; }
+      else if(*p=='n') { ss[j++]='\n'; s=0; }
+      else if(*p=='r') { ss[j++]='\r'; s=0; }
+      else if(*p=='"') { ss[j++]='\"'; s=0; }
+      else if(*p=='\\') { ss[j++]='\\'; s=0; }
+      else if(isdigit(*p)&&*p<='7') { o=*p-48; s=2; } /* octal */
+      else { ss[j++]=*p; s=0; }
+      break;
+    case 2: /* octal */
+      if(isdigit(*p)&&*p<='7') { o*=8; o+=*p-48; s=3; }
+      else if(*p=='\\') { ss[j++]=o; s=1; }
+      else if(*p=='"') { ss[j++]=o; s=10; }
+      else { ss[j++]=o; ss[j++]=*p; s=0; }
+      break;
+    case 3: /* octal */
+      if(isdigit(*p)&&*p<='7') { o*=8; o+=*p-48; ss[j++]=o; s=0; }
+      else if(*p=='\\') { ss[j++]=o; s=1; }
+      else if(*p=='"') { ss[j++]=o; s=10; }
+      else { ss[j++]=o; ss[j++]=*p; s=0; }
+      break;
+    case 10: /* accept */
+      if(j==0) { push(pgs,T018,node_new(0,0,knew(-3,0,0,0,0,0))); }
+      else if(j==1) { push(pgs,T018,node_new(0,0,knew(3,0,0,ss[0],0,0))); }
+      else push(pgs,T018,node_new(0,0,knew(-3,j,ss,0,0,0)));
+      xfree(ss);
       return 1;
     default: return 0; /* error */
     }
@@ -907,6 +934,13 @@ static int lex(pgs *pgs) {
 
 pgs* pgnew() {
   pgs *s=xmalloc(sizeof(pgs));
+  s->Sm=s->Rm=s->Vm=1024;
+  s->tm=s->vm=1024;
+  s->S=xmalloc(s->Sm*sizeof(int));
+  s->R=xmalloc(s->Rm*sizeof(int));
+  s->V=xmalloc(s->Vm*sizeof(node*));
+  s->t=xmalloc(s->tm*sizeof(int));
+  s->v=xmalloc(s->vm*sizeof(node*));
   s->ffli=-1;
   s->fni=-1;
   return s;
@@ -914,6 +948,11 @@ pgs* pgnew() {
 
 void pgfree(pgs *s) {
   if(s->p) xfree(s->p);
+  if(s->S) xfree(s->S);
+  if(s->R) xfree(s->R);
+  if(s->V) xfree(s->V);
+  if(s->t) xfree(s->t);
+  if(s->v) xfree(s->v);
   xfree(s);
 }
 
@@ -924,6 +963,9 @@ node* pgparse(pgs *s) {
   lex(s);
   s->S[++s->si]=T000; /* $a */
   for(i=0;;i++) {
+    if(s->si>=s->Sm-RCSIZE+2) { s->Sm<<=1; s->S=xrealloc(s->S,s->Sm*sizeof(int)); }
+    if(s->ri>=s->Rm-1) { s->Rm<<=1; s->R=xrealloc(s->R,s->Rm*sizeof(int)); }
+    if(s->vi>=s->Vm-1) { s->Vm<<=1; s->V=xrealloc(s->V,s->Vm*sizeof(node*)); }
     if(s->S[s->si]==s->t[s->ti]) {
       s->V[++s->vi]=s->v[s->ti++];
       --s->si;

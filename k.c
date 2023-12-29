@@ -490,7 +490,9 @@ char* kprint_(K *p, char *s, int plevel, int nl) {
       v=vname(v4(p)[0],strlen(v4(p)[0]));
       oc+=sprintf(o+oc,"%s`",s);
       if(!v) oc+=sprintf(o+oc,"\"");
-      oc+=sprintf(o+oc,"%s",v4(p)[0]);
+      e=xesc(v4(p)[0]);
+      oc+=sprintf(o+oc,"%s",e);
+      xfree(e);
       if(!v) oc+=sprintf(o+oc,"\"");
       for(i=1;i<p->c;i++) {
         if(oc<<1 > bs) { bs+=bs0; o=xrealloc(o,bs); }
@@ -498,7 +500,9 @@ char* kprint_(K *p, char *s, int plevel, int nl) {
         v=vname(v4(p)[i],strlen(v4(p)[i]));
         oc+=sprintf(o+oc," `");
         if(!v) oc+=sprintf(o+oc,"\"");
-        oc+=sprintf(o+oc,"%s",v4(p)[i]);
+        e=xesc(v4(p)[i]);
+        oc+=sprintf(o+oc,"%s",e);
+        xfree(e);
         if(!v) oc+=sprintf(o+oc,"\"");
       }
     }
@@ -602,7 +606,7 @@ K* kcp(K *s) {
 
 int vname(char *s, int len) {
   int i,a=1,v=1;
-  if(s[0]=='.') a=0;
+  if(s[0]=='.'&&len>1) a=0;
   for(i=0;i<len;i++) {
     if(a && !isalpha(s[i])) v=0;
     else if(!isalnum(s[i]) && s[i]!='.') v=0;

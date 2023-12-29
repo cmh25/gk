@@ -37,16 +37,18 @@ extern char **fnames;
 extern int fnamesi,fnamesm;
 
 typedef struct {
-  char *p;            /* buffer */
-  int S[10240];       /* state */
-  int R[10240];       /* rules */
-  node *V[10240];     /* values */
-  int si,ri,vi;       /* index */
-  int t[10240],ti,tc; /* tokens, index, count */
-  node *v[10240];     /* token values */
-  int lt;             /* last token */
-  int ffli;           /* function first line index */
-  int fni;            /* filename index */
+  char *p;       /* buffer */
+  int *S;        /* state */
+  int *R;        /* rules */
+  node **V;      /* values */
+  int si,ri,vi;  /* index */
+  int *t,ti,tc;  /* tokens, index, count */
+  node **v;      /* token values */
+  int lt;        /* last token */
+  int ffli;      /* function first line index */
+  int fni;       /* filename index */
+  int Sm,Rm,Vm;  /* max for S R V */
+  int tm,vm;     /* max for t v */
 } pgs;
 
 pgs* pgnew();
