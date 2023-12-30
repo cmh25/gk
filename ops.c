@@ -322,11 +322,13 @@ K* join2_(K *a, K *b, char *av) {
   K *r=0;
   int j=0;
 
-  if(at>0 && bt>0) { r = kv0(2); v0(r)[0] = kcp(a); v0(r)[1] = kcp(b); }
-  else if(at>0 && bt==0) {
-    r=kv0(1+bc); v0(r)[0] = kcp(a); DO(bc, v0(r)[i+1] = kcp(v0(b)[i])); }
-  else if(at==0 && bt>0) {
-    r=kv0(ac+1); DO(ac, v0(r)[i] = kcp(v0(a)[i])) v0(r)[rc-1] = kcp(b); }
+  if(at<=0&&bt<=0) VSIZE(ac+bc)
+  else if(at<=0&&bt>0) VSIZE(ac+1)
+  else if(at>0&&bt<=0) VSIZE(1+bc)
+
+  if(at>0 && bt>0) { r=kv0(2); v0(r)[0]=kcp(a); v0(r)[1]=kcp(b); }
+  else if(at>0 && bt==0) { r=kv0(1+bc); v0(r)[0]=kcp(a); DO(bc,v0(r)[i+1]=kcp(v0(b)[i])); }
+  else if(at==0 && bt>0) { r=kv0(ac+1); DO(ac,v0(r)[i]=kcp(v0(a)[i])) v0(r)[rc-1]=kcp(b); }
   else if(at>0 && bt<0 && bt!=-at) {
     r=kv0(1+bc); v0(r)[0] = kcp(a);
     switch(bt) {
@@ -419,6 +421,7 @@ K* take2_(K *a, K *b, char *av) {
   ai=abs(a->i);
   switch(at) {
   case 1:
+    VSIZE(a1);
     switch(bb->t) {
     case  1: r=kv1(ai); DO(ai, v1(r)[i] = bb->i); break;
     case  2: r=kv2(ai); DO(ai, v2(r)[i] = bb->f); break;
@@ -450,6 +453,7 @@ K* take2_(K *a, K *b, char *av) {
     default: return kerror("type");
     } break;
   case -1:
+    DO(ac,VSIZE(v1(a)[i]));
     if(!gtake) {gtake=bb;gt=1;gtakei=0;}
     a0 = drop2_(one,a,0);
     if(a0->c==1) {a_1=k1(v1(a0)[0]); kfree(a0);}
@@ -1348,7 +1352,7 @@ K* enumerate_(K *a, char *av) {
   }
 
   switch(at) {
-  case  1: r=kv1(a1); DO(a1,v1(r)[i]=i); break;
+  case  1: if(a1<0||a1==INT_MAX) return kerror("domain"); r=kv1(a1); DO(a1,v1(r)[i]=i); break;
   case  2: return kerror("int");
   case  3: p[0]=a3; p[1]=0; r=lsdir(p); break;
   case  5: r=dkeys(a5); break;
@@ -1668,8 +1672,12 @@ K* fourcolon1_(K *a, char *av) {
 
 K* fivecolon1_(K *a, char *av) {
   K *r=0;
+  int n;
   char *s=kprint5(a,"",0,0);
-  r=knew(-3,strlen(s),s,0,0,0);
+  if(s==(char*)-1) return kerror("wsfull");
+  n=strlen(s);
+  VSIZE(n)
+  r=knew(-3,n,s,0,0,0);
   xfree(s);
   return r;
 }

@@ -141,13 +141,13 @@ void kdump(int l) {
 
 
 static char *o=0;
-static int oc=0;
+static size_t oc=0;
 static size_t bs0=10000000;
 static size_t bs=10000000;
 
 void kprint(K *p, char *s, int plevel, int nl) {
   if(o){xfree(o);o=0;oc=0;}
-  char *r = kprint_(p,s,plevel,nl);
+  char *r=kprint_(p,s,plevel,nl);
   printf("%s",r);
   xfree(r);
   if(o){xfree(o);o=0;oc=0;}
@@ -155,7 +155,7 @@ void kprint(K *p, char *s, int plevel, int nl) {
 
 char* kprint5(K *p, char *s, int plevel, int nl) {
   if(o){xfree(o);o=0;oc=0;}
-  char *r = kprint_(p,s,plevel,nl);
+  char *r=kprint_(p,s,plevel,nl);
   if(o){xfree(o);o=0;oc=0;}
   return r;
 }
@@ -425,6 +425,7 @@ char* kprint_(K *p, char *s, int plevel, int nl) {
         else if(v1(p)[i]==INT_MIN) oc+=sprintf(o+oc," 0N");
         else if(v1(p)[i]==INT_MIN+1) oc+=sprintf(o+oc," -0I");
         else oc+=sprintf(o+oc," %d",v1(p)[i]);
+        VSIZE2(oc)
       }
     }
     break;
@@ -455,6 +456,7 @@ char* kprint_(K *p, char *s, int plevel, int nl) {
         else if(isnan(v2(p)[i])) { sprintf(ds, "0n"); add0=0; }
         else if(isinf(v2(p)[i])&&v2(p)[i]<0.0) { sprintf(ds, "-0i"); add0=0; }
         oc+=sprintf(o+oc," %s", ds);
+        VSIZE2(oc)
       }
     }
     break;
@@ -504,6 +506,7 @@ char* kprint_(K *p, char *s, int plevel, int nl) {
         oc+=sprintf(o+oc,"%s",e);
         xfree(e);
         if(!v) oc+=sprintf(o+oc,"\"");
+        VSIZE2(oc)
       }
     }
     break;

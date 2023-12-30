@@ -28,6 +28,10 @@ typedef struct {
 
 extern K *D,*one,*zero,*null,*inull;
 
+/* valid size for vector */
+#define VSIZE(x) do{if((x)==INT_MAX||(x)==INT_MIN||(x)==INT_MIN+1) return kerror("wsfull");}while(0);
+#define VSIZE2(x) do{if((x)>=INT_MAX) return (char*)-1;}while(0);
+
 /* creators */
 #define k1(v)  knew(1,0,0,(v),0,0)
 #define k2(v)  knew(2,0,0,0,(v),0)

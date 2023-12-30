@@ -324,12 +324,16 @@ K* draw2_(K *a, K *b, char *av) {
     else { p=kv2(1); draw(p,b1); r=k2(v2(p)[0]); kfree(p); }
     break;
   case 1:
+    VSIZE(a1);
+    if(a1<0) return kerror("wsfull");
     if(bt!=1) return kerror("int");
     else if(b1>0) { r=kv1(a1); draw(r,b1); }
     else if(b1<0) { r=kv1(a1); deal(r,abs(b1),1); }
     else { r=kv2(a1); draw(r,b1); }
     break;
   case -1:
+    DO(ac,VSIZE(v1(a)[i]))
+    DO(ac,if(a1<0) return kerror("wsfull"))
     switch(bt) {
     case 1:
       if(b1<0) {
