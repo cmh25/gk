@@ -349,9 +349,10 @@ K* eachprior(K *f, K *a, K *b, char *av) {
 
 K* slide(K *f, K *a, K *b, char *av) {
   K *r=0,*bm=0;
-  int n,d,s,v,m;;
+  int n,d,s,v,m;
   K*(*ff)(K*,K*,char*)=dt2[ffi];
   if(at!=1) return kerror("type");
+  if(!a1) return kerror("type");
   if(bt<=0&&!bc) return kv0(0);
   if(at<=0&&!ac) return kv0(0);
   if(bt<0) bm=kmix(b); else bm=b;
@@ -364,21 +365,17 @@ K* slide(K *f, K *a, K *b, char *av) {
 
   n=strlen(av);
   if(bt>0) {
-    if(n) r=avdo(f,b,a,av);
-    else r=ff(b,a,av);
+    if(n) r=avdo(f,b,b,av);
+    else r=ff(b,b,av);
   }
   else {
-    r = kv0(m);
+    r=kv0(m);
     if(n) {
       v0(r)[0]=avdo(f,v0(bm)[0],a,av); EC(v0(r)[0]);
       DO(bc-1, v0(r)[i+1]=avdo(f,v0(bm)[i+1],v0(bm)[i],av); EC(v0(r)[i+1]))
     }
-    else if(d<0) {
-      DO(m, v0(r)[i]=ff(v0(bm)[i*s+1],v0(bm)[i*s],0); EC(v0(r)[i]))
-    }
-    else if(d>0) {
-      DO(m, v0(r)[i]=ff(v0(bm)[i*s],v0(bm)[i*s+1],0); EC(v0(r)[i]))
-    }
+    else if(d<0) DO(m, v0(r)[i]=ff(v0(bm)[i*s+1],v0(bm)[i*s],0); EC(v0(r)[i]))
+    else if(d>0) DO(m, v0(r)[i]=ff(v0(bm)[i*s],v0(bm)[i*s+1],0); EC(v0(r)[i]))
   }
 
   if(bm!=b) kfree(bm);
@@ -827,6 +824,7 @@ K* slide37infix(K *f, K *a, char *av) {
   p=v0(a)[0];
   q=v0(a)[1];
   if(p->t!=1) return kerror("type");
+  if(!p->i) return kerror("type");
 
   if(q->t<0) qm=kmix(q); else qm=q;
 
@@ -838,7 +836,7 @@ K* slide37infix(K *f, K *a, char *av) {
   if(qm->t&&(m-1)*s+v!=1) return kerror("valence");   /* atom */
   else if((m-1)*s+v!=qm->c) return kerror("valence"); /* list */
 
-  r = kv0(m);
+  r=kv0(m);
   if(d<0) {
     for(i=0;i<m;i++) {
       t=kv0(v); t->t=11;
@@ -1221,6 +1219,7 @@ K* slidefc(K *f, K *a, K *b, char *av) {
   K *r=0,*bm=0;
   int n,d,s,v,m;;
   if(at!=1) return kerror("type");
+  if(!a1) return kerror("type");
   if(bt<=0&&!bc) return kv0(0);
   if(at<=0&&!ac) return kv0(0);
   if(bt<0) bm=kmix(b); else bm=b;

@@ -41,7 +41,7 @@ static size_t gtakei=0;
 K* F(K *a, K *b, char *av) { \
   K *r=0; \
   double af,bf; \
-  if(at<=0 && bt<=0 && ac!=bc && !av) return kerror("length"); \
+  if(at<=0 && bt<=0 && ac!=bc) return kerror("length"); \
   if(at==0 || bt==0) { r=each(F,a,b,av); return rt ? r : knorm(r); } \
   switch(at) { \
   case 1: \

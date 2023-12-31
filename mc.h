@@ -107,24 +107,6 @@ K* F(K *a, K *b, char *av) { \
   return r->t ? r : knorm(r); \
 }
 
-#define MC1GM(F) \
-K* F##g(K *a, char *av) { \
-  K *r=0; \
-  switch(at) { \
-  default: r=F(a,av); \
-  } \
-  return r->t ? r : knorm(r); \
-}
-
-#define MC2G(F) \
-K* F##g(K *a, K *b, char *av) { \
-  K *r=0; \
-  switch(at) { \
-  default: r=F(a,b,av); \
-  } \
-  return r->t ? r : knorm(r); \
-}
-
 /* optimized adverb stubs */
 #define MC1A(F) K* F##avopt(K *a, char *av) { return 0; }
 #define MC2A(F) K* F##avopt2(K *a, K *b, char *av) { return 0; }

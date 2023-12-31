@@ -333,7 +333,7 @@ K* draw2_(K *a, K *b, char *av) {
     break;
   case -1:
     DO(ac,VSIZE(v1(a)[i]))
-    DO(ac,if(a1<0) return kerror("wsfull"))
+    DO(ac,if(v1(a)[i]<0) return kerror("wsfull"))
     switch(bt) {
     case 1:
       if(b1<0) {
@@ -777,7 +777,7 @@ MC1A(not1_);
 #define ROT(a,b) ((b)>0 ? ((a)<<(b))|((a)>>(32-(b))) : ((a)<<(b))|((a)>>(32-(b))))
 K* rot2_(K *a, K *b, char *av) {
   K *r=0;
-  if(at<=0 && bt<=0 && ac!=bc && !av) return kerror("length");
+  if(at<=0 && bt<=0 && ac!=bc) return kerror("length");
   if(at==0 || bt==0) r=each(rot2_,a,b,av);
   else {
   switch(at) {
@@ -802,7 +802,7 @@ MC2A(rot2_);
 
 K* shift2_(K *a, K *b, char *av) {
   K *r=0;
-  if(at<=0 && bt<=0 && ac!=bc && !av) return kerror("length");
+  if(at<=0 && bt<=0 && ac!=bc) return kerror("length");
   if(at==0 || bt==0 ) r=each(shift2_,a,b,av);
   else {
   switch(at) {
