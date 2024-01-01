@@ -17,9 +17,13 @@ static char ds[256];
 int precision=7;
 K *D,*one,*zero,*null,*inull;
 
+static K **KS;
+static int ksi=-1,km=1024;
+
 void kinit() {
   K *p;
   Z = dnew();
+  KS=xmalloc(sizeof(K*)*km);
   one = knew(1,0,0,1,0,-1);
   zero = knew(1,0,0,0,0,-1);
   null = knew(6,0,0,0,0,-1);
@@ -39,7 +43,9 @@ void kinit() {
 }
 
 K* knew(char t, unsigned int c, void *v, int i, double f, int r) {
-  K *s = xmalloc(sizeof(K));
+  K *s;
+  if(ksi>=0) s=KS[ksi--];
+  else s=xmalloc(sizeof(K));
 
   s->t = t;
   s->c = c;
@@ -93,7 +99,8 @@ void kfree(K *s) {
     else if(s->t==-3) len=12+s->c*sizeof(char);
     munmap(s->v-12,len);
     s->v=0;
-    xfree(s);
+    if(++ksi==km) { km<<=1; KS=xrealloc(KS,km*sizeof(K*)); }
+    KS[ksi]=s;
     return;
    }
 #endif
@@ -103,7 +110,8 @@ void kfree(K *s) {
     else if(s->t== 5) { dfree(s->v); s->v=0; }
     else if(s->t==7||s->t==17||s->t==27||s->t==37||s->t==57||s->t==67||s->t==77||s->t==87) { fnfree(s->v); s->v=0; }
     if(s->v && s->t!=1 && s->t!=2 && s->t!=3 && s->t!=4 && s->t!=99 ) xfree(s->v);
-    xfree(s);
+    if(++ksi==km) { km<<=1; KS=xrealloc(KS,km*sizeof(K*)); }
+    KS[ksi]=s;
   }
   else if(s->r<-2) s->r++;
   else s->r--;

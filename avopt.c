@@ -190,7 +190,7 @@ AVOPT2PMT(times2_,*);
 
 K* divide2_avopt2(K *a, K *b, char *av) {
   K *r=0,*p=0,*aa=0,*bb=0;
-  int d,s,v,m,n,*ppi,*pai,*pbi;
+  int d,s,v,m;
   double f,*ppf,*paf,*pbf;
   if(!strcmp(av,"/")) { /* eachright */
     if(at==-1) { aa=kv2(ac); DO(ac,v2(aa)[i]=I2F(v1(a)[i])); a=aa; }
