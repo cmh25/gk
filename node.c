@@ -207,7 +207,7 @@ static K* node_reduce_(node *n, int md) {
   fn *f=0,*g=0;
   char av[32],av2[32];
   ERR *e;
-  int i;
+  int i,j,k;
   av[0]=0;av2[0]=0;
   if(n->v&&n->a[0]->k&&n->a[0]->k->t==7&&((fn*)n->a[0]->k->v)->i==174) { timer_start(); btime=1; quiet=1; }
   if(fret) { fret=0; return gk; }
@@ -277,6 +277,15 @@ static K* node_reduce_(node *n, int md) {
   if(at==7) {
     if(a7->i==39&&bt==16&&ct==16) r=apply1(a,null,0);
     else if(ct==11) {
+      if(ac&&ac<cc) { /* sm[;"a*b"]"aab" */
+        k=0;
+        for(i=ac;i<cc;i++) {
+          for(j=0;j<ac;j++) {
+            if(v0(c)[j]->t==16) { v0(c)[j]=v0(c)[i]; k++; break; }
+          }
+        }
+        cc-=k;
+      }
       if(!strcmp(av,"\\")||!strcmp(av,"/")) r=avdom(a,c,av); /* ,\[0;1 2] over scan */
       else if(!strcmp(av,"'")) r=apply1(a,c,av); /* f'[a] */
       else if(cc==4) r=apply4(a,v0(c)[0],v0(c)[1],v0(c)[2],v0(c)[3],av); /* @[!10;1 2 3;+;4 5 6] */
@@ -472,6 +481,15 @@ static K* node_reduce_(node *n, int md) {
 
       }
       else {
+        if(ct==11&&a7->v<cc) { /* {x,y,z}[;1;2]3 */
+          k=0;
+          for(i=a7->v;i<cc;i++) {
+            for(j=0;j<a7->v;j++) {
+              if(v0(c)[j]->t==16) { v0(c)[j]=v0(c)[i]; k++; break; }
+            }
+          }
+          cc-=k;
+        }
         r=avdo37(a,c,av);
         if(!r) r=fne2(a,c,0);
       }
