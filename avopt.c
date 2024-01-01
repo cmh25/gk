@@ -138,28 +138,28 @@ K* fivecolon1_avopt(K *a, char *av) { return 0; }
 /* plus minus times */
 #define AVOPT2PMT(F,O) \
 K* F##avopt2(K *a, K *b, char *av) { \
-  K *r=0,*p=0; \
-  int d,s,v,m,n; \
-  double f; \
+  K *r=0,*p=0,*aa=0,*bb=0; \
+  int d,s,v,m,n,*ppi,*pai,*pbi; \
+  double f,*ppf,*paf,*pbf; \
   if(!strcmp(av,"/")) { /* eachright */ \
+    if(at==-1&&bt==-2) { aa=kv2(ac); DO(ac,v2(aa)[i]=I2F(v1(a)[i])); a=aa; } \
+    if(at==-2&&bt==-1) { bb=kv2(bc); DO(bc,v2(bb)[i]=I2F(v1(b)[i])); b=bb; } \
          if(at== 1&&bt==-1) { r=kv1(bc); DO(bc,v1(r)[i]=a1 O v1(b)[i]); } \
     else if(at== 1&&bt==-2) { r=kv2(bc); f=I2F(a1); DO(bc,v2(r)[i]=f O v2(b)[i]); } \
     else if(at== 2&&bt==-1) { r=kv2(bc); DO(bc,v2(r)[i]=a2 O I2F(v1(b)[i])); } \
     else if(at== 2&&bt==-2) { r=kv2(bc); DO(bc,v2(r)[i]=a2 O v2(b)[i]); } \
-    else if(at==-1&&bt==-1) { r=kv0(bc); DO(bc,v0(r)[i]=p=kv1(ac);n=v1(b)[i];DO2(ac,v1(p)[j]=v1(a)[j] O n)); } \
-    else if(at==-1&&bt==-2) { r=kv0(bc); DO(bc,v0(r)[i]=p=kv2(ac);f=v2(b)[i];DO2(ac,v2(p)[j]=I2F(v1(a)[j]) O f)); } \
-    else if(at==-2&&bt==-1) { r=kv0(bc); DO(bc,v0(r)[i]=p=kv2(ac);f=I2F(v1(b)[i]);DO2(ac,v2(p)[j]=v2(a)[j] O f)); } \
-    else if(at==-2&&bt==-2) { r=kv0(bc); DO(bc,v0(r)[i]=p=kv2(ac);f=v2(b)[i];DO2(ac,v2(p)[j]=v2(a)[j] O f)); } \
+    else if(at==-1&&bt==-1) { r=kv0(bc); DO(bc,v0(r)[i]=p=kv1(ac);n=v1(b)[i];ppi=v1(p);pai=v1(a);DO2(ac,*ppi++=*pai++ O n)); } \
+    else if(at==-2&&bt==-2) { r=kv0(bc); DO(bc,v0(r)[i]=p=kv2(ac);f=v2(b)[i];ppf=v2(p);paf=v2(a);DO2(ac,*ppf++=*paf++ O f)); } \
   } \
   else if(!strcmp(av,"\\")) { /* eachleft */ \
+    if(at==-1&&bt==-2) { aa=kv2(ac); paf=v2(aa); pai=v1(a); DO(ac,*paf++=I2F(*pai);pai++); a=aa; } \
+    if(at==-2&&bt==-1) { bb=kv2(bc); pbf=v2(bb); pbi=v1(b); DO(bc,*pbf++=I2F(*pbi);pbi++); b=bb; } \
          if(at==-1&&bt== 1) { r=kv1(ac); DO(ac,v1(r)[i]=v1(a)[i] O b1); } \
     else if(at==-1&&bt== 2) { r=kv2(ac); DO(ac,v2(r)[i]=I2F(v1(a)[i]) O b2); } \
     else if(at==-2&&bt== 1) { r=kv2(ac); f=I2F(b1); DO(ac,v2(r)[i]=v2(a)[i] O f); } \
     else if(at==-2&&bt== 2) { r=kv2(ac); DO(ac,v2(r)[i]=v2(a)[i] O b2); } \
-    else if(at==-1&&bt==-1) { r=kv0(ac); DO(ac,v0(r)[i]=p=kv1(bc);n=v1(a)[i];DO2(bc,v1(p)[j]=v1(b)[j] O n)); } \
-    else if(at==-1&&bt==-2) { r=kv0(ac); DO(ac,v0(r)[i]=p=kv2(bc);f=I2F(v1(a)[i]);DO2(bc,v2(p)[j]=v2(b)[j] O f)); } \
-    else if(at==-2&&bt==-1) { r=kv0(ac); DO(ac,v0(r)[i]=p=kv2(bc);f=v2(a)[i];DO2(bc,v2(p)[j]=I2F(v1(b)[j]) O f)); } \
-    else if(at==-2&&bt==-2) { r=kv0(ac); DO(ac,v0(r)[i]=p=kv2(bc);f=v2(a)[i];DO2(bc,v2(p)[j]=v2(b)[j] O f)); } \
+    else if(at==-1&&bt==-1) { r=kv0(ac); DO(ac,v0(r)[i]=p=kv1(bc);n=v1(a)[i];ppi=v1(p);pbi=v1(b);DO2(bc,*ppi++=*pbi++ O n)); } \
+    else if(at==-2&&bt==-2) { r=kv0(ac); DO(ac,v0(r)[i]=p=kv2(bc);f=v2(a)[i];ppf=v2(p);pbf=v2(b);DO2(bc,*ppf++=*pbf++ O f)); } \
   } \
   else if(!strcmp(av,"'")) { /* slide */ \
     if(at==1) { \
@@ -180,6 +180,8 @@ K* F##avopt2(K *a, K *b, char *av) { \
       } \
     } \
   } \
+  if(aa) kfree(aa); \
+  if(bb) kfree(bb); \
   return r; \
 }
 AVOPT2PMT(plus2_,+);
@@ -187,28 +189,22 @@ AVOPT2PMT(minus2_,-);
 AVOPT2PMT(times2_,*);
 
 K* divide2_avopt2(K *a, K *b, char *av) {
-  K *r=0,*p=0;
-  int d,s,v,m;
-  double f;
+  K *r=0,*p=0,*aa=0,*bb=0;
+  int d,s,v,m,n,*ppi,*pai,*pbi;
+  double f,*ppf,*paf,*pbf;
   if(!strcmp(av,"/")) { /* eachright */
-         if(at== 1&&bt==-1) { r=kv2(bc); f=I2F(a1); DO(bc,v2(r)[i]=f / v1(b)[i]); }
-    else if(at== 1&&bt==-2) { r=kv2(bc); f=I2F(a1); DO(bc,v2(r)[i]=f / v2(b)[i]); }
-    else if(at== 2&&bt==-1) { r=kv2(bc); DO(bc,v2(r)[i]=a2 / I2F(v1(b)[i])); }
+    if(at==-1) { aa=kv2(ac); DO(ac,v2(aa)[i]=I2F(v1(a)[i])); a=aa; }
+    if(bt==-1) { bb=kv2(bc); DO(bc,v2(bb)[i]=I2F(v1(b)[i])); b=bb; }
+         if(at== 1&&bt==-2) { r=kv2(bc); f=I2F(a1); DO(bc,v2(r)[i]=f / v2(b)[i]); }
     else if(at== 2&&bt==-2) { r=kv2(bc); DO(bc,v2(r)[i]=a2 / v2(b)[i]); }
-    else if(at==-1&&bt==-1) { r=kv0(bc); DO(bc,v0(r)[i]=p=kv2(ac);f=I2F(v1(b)[i]);DO2(ac,v2(p)[j]=I2F(v1(a)[j]) / f)); }
-    else if(at==-1&&bt==-2) { r=kv0(bc); DO(bc,v0(r)[i]=p=kv2(ac);f=v2(b)[i];DO2(ac,v2(p)[j]=I2F(v1(a)[j]) / f)); }
-    else if(at==-2&&bt==-1) { r=kv0(bc); DO(bc,v0(r)[i]=p=kv2(ac);f=I2F(v1(b)[i]);DO2(ac,v2(p)[j]=v2(a)[j] / f)); }
-    else if(at==-2&&bt==-2) { r=kv0(bc); DO(bc,v0(r)[i]=p=kv2(ac);f=I2F(v2(b)[i]);DO2(ac,v2(p)[j]=v2(a)[j] / f)); }
+    else if(at==-2&&bt==-2) { r=kv0(bc); DO(bc,v0(r)[i]=p=kv2(ac);f=v2(b)[i];ppf=v2(p);paf=v2(a);DO2(ac,*ppf++=*paf++ / f)); }
   }
   else if(!strcmp(av,"\\")) { /* eachleft */
-         if(at==-1&&bt== 1) { r=kv2(ac); DO(ac,v2(r)[i]=I2F(v1(a)[i]) / b2); }
-    else if(at==-1&&bt== 2) { r=kv2(ac); DO(ac,v2(r)[i]=I2F(v1(a)[i]) / b2); }
+    if(at==-1) { aa=kv2(ac); DO(ac,v2(aa)[i]=I2F(v1(a)[i])); a=aa; }
+    if(bt==-1) { bb=kv2(bc); DO(bc,v2(bb)[i]=I2F(v1(b)[i])); b=bb; }
     else if(at==-2&&bt== 1) { r=kv2(ac); f=I2F(b1); DO(ac,v2(r)[i]=v2(a)[i] / f); }
     else if(at==-2&&bt== 2) { r=kv2(ac); DO(ac,v2(r)[i]=v2(a)[i] / b2); }
-    else if(at==-1&&bt==-1) { r=kv0(ac); DO(ac,v0(r)[i]=p=kv2(bc);f=I2F(v1(a)[i]);DO2(bc,v2(p)[j]=I2F(v1(b)[j]) / f)); }
-    else if(at==-1&&bt==-2) { r=kv0(ac); DO(ac,v0(r)[i]=p=kv2(bc);f=I2F(v1(a)[i]);DO2(bc,v2(p)[j]=v2(b)[j] / f)); }
-    else if(at==-2&&bt==-1) { r=kv0(ac); DO(ac,v0(r)[i]=p=kv2(bc);f=v2(a)[i];DO2(bc,v2(p)[j]=I2F(v1(b)[j]) / f)); }
-    else if(at==-2&&bt==-2) { r=kv0(ac); DO(ac,v0(r)[i]=p=kv2(bc);f=v2(a)[i];DO2(bc,v2(p)[j]=v2(b)[j] / f)); }
+    else if(at==-2&&bt==-2) { r=kv0(ac); DO(ac,v0(r)[i]=p=kv2(bc);f=v2(a)[i];ppf=v2(p);pbf=v2(b);DO2(bc,*ppf++=*pbf++ / f)); }
   }
   else if(!strcmp(av,"'")) { /* slide */
     if(at==1) {
@@ -229,6 +225,8 @@ K* divide2_avopt2(K *a, K *b, char *av) {
       }
     }
   }
+  if(aa) kfree(aa);
+  if(bb) kfree(bb);
   return r;
 }
 K* minand2_avopt2(K *a, K *b, char *av) { return 0; }
