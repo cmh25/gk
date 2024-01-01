@@ -769,11 +769,16 @@ K* eachprior37(K *f, K *a, char *av) {
 
   if(!at&&!ac) return kv0(0); /* {x,y}'() */
 
+  n=strlen(av);
+  ff=n?avdo37:fne2;
+
   if(at>0&&at!=11) {
-    r=kv0(2);
-    v0(r)[0]=kref(a);
-    v0(r)[1]=kref(a);
-    return knorm(r);
+    p=kv0(2); p->t=11;
+    v0(p)[0]=kref(a);
+    v0(p)[1]=kref(a);
+    r=ff(f,p,av);
+    kfree(p);
+    return r->t ? r : knorm(r);
   }
   else if((!at||at==11)&&ac==2) {
     if(v0(a)[0]->t>0) {
@@ -791,8 +796,6 @@ K* eachprior37(K *f, K *a, char *av) {
   }
   else if(at<0) am=kmix(a); else am=a;
 
-  n=strlen(av);
-  ff=n?avdo37:fne2;
   r=kv0(am->c-1);
   q=kv0(2); q->t=11;
   for(i=0;i<am->c-1;i++) {
@@ -801,12 +804,6 @@ K* eachprior37(K *f, K *a, char *av) {
     v0(r)[i]=ff(f,q,av); EC(v0(r)[i]);
   }
   q->c=0; kfree(q);
-
-  if(am->c==2) { /* if there were only two args, not a list */
-    q=r;
-    r=kref(v0(r)[0]);
-    kfree(q);
-  }
 
   if(am!=a) kfree(am);
   if(p&&p!=am) kfree(p);
