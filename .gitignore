@@ -1,0 +1,8 @@
+gk
+*.o
+*.obj
+*.exe
+*~
+*.swp
+*.swo
+gk.dSYM
