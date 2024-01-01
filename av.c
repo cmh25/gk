@@ -826,6 +826,16 @@ K* slide37infix(K *f, K *a, char *av) {
   if(p->t!=1) return kerror("type");
   if(!p->i) return kerror("type");
 
+  if(q->t>0) {
+    v=((fn*)f->v)->v;
+    t=kv0(v); t->t=11;
+    for(j=0;j<v;j++) v0(t)[j]=kref(q);
+    r=ff(f,t,av);EC(r);
+    t->c=0;
+    kfree(t);
+    return r;
+  }
+
   if(q->t<0) qm=kmix(q); else qm=q;
 
   d=p->i;
@@ -1232,8 +1242,8 @@ K* slidefc(K *f, K *a, K *b, char *av) {
 
   n=strlen(av);
   if(bt>0) {
-    if(n) r=avdofc(f,b,a,av);
-    else r=applyfc2_(f,b,a,0);
+    if(n) r=avdofc(f,b,b,av);
+    else r=applyfc2_(f,b,b,0);
   }
   else {
     r=kv0(m);
