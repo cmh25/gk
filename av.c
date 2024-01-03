@@ -46,7 +46,7 @@ K* eachm(K *f, K *a, char *av) {
     else r=ff(am,0);
   }
   else {
-    r = kv0(ac);
+    r=kv0(ac);
     if(n) DO(ac,v0(r)[i]=avdom(f,v0(am)[i],av); EC(v0(r)[i]))
     else DO(ac,v0(r)[i]=ff(v0(am)[i],0); EC(v0(r)[i]))
   }
@@ -332,7 +332,7 @@ K* eachprior(K *f, K *a, K *b, char *av) {
     else r=ff(b,a,av);
   }
   else {
-    r = kv0(bc);
+    r=kv0(bc);
     if(n) {
       v0(r)[0]=avdo(f,v0(bm)[0],a,av); EC(v0(r)[0]);
       DO(bc-1, v0(r)[i+1]=avdo(f,v0(bm)[i+1],v0(bm)[i],av); EC(v0(r)[i+1]))
@@ -581,7 +581,7 @@ K* eachm37(K *f, K *a, char *av) {
   ff = n ? avdo37 : fne2;
   if(at>0) r=ff(f,am,av);
   else {
-    r = kv0(ac);
+    r=kv0(ac);
     DO(ac,v0(r)[i]=ff(f,v0(am)[i],av);EC(v0(r)[i]))
   }
   if(am!=a) kfree(am);
@@ -1018,7 +1018,7 @@ K* eachmfc(K *f, K *a, char *av) {
     else r=applyfc1_(f,am,0);
   }
   else {
-    r = kv0(ac);
+    r=kv0(ac);
     if(n) DO(ac,v0(r)[i]=avdomfc(f,v0(am)[i],av);EC(v0(r)[i]))
     else DO(ac,v0(r)[i]=applyfc1_(f,v0(am)[i],0);EC(v0(r)[i]))
   }
@@ -1207,7 +1207,7 @@ K* eachpriorfc(K *f, K *a, K *b, char *av) {
     else r=applyfc2_(f,b,a,0);
   }
   else {
-    r = kv0(bc);
+    r=kv0(bc);
     if(n) {
       v0(r)[0]=avdofc(f,v0(bm)[0],a,av); EC(v0(r)[0]);
       DO(bc-1, v0(r)[i+1]=avdofc(f,v0(bm)[i+1],v0(bm)[i],av); EC(v0(r)[i+1]))
@@ -1266,7 +1266,7 @@ K* eachrightfc(K *f, K *a, K *b, char *av) {
     else r=applyfc2_(f,a,bm,0);
   }
   else {
-    r = kv0(bc);
+    r=kv0(bc);
     if(n) DO(bc,v0(r)[i]=avdofc(f,a,v0(bm)[i],av);EC(v0(r)[i]))
     else DO(bc,v0(r)[i]=applyfc2_(f,a,v0(bm)[i],0);EC(v0(r)[i]))
   }

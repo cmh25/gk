@@ -14,7 +14,7 @@ K* reduce(node *a, pgs *s, int top) {
   K *r;
   int i;
   for(i=a->v-1;i>=0;i--) {
-    r=node_reduce(a->a[i]);
+    r=node_reduce(a->a[i],0);
     if(A) {
       if(ecount) { --ecount; dset(Z,"s",null); }
       else { help1_(0,0); }

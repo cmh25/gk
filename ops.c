@@ -1647,7 +1647,7 @@ K* value_(K *a, char *av) {
     for(i=n->v-1;i>=0;i--) {
       kfree(r);
       quiet2=0;
-      r=node_reduce(n->a[i]); if(rt==98) return r;
+      r=node_reduce(n->a[i],0); if(rt==98) return r;
       if(fret) { fret=0; break; }
     }
     node_free(n);

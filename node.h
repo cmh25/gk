@@ -18,7 +18,7 @@ typedef struct node {
 node* node_new(node **a, int v, K *s);
 node* node_newli(node **a, int v, K *s, int line, int linei);
 void node_free(node *n);
-K* node_reduce(node *n);
+K* node_reduce(node *n, int z);
 node* node_append(node *n0, node *n1);
 node* node_prepend(node *n0, node *n1);
 

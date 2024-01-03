@@ -179,7 +179,7 @@ char* kprint_(K *p, char *s, int plevel, int nl) {
   char *ee[11]={"domain","index","int","length","nonce","parse","rank","reserved","type","valence","value"};
   int en=11;
 
-  if(!o){ o=xcalloc(bs0,1);oc=0; }
+  if(!o){ bs=bs0; o=xcalloc(bs,1);oc=0; }
   if(oc<<1 > bs) { bs+=bs0; o=xrealloc(o,bs); }
 
   SG2(p);

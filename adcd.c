@@ -27,16 +27,16 @@ K* while1(K *a) {
   K *r=0,*b=0;
   int i;
   node *n=parse(a->v);
-  b=node_reduce(n->a[n->v-1]); EC(b); SR(b);
+  b=node_reduce(n->a[n->v-1],0); EC(b); SR(b);
   while(b1) {
     kfree(b);
     for(i=1;i<n->v;i++) {
-      r=node_reduce(n->a[n->v-1-i]); EC(r);
+      r=node_reduce(n->a[n->v-1-i],0); EC(r);
       if(fret) break;
       kfree(r);
     }
     if(fret) break;
-    b=node_reduce(n->a[n->v-1]); EC(b); SR(b);
+    b=node_reduce(n->a[n->v-1],0); EC(b); SR(b);
   }
   if(fret) { node_free(n); return r; }
   else { kfree(b); node_free(n); return null; }
@@ -46,10 +46,10 @@ K* do1(K *a) {
   K *r=0,*b=0;
   int i;
   node *n=parse(a->v);
-  b=node_reduce(n->a[n->v-1]); EC(b); SR(b);
+  b=node_reduce(n->a[n->v-1],0); EC(b); SR(b);
   while(b1--) {
     for(i=1;i<n->v;i++) {
-      r=node_reduce(n->a[n->v-1-i]); EC(r);
+      r=node_reduce(n->a[n->v-1-i],0); EC(r);
       if(fret) break;
       kfree(r);
     }
@@ -63,10 +63,10 @@ K* if1(K *a) {
   K *r=0,*b=0;
   int i;
   node *n=parse(a->v);
-  b=node_reduce(n->a[n->v-1]); EC(b); SR(b);
+  b=node_reduce(n->a[n->v-1],0); EC(b); SR(b);
   if(b1) {
     for(i=1;i<n->v;i++) {
-      r=node_reduce(n->a[n->v-1-i]); EC(r);
+      r=node_reduce(n->a[n->v-1-i],0); EC(r);
       if(fret) break;
       kfree(r);
     }
@@ -82,27 +82,27 @@ K* cond1(K *a) {
   int i;
   node *n = parse(a->v);
   if(n->v==1) { /* format $[5] */
-    b=node_reduce(n->a[0]); EC(b);
+    b=node_reduce(n->a[0],0); EC(b);
     r=format_(b,0);
     kfree(b);
     node_free(n);
     return r;
   }
   if(n->v==2) { /* form2 $[0;"5"] */
-    b=node_reduce(n->a[1]); EC(b);
-    c=node_reduce(n->a[0]); EC(c);
+    b=node_reduce(n->a[1],0); EC(b);
+    c=node_reduce(n->a[0],0); EC(c);
     r=form2_(b,c,0);
     kfree(b); kfree(c);
     node_free(n);
     return r;
   }
   for(i=n->v-1;i>=0;i--) {
-    b=node_reduce(n->a[i]); EC(b); SR(b);
+    b=node_reduce(n->a[i],0); EC(b); SR(b);
     i--;
     if(i<0) { r=b; break; }
     if(b->i) {
       kfree(b);
-      r=node_reduce(n->a[i]); EC(r);
+      r=node_reduce(n->a[i],0); EC(r);
       break;
     }
     else kfree(b);

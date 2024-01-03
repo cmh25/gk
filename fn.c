@@ -609,7 +609,7 @@ K* fne2(K *f, K *a, char *av) {
   for(i=ff->n->v-1;i>=0;i--) {
     kfree(r);
     quiet2=0;
-    r=node_reduce(ff->n->a[i]);
+    r=node_reduce(ff->n->a[i],0);
     if(r->t==98) { dset(Z,"s",self); kfree(self); return r; }
     if(fret) { fret=0; break; }
   }
