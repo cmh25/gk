@@ -288,6 +288,16 @@ static K* node_reduce_(node *n, int md) {
       }
       if(!strcmp(av,"\\")||!strcmp(av,"/")) r=avdom(a,c,av); /* ,\[0;1 2] over scan */
       else if(!strcmp(av,"'")) r=apply1(a,c,av); /* f'[a] */
+      else if(ac&&ac>cc) { /* projection */
+        //c->v=xrealloc(c->v,ac*sizeof(K*));
+        //for(i=cc;i<ac;i++) v0(c)[i]=inull;
+        //cc=ac;
+        r=knew(7,0,fnnew(""),'p',0,0); r->t=87;
+        f=r->v;
+        f->l=kref(a);
+        f->r=kref(c);
+        f->v=ac-cc;
+      }
       else if(cc==4) r=apply4(a,v0(c)[0],v0(c)[1],v0(c)[2],v0(c)[3],av); /* @[!10;1 2 3;+;4 5 6] */
       else if(cc==3) r=apply3(a,v0(c)[0],v0(c)[1],v0(c)[2],av); /* @[!10;1 2 3;{-x}] */
       else if(cc==2) r=apply2(a,v0(c)[0],v0(c)[1],av); /* f[1;2] */
@@ -537,6 +547,12 @@ static K* node_reduce_(node *n, int md) {
         if(strchr(ao->v,'.'))  r=assign3_(ao,0,f->r);
         else r=apply2(c,ao,f->r,av);
       }
+      else if(f->i=='@') {
+        r=apply2(((fn*)a->v)->l,v0(((fn*)a->v)->r)[0],((fn*)c->v)->r,av);
+      }
+      else if(f->i=='.') {
+        r=apply2(((fn*)a->v)->l,v0(((fn*)a->v)->r)[0],((fn*)c->v)->r,av);
+      }
     }
     else if(ct==11) {
       f=a->v;
@@ -545,6 +561,9 @@ static K* node_reduce_(node *n, int md) {
         if(c->c!=1) r=kerror("valence");
         else if(v0(p)[0]->t==16) r=apply2(f->l,v0(c)[0],v0(p)[1],av);
         else r=apply2(f->l,v0(p)[0],v0(c)[0],av);
+      }
+      else if(f->r->c==1) {
+        r=apply2(f->l,v0(p)[0],v0(c)[0],av);
       }
       //else if(f->r->c==3) { /* TODO */
       //}
@@ -557,6 +576,9 @@ static K* node_reduce_(node *n, int md) {
       if(f->r->c==2) {
         if(v0(p)[0]->t==16) r=apply2(f->l,c,v0(p)[1],av);
         else r=apply2(f->l,v0(p)[0],c,av);
+      }
+      else if(f->r->c==1) {
+        r=apply2(f->l,v0(p)[0],c,av);
       }
       //else if(f->r->c==3) { /* TODO */
       //}
