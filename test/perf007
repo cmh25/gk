@@ -1,0 +1,111 @@
+a1:!_1e8
+b1:!_1e8
+a2:.0+!_1e8
+b2:.0+!_1e8
+a3:ci 97+draw[_1e7;26]
+b3:ci 97+draw[_1e7;26]
+a4:`$/ci 97+draw[_1e7;26]
+b4:`$/ci 97+draw[_1e7;26]
+
+\t 1+b1
+\t 1+b2
+\t 1.+b1
+\t 1.+b2
+\t a1+b1
+\t a1+b2
+\t a2+b1
+\t a2+b2
+
+\t 1-b1
+\t 1-b2
+\t 1.-b1
+\t 1.-b2
+\t a1-b1
+\t a1-b2
+\t a2-b1
+\t a2-b2
+
+\t 1*b1
+\t 1*b2
+\t 1.*b1
+\t 1.*b2
+\t a1*b1
+\t a1*b2
+\t a2*b1
+\t a2*b2
+
+\t 1%b1
+\t 1%b2
+\t 1.%b1
+\t 1.%b2
+\t a1%b1
+\t a1%b2
+\t a2%b1
+\t a2%b2
+
+\t 1&b1
+\t 1&b2
+\t 1.&b1
+\t 1.&b2
+\t "a"&b3
+\t `a&b4
+\t a1&b1
+\t a1&b2
+\t a2&b1
+\t a2&b2
+\t a3&b3
+\t a4&b4
+
+\t 1|b1
+\t 1|b2
+\t 1.|b1
+\t 1.|b2
+\t "a"|b3
+\t `a|b4
+\t a1|b1
+\t a1|b2
+\t a2|b1
+\t a2|b2
+\t a3|b3
+\t a4|b4
+
+\t 1<b1
+\t 1<b2
+\t 1.<b1
+\t 1.<b2
+\t "a"<b3
+\t `a<b4
+\t a1<b1
+\t a1<b2
+\t a2<b1
+\t a2<b2
+\t a3<b3
+\t a4<b4
+
+\t 1>b1
+\t 1>b2
+\t 1.>b1
+\t 1.>b2
+\t "a">b3
+\t `a>b4
+\t a1>b1
+\t a1>b2
+\t a2>b1
+\t a2>b2
+\t a3>b3
+\t a4>b4
+
+\t 1=b1
+\t 1=b2
+\t 1.=b1
+\t 1.=b2
+\t "a"=b3
+\t `a=b4
+\t a1=b1
+\t a1=b2
+\t a2=b1
+\t a2=b2
+\t a3=b3
+\t a4=b4
+
+\\

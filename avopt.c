@@ -2,6 +2,7 @@
 #include <stdint.h>
 #include <string.h>
 #include "x.h"
+#include "sym.h"
 
 /* plus minus times */
 #define AVOPTPMT(F,O) \
@@ -240,7 +241,25 @@ K* match2_avopt2(K *a, K *b, char *av) { return 0; }
 K* join2_avopt2(K *a, K *b, char *av) { return 0; }
 K* take2_avopt2(K *a, K *b, char *av) { return 0; }
 K* drop2_avopt2(K *a, K *b, char *av) { return 0; }
-K* form2_avopt2(K *a, K *b, char *av) { return 0; }
+K* form2_avopt2(K *a, K *b, char *av) {
+  K *r=0;
+  char s[2];
+  char **prs;
+  char *pbc;
+  if(!strcmp(av,"/")) { /* eachright */
+    switch(at) {
+    case 4:
+      switch(bt) {
+        case -3:
+        if(a4!=sp("")) return kerror("nonce");
+        r=kv4(bc); prs=v4(r);
+        pbc=v3(b);
+        s[1]=0;DO(bc,s[0]=*pbc++;*prs++=sp(s))
+      }
+    }
+  }
+  return r;
+}
 K* find2_avopt2(K *a, K *b, char *av) {
   K *r=0,**hk,**kp;
   uint64_t m,w,h,t=0,q;

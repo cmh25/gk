@@ -28,11 +28,7 @@
 #endif
 
 char ds[128];
-
-/* function return */
-int fret;
-K *gk;
-
+int fret; K *gk; /* function return */
 static K *gtake=0;
 static size_t gtakei=0;
 
@@ -40,7 +36,8 @@ static size_t gtakei=0;
 #define MCPMT(F,O) \
 K* F(K *a, K *b, char *av) { \
   K *r=0; \
-  double af,bf; \
+  int *pai,*pbi,*pri; \
+  double af,bf,*paf,*pbf,*prf; \
   if(at<=0 && bt<=0 && ac!=bc) return kerror("length"); \
   if(at==0 || bt==0) { r=each(F,a,b,av); return rt ? r : knorm(r); } \
   switch(at) { \
@@ -48,32 +45,32 @@ K* F(K *a, K *b, char *av) { \
     switch(bt) { \
     case  1: r=k1(a1 O b1); break; \
     case  2: r=k2(I2F(a1) O b2); break; \
-    case -1: r=kv1(bc); DO(rc, v1(r)[i] = a1 O v1(b)[i]); break; \
-    case -2: af=I2F(a1); r=kv2(bc); DO(rc, v2(r)[i] = af O v2(b)[i]); break; \
+    case -1: r=kv1(bc); pri=v1(r); pbi=v1(b); DO(rc, *pri++ = a1 O *pbi++); break; \
+    case -2: r=kv2(bc); prf=v2(r); pbf=v2(b); af=I2F(a1); DO(rc, *prf++ = af O *pbf++); break; \
     default: return kerror("type"); \
     } break; \
   case 2: \
     switch(bt) { \
     case  1: r=k2(a2 O I2F(b1)); break; \
     case  2: r=k2(a2 O b2); break; \
-    case -1: r=kv2(bc); DO(rc, v2(r)[i] = a2 O I2F(v1(b)[i])); break; \
-    case -2: r=kv2(bc); DO(rc, v2(r)[i] = a2 O v2(b)[i]); break; \
+    case -1: r=kv2(bc); prf=v2(r); pbi=v1(b); DO(rc, *prf++ = a2 O I2F(*pbi); ++pbi); break; \
+    case -2: r=kv2(bc); prf=v2(r); pbf=v2(b); DO(rc, *prf++ = a2 O *pbf++); break; \
     default: return kerror("type"); \
     } break; \
   case -1: \
     switch(bt) { \
-    case  1: r=kv1(ac); DO(rc, v1(r)[i] = v1(a)[i] O b1); break; \
-    case  2: r=kv2(ac); DO(rc, v2(r)[i] = I2F(v1(a)[i]) O b2); break; \
-    case -1: r=kv1(ac); DO(rc, v1(r)[i] = v1(a)[i] O v1(b)[i]); break; \
-    case -2: r=kv2(ac); DO(rc, v2(r)[i] = I2F(v1(a)[i]) O v2(b)[i]); break; \
+    case  1: r=kv1(ac); pri=v1(r); pai=v1(a); DO(rc, *pri++ = *pai++ O b1); break; \
+    case  2: r=kv2(ac); prf=v2(r); pai=v1(a); DO(rc, *prf++ = I2F(*pai) O b2; ++pai); break; \
+    case -1: r=kv1(ac); pri=v1(r); pai=v1(a); pbi=v1(b); DO(rc, *pri++ = *pai++ O *pbi++); break; \
+    case -2: r=kv2(ac); prf=v2(r); pai=v1(a); pbf=v2(b); DO(rc, *prf++ = I2F(*pai) O *pbf++; ++pai); break; \
     default: return kerror("type"); \
     } break; \
   case -2: \
     switch(bt) { \
-    case  1: bf=I2F(b1); r=kv2(ac); DO(rc, v2(r)[i] = v2(a)[i] O bf); break; \
-    case  2: r=kv2(ac); DO(rc, v2(r)[i] = v2(a)[i] O b2); break; \
-    case -1: r=kv2(ac); DO(rc, v2(r)[i] = v2(a)[i] O I2F(v1(b)[i])); break; \
-    case -2: r=kv2(ac); DO(rc, v2(r)[i] = v2(a)[i] O v2(b)[i]); break; \
+    case  1: bf=I2F(b1); r=kv2(ac); prf=v2(r); paf=v2(a); DO(rc, *prf++ = *paf++ O bf); break; \
+    case  2: r=kv2(ac); prf=v2(r); paf=v2(a); DO(rc, *prf++ = *paf++ O b2); break; \
+    case -1: r=kv2(ac); prf=v2(r); paf=v2(a); pbi=v1(b); DO(rc, *prf++ = *paf++ O I2F(*pbi); ++pbi); break; \
+    case -2: r=kv2(ac); prf=v2(r); paf=v2(a); pbf=v2(b); DO(rc, *prf++ = *paf++ O *pbf++); break; \
     default: return kerror("type"); \
     } break; \
   default: return kerror("type"); \
@@ -86,7 +83,8 @@ MCPMT(times2_,*);
 
 K* divide2_(K *a, K *b, char *av) {
   K *r=0;
-  double af,bf;
+  int *pai,*pbi;
+  double af,bf,*prf,*paf,*pbf;
 
   if(at<=0 && bt<=0 && ac!=bc) return kerror("length");
 
@@ -96,32 +94,32 @@ K* divide2_(K *a, K *b, char *av) {
     switch(bt) {
     case  1: r=k2(I2F(a1)/I2F(b1)); break;
     case  2: r=k2(I2F(a1)/b2); break;
-    case -1: af=I2F(a1); r=kv2(bc); DO(rc,v2(r)[i] = af / I2F(v1(b)[i])); break;
-    case -2: af=I2F(a1); r=kv2(bc); DO(rc,v2(r)[i] = af / v2(b)[i]); break;
+    case -1: r=kv2(bc); prf=v2(r); pbi=v1(b); af=I2F(a1); DO(rc,*prf++ = af / I2F(*pbi); ++pbi); break;
+    case -2: r=kv2(bc); prf=v2(r); pbf=v2(b); af=I2F(a1); DO(rc,*prf++ = af / *pbf++); break;
     default: return kerror("type");
     } break;
   case 2:
     switch(bt) {
     case  1: r=k2(a2/I2F(b1)); break;
     case  2: r=k2(a2/b2); break;
-    case -1: r=kv2(bc); DO(rc,v2(r)[i] = a2 / I2F(v1(b)[i])); break;
-    case -2: r=kv2(bc); DO(rc,v2(r)[i] = a2 / v2(b)[i]); break;
+    case -1: r=kv2(bc); prf=v2(r); pbi=v1(b); DO(rc,*prf++ = a2 / I2F(*pbi); ++pbi); break;
+    case -2: r=kv2(bc); prf=v2(r); pbf=v2(b); DO(rc,*prf++ = a2 / *pbf++); break;
     default: return kerror("type");
     } break;
   case -1:
     switch(bt) {
-    case  1: bf=I2F(b1); r=kv2(ac); DO(rc,v2(r)[i] = I2F(v1(a)[i]) / bf); break;
-    case  2: r=kv2(ac); DO(rc,v2(r)[i] = I2F(v1(a)[i]) / b2); break;
-    case -1: r=kv2(bc); DO(rc,v2(r)[i] = I2F(v1(a)[i]) / I2F(v1(b)[i])); break;
-    case -2: r=kv2(bc); DO(rc,v2(r)[i] = I2F(v1(a)[i]) / v2(b)[i]); break;
+    case  1: r=kv2(ac); prf=v2(r); pai=v1(a); bf=I2F(b1); DO(rc,*prf++ = I2F(*pai) / bf; ++pai); break;
+    case  2: r=kv2(ac); prf=v2(r); pai=v1(a); DO(rc,*prf++ = I2F(*pai) / b2; ++pai); break;
+    case -1: r=kv2(bc); prf=v2(r); pai=v1(a); pbi=v1(b); DO(rc,*prf++ = I2F(*pai) / I2F(*pbi); ++pai; ++pbi); break;
+    case -2: r=kv2(bc); prf=v2(r); pai=v1(a); pbf=v2(b); DO(rc,*prf++ = I2F(*pai) / *pbf++; ++pai); break;
     default: return kerror("type");
     } break;
   case -2:
     switch(bt) {
-    case  1: bf=I2F(b1); r=kv2(ac); DO(rc,v2(r)[i] = v2(a)[i] / bf); break;
-    case  2: r=kv2(ac); DO(rc,v2(r)[i] = v2(a)[i] / b2); break;
-    case -1: r=kv2(bc); DO(rc,v2(r)[i] = v2(a)[i] / I2F(v1(b)[i])); break;
-    case -2: r=kv2(bc); DO(rc,v2(r)[i] = v2(a)[i] / v2(b)[i]); break;
+    case  1: r=kv2(ac); prf=v2(r); paf=v2(a); bf=I2F(b1); DO(rc,*prf++ = *paf++ / bf); break;
+    case  2: r=kv2(ac); prf=v2(r); paf=v2(a); DO(rc,*prf++ = *paf++ / b2); break;
+    case -1: r=kv2(bc); prf=v2(r); paf=v2(a); pbi=v1(b); DO(rc,*prf++ = *paf++ / I2F(*pbi); ++pbi); break;
+    case -2: r=kv2(bc); prf=v2(r); paf=v2(a); pbf=v2(b); DO(rc,*prf++ = *paf++ / *pbf++); break;
     default: return kerror("type");
     } break;
   default: return kerror("type");
@@ -133,7 +131,10 @@ K* divide2_(K *a, K *b, char *av) {
 #define MCMAMO(F,O,R) \
 K* F(K *a, K *b, char *av) { \
   K *r=0; \
-  double af,bf; \
+  int *pri,*pai,*pbi; \
+  double af,bf,*prf,*paf,*pbf; \
+  char *prc,*pac,*pbc; \
+  char **prs,**pas,**pbs; \
   if(at<=0 && bt<=0 && ac!=bc) return kerror("length"); \
   if(at==0 || bt==0) { r=each(F,a,b,av); return rt ? r : knorm(r); }\
   switch(at) { \
@@ -141,56 +142,56 @@ K* F(K *a, K *b, char *av) { \
     switch(bt) { \
     case  1: r=k1(a1 O b1 ? a1 : b1); break; \
     case  2: af=I2F(a1); r=k2(CMPFF(af,b2)==R ? af : b2); break; \
-    case -1: r=kv1(bc); DO(rc, v1(r)[i] = a1 O v1(b)[i] ? a1 : v1(b)[i]) break; \
-    case -2: r=kv2(bc); af=I2F(a1); DO(rc, v2(r)[i] = CMPFF(af,v2(b)[i])==R ? af : v2(b)[i]) break; \
+    case -1: r=kv1(bc); pri=v1(r); pbi=v1(b); DO(rc, *pri++ = a1 O *pbi ? a1 : *pbi; ++pbi) break; \
+    case -2: r=kv2(bc); prf=v2(r); pbf=v2(b); af=I2F(a1); DO(rc, *prf++ = CMPFF(af,*pbf)==R ? af : *pbf; ++pbf) break; \
     default: return kerror("type"); \
     } break; \
   case 2: \
     switch(bt) { \
     case  1: bf=I2F(b1); r=k2(CMPFF(a2,bf)==R ? a2 : bf); break; \
     case  2: r=k2(CMPFF(a2,b2)==R ? a2 : b2); break; \
-    case -1: r=kv2(bc); DO(rc, bf=I2F(v1(b)[i]); v2(r)[i] = CMPFF(a2,bf)==R ? a2 : bf) break; \
-    case -2: r=kv2(bc); DO(rc, v2(r)[i] = CMPFF(a2,v2(b)[i])==R ? a2 : v2(b)[i]) break; \
+    case -1: r=kv2(bc); prf=v2(r); pbi=v1(b); DO(rc, bf=I2F(*pbi); *prf++ = CMPFF(a2,bf)==R ? a2 : bf; ++pbi) break; \
+    case -2: r=kv2(bc); prf=v2(r); pbf=v2(b); DO(rc, *prf++ = CMPFF(a2,*pbf)==R ? a2 : *pbf; ++pbf) break; \
     default: return kerror("type"); \
     } break; \
   case 3: \
     switch(bt) { \
     case  3: r=k3(a3 O b3 ? a3 : b3); break; \
-    case -3: r=kv3(bc); DO(rc, v3(r)[i] = a3 O v3(b)[i] ? a3 : v3(b)[i]) break; \
+    case -3: r=kv3(bc); prc=v3(r); pbc=v3(b); DO(rc, *prc++ = a3 O *pbc ? a3 : *pbc; ++pbc) break; \
     default: return kerror("type"); \
     } break; \
   case 4: \
     switch(bt) { \
-    case  4: r=k4(strcmp(v3(a),v3(b)) O 0 ? v3(a) : v3(b)); break; \
-    case -4: r=kv4(bc); DO(rc, v4(r)[i] = strcmp(v3(a),v4(b)[i]) O 0 ? v3(a) : v4(b)[i]) break; \
+    case  4: r=k4(strcmp(a4,b4) O 0 ? a4 : b4); break; \
+    case -4: r=kv4(bc); prs=v4(r); pbs=v4(b); DO(rc, *prs++ = strcmp(a4,*pbs) O 0 ? a4 : *pbs; ++pbs) break; \
     default: return kerror("type"); \
     } break; \
   case -1: \
     switch(bt) { \
-    case  1: r=kv1(ac); DO(rc, v1(r)[i] = v1(a)[i] O b1 ? v1(a)[i] : b1) break; \
-    case  2: r=kv2(ac); DO(rc, af=I2F(v1(a)[i]); v2(r)[i] = CMPFF(af,b2)==R ? af : b2) break; \
-    case -1: r=kv1(bc); DO(rc, v1(r)[i] = v1(a)[i] O v1(b)[i] ? v1(a)[i] : v1(b)[i]) break; \
-    case -2: r=kv2(bc); DO(rc, af=I2F(v1(a)[i]); v2(r)[i] = CMPFF(af,v2(b)[i])==R ? af : v2(b)[i]) break; \
+    case  1: r=kv1(ac); pri=v1(r); pai=v1(a); DO(rc, *pri++ = *pai O b1 ? *pai : b1; ++pai) break; \
+    case  2: r=kv2(ac); prf=v2(r); pai=v1(a); DO(rc, af=I2F(*pai); *prf++ = CMPFF(af,b2)==R ? af : b2; ++pai) break; \
+    case -1: r=kv1(bc); pri=v1(r); pai=v1(a); pbi=v1(b); DO(rc, *pri++ = *pai O *pbi ? *pai : *pbi; ++pai; ++pbi) break; \
+    case -2: r=kv2(bc); prf=v2(r); pai=v1(a); pbf=v2(b); DO(rc, af=I2F(*pai); *prf++ = CMPFF(af,*pbf)==R ? af : *pbf; ++pai; ++pbf) break; \
     default: return kerror("type"); \
     } break; \
   case -2: \
     switch(bt) { \
-    case  1: r=kv2(ac); bf=I2F(b1); DO(rc, v2(r)[i] = CMPFF(v2(a)[i],bf)==R ? v2(a)[i] : bf) break; \
-    case  2: r=kv2(ac); DO(rc, v2(r)[i] = CMPFF(v2(a)[i],b2)==R ? v2(a)[i] : b2) break; \
-    case -1: r=kv2(bc); DO(rc, bf=I2F(v1(b)[i]); v2(r)[i] = CMPFF(v2(a)[i],bf)==R ? v2(a)[i] : bf) break; \
-    case -2: r=kv2(bc); DO(rc, v2(r)[i] = CMPFF(v2(b)[i],v2(a)[i])==R ? v2(b)[i] : v2(a)[i]) break; \
+    case  1: r=kv2(ac); prf=v2(r); paf=v2(a); bf=I2F(b1); DO(rc, *prf++ = CMPFF(*paf,bf)==R ? *paf : bf; ++paf) break; \
+    case  2: r=kv2(ac); prf=v2(r); paf=v2(a); DO(rc, *prf++ = CMPFF(*paf,b2)==R ? *paf : b2; ++paf) break; \
+    case -1: r=kv2(bc); prf=v2(r); paf=v2(a); pbi=v1(b); DO(rc, bf=I2F(*pbi); *prf++ = CMPFF(*paf,bf)==R ? *paf : bf; ++paf; ++pbi) break; \
+    case -2: r=kv2(bc); prf=v2(r); paf=v2(a); pbf=v2(b); DO(rc, *prf++ = CMPFF(*pbf,*paf)==R ? *pbf : *paf; ++paf; ++pbf) break; \
     default: return kerror("type"); \
     } break; \
   case -3: \
     switch(bt) { \
-    case  3: r=kv3(ac); DO(rc, v3(r)[i] = v3(a)[i] O b3 ? v3(a)[i] : b3) break; \
-    case -3: r=kv3(ac); DO(rc, v3(r)[i] = v3(a)[i] O v3(b)[i] ? v3(a)[i] : v3(b)[i]) break; \
+    case  3: r=kv3(ac); prc=v3(r); pac=v3(a); DO(rc, *prc++ = *pac O b3 ? *pac : b3; ++pac) break; \
+    case -3: r=kv3(ac); prc=v3(r); pac=v3(a); pbc=v3(b); DO(rc, *prc++ = *pac O *pbc ? *pac : *pbc; ++pac; ++pbc) break; \
     default: return kerror("type"); \
     } break; \
   case -4: \
     switch(bt) { \
-    case  4: r=kv4(ac); DO(rc, v4(r)[i] = strcmp(v4(a)[i],v3(b)) O 0 ? v4(a)[i] : v3(b)) break; \
-    case -4: r=kv4(ac); DO(rc, v4(r)[i] = strcmp(v4(a)[i],v4(b)[i]) O 0 ? v4(a)[i] : v4(b)[i]) break; \
+    case  4: r=kv4(ac); prs=v4(r); pas=v4(a); DO(rc, *prs++ = strcmp(*pas,b4) O 0 ? *pas : b4; ++pas) break; \
+    case -4: r=kv4(ac); prs=v4(r); pas=v4(a); pbs=v4(b); DO(rc, *prs++ = strcmp(*pas,*pbs) O 0 ? *pas : *pbs; ++pas; ++pbs) break; \
     default: return kerror("type"); \
     } break; \
   default: return kerror("type"); \

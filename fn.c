@@ -537,7 +537,11 @@ K* fne2(K *f, K *a, char *av) {
     fp->s_=scope_cp(ff->s_);
     return p;
   }
-  if(at==11&&ac==1) a=v0(a)[0];
+  if(at==11&&ac==1) {
+    a=v0(a)[0];
+    if(a&&!at) DO(ac,SG2(v0(a)[i]);if(v0(a)[i]->t==98)return v0(a)[i])
+  }
+
   if(at==11&&ff->v!=ac) return kerror("valence");
   else if(at==11&&ff->v==1) return kerror("valence");
   fs=ff->s;
