@@ -6,6 +6,6 @@
 #include "p.h"
 extern int ecount,TOP;
 K* reduce(node *a, pgs *s, int top);
-K* load(char *fnm);
+void load(char *fnm);
 K* interp(int top);
 #endif /* INTERP_H */

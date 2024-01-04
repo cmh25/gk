@@ -35,14 +35,13 @@ K* reduce(node *a, pgs *s, int top) {
   return 0;
 }
 
-K* load(char *fnm) {
-  K *r;
+void load(char *fnm) {
   FILE *fp=0;
-  int i,j,c,f,m=256;
+  int i,j=0,c,f,m=256;
   node *a;
   pgs *s;
   fp=fopen(fnm,"r");
-  if(!fp) { fprintf(stderr,"%s: %s\n",fnm,strerror(errno)); return 0; }
+  if(!fp) { fprintf(stderr,"%s: %s\n",fnm,strerror(errno)); return; }
   if(!fnames) {
     fnamesm=2;
     fnames=xmalloc(fnamesm*sizeof(char*));
@@ -63,12 +62,11 @@ K* load(char *fnm) {
   }
   s->p[i]=0;
   a=pgparse(s);
-  if(!a) return null;
-  r=reduce(a,s,0); 
+  if(!a) return;
+  reduce(a,s,0);
   a->v=0; node_free(a);
   fclose(fp);
   pgfree(s);
-  return r;
 }
 
 K* interp(int top) {
@@ -121,7 +119,7 @@ K* interp(int top) {
       if(pcount<0||scount<0||ccount<0) { pcount=scount=ccount=0; continue; }
       a=pgparse(s);
       if(!a) { fprintf(stderr,"%s",prompt); continue; }
-      r=reduce(a,s,top); 
+      r=reduce(a,s,top);
       if(r) return r;
       a->v=0; node_free(a);
       if(!quiet) { DO(ecount,putc('>',stderr)); fprintf(stderr,"%s",prompt); }

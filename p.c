@@ -624,12 +624,12 @@ static int gsym(pgs *pgs) {
 }
 
 static int gc(pgs *pgs) {
-  char *q,s=0;
+  char s=0;
   int j=0,n;
   unsigned char o;
   n=32;
   ss=xmalloc(n);
-  q=++p;
+  ++p;
   while(1) {
     if(j>=n-1) { n<<=1; ss=xrealloc(ss,n); }
     switch(s) {

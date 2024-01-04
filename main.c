@@ -7,10 +7,9 @@
 #include "interp.h"
 
 int main(int argc, char **argv) {
-  K *r;
   if(isatty(fileno(stdin))) fprintf(stderr, "gk v004rc\n\n");
   kinit();
-  if(argc>1) r=load(argv[1]);
+  if(argc>1) load(argv[1]);
   interp(1);
   return 0;
 }

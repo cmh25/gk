@@ -113,7 +113,7 @@ K* cond1(K *a) {
 }
 
 K* amendi3_(K *a, K *b, K *c, char *av) {
-  K *r,*p,*q;
+  K *r=0,*p=0,*q=0;
   int e=E;
   ERR *ee;
 
@@ -479,6 +479,7 @@ K* amend4_(K *a, K *b, K *c, K *d, char *av) {
 
   if(q->t==5 && bt!=4 && bt!=-4 && bt!=0 && bt!=6) return kerror("type");
   if(q->t<=0 && bt!=1 && bt!=-1 && bt!=0 && bt!=6) return kerror("type");
+  if(q->t==5 && bt==0 && bc && v0(b)[0]->t!=4 && v0(b)[0]->t!=-4 &&v0(b)[0]->t!=6) return kerror("type");
 
   r=amend4_pd(q,b,c,d,av);
 

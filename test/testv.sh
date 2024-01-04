@@ -2,6 +2,8 @@
 
 os=`uname -s`
 if [ "$os" = "Darwin" ]; then echo "valgrind tests are linux only"; exit 0; fi
+which valgrind &>/dev/null
+if [ $? -ne 0 ]; then echo "valgrind not found" && exit 1; fi
 ec=0
 for t in `cat tests`; do
   echo -n "test$t: "

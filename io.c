@@ -129,7 +129,8 @@ K* onecolon1_(K *a, char *av) {
   void *v;
   size_t len;
   if(at==4) s=a->v;
-  else s=xstrndup(v3(a),ac);
+  else if(at==-3) s=xstrndup(v3(a),ac);
+  else return kerror("type");
   fd=open(s,O_RDONLY);
   if(fd==-1) { r=ferr(s,errno); return r; }
   if(at==-3) xfree(s);
@@ -137,12 +138,13 @@ K* onecolon1_(K *a, char *av) {
   i=read(fd,&t,sizeof(int));
   i=read(fd,&c,sizeof(int));
   if(t!=-1&&t!=-2&&t!=-3) { close(fd); return twocolon1_(a,av); }
-  r=kv1(1); xfree(r->v);
   if(t==-1) len=12+c*sizeof(int);
   else if(t==-2) len=12+c*sizeof(double);
   else if(t==-3) len=12+c*sizeof(char);
+  else return kerror("type");
   v=mmap(0,len,PROT_READ|PROT_WRITE,MAP_PRIVATE,fd,0);
   if(v==(void*)-1) { r=ferr(s,errno); return r; }
+  r=kv1(1); xfree(r->v);
   r->v=12+(char*)v;
   r->r=-2;
   r->c=c;
@@ -250,6 +252,7 @@ K* del1_(K *a, char *av) {
   char *s;
   if(at==4) s=a->v;
   else if(at==-3) s=xstrndup(a->v,ac);
+  else return kerror("type");
   if((remove(s)==-1)) { r=ferr(s,errno); return r; }
   if(at==-3) xfree(s);
   return null;

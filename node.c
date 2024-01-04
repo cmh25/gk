@@ -79,6 +79,7 @@ K* assign3_(K *a, K *b, K *c) {
   f=knew(7,0,fnnew(":"),':',0,0);
   if(bt==0) r=amend4_(a,b,f,c,0);
   else r=amendi4_(a,b,f,c,0);
+  EC(r);
   scope_set(cs,an,r);
   kfree(r); kfree(f); kfree(a);
   quiet2=1;
@@ -91,7 +92,7 @@ static K* node_reducepe(node *n, int z) {
   /* has to be backwards for things like (c:b+1;b:a+1;a:1) */
   if(n->t==11) { /* plist */
     r=kv0(n->v);
-    DO(rc,a=node_reduce(n->a[i],z);EC(a);;SR(a);v0(r)[rc-i-1]=a)
+    DO(rc,a=node_reduce(n->a[i],z);EC(a);SR(a);v0(r)[rc-i-1]=a)
     rt=11;
   }
   else if(n->t==12) { /* elist */
@@ -591,7 +592,7 @@ static K* node_reduce_(node *n, int md, int z) {
     else if(ct==17) {
       f=c->v;
       if(f->i==':') {
-        if(strchr(ao->v,'.'))  r=assign3_(ao,0,f->r);
+        if(ao->t==99&&strchr(ao->v,'.')) r=assign3_(ao,0,f->r);
         else r=apply2(c,ao,f->r,av);
       }
       else if(f->r->t==16) {

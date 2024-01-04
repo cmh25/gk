@@ -343,16 +343,13 @@ void fninit() {
 }
 
 K* fnd(K *a) {
-  K *r=a,*o=0;
+  K *r=a;
   char *f=0,b[256],*v[256],*g,*h,c;
   int i,j,u,s,n,q,vx,vy,vz;
   fn *ff;
   pgs *pgs;
   SG2(a);
   ff=a->v;
-  o=ff->l;
-
-  /* process formal parameters and set up scope */
   f=ff->f;
 
   if(linei==linem) {
