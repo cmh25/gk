@@ -171,14 +171,14 @@ K* vs2_(K *a, K *b, char *av) {
       break;
     case  0:
       q=kv0(bc);
-      DO(q->c, v0(q)[i]=vs2_(a,v0(b)[i],0))
+      DO(q->c, v0(q)[i]=vs2_(a,v0(b)[i],0); EC(v0(q)[i]))
       justify(q);
       r=flip_(q,0);
       kfree(q);
       break;
     case -1:
       q=kv0(bc);
-      DO(q->c, p=k1(0); p->i=v1(b)[i]; v0(q)[i]=vs2_(a,p,0); kfree(p))
+      DO(q->c, p=k1(0); p->i=v1(b)[i]; v0(q)[i]=vs2_(a,p,0); EC(v0(q)[i]); kfree(p))
       justify(q);
       r=flip_(q,0);
       kfree(q);
@@ -218,13 +218,13 @@ K* vs2_(K *a, K *b, char *av) {
       break;
     case  0:
       q=kv0(bc);
-      DO(q->c, v0(q)[i]=vs2_(a,v0(b)[i],0))
+      DO(q->c, v0(q)[i]=vs2_(a,v0(b)[i],0); EC(v0(q)[i]))
       justify(q);
       r=flip_(q,0); kfree(q);
       break;
     case -1:
       q=kv0(bc);
-      DO(q->c, p=k1(0); p->i=v1(b)[i]; v0(q)[i]=vs2_(a,p,0); kfree(p))
+      DO(q->c, p=k1(0); p->i=v1(b)[i]; v0(q)[i]=vs2_(a,p,0); EC(v0(q)[i]); kfree(p))
       justify(q);
       r=flip_(q,0); kfree(q);
       break;
@@ -249,7 +249,7 @@ K* sv2_(K *a, K *b, char *av) {
     case  0:
       p=flip_(b,0);
       r=kv0(p->c);
-      DO(rc, v0(r)[i]=sv2_(a,v0(p)[i],0))
+      DO(rc, v0(r)[i]=sv2_(a,v0(p)[i],0); EC(v0(r)[i]))
       kfree(p);
       break;
     case -1:
@@ -283,7 +283,7 @@ K* sv2_(K *a, K *b, char *av) {
     case  0:
       p=flip_(b,0);
       r=kv0(p->c);
-      DO(rc, v0(r)[i]=sv2_(a,v0(p)[i],0))
+      DO(rc, v0(r)[i]=sv2_(a,v0(p)[i],0); EC(v0(r)[i]))
       kfree(p);
       break;
     case -1:
@@ -345,14 +345,14 @@ K* draw2_(K *a, K *b, char *av) {
       r=kv0(v1(a)[0]);
       if(a0->c == 1) {a_1=first_(a0,0);kfree(a0);}
       else a_1 = a0;
-      DO(rc, v0(r)[i]=draw2_(a_1,b,av))
+      DO(rc, v0(r)[i]=draw2_(a_1,b,av); EC(v0(r)[i]))
       kfree(a_1);
       if(z) deal(0,0,2);
       break;
     case -1:
       if(ac!=bc) return kerror("length");
       am=kmix(a); bm=kmix(b);
-      r=kv0(ac); DO(ac,v0(r)[i]=draw2_(v0(am)[i],v0(bm)[i],0))
+      r=kv0(ac); DO(ac,v0(r)[i]=draw2_(v0(am)[i],v0(bm)[i],0); EC(v0(r)[i]))
       kfree(am); kfree(bm);
       break;
     default: return kerror("type");
@@ -380,7 +380,7 @@ K* ic1_(K *a, char *av) {
   unsigned char *s=0;
   switch(at) {
   case  3: r=k1(a1); break;
-  case  0: r=kv0(ac); DO(ac, v0(r)[i]=ic1_(v0(a)[i],av)) break;
+  case  0: r=kv0(ac); DO(ac, v0(r)[i]=ic1_(v0(a)[i],av); EC(v0(r)[i])) break;
   case -3: s=a->v; if(ac==1) r=k1(s[0]); else { r=kv1(ac); DO(ac,v1(r)[i]=s[i]) } break;
   default: return kerror("type");
   }
@@ -406,7 +406,7 @@ K* dj1_(K *a, char *av) {
     break;
   case -1:
     am=kmix(a);
-    r=kv0(am->c); DO(rc,v0(r)[i]=dj1_(v0(am)[i],av));
+    r=kv0(am->c); DO(rc,v0(r)[i]=dj1_(v0(am)[i],av); EC(v0(r)[i]));
     kfree(am);
     break;
   default: return kerror("type");
@@ -430,7 +430,7 @@ K* jd1_(K *a, char *av) {
     break;
   case -1:
     am=kmix(a);
-    r=kv0(am->c); DO(rc,v0(r)[i]=jd1_(v0(am)[i],av));
+    r=kv0(am->c); DO(rc,v0(r)[i]=jd1_(v0(am)[i],av); EC(v0(r)[i]));
     kfree(am);
     break;
   default: return kerror("type");
@@ -457,7 +457,7 @@ K* lt1_(K *a, char *av) {
     break;
   case -1:
     am = kmix(a);
-    r = kv0(am->c); DO(rc, v0(r)[i]=lt1_(v0(am)[i],av));
+    r = kv0(am->c); DO(rc, v0(r)[i]=lt1_(v0(am)[i],av); EC(v0(r)[i]));
     kfree(am);
     break;
   default: return kerror("type");
@@ -480,7 +480,7 @@ K* sqr1_(K *a, char *av) {
   switch(at) {
   case  1: r=k2(I2F(a1)*I2F(a1)); break;
   case  2: r=k2(a2*a2); break;
-  case  0: r=kv0(ac); DO(ac, v0(r)[i]=sqr1_(v0(a)[i],av)) break;
+  case  0: r=kv0(ac); DO(ac, v0(r)[i]=sqr1_(v0(a)[i],av); EC(v0(r)[i])) break;
   case -1: r=kv2(ac); DO(ac, v2(r)[i]=v1(a)[i]*I2F(v1(a)[i])) break;
   case -2: r=kv2(ac); DO(ac, v2(r)[i]=v2(a)[i]*v2(a)[i]) break;
   default: return kerror("type");
@@ -514,12 +514,12 @@ K* ddot2_(K *a, K *b, char *av) {
       sb=shape_(b,0);
       if(sb->c==1) {
         q=kv0(bc);
-        DO(bc, v0(q)[i]=ddot2_(a,v0(b)[i],av))
+        DO(bc, v0(q)[i]=ddot2_(a,v0(b)[i],av); EC(v0(q)[i]))
         f=knew(7,0,fnnew("+"),'+',0,0);
         r=avdom(f,q,"/"); kfree(q);
         kfree(f);
       }
-      else { bm=flip_(b,0); r=kv0(bm->c); DO(bm->c, v0(r)[i]=ddot2_(a,v0(bm)[i],av)) kfree(bm); }
+      else { bm=flip_(b,0); r=kv0(bm->c); DO(bm->c, v0(r)[i]=ddot2_(a,v0(bm)[i],av); EC(v0(r)[i])) kfree(bm); }
       kfree(sb);
       break;
     case -1: ai=a1; DO(bc, si+=ai*v1(b)[i]) r=k1(si); break;
@@ -534,12 +534,12 @@ K* ddot2_(K *a, K *b, char *av) {
       sb=shape_(b,0);
       if(sb->c==1) {
         q=kv0(bc);
-        DO(bc, v0(q)[i]=ddot2_(a,v0(b)[i],av))
+        DO(bc, v0(q)[i]=ddot2_(a,v0(b)[i],av); EC(v0(q)[i]))
         f=knew(7,0,fnnew("+"),'+',0,0);
         r=avdom(f,q,"/"); kfree(q);
         kfree(f);
       }
-      else { bm=flip_(b,0); r=kv0(bm->c); DO(bm->c, v0(r)[i]=ddot2_(a,v0(bm)[i],av)) kfree(bm); }
+      else { bm=flip_(b,0); r=kv0(bm->c); DO(bm->c, v0(r)[i]=ddot2_(a,v0(bm)[i],av); EC(v0(r)[i])) kfree(bm); }
       kfree(sb);
       break;
     case -1: af=a2; DO(bc, sf+=af*I2F(v1(b)[i])) r=k2(sf); break;
@@ -553,24 +553,24 @@ K* ddot2_(K *a, K *b, char *av) {
       sa=shape_(a,0);
       if(sa->c==1) {
         q=kv0(ac);
-        DO(ac, v0(q)[i]=ddot2_(v0(a)[i],b,av))
+        DO(ac, v0(q)[i]=ddot2_(v0(a)[i],b,av); EC(v0(q)[i]))
         f=knew(7,0,fnnew("+"),'+',0,0);
         r=avdom(f,q,"/"); kfree(q);
         kfree(f);
       }
-      else { am=flip_(a,0); r=kv0(am->c); DO(am->c, v0(r)[i]=ddot2_(v0(am)[i],b,av)) kfree(am); }
+      else { am=flip_(a,0); EC(am); r=kv0(am->c); DO(am->c, v0(r)[i]=ddot2_(v0(am)[i],b,av); EC(v0(r)[i])) kfree(am); }
       kfree(sa);
       break;
     case  0:
       sa=shape_(a,0); sb=shape_(b,0);
       if(sa->c>1) am=flip_(a,0); else am=kref(a);
       if(sb->c>1) bm=flip_(b,0); else bm=kref(b);
-      if(sa->c>1 && sb->c>1) { r=kv0(bm->c); DO(bm->c, v0(r)[i]=ddot2_(v0(am)[i],v0(bm)[i],av)) }
-      else if(sa->c>1 && sb->c==1) { r=kv0(bc); DO(bc, v0(r)[i]=ddot2_(v0(am)[i],b,av)) }
-      else if(sa->c==1 && sb->c>1) { r=kv0(ac); DO(ac, v0(r)[i]=ddot2_(a,v0(bm)[i],av)) }
+      if(sa->c>1 && sb->c>1) { r=kv0(bm->c); DO(bm->c, v0(r)[i]=ddot2_(v0(am)[i],v0(bm)[i],av); EC(v0(r)[i])) }
+      else if(sa->c>1 && sb->c==1) { r=kv0(bc); DO(bc, v0(r)[i]=ddot2_(v0(am)[i],b,av); EC(v0(r)[i])) }
+      else if(sa->c==1 && sb->c>1) { r=kv0(ac); DO(ac, v0(r)[i]=ddot2_(a,v0(bm)[i],av); EC(v0(r)[i])) }
       else {
         q=kv0(ac);
-        DO(ac, v0(q)[i]=ddot2_(v0(am)[i],v0(bm)[i],av))
+        DO(ac, v0(q)[i]=ddot2_(v0(am)[i],v0(bm)[i],av); EC(v0(q)[i]))
         f=knew(7,0,fnnew("+"),'+',0,0);
         r=avdom(f,q,"/"); kfree(q);
         kfree(f);
@@ -584,13 +584,13 @@ K* ddot2_(K *a, K *b, char *av) {
       if(am->c==bc) {
         q=kv0(bc);
         bm=kmix(b);
-        DO(ac, v0(q)[i]=ddot2_(v0(am)[i],v0(bm)[i],av))
+        DO(ac, v0(q)[i]=ddot2_(v0(am)[i],v0(bm)[i],av); EC(v0(q)[i]))
         kfree(bm);
         f=knew(7,0,fnnew("+"),'+',0,0);
         r=avdom(f,q,"/"); kfree(q);
         kfree(f);
       }
-      else { r=kv0(am->c); DO(am->c, v0(r)[i]=ddot2_(v0(am)[i],b,av)) }
+      else { r=kv0(am->c); DO(am->c, v0(r)[i]=ddot2_(v0(am)[i],b,av); EC(v0(r)[i])) }
       kfree(am);
       break;
     default: return kerror("type");
@@ -605,13 +605,13 @@ K* ddot2_(K *a, K *b, char *av) {
       if(ac==bm->c && sb->c==1) { /* matrix? */
         q=kv0(ac);
         am=kmix(a);
-        DO(ac, v0(q)[i]=ddot2_(v0(am)[i],v0(bm)[i],av))
+        DO(ac, v0(q)[i]=ddot2_(v0(am)[i],v0(bm)[i],av); EC(v0(q)[i]))
         kfree(am);
         f=knew(7,0,fnnew("+"),'+',0,0);
         r=avdom(f,q,"/"); kfree(q);
         kfree(f);
       }
-      else { r=kv0(bm->c); DO(bm->c, v0(r)[i]=ddot2_(a,v0(bm)[i],av)) }
+      else { r=kv0(bm->c); DO(bm->c, v0(r)[i]=ddot2_(a,v0(bm)[i],av); EC(v0(r)[i])) }
       kfree(bm);
       kfree(sb);
       break;
@@ -629,13 +629,13 @@ K* ddot2_(K *a, K *b, char *av) {
       if(ac==bm->c && sb->c==1) { /* matrix? */
         q=kv0(ac);
         am=kmix(a);
-        DO(ac, v0(q)[i]=ddot2_(v0(am)[i],v0(bm)[i],av))
+        DO(ac, v0(q)[i]=ddot2_(v0(am)[i],v0(bm)[i],av); EC(v0(q)[i]))
         kfree(am);
         f=knew(7,0,fnnew("+"),'+',0,0);
         r=avdom(f,q,"/"); kfree(q);
         kfree(f);
       }
-      else { r=kv0(bm->c); DO(bm->c, v0(r)[i]=ddot2_(a,v0(bm)[i],av)) }
+      else { r=kv0(bm->c); DO(bm->c, v0(r)[i]=ddot2_(a,v0(bm)[i],av); EC(v0(r)[i])) }
       kfree(bm);
       kfree(sb);
       break;
@@ -766,7 +766,7 @@ K* not1_(K *a, char *av) {
   K *r=0;
   switch(at) {
   case  1: r=k1(~a1); break;
-  case  0: r=kv0(ac); DO(ac, v0(r)[i]=not1_(v0(a)[i],av)) break;
+  case  0: r=kv0(ac); DO(ac, v0(r)[i]=not1_(v0(a)[i],av); EC(v0(r)[i])) break;
   case -1: r=kv1(ac); DO(ac, v1(r)[i]=~v1(a)[i]) break;
   default: return kerror("type");
   }
