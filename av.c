@@ -483,7 +483,7 @@ K* avdo37infix(K *f, K *a, char *av) {
   av2[n-1]=0;
   if(a&&!at) DO(ac,SG2(v0(a)[i]);if(v0(a)[i]->t==98)return v0(a)[i])
   SG2(a); if(a->t==98)return a;
-  if(ff->v==1) {
+  if(ff->v==1||ff->v==0) {
     if(av[n-1]=='\'') r=slide37infix(f,a,av2);       /* a {x}' b */
     if(av[n-1]=='/') r=overm37infix(f,a,av2);       /* a {x}/ b */
     else if(av[n-1]=='\\') r=scanm37infix(f,a,av2); /* a {x}\ b */

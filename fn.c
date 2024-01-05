@@ -366,6 +366,16 @@ K* fnd(K *a) {
   s=j=n=q=vx=vy=vz=0;
   if(*f!='{') return r;
   for(i=0;i<u;i++) {
+    /* eat up quoted strings */
+    if(f[i]=='"') {
+      ++i;
+      while(1) {
+        if(f[i]=='\\') i+=2;
+        if(f[i]=='"') { ++i; break; }
+        else ++i;
+      }
+    }
+
     switch(s) {
     case 0:
       if(f[i]=='{') s=1;

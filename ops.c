@@ -1933,7 +1933,7 @@ K* val1_(K *a, char *av) {
   switch(at) {
    case 27: r=k1(1); break;
    case  7: case 67: r=k1(2); break;
-   case 37: case 77: case 87: r=k1(((fn*)a->v)->v); break;
+   case 37: case 77: case 87: case 97: r=k1(((fn*)a->v)->v); break;
    default: r=kerror("type");
   }
   return r;

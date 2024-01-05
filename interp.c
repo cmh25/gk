@@ -72,7 +72,7 @@ void load(char *fnm) {
 K* interp(int top) {
   K *r;
   node *a;
-  int i,c,m=256,pcount=0,scount=0,ccount=0,qcount=0,f,abort=0;
+  int i,c,m=256,pcount=0,scount=0,ccount=0,qcount=0,f,abort=0,spc=0,cmt=0;
   pgs *s=pgnew();
   char *prompt="  ";
 
@@ -83,16 +83,22 @@ K* interp(int top) {
     for(i=0;;i=0) {
       pcount=scount=ccount=qcount=0;
       while(1) {
-        f=1;
+        f=1;spc=0;cmt=1;
         while((c=fgetc(stdin))!=EOF&&c!='\n') {
           s->p[i++]=c;
+          if(spc&&c=='/') cmt=1;
+          if(cmt) continue;
           if(i==m) { m<<=1; s->p=xrealloc(s->p,m+2); }
-          if(c=='(') ++pcount; else if(c==')') --pcount;
-          else if(c=='[') ++scount; else if(c==']') --scount;
-          else if(c=='{') ++ccount; else if(c=='}') --ccount;
+          if(!qcount) {
+            if(c=='(') ++pcount; else if(c==')') --pcount;
+            else if(c=='[') ++scount; else if(c==']') --scount;
+            else if(c=='{') ++ccount; else if(c=='}') --ccount;
+            else if(c=='"') qcount^=1;
+            else if(f&&c=='\\') ++f;
+            if(c!=' '&&c!='\t'&&c!='\\') f=0;
+          }
           else if(c=='"') qcount^=1;
-          else if(f&&c=='\\') ++f;
-          if(c!=' '&&c!='\t'&&c!='\\') f=0;
+          if(c==' '||c=='\t') spc=1; else spc=0;
         }
         if(f==3) exit(0);
         if(f==2) { abort=1; break; }

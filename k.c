@@ -106,7 +106,7 @@ void kfree(K *s) {
    }
 #endif
   if(!s->r) {
-    if(s->t==0||s->t==10||s->t==11||s->t==12||s->t==13||s->t==14||s->t==15)
+    if(s->t==0||s->t==10||s->t==11||s->t==12||s->t==13||s->t==14||s->t==15||s->t==97)
       DO(s->c, kfree(v0(s)[i]))
     else if(s->t== 5) { dfree(s->v); s->v=0; }
     else if(s->t==7||s->t==17||s->t==27||s->t==37||s->t==57||s->t==67||s->t==77||s->t==87) { fnfree(s->v); s->v=0; }
@@ -306,6 +306,13 @@ char* kprint_(K *p, char *s, int plevel, int nl) {
     xfree(kprint_(f->r,s,plevel,0));
     if(f->av) oc+=sprintf(o+oc,"%s",f->av);
     break;
+  case 97:
+    f=v0(p)[1]->v;
+    xfree(kprint_(v0(p)[0],s,plevel,0));
+    v0(p)[1]->t=37;
+    xfree(kprint_(v0(p)[1],s,plevel,0));
+    v0(p)[1]->t=17;
+    break;
   case 11:
     oc+=sprintf(o+oc,"[");
     if(p->c) {
@@ -324,7 +331,7 @@ char* kprint_(K *p, char *s, int plevel, int nl) {
 
     /* any elements with count>0 (except cv and fixed dyad) */
     for(i=0;i<p->c;i++) {
-      if(v0(p)[i]->c && v0(p)[i]->t != -3 && v0(p)[i]->t != 27) {
+      if(v0(p)[i]->c && v0(p)[i]->t != -3 && v0(p)[i]->t != 27 && v0(p)[i]->t != 97) {
         z = 1;
         break;
       }
@@ -402,6 +409,13 @@ char* kprint_(K *p, char *s, int plevel, int nl) {
           xfree(kprint_(f->l,"",0,0));
           xfree(kprint_(f->r,"",0,0));
           if(f->av) oc+=sprintf(o+oc,"%s",f->av);
+          break;
+        case 97:
+          f=v0(p2)[1]->v;
+          xfree(kprint_(v0(p2)[0],"",0,0));
+          v0(p2)[1]->t=37;
+          xfree(kprint_(v0(p2)[1],"",0,0));
+          v0(p2)[1]->t=17;
           break;
         case  0: oc+=sprintf(o+oc,"()"); break;
         case -1: oc+=sprintf(o+oc,"!0"); break;
@@ -547,7 +561,7 @@ K* knorm(K *s) {
   if(t<=0) return s;
   for(i=1;i<s->c;i++) if(t != v0(s)[i]->t) return s;
 
-  if(t==5||t==6||t==16||t==7||t==17||t==27||t==37||t==67||t==77||t==87) return s; /* no -5 -6 -7 */
+  if(t==5||t==6||t==16||t==7||t==17||t==27||t==37||t==67||t==77||t==87||t==97) return s; /* no -5 -6 -7 */
 
   /* convert to type t */
   p = knew(-t,s->c,0,0,0,0);
@@ -604,7 +618,7 @@ K* kcp(K *s) {
   case -2: p->v = memcpy(xmalloc(sizeof(double)*p->c), s->v, sizeof(double)*p->c); break;
   case -3: p->v = xmalloc(s->c); memcpy(p->v,s->v,s->c); break;
   case -4: p->v = xmalloc(sizeof(char*)*s->c); DO(s->c, v4(p)[i] = v4(s)[i]) break;
-  case 0: case 10: case 11: p->v = xmalloc(sizeof(K*)*p->c); DO(p->c, v0(p)[i] = kcp(v0(s)[i])) break;
+  case 0: case 10: case 11: case 97: p->v = xmalloc(sizeof(K*)*p->c); DO(p->c, v0(p)[i] = kcp(v0(s)[i])) break;
   case 3: p->v = s->v; break;
   case 4: p->v = s->v; break;
   case 5: p->v = dcp(s->v); break;
@@ -684,7 +698,7 @@ int kcmp(K *a, K *b) {
       else if(strcmp(v4(a)[i],v4(b)[i])>0){r=1;break;}
     }
   }
-  else if(at==0) {
+  else if(at==0||at==97) {
     for(i=0;;i++) {
       if(i==ac && i<bc) {r=-1;break;}
       else if(i==bc && i<ac) {r=1;break;}
@@ -708,7 +722,7 @@ uint64_t khash(K *a) {
   case  5: r=dhash(a5); break;
   case  6: case 16: r=0; break;
   case  7: case 27: case 37: case 67: case 77: case 87: s=kprint5(a,"",0,0); r=xfnv1a(s,strlen(s)); xfree(s); break;
-  case  0: DO(ac,r^=khash(v0(a)[i])) break;
+  case  0: case 97: DO(ac,r^=khash(v0(a)[i])) break;
   case -1: DO(ac,r^=(uint64_t)v1(a)[i]*2654435761) break;
   case -2: DO(ac,r^=(uint64_t)v2(a)[i]*2654435761) break;
   case -3: DO(ac,r^=(uint64_t)v3(a)[i]*2654435761) break;

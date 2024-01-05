@@ -767,6 +767,15 @@ static int gcon(pgs *pgs, int n, int t) {
   p+=n; /*  while[ do[ if[ $[ */
   q=p;
   while(1) {
+    /* eat up quoted strings */
+    if(*p=='"') {
+      ++p;
+      while(1) {
+        if(*p=='\\') p+=2;
+        if(*p=='"') { ++p; break; }
+        else ++p;
+      }
+    }
     if(*p==']'&&fc==0) {
       c=*p; *p=0;
       push(pgs,T018,node_new(0,0,knew(t,0,q,0,0,0)));
