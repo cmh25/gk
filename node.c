@@ -77,8 +77,8 @@ K* assign3_(K *a, K *b, K *c) {
   else if(bt==11&&bc>1) bt=0;
   SG2(c);
   f=knew(7,0,fnnew(":"),':',0,0);
-  if(bt==0) r=amend4_(a,b,f,c,0);
-  else r=amendi4_(a,b,f,c,0);
+  if(bt==0) r=amend4_(a,b,f,c);
+  else r=amendi4_(a,b,f,c);
   EC(r);
   scope_set(cs,an,r);
   kfree(r); kfree(f); kfree(a);

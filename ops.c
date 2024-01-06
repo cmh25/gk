@@ -1689,8 +1689,8 @@ K* apply4(K *f, K *a, K *b, K *c, K *d, char *av) {
   quiet2=0;
   SG2(a); SG2(b); SG2(c); SG2(d);
   if(at==98||bt==98||ct==98||dt==98) return kerror("value");
-  if(ff->i=='@') r=amendi4_(a,b,c,d,0);
-  else if(ff->i=='.') r=amend4_(a,b,c,d,0);
+  if(ff->i=='@') r=amendi4_(a,b,c,d);
+  else if(ff->i=='.') r=amend4_(a,b,c,d);
   kfree(a); kfree(b); kfree(c); kfree(d);
   return r;
 }
@@ -1700,8 +1700,8 @@ K* apply3(K *f, K *a, K *b, K *c, char *av) {
   quiet2=0;
   SG2(a); SG2(b); SG2(c);
   if(at==98||bt==98||ct==98) return kerror("value");
-  if(ff->i=='@') r=amendi3_(a,b,c,0);
-  else if(ff->i=='.') r=amend3_(a,b,c,0);
+  if(ff->i=='@') r=amendi3_(a,b,c);
+  else if(ff->i=='.') r=amend3_(a,b,c);
   kfree(a); kfree(b); kfree(c);
   return r;
 }

@@ -1,5 +1,6 @@
 CC=gcc
 #CFLAGS=-g -O2 -Wall -Wextra -Wformat=2
+#CFLAGS=-g -Wall -Wformat=2 -Wextra -Wformat-security -Wformat-nonliteral -Wno-unused-parameter
 CFLAGS=-O3
 
 all: gk

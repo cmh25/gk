@@ -6,18 +6,18 @@
 #include "scope.h"
 
 typedef struct fn {
-  char *f;   /* definition */
-  int v;     /* valence */
-  node *n;   /* ast */
-  scope *s_; /* initial scope */
-  scope *s;  /* active scope */
-  char *av;  /* adverbs */
-  int q;     /* explicit formal params */
-  K *l;      /* left arg, fixed dyad, projection */
-  K *r;      /* right arg, intermediate parse */
-  K **a;     /* 7 list, function composition */
-  int an;    /* count, function composition */
-  int i;     /* index into dt */
+  char *f;        /* definition */
+  unsigned int v; /* valence */
+  node *n;        /* ast */
+  scope *s_;      /* initial scope */
+  scope *s;       /* active scope */
+  char *av;       /* adverbs */
+  int q;          /* explicit formal params */
+  K *l;           /* left arg, fixed dyad, projection */
+  K *r;           /* right arg, intermediate parse */
+  K **a;          /* 7 list, function composition */
+  int an;         /* count, function composition */
+  int i;          /* index into dt */
 } fn;
 
 extern int DEPTH;

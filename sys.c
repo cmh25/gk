@@ -25,7 +25,7 @@
 static int *gdeck=0,gdeckc=0,gdecki=0;
 
 static void draw(K *s, int m) {
-  int i;
+  unsigned int i;
 #ifdef _WIN32
   static unsigned long long x=123456789, y=362436069, z=521288629, t;
 #else
@@ -71,7 +71,7 @@ static int rr(unsigned int *s) {
 
 static void shuffle(int *a, int n) {
   static unsigned int p=1;
-  unsigned int i,j,t;
+  int i,j,t;
   int rm=2147483647; /* instead of RAND_MAX */
   if(n>1) {
     for(i=0;i<n-1;i++) {
@@ -103,7 +103,7 @@ static void deal(K *s, int n, int m) {
     gdeckc=0;
   }
   else if(m == 1) {
-    if(gdecki+s->c > gdeckc) {printf("error: overflow in deal()\n");exit(1);}
+    if(gdecki+(int)s->c > gdeckc) {printf("error: overflow in deal()\n");exit(1);}
     DO(s->c, v1(s)[i]=gdeck[gdecki++])
   }
   else if(m == 2) {xfree(gdeck);gdeck=0;gdecki=0;gdeckc=0;}
@@ -135,7 +135,8 @@ K* tt0(K *a, char *av) { /* TS */
 }
 
 static void justify(K *a) {
-  int j=0,m=0,d=0;
+  int j=0,d=0;
+  unsigned int m=0;
   K *p=0;
   DO(ac, p=v0(a)[i]; if(m<p->c) m=p->c)
   DO(ac,
@@ -152,7 +153,8 @@ static void justify(K *a) {
 
 K* vs2_(K *a, K *b, char *av) {
   K *r=0,*q=0,*p=0,*f=0;
-  int i,j,x,y,m,n,d;
+  int i,j,x,y,m,d;
+  unsigned int n;
 
   switch(at) {
   case 1:
@@ -239,7 +241,7 @@ MC2A(vs2_);
 
 K* sv2_(K *a, K *b, char *av) {
   K *r=0,*q=0,*p=0,*f=0;
-  int i,j;
+  unsigned int i,j;
   double jf;
 
   switch(at) {
@@ -1031,7 +1033,7 @@ static K* svdcmp(double **a, int m, int n, double *w, double **v, double *t) {
 K* lsq2_(K *a, K *b, char *av) {
   K *x,*y,*z; 
   double **u,*w,**v,*t,wmax,thresh,TOL=1.0e-6,s;
-  int r,n,m;
+  unsigned int r,n,m;
   if(at > 0 || at < -2 || bt) return kerror("type");
   if(!ac || !bc) return kerror("length");
   r=v0(b)[0]->c; if(r<=0) return kerror("length");
@@ -1076,8 +1078,8 @@ K* atn2_(K *a, K *b, char *av) {
   switch(at) {
   case -1:
     switch(bt) {
-    case  1: r=k1(b1>=ac?INT_MIN:v1(a)[b1]); break;
-    case -1: r=kv1(bc); DO(rc, v1(r)[i] = v1(b)[i]>=ac?INT_MIN:v1(a)[v1(b)[i]]); break;
+    case  1: r=k1((unsigned int)b1>=ac?INT_MIN:v1(a)[b1]); break;
+    case -1: r=kv1(bc); DO(rc, v1(r)[i]=(unsigned int)v1(b)[i]>=ac?INT_MIN:v1(a)[v1(b)[i]]); break;
     default: return kerror("type");
     } break;
   default: return kerror("type");
@@ -1189,7 +1191,7 @@ static int ss(char *a, char *b, int an, int bn, int i) {
 
 K* ss2_(K *a, K *b, char *av) {
   K *r=0;
-  int i,n=0,m,s;
+  unsigned int i,n=0,m,s;
   K *f=scope_get(gs,sp("ss"));
 
   if(at!= 0 && at!=-3) return kerror("type");

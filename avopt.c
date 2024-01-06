@@ -8,7 +8,8 @@
 #define AVOPTPMT(F,O) \
 K* F##avopt(K *a, char *av) { \
   K *r=0; \
-  int i,s; \
+  int s; \
+  unsigned int i; \
   double f; \
   if(!ac) return 0; \
   if(!strcmp(av,"/")) { \
@@ -27,7 +28,7 @@ AVOPTPMT(times2_,*);
 
 K* divide2_avopt(K *a, char *av) {
   K *r=0;
-  int i;
+  unsigned int i;
   double f;
   if(ac<2) return 0;
   if(!strcmp(av,"/")) {
@@ -47,15 +48,15 @@ K* divide2_avopt(K *a, char *av) {
 
 K* minand2_avopt(K *a, char *av) {
   K *r=0;
-  int i,s;
+  int j,s,ht[256];
+  unsigned int i;
   double f;
-  int ht[256];
   char *p;
   if(!ac) return 0;
   if(!strcmp(av,"/")) {
          if(at==-1) { s=v1(a)[0]; for(i=1;i<ac;i++) if(v1(a)[i]<s) s=v1(a)[i]; r=k1(s); }
     else if(at==-2) { f=v2(a)[0]; for(i=1;i<ac;i++) if(CMPFFT(v2(a)[i],f)<0) f=v2(a)[i]; r=k2(f); }
-    else if(at==-3) { DO(256,ht[i]=0); DO(ac,ht[v3(a)[i]]=1); for(i=0;i<256;i++) if(ht[i]) break; r=k3(i); }
+    else if(at==-3) { DO(256,ht[i]=0); DO(ac,ht[(int)v3(a)[i]]=1); for(j=0;j<256;j++) if(ht[j]) break; r=k3(j); }
     else if(at==-4) { p=v4(a)[0]; for(i=1;i<ac;i++) if(strcmp(v4(a)[i],p)<0) p=v4(a)[i]; r=k4(p); }
   }
   else if(!strcmp(av,"\\")) {
@@ -69,15 +70,15 @@ K* minand2_avopt(K *a, char *av) {
 
 K* maxor2_avopt(K *a, char *av) {
   K *r=0;
-  int i,s;
+  int j,s,ht[256];
+  unsigned int i;
   double f;
-  int ht[256];
   char *p;
   if(!ac) return 0;
   if(!strcmp(av,"/")) {
          if(at==-1) { s=v1(a)[0]; for(i=1;i<ac;i++) if(v1(a)[i]>s) s=v1(a)[i]; r=k1(s); }
     else if(at==-2) { f=v2(a)[0]; for(i=1;i<ac;i++) if(CMPFFT(v2(a)[i],f)>0) f=v2(a)[i]; r=k2(f); }
-    else if(at==-3) { DO(256,ht[i]=0); DO(ac,ht[v3(a)[i]]=1); for(i=255;i>=0;i--) if(ht[i]) break; r=k3(i); }
+    else if(at==-3) { DO(256,ht[i]=0); DO(ac,ht[(int)v3(a)[i]]=1); for(j=255;j>=0;j--) if(ht[j]) break; r=k3(j); }
     else if(at==-4) { p=v4(a)[0]; for(i=1;i<ac;i++) if(strcmp(v4(a)[i],p)>0) p=v4(a)[i]; r=k4(p); }
   }
   else if(!strcmp(av,"\\")) {
@@ -140,7 +141,8 @@ K* fivecolon1_avopt(K *a, char *av) { return 0; }
 #define AVOPT2PMT(F,O) \
 K* F##avopt2(K *a, K *b, char *av) { \
   K *r=0,*p=0,*aa=0,*bb=0; \
-  int d,s,v,m,n,*ppi,*pai,*pbi; \
+  int d,*ppi,*pai,*pbi; \
+  unsigned int s,v,m,n; \
   double f,*ppf,*paf,*pbf; \
   if(!strcmp(av,"/")) { /* eachright */ \
     if(at==-1&&bt==-2) { aa=kv2(ac); DO(ac,v2(aa)[i]=I2F(v1(a)[i])); a=aa; } \
@@ -191,7 +193,8 @@ AVOPT2PMT(times2_,*);
 
 K* divide2_avopt2(K *a, K *b, char *av) {
   K *r=0,*p=0,*aa=0,*bb=0;
-  int d,s,v,m;
+  int d;
+  unsigned int s,v,m;
   double f,*ppf,*paf,*pbf;
   if(!strcmp(av,"/")) { /* eachright */
     if(at==-1) { aa=kv2(ac); DO(ac,v2(aa)[i]=I2F(v1(a)[i])); a=aa; }
@@ -263,7 +266,8 @@ K* form2_avopt2(K *a, K *b, char *av) {
 K* find2_avopt2(K *a, K *b, char *av) {
   K *r=0,**hk,**kp;
   uint64_t m,w,h,t=0,q;
-  int i,*ht,*hi,*n,z=0,zi,min=INT_MAX,max=INT_MIN;
+  int *ht,*n,z=0,zi,min=INT_MAX,max=INT_MIN;
+  unsigned int i,*hi;
   unsigned char hc[256],*da,*db;
   double *f,*hd;
   char **s,**hs;
@@ -281,7 +285,8 @@ K* find2_avopt2(K *a, K *b, char *av) {
         kp++;
         h=khash(*kp)&q;
         while(hk[h]!=0 && kcmp(hk[h],*kp)) h=(h+1)&q;
-        if(!hk[h]) hk[h]=*kp;hi[h]=i;;
+        if(!hk[h]) hk[h]=*kp;
+        hi[h]=i;
       }
       kp=v0(b);kp--;
       for(i=0;i<bc;i++) {
@@ -378,7 +383,8 @@ K* find2_avopt2(K *a, K *b, char *av) {
         s++;
         h=xfnv1a((char*)*s, strlen(*s))&q;
         while(hs[h]!=0 && strcmp(hs[h],*s)) h=(h+1)&q;
-        if(!hs[h]) hs[h]=*s;hi[h]=i;;
+        if(!hs[h]) hs[h]=*s;
+        hi[h]=i;
       }
       s=v4(b);s--;
       for(i=0;i<bc;i++) {

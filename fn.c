@@ -521,7 +521,8 @@ K* fnd(K *a) {
 K* fne2(K *f, K *a, char *av) {
   K *r=0,*p=0,*q=0,*o=0,*s=0,*self=0,*aa;
   scope *os=0,*fs=0;
-  int i,j,fa=0,rv,e=0,n=0;
+  unsigned int i,j,fa=0,rv,e=0,n=0;
+  int k;
   fn *ff=f->v,*fp;
 
   if(at==99){fa=1;SG(a);}
@@ -613,10 +614,10 @@ K* fne2(K *f, K *a, char *av) {
 
   os=cs;cs=fs;
   r=null;
-  for(i=ff->n->v-1;i>=0;i--) {
+  for(k=ff->n->v-1;k>=0;k--) {
     kfree(r);
     quiet2=0;
-    r=node_reduce(ff->n->a[i],0);
+    r=node_reduce(ff->n->a[k],0);
     if(r->t==98) { dset(Z,"s",self); kfree(self); return r; }
     if(fret) { fret=0; break; }
   }

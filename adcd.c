@@ -25,7 +25,7 @@ static node* parse(char *s) {
 
 K* while1(K *a) {
   K *r=0,*b=0;
-  int i;
+  unsigned int i;
   node *n=parse(a->v);
   b=node_reduce(n->a[n->v-1],0); EC(b); SR(b);
   while(b1) {
@@ -44,7 +44,7 @@ K* while1(K *a) {
 
 K* do1(K *a) {
   K *r=0,*b=0;
-  int i;
+  unsigned int i;
   node *n=parse(a->v);
   b=node_reduce(n->a[n->v-1],0); EC(b); SR(b);
   while(b1--) {
@@ -61,7 +61,7 @@ K* do1(K *a) {
 
 K* if1(K *a) {
   K *r=0,*b=0;
-  int i;
+  unsigned int i;
   node *n=parse(a->v);
   b=node_reduce(n->a[n->v-1],0); EC(b); SR(b);
   if(b1) {
@@ -112,7 +112,7 @@ K* cond1(K *a) {
   return r;
 }
 
-K* amendi3_(K *a, K *b, K *c, char *av) {
+K* amendi3_(K *a, K *b, K *c) {
   K *r=0,*p=0,*q=0;
   int e=E;
   ERR *ee;
@@ -142,7 +142,7 @@ K* amendi3_(K *a, K *b, K *c, char *av) {
 
   if(q->t>0 && q->t!=5) return kerror("rank");
 
-  r = amendi3_pd(q,b,c,av);
+  r = amendi3_pd(q,b,c);
 
   if(at==4) {
     p=rt?r:knorm(r); scope_set(gs,v3(a),p); kfree(p);
@@ -151,9 +151,9 @@ K* amendi3_(K *a, K *b, K *c, char *av) {
   return rt ? r : knorm(r);
 }
 
-K* amendi3_pd(K *a, K *b, K *c, char *av) {
+K* amendi3_pd(K *a, K *b, K *c) {
   K *r=a,*bm=0,*dm=0,*p=0,*q=0;
-  int i,j;
+  unsigned int i,j;
   K *a0=0,*b0=0;
 
   if(bt==1) {
@@ -202,7 +202,7 @@ K* amendi3_pd(K *a, K *b, K *c, char *av) {
         kfree(p); kfree(q);
       }
       else {
-        p=amendi3_(r,b0,c,0); EC(p);
+        p=amendi3_(r,b0,c); EC(p);
         kfree(r);
         r=p;
       }
@@ -214,7 +214,7 @@ K* amendi3_pd(K *a, K *b, K *c, char *av) {
   return r;
 }
 
-K* amend3_(K *a, K *b, K *c, char *av) {
+K* amend3_(K *a, K *b, K *c) {
   K *r,*p,*q,*bm;
   int e=E;
   ERR *ee;
@@ -250,7 +250,7 @@ K* amend3_(K *a, K *b, K *c, char *av) {
   if(q->t==5 && bt!=4 && bt!=-4 && bt!=0 && bt!=6) return kerror("type");
   if(q->t<=0 && bt!=1 && bt!=-1 && bt!=0 && bt!=6) return kerror("type");
 
-  r = amend3_pd(q,b,c,av);
+  r = amend3_pd(q,b,c);
 
   if(at==4) {
     p=rt?r:knorm(r); scope_set(gs,v3(a),p); kfree(p);
@@ -259,16 +259,16 @@ K* amend3_(K *a, K *b, K *c, char *av) {
   return rt ? r : knorm(r);
 }
 
-K* amend3_pd(K *a, K *b, K *c, char *av) {
+K* amend3_pd(K *a, K *b, K *c) {
   K *r=0,*bm=0,*p=0,*q=0,*s=0,*t=0,*u=0,*v=0,*sm=0,*pm=0;
-  int i,j;
+  unsigned int i,j;
   K **sa=0;
   int si=0,sn=2;
   sa=xmalloc(sizeof(K*)*sn);
-  K* (*ff)(K*,K*,K*,char*);
+  K* (*ff)(K*,K*,K*);
 
-  if(bt==1||bt==4||bt==6) { r=amendi3_(a,b,c,0); kfree(a); }
-  else if(bc==1) { r=amendi3_(a,b,c,0); kfree(a); }
+  if(bt==1||bt==4||bt==6) { r=amendi3_(a,b,c); kfree(a); }
+  else if(bc==1) { r=amendi3_(a,b,c); kfree(a); }
   else if(at>0&&!bc) {
     if(ct==37) r=fne2(c,a,0);
     else r=dt1[((fn*)c->v)->i](a,0);
@@ -306,13 +306,13 @@ K* amend3_pd(K *a, K *b, K *c, char *av) {
         v=v0(pm)[i];
         if(v->t==1) {
           s=v0(r)[v->i];
-          sm=ff(s,q,c,0);
+          sm=ff(s,q,c);
           kfree(s);
           v0(r)[v->i]=sm;
         }
         else if(v->t==4) {
           s=dget(r->v,v->v);
-          sm=ff(s,q,c,0);
+          sm=ff(s,q,c);
           kfree(s);
           dset(r->v,v->v,sm);
           kfree(sm);
@@ -322,7 +322,7 @@ K* amend3_pd(K *a, K *b, K *c, char *av) {
             u=dkeys(r->v);
             for(j=0;j<u->c;j++) {
               s=dget(r->v,v4(u)[j]);
-              t=ff(s,q,c,0); EC(t);
+              t=ff(s,q,c); EC(t);
               dset(r->v,v4(u)[j],t);
               kfree(s); kfree(t);
             }
@@ -330,7 +330,7 @@ K* amend3_pd(K *a, K *b, K *c, char *av) {
           }
           else {
             for(j=0;j<r->c;j++) {
-              s=ff(v0(r)[j],q,c,0); EC(s);
+              s=ff(v0(r)[j],q,c); EC(s);
               kfree(v0(r)[j]);
               v0(r)[j]=s;
             }
@@ -372,7 +372,7 @@ static K* runfne2(K *f, K *a, K *b, char *av) {
   return r;
 }
 
-K* amendi4_(K *a, K *b, K *c, K *d, char *av) {
+K* amendi4_(K *a, K *b, K *c, K *d) {
   K *r,*p,*q;
 
   if(!conform(b,d)) return kerror("length");
@@ -385,7 +385,7 @@ K* amendi4_(K *a, K *b, K *c, K *d, char *av) {
   }
   else q = at<0 ? kmix(a) : kcp(a);
 
-  r = amendi4_pd(q,b,c,d,av);
+  r = amendi4_pd(q,b,c,d);
 
   if(at==4) {
     p=rt?r:knorm(r); scope_set(gs,v3(a),p); kfree(p);
@@ -394,9 +394,9 @@ K* amendi4_(K *a, K *b, K *c, K *d, char *av) {
   return rt ? r : knorm(r);
 }
 
-K* amendi4_pd(K *a, K *b, K *c, K *d, char *av) {
+K* amendi4_pd(K *a, K *b, K *c, K *d) {
   K *r=a,*bm=0,*dm=0,*p=0,*q=0;
-  int i,j;
+  unsigned int i,j;
   K *a0=0,*b0=0,*d0=0;
 
   if(bt==1) {
@@ -456,7 +456,7 @@ K* amendi4_pd(K *a, K *b, K *c, K *d, char *av) {
         kfree(p); kfree(q);
       }
       else {
-        p=amendi4_(r,b0,c,d0,0); EC(p);
+        p=amendi4_(r,b0,c,d0); EC(p);
         kfree(r);
         r=p;
       }
@@ -468,7 +468,7 @@ K* amendi4_pd(K *a, K *b, K *c, K *d, char *av) {
   return r;
 }
 
-K* amend4_(K *a, K *b, K *c, K *d, char *av) {
+K* amend4_(K *a, K *b, K *c, K *d) {
   K *r,*p,*q;
 
   if(at==4) {
@@ -481,7 +481,7 @@ K* amend4_(K *a, K *b, K *c, K *d, char *av) {
   if(q->t<=0 && bt!=1 && bt!=-1 && bt!=0 && bt!=6) return kerror("type");
   if(q->t==5 && bt==0 && bc && v0(b)[0]->t!=4 && v0(b)[0]->t!=-4 &&v0(b)[0]->t!=6) return kerror("type");
 
-  r=amend4_pd(q,b,c,d,av);
+  r=amend4_pd(q,b,c,d);
 
   if(at==4) {
     if(!strlen(v3(a))||v3(a)[0]=='.') {
@@ -498,10 +498,10 @@ K* amend4_(K *a, K *b, K *c, K *d, char *av) {
   return rt ? r : knorm(r);
 }
 
-K* amend4_pd(K *a, K *b, K *c, K *d, char *av) {
+K* amend4_pd(K *a, K *b, K *c, K *d) {
   K *r=a,*bm,*dm,*p,*q,*s,*t,*u,*v,*w;
-  int i;
-  K* (*ff)(K*,K*,K*,K*,char*);
+  unsigned int i;
+  K* (*ff)(K*,K*,K*,K*);
 
   bm=bt<0?kmix(b):kref(b);
   dm=d;
@@ -509,11 +509,11 @@ K* amend4_pd(K *a, K *b, K *c, K *d, char *av) {
   v=shape_(b,0);
 
   if(bm->t==1) {
-    p=amendi4_pd(r,bm,c,dm,0); EC(p);
+    p=amendi4_pd(r,bm,c,dm); EC(p);
     r=p;
   }
   else if(bm->t==4) {
-    p=amendi4_pd(r,bm,c,dm,0); EC(p);
+    p=amendi4_pd(r,bm,c,dm); EC(p);
     r=p;
   }
   else if(bm->t==6) {
@@ -558,7 +558,7 @@ K* amend4_pd(K *a, K *b, K *c, K *d, char *av) {
     if(p->t==1) {
       if(bc==2) t=dm->t?dm:v0(dm)[0];
       else t=dm->t?dm:bc<=v->c?v0(dm)[0]:dm;
-      s=ff(v0(r)[p->i],q,c,t,0); EC(s);
+      s=ff(v0(r)[p->i],q,c,t); EC(s);
       kfree(v0(r)[p->i]);
       v0(r)[p->i]=s;
     }
@@ -566,7 +566,7 @@ K* amend4_pd(K *a, K *b, K *c, K *d, char *av) {
       for(i=0;i<p->c;i++) {
         if(bc==2) t=dm->t?dm:v0(dm)[i];
         else t=dm->t?dm:bc<=v->c?v0(dm)[i]:dm;
-        s=ff(v0(r)[v1(p)[i]],q,c,t,0); EC(s);
+        s=ff(v0(r)[v1(p)[i]],q,c,t); EC(s);
         kfree(v0(r)[v1(p)[i]]);
         v0(r)[v1(p)[i]]=s;
       }
@@ -578,7 +578,7 @@ K* amend4_pd(K *a, K *b, K *c, K *d, char *av) {
           if(bc==2) t=dm->t?dm:v0(dm)[i];
           else t=dm->t?dm:bc<=v->c?v0(dm)[i]:dm;
           s=dget(r->v,v4(u)[i]);
-          w=ff(s,q,c,t,0); EC(w);
+          w=ff(s,q,c,t); EC(w);
           dset(r->v,v4(u)[i],w);
           kfree(s); kfree(w);
         }
@@ -588,7 +588,7 @@ K* amend4_pd(K *a, K *b, K *c, K *d, char *av) {
         for(i=0;i<rc;i++) {
           if(bc==2) t=dm->t?dm:v0(dm)[i];
           else t=dm->t?dm:bc<=v->c?v0(dm)[i]:dm;
-          s=ff(v0(r)[i],q,c,t,0); EC(s);
+          s=ff(v0(r)[i],q,c,t); EC(s);
           kfree(v0(r)[i]);
           v0(r)[i]=s;
         }
@@ -598,7 +598,7 @@ K* amend4_pd(K *a, K *b, K *c, K *d, char *av) {
       if(bc==2) t=dm->t?dm:v0(dm)[0];
       else t=dm->t?dm:bc<=v->c?v0(dm)[0]:dm;
       u=dget(r->v,p->v);
-      s=ff(u,q,c,t,0); EC(s);
+      s=ff(u,q,c,t); EC(s);
       dset(r->v,p->v,s);
       if(u->t==5) u->v=0;
       kfree(u); kfree(s);
@@ -608,7 +608,7 @@ K* amend4_pd(K *a, K *b, K *c, K *d, char *av) {
         if(bc==2) t=dm->t?dm:v0(dm)[i];
         else t=dm->t?dm:bc<=v->c?v0(dm)[i]:dm;
         u=dget(r->v,v4(p)[i]);
-        s=ff(u,q,c,t,0); EC(s);
+        s=ff(u,q,c,t); EC(s);
         dset(r->v,v4(p)[i],s);
         kfree(u); kfree(s);
       }

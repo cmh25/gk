@@ -27,12 +27,11 @@ static K* ferr(char *f, int e) {
 }
 
 static K* fopen_(K *a, char *m, FILE **fp) {
-  K *r;
   char *s;
   if(at==4) s=a->v;
   else s=xstrndup(v3(a),ac);
   *fp=fopen(s,m);
-  if(!*fp) { r=ferr(s,errno); return r; }
+  if(!*fp) return ferr(s,errno);
   if(at==-3) xfree(s);
   return null;
 }
@@ -124,19 +123,20 @@ K* onecolon1_(K *a, char *av) {
 #else
 K* onecolon1_(K *a, char *av) {
   K *r;
-  int i,fd,h,t,c;
+  int fd,h,t,c;
   char *s;
   void *v;
   size_t len;
+  ssize_t n;
   if(at==4) s=a->v;
   else if(at==-3) s=xstrndup(v3(a),ac);
   else return kerror("type");
   fd=open(s,O_RDONLY);
-  if(fd==-1) { r=ferr(s,errno); return r; }
+  if(fd==-1) return ferr(s,errno);
+  n=read(fd,&h,sizeof(int)); if(n==-1) return ferr(s,errno);
+  n=read(fd,&t,sizeof(int)); if(n==-1) return ferr(s,errno);
+  n=read(fd,&c,sizeof(int)); if(n==-1) return ferr(s,errno);
   if(at==-3) xfree(s);
-  i=read(fd,&h,sizeof(int));
-  i=read(fd,&t,sizeof(int));
-  i=read(fd,&c,sizeof(int));
   if(t!=-1&&t!=-2&&t!=-3) { close(fd); return twocolon1_(a,av); }
   if(t==-1) len=12+c*sizeof(int);
   else if(t==-2) len=12+c*sizeof(double);
@@ -180,14 +180,15 @@ K* twocolon1_(K *a, char *av) {
 K* fivecolon2_(K *a, K *b, char *av) {
   K *r,*p;
   FILE *fp;
-  int i,n,t,c=0;
+  int n,t,c=0;
+  size_t m;
   if(at!=-3&&at!=4) return kerror("type");
   EC(fopen_(a,"ab+",&fp));
   fseek(fp,0,SEEK_END);
   if(ftell(fp)) {                /* was file opened or created? */
     fseek(fp,4,SEEK_SET);        /* skip header */
-    i=fread(&t,sizeof(int),1,fp);  /* type */
-    i=fread(&c,sizeof(int),1,fp);  /* count */
+    m=fread(&t,sizeof(int),1,fp); if(m<=0&&ferror(fp)) return ferr("",errno);
+    m=fread(&c,sizeof(int),1,fp); if(m<=0&&ferror(fp)) return ferr("",errno);
     if(t!=bt) { fclose(fp); return kerror("type"); }
     p=bd1_(b,0);
     fseek(fp,0,SEEK_END);
@@ -217,7 +218,7 @@ K* sixcolon2_(K *a, K *b, char *av) {
   if(bt!=-3) return kerror("type");
 
   if(!at) { /* append */
-    if(!ac||v0(a)[0]->t!=-3&&v0(a)[0]->t!=4) return kerror("type");
+    if(!ac||(v0(a)[0]->t!=-3&&v0(a)[0]->t!=4)) return kerror("type");
     EC(fopen_(v0(a)[0],"a",&fp));
   }
   else EC(fopen_(a,"wb",&fp));
@@ -248,12 +249,11 @@ K* sixcolon1_(K *a, char *av) {
 }
 
 K* del1_(K *a, char *av) {
-  K *r;
   char *s;
   if(at==4) s=a->v;
   else if(at==-3) s=xstrndup(a->v,ac);
   else return kerror("type");
-  if((remove(s)==-1)) { r=ferr(s,errno); return r; }
+  if((remove(s)==-1)) return ferr(s,errno);
   if(at==-3) xfree(s);
   return null;
 }
