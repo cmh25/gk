@@ -7,7 +7,7 @@
 #define ffi (((fn*)f->v)->i)
 K* avdom(K *f, K *a, char *av) {
   K *r=0;
-  int n;
+  unsigned int n;
   char av2[32];
   av2[0]=0;
   if(av) strncpy(av2,av,32);
@@ -37,7 +37,7 @@ K* avdom(K *f, K *a, char *av) {
 
 K* eachm(K *f, K *a, char *av) {
   K *r=0,*am=0;
-  int n;
+  unsigned int n;
   K*(*ff)(K*,char*)=dt1[ffi];
   if(at<0) am=kmix(a); else am=a;
   n=strlen(av);
@@ -56,7 +56,7 @@ K* eachm(K *f, K *a, char *av) {
 
 K* overd(K *f, K *a, char *av) {
   K *r=0,*p=0,*q=0,*am=0;
-  int i,n;
+  unsigned int i,n;
   K*(*ff)(K*,K*,char*)=dt2[ffi];
 
   n=strlen(av);
@@ -122,7 +122,7 @@ K* overd(K *f, K *a, char *av) {
 
 K* scand(K *f, K *a, char *av) {
   K *r=0,*p=0,*q=0,*am=0,*sr=0;
-  int i,j=0,n;
+  unsigned int i,j=0,n;
   K*(*ff)(K*,K*,char*)=dt2[ffi];
 
   n=strlen(av);
@@ -172,7 +172,7 @@ K* scand(K *f, K *a, char *av) {
 
 K* over(K *f, K *a, char *av) {
   K *r=0,*p=0,*q=0;
-  int i,m=1;
+  unsigned int i,m=1;
   K*(*ff)(K*,K*,char*)=dt2[ffi];
 
   if(at!=11) return kerror("type");
@@ -206,7 +206,7 @@ K* over(K *f, K *a, char *av) {
 
 K* scan(K *f, K *a, char *av) {
   K *r=0,*p=0,*q=0;
-  int i,m=1;
+  unsigned int i,m=1;
   K*(*ff)(K*,K*,char*)=dt2[ffi];
 
   if(at!=11) return kerror("type");
@@ -260,7 +260,7 @@ K* overm(K *f, K *a, char *av) {
 /* only for index converge */
 K* scanm(K *f, K *a, char *av) {
   K *r=0,*p=0,*q=0,*sr=0;
-  int j=0;
+  unsigned int j=0;
   K*(*ff)(K*,K*,char*)=dt2[ffi];
 
   q=v0(a)[1];                 /* first */
@@ -349,7 +349,8 @@ K* eachprior(K *f, K *a, K *b, char *av) {
 
 K* slide(K *f, K *a, K *b, char *av) {
   K *r=0,*bm=0;
-  int n,d,s,v,m;
+  unsigned int n,s,v,m;
+  int d;
   K*(*ff)(K*,K*,char*)=dt2[ffi];
   if(at!=1) return kerror("type");
   if(!a1) return kerror("type");
@@ -553,7 +554,7 @@ K* eachleft37(K *f, K *a, char *av) {
 
 K* eachparam37(K *f, K *a, char *av) {
   K *r=0,*p=0,*q=0;
-  int m=1;
+  unsigned int m=1;
   if(ac!=((fn*)f->v)->v) return kerror("valence");
   q=kv0(ac); /* list of sets of parameters */
   DO(ac, p=v0(a)[i];
@@ -590,7 +591,7 @@ K* eachm37(K *f, K *a, char *av) {
 
 K* over37(K *f, K *a, char *av) {
   K *r=0,*p=0,*q=0;
-  int i,j,m=1;
+  unsigned int i,j,m=1;
 
   if(at!=11) return kerror("type");
   if(ac!=((fn*)f->v)->v) return kerror("valence");
@@ -628,7 +629,7 @@ K* over37(K *f, K *a, char *av) {
 
 K* scan37(K *f, K *a, char *av) {
   K *r=0,*p=0,*q=0;
-  int i,j,m=1;
+  unsigned int i,j,m=1;
 
   if(at!=11) return kerror("type");
   if(ac!=((fn*)f->v)->v) return kerror("valence");
@@ -681,7 +682,7 @@ K* overm37(K *f, K *a, char *av) {
 
 K* scanm37(K *f, K *a, char *av) {
   K *r=0,*p=0,*q=0,*sr=0;
-  int j=0;
+  unsigned int j=0;
 
   q=a;            /* first */
   p=fne2(f,q,av); EC(p); /* previous */
@@ -736,7 +737,7 @@ K* overm37infix(K *f, K *a, char *av) {
 
 K* scanm37infix(K *f, K *a, char *av) {
   K *r=0,*sr=0,*b=0;
-  int i,j=0;
+  unsigned int i,j=0;
 
   if(v0(a)[0]->t==1) { /* do */
     r=kv0(v0(a)[0]->i+1);
@@ -764,7 +765,7 @@ K* scanm37infix(K *f, K *a, char *av) {
 
 K* eachprior37(K *f, K *a, char *av) {
   K *r=0,*am=0,*p=0,*q=0;
-  int i,n;
+  unsigned int i,n;
   K* (*ff)(K*,K*,char*);
 
   if(!at&&!ac) return kv0(0); /* {x,y}'() */
@@ -812,7 +813,8 @@ K* eachprior37(K *f, K *a, char *av) {
 
 K* slide37infix(K *f, K *a, char *av) {
   K *r=0,*p=0,*q=0,*qm=0,*t=0;
-  int i,j,n,d,m,v,s;
+  unsigned int i,j,n,m,v,s;
+  int d;
   K* (*ff)(K*,K*,char*);
 
   n=strlen(av);
@@ -869,7 +871,7 @@ K* slide37infix(K *f, K *a, char *av) {
 
 K* overd37(K *f, K *a, char *av) {
   K *r=0,*p=0,*q=0,*am=0;
-  int i,n;
+  unsigned int i,n;
 
   n=strlen(av);
   if(n) {
@@ -906,7 +908,7 @@ K* overd37(K *f, K *a, char *av) {
 
 K* scand37(K *f, K *a, char *av) {
   K *r=0,*p=0,*q=0,*am=0,*sr=0;
-  int i,j=0,n;
+  unsigned int i,j=0,n;
 
   n=strlen(av);
   if(n) {
@@ -1028,7 +1030,7 @@ K* eachmfc(K *f, K *a, char *av) {
 
 K* overdfc(K *f, K *a, char *av) {
   K *r=0,*p=0,*q=0,*am=0;
-  int i,n;
+  unsigned int i,n;
 
   n=strlen(av);
   if(n) {
@@ -1063,7 +1065,7 @@ K* overdfc(K *f, K *a, char *av) {
 
 K* scandfc(K *f, K *a, char *av) {
   K *r=0,*p=0,*q=0,*am=0,*sr=0;
-  int i,j=0,n;
+  unsigned int i,j=0,n;
 
   n=strlen(av);
   if(n) {
@@ -1099,7 +1101,7 @@ K* scandfc(K *f, K *a, char *av) {
 
 K* overfc(K *f, K *a, char *av) {
   K *r=0,*p=0,*q=0;
-  int i,m=1;
+  unsigned int i,m=1;
 
   if(at!=11) return kerror("type");
   if(ac!=2) return kerror("valence");
@@ -1132,7 +1134,7 @@ K* overfc(K *f, K *a, char *av) {
 
 K* scanfc(K *f, K *a, char *av) {
   K *r=0,*p=0,*q=0;
-  int i,m=1;
+  unsigned int i,m=1;
 
   if(at!=11) return kerror("type");
   if(ac!=2) return kerror("valence");
@@ -1224,7 +1226,8 @@ K* eachpriorfc(K *f, K *a, K *b, char *av) {
 
 K* slidefc(K *f, K *a, K *b, char *av) {
   K *r=0,*bm=0;
-  int n,d,s,v,m;;
+  unsigned int n,s,v,m;;
+  int d;
   if(at!=1) return kerror("type");
   if(!a1) return kerror("type");
   if(bt<=0&&!bc) return kv0(0);

@@ -220,7 +220,7 @@ static K* node_reduce_(node *n, int md, int z) {
   fn *f=0,*g=0;
   char av[32];
   ERR *e;
-  int i,j,k;
+  unsigned int i,j,k;
   if(++z>DLIMIT) return kerror("wsfull");
   av[0]=0;
   if(n->v&&n->a[0]->k&&n->a[0]->k->t==7&&((fn*)n->a[0]->k->v)->i==174) { timer_start(); btime=1; quiet=1; }

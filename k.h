@@ -23,7 +23,7 @@ typedef struct {
 
 typedef struct {
   char *s;
-  unsigned int i,j;
+  int i,j;
 } ERR;
 
 extern K *D,*one,*zero,*null,*inull;
@@ -129,9 +129,9 @@ K* knew(char t, unsigned int c, void *v, int i, double f, int r);
 void kfree(K *k);
 void kdump(int l);
 static inline K* kref(K *k) { if(k->r>=0) k->r++; else if(k->r<=-2) k->r--; return k; }
-void kprint(K *p, char *s, int plevel, int nl);
-char* kprint_(K *p, char *s, int plevel, int nl);
-char* kprint5(K *p, char *s, int plevel, int nl);
+void kprint(K *p, char *s, unsigned int plevel, int nl);
+char* kprint_(K *p, char *s, unsigned int plevel, int nl);
+char* kprint5(K *p, char *s, unsigned int plevel, int nl);
 K* knorm(K *s);
 K* kerror(char *msg);
 K* kmix(K *s);

@@ -14,17 +14,16 @@ char* sp(char *s) {
   static int i,j,k;
   int h = hs(s);
   char **p,*t;
-  if(k) for(;(t=sh[h&k-1]);++h) if(!strcmp(s,t)) return t;
+  if(k) for(;(t=sh[h&(k-1)]);++h) if(!strcmp(s,t)) return t;
   if(j==k) {
     k=k?k*2:2;
     if(!(p=xmalloc(k*sizeof(char*)))){fprintf(stderr,"sp");exit(1);}
     for(i=0;i<k;i++) p[i]=0;
-    for(i=0;i<j;i++) { if((t=sh[i])) { for(h=hs(t);(p[h&k-1]);++h){}; p[h&k-1]=t; } }
+    for(i=0;i<j;i++) { if((t=sh[i])) { for(h=hs(t);(p[h&(k-1)]);++h){}; p[h&(k-1)]=t; } }
     if(j) xfree(sh);
     sh=p;
-    for(h=hs(s);(sh[h&k-1]);++h);
+    for(h=hs(s);(sh[h&(k-1)]);++h);
   }
   if(!(t=xmalloc(1+strlen(s)))){fprintf(stderr,"sp");exit(1);}
-  //return j+=2,((int*)t)[-1]=0,sh[h&k-1]=strcpy(t,s);
-  return j+=2,sh[h&k-1]=strcpy(t,s);
+  return j+=2,sh[h&(k-1)]=strcpy(t,s);
 }

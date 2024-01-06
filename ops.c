@@ -320,9 +320,9 @@ K* join2_(K *a, K *b, char *av) {
   K *r=0;
   int j=0;
 
-  if(at<=0&&bt<=0) VSIZE(ac+bc)
-  else if(at<=0&&bt>0) VSIZE(ac+1)
-  else if(at>0&&bt<=0) VSIZE(1+bc)
+  if(at<=0&&bt<=0) VSIZE((int)ac+(int)bc)
+  else if(at<=0&&bt>0) VSIZE((int)ac+1)
+  else if(at>0&&bt<=0) VSIZE(1+(int)bc)
 
   if(at>0 && bt>0) { r=kv0(2); v0(r)[0]=kcp(a); v0(r)[1]=kcp(b); }
   else if(at>0 && bt==0) { r=kv0(1+bc); v0(r)[0]=kcp(a); DO(bc,v0(r)[i+1]=kcp(v0(b)[i])); }
@@ -476,8 +476,8 @@ K* drop2_(K *a, K *b, char *av) {
   switch(at) {
   case -1:
     switch(bt) {
-    case -1: r=kv0(ac); DO(ac,p=v1(a)[i]; j=i==ac-1?bc:v1(a)[i+1]; v0(r)[i]=r2=kv1(j-p); for(q=0,m=p;m<j;m++) v1(r2)[q++]=v1(b)[m]) break;
-    case -3: r=kv0(ac); DO(ac,p=v1(a)[i]; j=i==ac-1?bc:v1(a)[i+1]; v0(r)[i]=r2=kv3(j-p); for(q=0,m=p;m<j;m++) v3(r2)[q++]=v3(b)[m];) break;
+    case -1: r=kv0(ac); DO(ac,p=v1(a)[i]; j=i==(int)ac-1?(int)bc:v1(a)[i+1]; v0(r)[i]=r2=kv1(j-p); for(q=0,m=p;m<j;m++) v1(r2)[q++]=v1(b)[m]) break;
+    case -3: r=kv0(ac); DO(ac,p=v1(a)[i]; j=i==(int)ac-1?(int)bc:v1(a)[i+1]; v0(r)[i]=r2=kv3(j-p); for(q=0,m=p;m<j;m++) v3(r2)[q++]=v3(b)[m];) break;
     default: return kerror("type");
     } break;
   case 1:
@@ -625,8 +625,8 @@ K* form2_(K *a, K *b, char *av) {
   case 2:
     switch(bt) {
     case  1:
-      b2=I2F(b1);
     case  2:
+      if(bt==1) b2=I2F(b1);
       sprintf(t,"%g",a2); s=strchr(t,'.');
       x=a2; m=abs(x); y=s?s[1]-48:0;
       if(x<0||*t=='-') sprintf(t,"%s%0.*e",b2<0?"":" ",y,b2);
@@ -739,12 +739,12 @@ K* find2_(K *a, K *b, char *av) {
 
 K* at2s_(K *a, K *b, char *av) {
   K *r=0,*p=0,*q=0;
-  int bi,n;
+  unsigned int bi,n;
 
   if(!(at==-1 && bt==-1)) {
     if(at!=6) {
-      if(bt==1 && b1>=ac) return kerror("index");
-      if(bt==-1) DO(bc, if(v1(b)[i]>=ac) return kerror("index"));
+      if(bt==1 && b1>=(int)ac) return kerror("index");
+      if(bt==-1) DO(bc, if(v1(b)[i]>=(int)ac) return kerror("index"));
     }
   }
 
@@ -787,8 +787,8 @@ K* at2_(K *a, K *b, char *av) {
 
   if(!(at==-1 && bt==-1)) {
     if(at!=6 && at!=27) {
-      if(at!=37 && bt==1 && b1>=ac) return kerror("index");
-      if(bt==-1) DO(bc, if(v1(b)[i] >= ac) return kerror("index"));
+      if(at!=37 && bt==1 && b1>=(int)ac) return kerror("index");
+      if(bt==-1) DO(bc, if(v1(b)[i] >= (int)ac) return kerror("index"));
     }
   }
 
@@ -935,12 +935,13 @@ K* assign2_(K *a, K *b, char *av) {
 
 K* flip_(K *a, char *av) {
   K *r=0,*p=0;
-  int i,m=-1;
+  int m=-1;
+  unsigned int i;
   switch(at) {
   case 1: case 2: case 3: case 4: case 5: case 6:
   case 7: case 27: case 37: case 67: case 77: case 87: r=kcp(a); break;
   case 0:
-    DO(ac, p=v0(a)[i]; if(p->t<=0) { if(m==-1)m=p->c; else if(p->c!=m)return kerror("length"); } )
+    DO(ac, p=v0(a)[i]; if(p->t<=0) { if(m==-1)m=p->c; else if((int)p->c!=m)return kerror("length"); } )
     if(m==-1) r=kcp(a);
     else if(m==0) r=kv0(0);
     else {
@@ -1057,7 +1058,8 @@ K* downgrade_(K *a, char *av) {
 
 K* group_(K *a, char *av) {
   K *r=0,*p=0,**ht,**pk,**hk;
-  int i,*n,min=INT_MAX,max=INT_MIN,*hi,bni=0;
+  int *n,min=INT_MAX,max=INT_MIN,*hi,bni=0;
+  unsigned int i;
   uint64_t m,w,h,rs=256,ri=0,*hm,q;
   char *c,**s,**hs;
   double *f,*hd;
@@ -1073,7 +1075,7 @@ K* group_(K *a, char *av) {
     for(i=0;i<ac;i++) {
       pk++;
       h=khash(a)&q;
-      if(*pk) while(!h || hk[h] && kcmp(hk[h],*pk)) h=(h+1)&q; /* h=0 iff *s=0 */
+      if(*pk) while(!h || (hk[h] && kcmp(hk[h],*pk))) h=(h+1)&q; /* h=0 iff *s=0 */
       hk[h]=*pk;
       hm[h]++;
     }
@@ -1081,7 +1083,7 @@ K* group_(K *a, char *av) {
     for(i=0;i<ac;i++) {
       pk++;
       h=khash(a)&q;
-      if(*pk) while(!h || hk[h] && kcmp(hk[h],*pk)) h=(h+1)&q; /* h=0 iff *s=0 */
+      if(*pk) while(!h || (hk[h] && kcmp(hk[h],*pk))) h=(h+1)&q; /* h=0 iff *s=0 */
       p=ht[h];
       if(!p) {
         p=ht[h]=kv1(hm[h]);
@@ -1099,7 +1101,8 @@ K* group_(K *a, char *av) {
       if(v1(a)[i]==INT_MAX) { bni=1; continue; }
       if(v1(a)[i]==INT_MIN) { bni=1; continue; }
       if(v1(a)[i]==INT_MIN+1) { bni=1; continue; }
-      if(max<v1(a)[i])max=v1(a)[i];if(min>v1(a)[i])min=v1(a)[i];
+      if(max<v1(a)[i])max=v1(a)[i];
+      if(min>v1(a)[i])min=v1(a)[i];
     }
     if(min>=0 && !bni) { /* optimize for all positive n */
       ht=xcalloc(max+1,sizeof(K*));
@@ -1134,7 +1137,7 @@ K* group_(K *a, char *av) {
       for(i=0;i<ac;i++) {
          n++;
          h=(*n*2654435761)&q;
-         if(*n) while(!h || hi[h] && hi[h]!=*n) h=(h+1)&q; /* h=0 iff *n=0 */
+         if(*n) while(!h || (hi[h] && hi[h]!=*n)) h=(h+1)&q; /* h=0 iff *n=0 */
          hi[h]=*n;
          hm[h]++;
       }
@@ -1142,7 +1145,7 @@ K* group_(K *a, char *av) {
       for(i=0;i<ac;i++) {
          n++;
          h=(*n*2654435761)&q;
-         if(*n) while(!h || hi[h] && hi[h]!=*n) h=(h+1)&q;
+         if(*n) while(!h || (hi[h] && hi[h]!=*n)) h=(h+1)&q;
          p=ht[h];
          if(!p){
            p=ht[h]=kv1(hm[h]);
@@ -1166,7 +1169,7 @@ K* group_(K *a, char *av) {
     for(i=0;i<ac;i++) {
        f++;
        h=((uint64_t)*f*2654435761)&q;
-       if(*f) while(!h || hd[h] && CMPFFT(hd[h],*f)) h=(h+1)&q; /* h=0 iff *f=0 */
+       if(*f) while(!h || (hd[h] && CMPFFT(hd[h],*f))) h=(h+1)&q; /* h=0 iff *f=0 */
        hd[h]=*f;
        hm[h]++;
     }
@@ -1174,7 +1177,7 @@ K* group_(K *a, char *av) {
     for(i=0;i<ac;i++) {
        f++;
        h=((uint64_t)*f*2654435761)&q;
-       if(*f) while(!h || hd[h] && CMPFFT(hd[h],*f)) h=(h+1)&q; /* h=0 iff *f=0 */
+       if(*f) while(!h || (hd[h] && CMPFFT(hd[h],*f))) h=(h+1)&q; /* h=0 iff *f=0 */
        p=ht[h];
        if(!p){
          p=ht[h]=kv1(hm[h]);
@@ -1191,12 +1194,12 @@ K* group_(K *a, char *av) {
     ht=xcalloc(256,sizeof(K*));
     hm=xcalloc(256,sizeof(uint64_t));
     c=v3(a)-1;
-    DO(ac, c++; hm[*c]++)
+    DO(ac, c++; hm[(unsigned char)*c]++)
     c=v3(a)-1;
     for(i=0;i<ac;i++) {
        c++;
-       p=ht[*c];
-       if(!p){ p=ht[*c]=kv1(hm[*c]); v1(p)[0]=i; p->c=1; v0(r)[rc++]=p; }
+       p=ht[(unsigned char)*c];
+       if(!p){ p=ht[(unsigned char)*c]=kv1(hm[(unsigned char)*c]); v1(p)[0]=i; p->c=1; v0(r)[rc++]=p; }
        else v1(p)[p->c++]=i;
     }
     xfree(hm); xfree(ht);
@@ -1212,7 +1215,7 @@ K* group_(K *a, char *av) {
     for(i=0;i<ac;i++) {
       s++;
       h=xfnv1a((char*)*s, strlen(*s))&q;
-      if(*s) while(!h || hs[h] && strcmp(hs[h],*s)) h=(h+1)&q; /* h=0 iff *s=0 */
+      if(*s) while(!h || (hs[h] && strcmp(hs[h],*s))) h=(h+1)&q; /* h=0 iff *s=0 */
       hs[h]=*s;
       hm[h]++;
     }
@@ -1220,7 +1223,7 @@ K* group_(K *a, char *av) {
     for(i=0;i<ac;i++) {
       s++;
       h=xfnv1a((char*)*s, strlen(*s))&q;
-      if(*s) while(!h || hs[h] && strcmp(hs[h],*s)) h=(h+1)&q; /* h=0 iff *s=0 */
+      if(*s) while(!h || (hs[h] && strcmp(hs[h],*s))) h=(h+1)&q; /* h=0 iff *s=0 */
       p=ht[h];
       if(!p) {
         p=ht[h]=kv1(hm[h]);
@@ -1239,8 +1242,7 @@ K* group_(K *a, char *av) {
 
 K* shape_(K *a, char *av) {
   K *r=0,*p=0,**q=0,**t=0;;
-  int i;
-  int c[256],ci,qc,tc;
+  unsigned int i,c[256],ci,qc,tc;
 
   switch(at) {
   case 1: case 2: case 3: case 4: case 5: case 6:
@@ -1279,7 +1281,7 @@ K* shape_(K *a, char *av) {
 #ifndef _WIN32
 static K* lsdir(char *p) {
   K *r=0,*q=0,*s=0;
-  int n=0;
+  unsigned int n=0;
   DIR *f=opendir(p);
   struct dirent *e;
   if(!f) return kerror("value");
@@ -1463,8 +1465,9 @@ K* unique_(K *a, char *av) {
   int *hi,*n;
   char hc[256]={0},*c,**hs,**s,*pr;
   double *hd,*f;
-  uint64_t m,w,h,t=0,q;
-  int i,j=0,z=0,min=INT_MAX,max=INT_MIN,bni=0;
+  uint64_t m,w,h,q;
+  unsigned int i;
+  int j=0,z=0,t=0,min=INT_MAX,max=INT_MIN,bni=0;
 
   switch(at) {
   case  1: case  2: case  3: case  4: case  5: case  6:
@@ -1491,7 +1494,8 @@ K* unique_(K *a, char *av) {
       if(v1(a)[i]==INT_MAX) { bni=1; continue; }
       if(v1(a)[i]==INT_MIN) { bni=1; continue; }
       if(v1(a)[i]==INT_MIN+1) { bni=1; continue; }
-      if(max<v1(a)[i])max=v1(a)[i];if(min>v1(a)[i])min=v1(a)[i];
+      if(max<v1(a)[i])max=v1(a)[i];
+      if(min>v1(a)[i])min=v1(a)[i];
     }
     if(min>=0 && !bni) { /* optimize for all positive n */
       hi=xcalloc(max+1,sizeof(int));
@@ -1540,7 +1544,7 @@ K* unique_(K *a, char *av) {
     if(!ac) return r;
     c=v3(a);c--;
     pr=v3(r);
-    DO(ac, c++; if(!hc[*c]) { hc[*c]=1; *pr++=*c; j++; })
+    DO(ac, c++; if(!hc[(unsigned char)*c]) { hc[(unsigned char)*c]=1; *pr++=*c; j++; })
     rc=j;
     break;
   case -4:
@@ -1571,7 +1575,8 @@ K* value_(K *a, char *av) {
   K *r=0,*f=0,*am=0,*p=0;
   pgs *s;
   node *n;
-  int i;
+  int k;
+  unsigned int i;
   fn *ff;
   char *ss;
   switch(at) {
@@ -1585,7 +1590,7 @@ K* value_(K *a, char *av) {
       else if(p->t==0&&v0(p)[0]->t!=4) break;
     }
     if(i==ac) { r=k5(l2d(a)); break; }
-    if(ac==2&&v0(a)[0]->t==4||v0(a)[0]->t==-3||v0(a)[0]->t==3) {
+    if((ac==2&&v0(a)[0]->t==4)||v0(a)[0]->t==-3||v0(a)[0]->t==3) {
       if(v0(a)[i]->t==-3) { ss=xstrndup(v0(a)[0]->v,v0(a)[0]->c); f=scope_get(cs,ss); xfree(ss); }
       else if(v0(a)[0]->t==4) f=scope_get(cs,v0(a)[0]->v);
       else { ss=xmalloc(2); sprintf(ss,"%c",v0(a)[i]->i); f=scope_get(cs,ss); xfree(ss); }
@@ -1632,10 +1637,10 @@ K* value_(K *a, char *av) {
     case 3: case 4: case -3:
     n=pgparse(s);
     r=null;
-    for(i=n->v-1;i>=0;i--) {
+    for(k=n->v-1;k>=0;k--) {
       kfree(r);
       quiet2=0;
-      r=node_reduce(n->a[i],0); EC(r);
+      r=node_reduce(n->a[k],0); EC(r);
       if(fret) { fret=0; break; }
     }
     node_free(n);
@@ -1710,7 +1715,7 @@ K* apply2(K *f, K *a, K *b, char *av) {
   fn *fp;
   char av2[32];
   fn *ff=f->v;
-  if(at==16||bt==16&&ff->i!='@') {
+  if(at==16||(bt==16&&ff->i!='@')) {
     p=knew(7,0,fnnew(""),'p',0,0); p->t=87;
     fp=p->v;
     fp->l=kref(f);
@@ -1804,7 +1809,8 @@ K* applyfc1(K *f, K *a, char *av) {
 K* applyprj(K *f, K *a, char *av) {
   K *r=0,*pf,*pa,*aa;
   fn *ff=f->v,*fp;
-  int n=0,i,j=0,ae=0,pe=0,an=0;
+  int n=0,pe=0;
+  unsigned int i,j=0,ae=0,an=0;
   pf=ff->l;
   pa=ff->r;
   if(at==11) DO(ac,if(v0(a)[i]->t==16)ae++)

@@ -119,7 +119,8 @@ void kfree(K *s) {
 }
 
 void kdump(int l) {
-  int i,t,c=0,m=4,n;;
+  int t,c=0,m=4,n;;
+  unsigned int i;
   K *v;
   dict *d=cs->d;
   K *keys=dkeys(d);
@@ -154,7 +155,7 @@ static size_t oc=0;
 static size_t bs0=10000000;
 static size_t bs=10000000;
 
-void kprint(K *p, char *s, int plevel, int nl) {
+void kprint(K *p, char *s, unsigned int plevel, int nl) {
   if(o){xfree(o);o=0;oc=0;}
   char *r=kprint_(p,s,plevel,nl);
   printf("%s",r);
@@ -162,15 +163,16 @@ void kprint(K *p, char *s, int plevel, int nl) {
   if(o){xfree(o);o=0;oc=0;}
 }
 
-char* kprint5(K *p, char *s, int plevel, int nl) {
+char* kprint5(K *p, char *s, unsigned int plevel, int nl) {
   if(o){xfree(o);o=0;oc=0;}
   char *r=kprint_(p,s,plevel,nl);
   if(o){xfree(o);o=0;oc=0;}
   return r;
 }
 
-char* kprint_(K *p, char *s, int plevel, int nl) {
-  int i,j,add0=1,v,a,len;
+char* kprint_(K *p, char *s, unsigned int plevel, int nl) {
+  int add0=1,v;
+  unsigned int i,j;
   char s2[128],s3[128],*e;
   int z=0;
   K *p2=0;
@@ -220,7 +222,6 @@ char* kprint_(K *p, char *s, int plevel, int nl) {
     oc+=sprintf(o+oc,"\"");
     break;
   case 4:
-    a=1;len=strlen(v3(p));
     v=vname(v3(p),strlen(v3(p)));
     oc+=sprintf(o+oc,"%s`",s);
     if(!v) oc+=sprintf(o+oc,"\"");
@@ -234,7 +235,7 @@ char* kprint_(K *p, char *s, int plevel, int nl) {
     if(d->c == 0) oc+=sprintf(o+oc,"%s.()",s);
     else if(d->c == 1) {
       p2 = d->v[0];
-      if(((p2->t > 0 || !p2->c) && p2->t != 5 || p2->t == -3)
+      if((((p2->t > 0 || !p2->c) && p2->t != 5) || p2->t == -3)
          || (p2->t==5 && !((dict*)p2->v)->c)) {
         oc+=sprintf(o+oc,"%s.,(`%s;",s,d->k[0]);
         xfree(kprint_(p2, "", plevel, 0));
@@ -249,7 +250,7 @@ char* kprint_(K *p, char *s, int plevel, int nl) {
     } else {
       oc+=sprintf(o+oc,"%s.(",s);
       p2 = d->v[0];
-      if(((p2->t > 0 || !p2->c) && p2->t != 5 || p2->t == -3)
+      if((((p2->t > 0 || !p2->c) && p2->t != 5) || p2->t == -3)
          || (p2->t==5 && !((dict*)p2->v)->c)) {
         oc+=sprintf(o+oc,"(`%s;",d->k[0]);
         xfree(kprint_(p2, "", plevel, 0));
@@ -265,21 +266,21 @@ char* kprint_(K *p, char *s, int plevel, int nl) {
         sprintf(s2, "%s  ", s);
         for(i=0;i<plevel;i++) strcat(s2, " ");
       }
-      for(i=1;i<d->c;i++) {
+      for(i=1;(int)i<d->c;i++) {
         if(oc<<1 > bs) { bs+=bs0; o=xrealloc(o,bs); }
         p2 = d->v[i];
-        if(((p2->t > 0 || !p2->c) && p2->t != 5 || p2->t == -3)
+        if((((p2->t > 0 || !p2->c) && p2->t != 5) || p2->t == -3)
            || (p2->t==5 && !((dict*)p2->v)->c)) {
           oc+=sprintf(o+oc,"%s(`%s;",s2,d->k[i]);
           xfree(kprint_(p2, "", plevel, 0));
-          if(i==d->c-1)oc+=sprintf(o+oc,";))");
+          if((int)i==d->c-1)oc+=sprintf(o+oc,";))");
           else oc+=sprintf(o+oc,";)\n");
         } else {
           oc+=sprintf(o+oc,"%s(`%s\n",s2,d->k[i]);
           sprintf(s3, "%s   ", s);
           for(j=0;j<plevel;j++) strcat(s3, " ");
           xfree(kprint_(p2, s3, plevel, 0));
-          if(i==d->c-1)oc+=sprintf(o+oc,"\n%s))",s3);
+          if((int)i==d->c-1)oc+=sprintf(o+oc,"\n%s))",s3);
           else oc+=sprintf(o+oc,"\n%s)\n",s3);
         }
       }
@@ -511,7 +512,6 @@ char* kprint_(K *p, char *s, int plevel, int nl) {
       oc+=sprintf(o+oc,"%s,`%s", s, v4(p)[0]);
     }
     else {
-      a=1;len=strlen(v4(p)[0]);
       v=vname(v4(p)[0],strlen(v4(p)[0]));
       oc+=sprintf(o+oc,"%s`",s);
       if(!v) oc+=sprintf(o+oc,"\"");
@@ -521,7 +521,6 @@ char* kprint_(K *p, char *s, int plevel, int nl) {
       if(!v) oc+=sprintf(o+oc,"\"");
       for(i=1;i<p->c;i++) {
         if(oc<<1 > bs) { bs+=bs0; o=xrealloc(o,bs); }
-        a=1;len=strlen(v4(p)[i]);
         v=vname(v4(p)[i],strlen(v4(p)[i]));
         oc+=sprintf(o+oc," `");
         if(!v) oc+=sprintf(o+oc,"\"");
@@ -551,7 +550,8 @@ char* kprint_(K *p, char *s, int plevel, int nl) {
 
 /* normalize a mixed list if all elements are the same type */
 K* knorm(K *s) {
-  int i,t;
+  unsigned int i;
+  char t;
   K *p;
 
   if(!s) return 0;
@@ -643,7 +643,7 @@ int vname(char *s, int len) {
 }
 
 int kcmp(K *a, K *b) {
-  int i,r=0,m;
+  unsigned int i,r=0,m;
   char *sa,*sb;
 
   if(at<bt) r=-1;

@@ -843,10 +843,10 @@ static int lex(pgs *pgs) {
     else if(*p=='-') {
       if(p[1]==':') gp(pgs);
       else if(!(s|f)&&(pgs->lt==T018||pgs->lt==T024)) { ++p; push(pgs,T019,node_newli(0,0,knew(7,0,fnnew("-"),'-',0,0),linei,p-ln)); }
-      else if(isdigit(p[1])||p[1]=='.'&&isdigit(p[2])) gn(pgs);
+      else if(isdigit(p[1])||(p[1]=='.'&&isdigit(p[2]))) gn(pgs);
       else { ++p; push(pgs,T019,node_newli(0,0,knew(7,0,fnnew("-"),'-',0,0),linei,p-ln)); }
     }
-    else if(*p=='.'&&isalpha(p[1])||isalpha(*p)) gv(pgs);
+    else if((*p=='.'&&isalpha(p[1]))||isalpha(*p)) gv(pgs);
     else if(*p=='+'||*p=='*'||*p=='%'||*p=='&'||*p=='|'||*p=='<'||
       *p=='>'||*p=='='||*p=='^'||*p=='!'||*p=='~'||*p==','||*p=='#'||*p=='_'||
       *p=='$'||*p=='?'||*p=='@'||*p=='.'||*p==':') gp(pgs);
@@ -907,7 +907,7 @@ static int lex(pgs *pgs) {
       push(pgs,T019,node_newli(0,0,knew(7,0,fnnew("\\d"),177,0,0),linei,p-ln));
       p+=2;
       while(*p==' ')p++;
-      if(isalpha(*p)||*p=='.'&&isalpha(p[1])) gname(pgs);
+      if(isalpha(*p)||(*p=='.'&&isalpha(p[1]))) gname(pgs);
       else if(*p=='^') { push(pgs,T018,node_new(0,0,knew(3,0,0,'^',0,0))); ++p; }
       else push(pgs,T018,node_new(0,0,null));
     }

@@ -49,7 +49,7 @@ dict* l2d(K *l) {
 }
 
 K* d2l(dict *d) {
-  int i;
+  unsigned int i;
   K *r = kv0(d->c);
   K *q = 0;
   for(i=0;i<r->c;i++) {
