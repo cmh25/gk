@@ -40,6 +40,7 @@ void load(char *fnm) {
   int i,j=0,c,f,m=256;
   node *a;
   pgs *s;
+  char *od;
   fp=fopen(fnm,"r");
   if(!fp) { fprintf(stderr,"%s: %s\n",fnm,strerror(errno)); return; }
   if(!fnames) {
@@ -63,7 +64,9 @@ void load(char *fnm) {
   s->p[i]=0;
   a=pgparse(s);
   if(!a) return;
+  od=D->v;
   reduce(a,s,0);
+  D->v=od;
   a->v=0; node_free(a);
   fclose(fp);
   pgfree(s);

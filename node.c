@@ -147,7 +147,8 @@ static K* reduce17(K* c17, node *n) {
   else {
     if(ct==16) { r=kref(a); r->t=37; }
     else {
-      p = ct<0 ? kmix(c): kref(c);
+      //p = ct<0 ? kmix(c): kref(c);
+      p = kref(c);
       a->t=37;
       if(!f->n) a=fnd(a);
       r=avdo37(a,p,f->av);
