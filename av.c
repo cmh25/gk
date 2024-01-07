@@ -736,7 +736,7 @@ K* overm37infix(K *f, K *a, char *av) {
 }
 
 K* scanm37infix(K *f, K *a, char *av) {
-  K *r=0,*sr=0,*b=0;
+  K *r=0,*b=0;
   unsigned int i,j=0;
 
   if(v0(a)[0]->t==1) { /* do */
@@ -745,18 +745,17 @@ K* scanm37infix(K *f, K *a, char *av) {
     DO(v0(a)[0]->i, v0(r)[i+1]=fne2(f,v0(r)[i],av);EC(v0(r)[i+1]))
   }
   else if(v0(a)[0]->t==37) { /* while */
-    sr=kv0(32);
-    v0(sr)[j++]=kref(v0(a)[1]);
-    b=fne2(v0(a)[0],v0(sr)[0],av);
+    r=kv0(32);
+    v0(r)[j++]=kref(v0(a)[1]);
+    b=fne2(v0(a)[0],v0(r)[0],av);
     for(i=0;bt==1&&b->i;i++) {
       kfree(b);
-      if(j==sr->c) { sr->c<<=1; sr->v=xrealloc(sr->v,sizeof(K*)*sr->c); }
-      v0(sr)[i+1]=fne2(f,v0(sr)[i],av);EC(v0(sr)[i+1]);
-      b=fne2(v0(a)[0],v0(sr)[i+1],av); EC(b);
+      if(j==rc) { rc<<=1; r->v=xrealloc(r->v,sizeof(K*)*rc); }
+      v0(r)[i+1]=fne2(f,v0(r)[i],av);EC(v0(r)[i+1]);
+      b=fne2(v0(a)[0],v0(r)[i+1],av); EC(b);
     }
     kfree(b);
-    sr->c=i+1;
-    r=sr;
+    rc=i+1;
   }
   else return kerror("type");
 

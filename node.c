@@ -597,12 +597,25 @@ static K* node_reduce_(node *n, int md, int z) {
   }
   else if(at==97) { /* do/while */
     if(bt==16&&ct==16) r=kref(a);
+    else if(ct==17) {
+      f=c->v;
+      if(f->i==':') {
+        if(strchr(ao->v,'.'))  r=assign3_(ao,0,f->r);
+        else r=apply2(c,ao,f->r,av);
+      }
+      else {
+        p=kv0(2); v0(p)[0]=v0(a)[0];
+        if(((fn*)c->v)->i=='@') v0(p)[1]=((fn*)c->v)->r;
+        else if(((fn*)c->v)->i=='.') v0(p)[1]=((fn*)c->v)->r;
+        else { c=reduce17(c,n); v0(p)[1]=c; }
+        r=avdo37infix(v0(a)[1],p,((fn*)v0(a)[1]->v)->av);
+        p->c=0;
+        kfree(p);
+      }
+    }
     else {
       p=kv0(2); v0(p)[0]=v0(a)[0];
-      if(ct==17&&((fn*)c->v)->i=='@') v0(p)[1]=((fn*)c->v)->r;
-      else if(ct==17&&((fn*)c->v)->i=='.') v0(p)[1]=((fn*)c->v)->r;
-      else if(ct==17) { c=reduce17(c,n); v0(p)[1]=c; }
-      else if(ct==11) v0(p)[1]=v0(c)[0];
+      if(ct==11) v0(p)[1]=v0(c)[0];
       else v0(p)[1]=c;
       r=avdo37infix(v0(a)[1],p,((fn*)v0(a)[1]->v)->av);
       p->c=0;
@@ -627,6 +640,12 @@ static K* node_reduce_(node *n, int md, int z) {
       if(f->i==':') {
         if(ao->t==99&&strchr(ao->v,'.')) r=assign3_(ao,0,f->r);
         else r=apply2(c,ao,f->r,av);
+      }
+      else if(at==1&&f->r->t==16&&strlen(f->f)>1&&!f->i&&strlen(f->av)&&(!strcmp(f->av,"\\")||!strcmp(f->av,"/"))) { /* 5{x+1}\  store do/while */
+        r=kv0(2);
+        v0(r)[0]=kref(a);
+        v0(r)[1]=kref(c);
+        r->t=97;
       }
       else if(f->r->t==16) {
         if(strlen(av)) {

@@ -629,7 +629,7 @@ K* fne2(K *f, K *a, char *av) {
   SR(r);
   if(!r) r=null;
   cs=os;
-  if(quiet2) { kfree(r); r=null; } /* assignment doesn't return a value */
+  if(quiet2) { kfree(r); r=null; quiet2=0; } /* assignment doesn't return a value */
   scope_free(fs); ff->s=0;
   if(a&&!at) DO(ac,kfree(v0(a)[i]))
   if(fa) kfree(a);
