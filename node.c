@@ -214,6 +214,27 @@ static void appendav(fn *f, char *av) {
   xfree(f->av);
   f->av=xstrdup(av2);
 }
+static K* make67(K *a, K *c, char *av) {
+  fn *f;
+  f=fnnew("");
+  f->a=xmalloc(sizeof(K*)*2);
+  f->a[0]=kcp(a);
+  appendav(f->a[0]->v,av);
+  f->a[1]=kref(c);
+  f->an=2;
+  return knew(67,0,f,0,0,0);
+}
+static K* append67(K *a, K *c, char *av) {
+  fn *f,*g;
+  f=fnnew("");
+  g=c->v;
+  f->a=xmalloc(sizeof(K*)*(1+g->an));
+  f->a[0]=kcp(a);
+  appendav(f->a[0]->v,av);
+  DO(g->an,f->a[i+1]=kref(g->a[i]))
+  f->an=1+g->an;
+  return knew(67,0,f,0,0,0);
+}
 static K* node_reducemd(node *n, int z);
 static K* node_reduce_(node *n, int md, int z) {
   K *a,*b,*c,*d,*r=0,*p,*q,*s,*ao=null,*co=null,*pc;
@@ -322,6 +343,7 @@ static K* node_reduce_(node *n, int md, int z) {
       else if(ct==15) { /* f[1]+g[1]+h[1] */
         p=avdom(a,v0(c)[0],av);
         if(!p) p=apply1(a,v0(v0(c)[0])[0],av);
+        EC(p);
         r=apply2(v0(c)[1],p,v0(c)[2],0);
         kfree(p);
       }
@@ -333,25 +355,8 @@ static K* node_reduce_(node *n, int md, int z) {
       else if(ct==17&&ao->t==99&&ac!=1) r=apply2(c,ao,((fn*)c->v)->r,0);
       else if(ct==17) {
         c=reduce17(c,n);
-        if(ct==7 || ct==27) {
-          f=fnnew("");
-          f->a=xmalloc(sizeof(K*)*2);
-          f->a[0]=kcp(a);
-          appendav(f->a[0]->v,av);
-          f->a[1]=kref(c);
-          f->an=2;
-          r=knew(67,0,f,0,0,0);
-        }
-        else if(ct==67) {
-          f=fnnew("");
-          g=c->v;
-          f->a=xmalloc(sizeof(K*)*(1+g->an));
-          f->a[0]=kcp(a);
-          appendav(f->a[0]->v,av);
-          DO(g->an,f->a[i+1]=kref(g->a[i]))
-          f->an=1+g->an;
-          r=knew(67,0,f,0,0,0);
-        }
+        if(ct==7 || ct==27) r=make67(a,c,av);
+        else if(ct==67) r=append67(a,c,av);
         else r=apply1(a,c,av);
       }
       else if(ct==15) { /* lgamma[1+y]+lgamma[1+x-y] */
@@ -359,25 +364,8 @@ static K* node_reduce_(node *n, int md, int z) {
         r=apply2(v0(c)[1],p,v0(c)[2],0);
         kfree(p);
       }
-      else if(ct==27&&co->t!=99) {
-        f=fnnew("");
-        f->a=xmalloc(sizeof(K*)*2);
-        f->a[0]=kcp(a);
-        appendav(f->a[0]->v,av);
-        f->a[1]=kref(c);
-        f->an=2;
-        r=knew(67,0,f,0,0,0);
-      }
-      else if(ct==67&&co->t!=99) {
-        f=fnnew("");
-        g=c->v;
-        f->a=xmalloc(sizeof(K*)*(1+g->an));
-        f->a[0]=kcp(a);
-        appendav(f->a[0]->v,av);
-        DO(g->an,f->a[i+1]=kref(g->a[i]))
-        f->an=1+g->an;
-        r=knew(67,0,f,0,0,0);
-      }
+      else if(ct==27&&co->t!=99) r=make67(a,c,av);
+      else if(ct==67&&co->t!=99) r=append67(a,c,av);
       else r=apply1(a,c,av);
     }
   }
@@ -623,7 +611,7 @@ static K* node_reduce_(node *n, int md, int z) {
     }
   }
   else if(at==5&&ct==15) { /* a[`b]*3 */
-    p=at2_(a,v0(c)[0],0);
+    p=at2_(a,v0(c)[0],0); EC(p);
     r=apply2(v0(c)[1],p,v0(c)[2],av);
     kfree(p);
   }
@@ -709,6 +697,7 @@ static K* node_reduce_(node *n, int md, int z) {
         ct=7;
         if(((fn*)c->v)->r->t==16) p=apply1(c,a,0);
         else p=apply2(c,a,((fn*)c->v)->r,0);
+        EC(p);
         ct=57;
         q=dget(cs->d,ao->v);
         if(!q) r=assign2_(ao,p,":");
