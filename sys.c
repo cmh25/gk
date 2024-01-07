@@ -1065,7 +1065,7 @@ K* lsq2_(K *a, K *b, char *av) {
     DO(n,s=0.0;if(w[i]){DO2(m,s+=u[j][i]*(y->t==-2?v2(y)[j]:I2F(v1(y)[j])))s/=w[i];}t[i]=s)
     //DO(n,s=0.0;DO2(n,s+=v[i][j]*t[j];v2(x)[i]=s))
     //DO(n,s=0.0;DO2(n,s+=v[i][j]*t[j];v2(x)[i]=ABS(s)<TOL?0.0:s))
-    DO(n,s=0.0;DO2(n,s+=v[i][j]*t[j];v2(x)[i]=CMPFFT(ABS(s),TOL)<0?0.0:s))
+    DO(n,s=0.0;DO2(n,s+=v[i][j]*t[j];v2(x)[i]=CMPFFT(ABS(s),thresh)<0?0.0:s))
   )
   xfree(u[0]);xfree(u);xfree(w);xfree(v[0]);xfree(v);xfree(t);
 
