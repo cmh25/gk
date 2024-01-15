@@ -66,7 +66,7 @@ prefix dyad: overd     f/x
 ### slide adverb
 The slide adverb is an enhanced version of eachpair (aka eachprior). It only takes effect in the context of infix notation.
 
-The left argument is a positive or negative integer. Its sign indicates the order the arguments are passed to the modified verb. Its absolute value indicates the width of the sliding window. These examples should make clear how it works:
+The left argument is a positive or negative integer. Its sign indicates the order the arguments are passed to the modified verb. Its absolute value indicates the number of steps the sliding window moves each time arguments are taken. These examples should make clear how it works:
 ```
   1 ,' "abcd"
 ("ab"
