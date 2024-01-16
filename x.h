@@ -17,5 +17,6 @@ double xstrtod(char *s, char **e);
 uint64_t xfnv1a(char *v, uint64_t n);
 char* xesc(char *s);
 char* xunesc(char *s);
+char* xeqs(char *p);
 
 #endif /* X_H */

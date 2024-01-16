@@ -238,7 +238,7 @@ static K* append67(K *a, K *c, char *av) {
 static K* node_reducemd(node *n, int z);
 static K* node_reduce_(node *n, int md, int z) {
   K *a,*b,*c,*d,*r=0,*p,*q,*s,*ao=null,*co=null,*pc;
-  fn *f=0,*g=0;
+  fn *f=0;
   char av[32];
   ERR *e;
   unsigned int i,j,k;

@@ -362,77 +362,67 @@ K* fnd(K *a) {
   if(g) { c=*g; *g=0; lines[linei++]=xstrdup(f); *g=c; }
   else lines[linei++]=xstrdup(f);
 
-  u=strlen(f);
   s=j=n=q=vx=vy=vz=0;
   if(*f!='{') return r;
-  for(i=0;i<u;i++) {
-    /* eat up quoted strings */
-    if(f[i]=='"') {
-      ++i;
-      while(1) {
-        if(f[i]=='\\') i+=2;
-        if(f[i]=='"') { ++i; break; }
-        else ++i;
-      }
-    }
-
+  for(;*f;++f) {
+    if(*f=='"') f=xeqs(f);
     switch(s) {
     case 0:
-      if(f[i]=='{') s=1;
+      if(*f=='{') s=1;
       else return kerror("parse");
       break;
     case 1:
-      while(f[i]==' '||f[i]=='\t')++i;
-      if(f[i]=='}') s=2;
-      else if(f[i]=='{') { n++; s=9; }
-      else if(f[i]=='[') s=3;
-      else if(f[i]=='.') s=11;
-      else if(f[i]=='`') s=101;
-      else if(isalpha(f[i])) { s=7; b[j++]=f[i]; }
+      while(*f==' '||*f=='\t')++f;
+      if(*f=='}') s=2;
+      else if(*f=='{') { n++; s=9; }
+      else if(*f=='[') s=3;
+      else if(*f=='.') s=11;
+      else if(*f=='`') s=101;
+      else if(isalpha(*f)) { s=7; b[j++]=*f; }
       else s=6;
       break;
     case 101:
-      if(isalnum(f[i])) s=101;
+      if(isalnum(*f)) s=101;
       else s=1;
       break;
     case 2:
       return kerror("parse");
     case 3:
-      if(isalpha(f[i])) { s=4; b[j++]=f[i]; ff->q=1; }
-      else if(f[i]==']') s=5;
+      if(isalpha(*f)) { s=4; b[j++]=*f; ff->q=1; }
+      else if(*f==']') s=5;
       else return kerror("parse");
       break;
     case 4:
-      if(isalnum(f[i])) { s=4; b[j++]=f[i]; }
-      else if(f[i]==']') { s=5; b[j]=0; j=0; v[q++]=sp(b); }
-      else if(f[i]==';') { s=3; b[j]=0; j=0; v[q++]=sp(b); }
+      if(isalnum(*f)) { s=4; b[j++]=*f; }
+      else if(*f==']') { s=5; b[j]=0; j=0; v[q++]=sp(b); }
+      else if(*f==';') { s=3; b[j]=0; j=0; v[q++]=sp(b); }
       break;
     case 5:
-      if(f[i]=='}') s=2;
-      else if(f[i]=='.') s=15;
-      else if(f[i]=='`') s=105;
-      else if(isalpha(f[i])) { s=7; b[j++]=f[i]; }
+      if(*f=='}') s=2;
+      else if(*f=='.') s=15;
+      else if(*f=='`') s=105;
+      else if(isalpha(*f)) { s=7; b[j++]=*f; }
       else s=6;
       break;
     case 105:
-      if(isalnum(f[i])) s=105;
+      if(isalnum(*f)) s=105;
       else s=5;
       break;
     case 6:
-      if(f[i]=='}') s=2;
-      else if(f[i]=='.') s=16;
-      else if(f[i]=='`') s=106;
-      else if(isalpha(f[i])) { s=7; b[j++]=f[i]; }
-      else if(f[i]=='{') { n++; s=8; }
+      if(*f=='}') s=2;
+      else if(*f=='.') s=16;
+      else if(*f=='`') s=106;
+      else if(isalpha(*f)) { s=7; b[j++]=*f; }
+      else if(*f=='{') { n++; s=8; }
       else s=6;
       break;
     case 106:
-      if(isalnum(f[i])) s=106;
-      else if(f[i]=='`') s=106;
+      if(isalnum(*f)) s=106;
+      else if(*f=='`') s=106;
       else s=6;
       break;
     case 7:
-      if(f[i]=='}') {
+      if(*f=='}') {
         s=2; b[j]=0; j=0;
         if(!ff->q) { /* no implicit xyz if there are formal parameters */
           if(!vx && !strcmp(b,"x")) { vx=1; v[q++]=sp(b); }
@@ -440,8 +430,8 @@ K* fnd(K *a) {
           if(!vz && !strcmp(b,"z")) { vz=1; v[q++]=sp(b); }
         }
       }
-      else if(isalnum(f[i])) b[j++]=f[i];
-      else if(f[i]=='{') {
+      else if(isalnum(*f)) b[j++]=*f;
+      else if(*f=='{') {
         s=10; b[j]=0; j=0;
         if(!ff->q) { /* no implicit xyz if there are formal parameters */
           if(!vx && !strcmp(b,"x")) { vx=1; v[q++]=sp(b); }
@@ -459,30 +449,30 @@ K* fnd(K *a) {
       }
       break;
     case 8:
-      if(f[i]=='}') { n--; if(!n) s=6; }
-      else if(f[i]=='{') n++; /* nested function */
+      if(*f=='}') { n--; if(!n) s=6; }
+      else if(*f=='{') n++; /* nested function */
       break;
     case 9:
-      if(f[i]=='}') { n--; if(!n) s=5; }
-      else if(f[i]=='{') n++; /* nested function */
+      if(*f=='}') { n--; if(!n) s=5; }
+      else if(*f=='{') n++; /* nested function */
       break;
     case 10:
-      if(f[i]=='}') { n--; if(!n) s=7; }
-      else if(f[i]=='{') n++; /* nested function */
+      if(*f=='}') { n--; if(!n) s=7; }
+      else if(*f=='{') n++; /* nested function */
       break;
     case 11: /* .z.s */
-      if(isalnum(f[i])) s=11;
-      else if(f[i]=='.') s=11;
+      if(isalnum(*f)) s=11;
+      else if(*f=='.') s=11;
       else s=1;
       break;
     case 15: /* .z.s */
-      if(isalnum(f[i])) s=15;
-      else if(f[i]=='.') s=15;
+      if(isalnum(*f)) s=15;
+      else if(*f=='.') s=15;
       else s=5;
       break;
     case 16: /* .z.s */
-      if(isalnum(f[i])) s=16;
-      else if(f[i]=='.') s=16;
+      if(isalnum(*f)) s=16;
+      else if(*f=='.') s=16;
       else s=6;
       break;
     default: return kerror("parse");

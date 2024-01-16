@@ -103,16 +103,13 @@ K* interp(int top) {
           else if(c=='"') qcount^=1;
           if(c==' '||c=='\t') spc=1; else spc=0;
         }
+        if(c==EOF) exit(0);
         if(f==3) exit(0);
         if(f==2) { abort=1; break; }
         if(!pcount&&!scount&&!ccount&&!qcount) break;
         else if(pcount<0||scount<0||ccount<0) { printf("unmatched\n  "); break; }
         s->p[i++]='\n';
-        DO(pcount,putc('>',stderr))
-        DO(scount,putc('>',stderr))
-        DO(ccount,putc('>',stderr))
-        DO(qcount,putc('>',stderr))
-        DO(ecount,putc('>',stderr))
+        DO(pcount+scount+ccount+qcount+ecount,putc('>',stderr))
         fprintf(stderr,"%s",prompt);
       }
       s->p[i++]='\n'; s->p[i]=0;

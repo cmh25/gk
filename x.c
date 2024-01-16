@@ -120,17 +120,12 @@ char* xunesc(char *p) {
   for(i=0;i<n;i++) {
     switch(s) {
     case 0:
-      if(*p=='\\') s=1;
+      if(strchr("\b\t\n\r\"",*p)) ss[j++]=*p;
+      else if(*p=='\\') s=1;
       else ss[j++]=*p;
       break;
     case 1: /* escape */
-      if(*p=='b') { ss[j++]='\b'; s=0; }
-      else if(*p=='t') { ss[j++]='\t'; s=0; }
-      else if(*p=='n') { ss[j++]='\n'; s=0; }
-      else if(*p=='r') { ss[j++]='\r'; s=0; }
-      else if(*p=='"') { ss[j++]='"'; s=0; }
-      else if(*p=='\\') { ss[j++]='\\'; s=0; }
-      else if(isdigit(*p)&&*p<='7') { o=*p-48; s=2; } /* octal */
+      if(isdigit(*p)&&*p<='7') { o=*p-48; s=2; } /* octal */
       else { ss[j++]=*p; s=0; }
       break;
     case 2: /* octal */
@@ -150,4 +145,12 @@ char* xunesc(char *p) {
   if(s==2||s==3) ss[j++]=o;
   ss[j]=0;
   return ss;
+}
+char* xeqs(char *p) {
+  ++p;
+  while(1) {
+    if(*p=='\\') p+=2;
+    if(*p++=='"') break;
+  }
+  return p;
 }

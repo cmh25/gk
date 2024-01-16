@@ -726,20 +726,13 @@ static int gp(pgs *pgs) {
   return 1;
 }
 
-static void eqs() { /* eat quoted string */
-  ++p;
-  while(1) {
-    if(*p=='\\') p+=2;
-    if(*p++=='"') break;
-  }
-}
 static int gf(pgs *pgs) {
   char *q,c,s=0;
   fn *f;
   int fc=0;
   q=p;
   while(1) {
-    if(*p=='"') eqs();
+    if(*p=='"') p=xeqs(p);
     switch(s) {
     case 0:
       if(*p=='}'&&fc==1) s=1;
@@ -775,7 +768,7 @@ static int gcon(pgs *pgs, int n, int t) {
   p+=n; /*  while[ do[ if[ $[ */
   q=p;
   while(1) {
-    if(*p=='"') eqs();
+    if(*p=='"') p=xeqs(p);
     if(*p==']'&&fc==0) {
       c=*p; *p=0;
       push(pgs,T018,node_new(0,0,knew(t,0,q,0,0,0)));

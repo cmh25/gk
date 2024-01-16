@@ -58,11 +58,8 @@ K* bzcolon1_(K *a, char *av) {
 K* zerocolon2_(K *a, K *b, char *av) {
   FILE *fp;
   K *p;
-
   if(bt!=-3&&bt!=4&&bt!=0) return kerror("type");
-
   EC(fopen_(a,"w",&fp));
-
   switch(bt) {
   case  0: DO(bc,p=v0(b)[i];DO2(p->c,fputc(v3(p)[j],fp));fputc('\n',fp)) break;
   case -3: DO(bc,fputc(v3(b)[i],fp)); fputc('\n',fp); break;
@@ -78,12 +75,9 @@ K* zerocolon1_(K *a, char *av) {
   char *b,*p;
   long bs;
   unsigned int m=2;
-
   if(at!=-3&&at!=4) return kerror("type");
-
   EC(fopen_(a,"r",&fp));
   EC(fsize_(fp,&bs));
-
   b=xmalloc(bs+1);
   n=fread(b,1,bs,fp);
   if(ferror(fp)) return kerror("io");
@@ -104,11 +98,8 @@ K* zerocolon1_(K *a, char *av) {
 K* onecolon2_(K *a, K *b, char *av) {
   FILE *fp;
   K *r;
-
   if(at!=-3&&at!=4) return kerror("type");
-
   EC(fopen_(a,"wb",&fp));
-
   r=bd1_(b,0);
   fwrite(r->v,1,r->c,fp);
   fclose(fp);
@@ -160,16 +151,12 @@ K* twocolon1_(K *a, char *av) {
   int n;
   char *b;
   long bs;
-
   if(at!=-3&&at!=4) return kerror("type");
-
   EC(fopen_(a,"rb",&fp));
   EC(fsize_(fp,&bs));
-
   b=xmalloc(bs);
   n=fread(b,1,bs,fp);
   if(ferror(fp)) return kerror("io");
-
   p=kv3(1); xfree(p->v); p->v=b; p->c=n;
   r=db1_(p,0);
   fclose(fp);
@@ -213,16 +200,13 @@ K* fivecolon2_(K *a, K *b, char *av) {
 
 K* sixcolon2_(K *a, K *b, char *av) {
   FILE *fp;
-
   if(at!=-3&&at!=4&&at!=0) return kerror("type");
   if(bt!=-3) return kerror("type");
-
   if(!at) { /* append */
     if(!ac||(v0(a)[0]->t!=-3&&v0(a)[0]->t!=4)) return kerror("type");
     EC(fopen_(v0(a)[0],"a",&fp));
   }
   else EC(fopen_(a,"wb",&fp));
-
   DO(bc,fputc(v3(b)[i],fp));
   fclose(fp);
   return null;
@@ -234,12 +218,9 @@ K* sixcolon1_(K *a, char *av) {
   int n=0;
   char *b;
   long bs;
-
   if(at!=-3&&at!=4) return kerror("type");
-
   EC(fopen_(a,"r",&fp));
   EC(fsize_(fp,&bs));
-
   b=xmalloc(bs);
   n=fread(b,1,bs,fp);
   if(ferror(fp)) return kerror("io");
