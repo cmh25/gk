@@ -693,7 +693,7 @@ static K* node_reduce_(node *n, int md, int z) {
     else if(ct==57) {
       fn *f=c->v;
       if(f->i==':') r=assign2_(ao,f->r,":"); /* global assign */
-      else { /* a+:1 */
+      else if(ao->v) { /* a+:1 */
         ct=7;
         if(((fn*)c->v)->r->t==16) p=apply1(c,a,0);
         else p=apply2(c,a,((fn*)c->v)->r,0);

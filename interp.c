@@ -63,7 +63,7 @@ void load(char *fnm) {
   }
   s->p[i]=0;
   a=pgparse(s);
-  if(!a) return;
+  if(!a) { pgfree(s); return; }
   od=D->v;
   reduce(a,s,0);
   D->v=od;

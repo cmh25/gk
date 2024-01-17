@@ -759,7 +759,8 @@ static int gav(pgs *pgs) {
   c=*p; *p=0;
   push(pgs,T020,node_new(0,0,knew(47,strlen(q),xstrdup(q),0,0,0)));
   *p=c;
-  return 1;
+  if(*p==':') return 0; /* k32 adverb use? */
+  else return 1;
 }
 
 static int gcon(pgs *pgs, int n, int t) {
@@ -927,8 +928,11 @@ static int lex(pgs *pgs) {
     else if(f&&*p=='\\'&&*(p+1)==':') { p+=2; push(pgs,T019,node_new(0,0,knew(7,0,fnnew("\\0"),179,0,0))); push(pgs,T018,node_new(0,0,k3(':'))); }
     else if(f&&*p=='\\'&&*(p+1)=='-') { p+=2; push(pgs,T019,node_new(0,0,knew(7,0,fnnew("\\0"),179,0,0))); push(pgs,T018,node_new(0,0,k3('-'))); }
     else if(f&&*p=='\\'&&*(p+1)=='?') { p+=2; push(pgs,T019,node_new(0,0,knew(7,0,fnnew("\\0"),179,0,0))); push(pgs,T018,node_new(0,0,k3('?'))); }
-    else if(*p=='\''||*p=='/'||*p=='\\') gav(pgs);
-    else { printf("lex\n  "); break; }
+    else if(*p=='\''||*p=='/'||*p=='\\') { /* check for k32 adverb use */
+      if(*(p+1)&&*(p+1)==':') { printf("lex\n"); return 0; }
+      else if(!gav(pgs)) { printf("lex\n"); return 0; }
+    }
+    else { printf("lex\n"); return 0; }
     f=0;
   }
   return 1;
@@ -962,7 +966,7 @@ node* pgparse(pgs *s) {
   int i,j,r;
   s->ti=s->tc=0;
   s->si=s->ri=s->vi=s->lt=-1;
-  lex(s);
+  if(!lex(s)) { DO(s->tc,node_free(s->v[i])); return 0; }
   s->S[++s->si]=T000; /* $a */
   for(i=0;;i++) {
     if(s->si>=s->Sm-RCSIZE+2) { s->Sm<<=1; s->S=xrealloc(s->S,s->Sm*sizeof(int)); }
@@ -974,7 +978,7 @@ node* pgparse(pgs *s) {
     }
     else {
       r=LL[s->S[s->si--]][s->t[s->ti]];
-      if(r==-1) { printf("parse\n"); break; }
+      if(r==-1) { printf("parse\n"); return 0; }
       s->R[++s->ri]=r;
       s->S[++s->si]=-2; /* reduction marker */
       for(j=RC[r]-1;j>=0;j--) s->S[++s->si]=RT[r][j];
