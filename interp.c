@@ -41,6 +41,7 @@ void load(char *fnm) {
   node *a;
   pgs *s;
   char *od;
+  scope *cs0,*gs0;
   fp=fopen(fnm,"r");
   if(!fp) { fprintf(stderr,"%s: %s\n",fnm,strerror(errno)); return; }
   if(!fnames) {
@@ -64,9 +65,9 @@ void load(char *fnm) {
   s->p[i]=0;
   a=pgparse(s);
   if(!a) { pgfree(s); return; }
-  od=D->v;
+  od=D->v; cs0=cs; gs0=gs;
   reduce(a,s,0);
-  D->v=od;
+  gs=gs0; cs=cs0; D->v=od;
   a->v=0; node_free(a);
   fclose(fp);
   pgfree(s);

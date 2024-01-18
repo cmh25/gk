@@ -6,7 +6,7 @@
 p:{I::0;{$[l[x]&2=#x;x 1;x]}{$[l x;(,,","),1_ x;x]}t J::"(",x:x dv" "}                  / parse
 N:"abcdefghijklmnopqrstuvwxyz01"                                                        / nouns
 P:"ABCDEFGHIJKLMNOPQRSTUVWXYZ"                                                          / predicates
-V:"~&|/!{}",P                                                                           / verbs
+V:"~&|/\\{}",P                                                                          / verbs
 c:{$[~4:x;"n";&/x lin V;"v";"osn"(&/'x lin/(,"[";",)] "))?1]}                           / class of token
 j:{i -1+I+:1}                                                                           / next token
 i:{$[x<#J;J x;" "]}                                                                     / safe indexing
@@ -37,6 +37,14 @@ it is convenient to treat predicate letters as verbs:
     xFy         ->      Fxy
     xFG[y,z]    ->      ("F";"x";"Gyz")
 
+predicates of valence greater than 2 use ; to separate arguments:
+
+    p"F[x;y;z]"
+  ("F"
+   ("x"
+    (";"
+     ("y";";z"))))
+
 two special predicates are { (membership) and ~ (identity).
 
     x{y
@@ -59,9 +67,9 @@ variables           a-z
 verbs               symbol          meaning
 -----               ------          -------
 predicates          A-Z { ~         predicates, in, equal
-monads              | & ~           some, all, not
-connectives         | & / ~         some, all, onlyif, equal
-binding             | & / ! }       some, all, lambda, the, class
+monads              | & ~           possible, necessary, not
+connectives         | & / \ ~       or, and, onlyif, ifonly, iff
+binding             | & / \ ~ }     some, all, the, lambda, epsilon, class
 
 iverson notation is used - there is no precedence.  a monad is written to the left of its argument.  a dyad is written between its arguments.  dyadic & and | are conjunction and disjunction, and also universal and particular quantification.  monadic & and | are necessitation and possibility.
 
@@ -71,7 +79,7 @@ expressions are evaluated left-of-right:
     (a|b)&~c/d      is  (a|b)&(~(c/d))
     (a|b)&(~c)/d    is  (a|b)&((~c)/d)
 
-variable-binding operators (all, some, the, lambda, class) are written
+variable-binding operators (some, all, the, epsilon, lambda, class) are written
 
     <variable><operator><expression>
 
@@ -117,4 +125,8 @@ parse/unparse:
 
   q~u p q
 1
+
+
+
+
 
