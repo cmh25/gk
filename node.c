@@ -235,9 +235,27 @@ static K* append67(K *a, K *c, char *av) {
   f->an=1+g->an;
   return knew(67,0,f,0,0,0);
 }
+static K* reduce18(K *a) {
+  K *r,*p,*q;
+  p=v0(a)[0];
+  q=v0(a)[1];
+  if(q->t==18) {
+    q=reduce18(q);
+    r=kv0(p->c+q->c); r->t=11;
+    DO(p->c,v0(r)[i]=v0(p)[i]);
+    DO(q->c,v0(r)[i+p->c]=v0(q)[i]);
+  }
+  else {
+    r=kv0(1+p->c); r->t=11;
+    DO(p->c,v0(r)[i]=v0(p)[i]);
+    v0(r)[p->c]=q;
+  }
+  if(q!=v0(a)[1]) { q->c=0; kfree(q); }
+  return r;
+}
 static K* node_reducemd(node *n, int z);
 static K* node_reduce_(node *n, int md, int z) {
-  K *a,*b,*c,*d,*r=0,*p,*q,*s,*ao=null,*co=null,*pc;
+  K *a,*b,*c,*d,*r=0,*p,*q,*s,*t,*ao=null,*co=null,*pc;
   fn *f=0;
   char av[32];
   ERR *e;
@@ -252,6 +270,14 @@ static K* node_reduce_(node *n, int md, int z) {
     r=kv0(n->v);
     DO(rc,v0(r)[i]=node_reducepe(n->a[i],z))
     r->t=10;
+    return r;
+  }
+  if(n->t==18) {
+    b=node_reducemd(n->a[1],z);
+    a=node_reduce(n->a[0],z);
+    r=kv0(2); r->t=18;
+    v0(r)[0]=a;
+    v0(r)[1]=b;
     return r;
   }
   else if(n->v==2) { /* assign3 */
@@ -363,6 +389,11 @@ static K* node_reduce_(node *n, int md, int z) {
         p=apply1(a,v0(v0(c)[0])[0],0);
         r=apply2(v0(c)[1],p,v0(c)[2],0);
         kfree(p);
+      }
+      else if(ct==18) {
+        p=v0(c)[0];
+        q=v0(c)[1];
+        r=apply2(a,v0(p)[0],q,av);
       }
       else if(ct==27&&co->t!=99) r=make67(a,c,av);
       else if(ct==67&&co->t!=99) r=append67(a,c,av);
@@ -480,6 +511,38 @@ static K* node_reduce_(node *n, int md, int z) {
         r=fne2(a,v0(c)[0],0);
         for(i=1;i<c->c;i++) { p=r; r=applyprj(p,v0(c)[i],0); kfree(p); }
 
+      }
+      else if(ct==18) {
+        p=v0(c)[0]; q=v0(c)[1];
+        if(q->t==17) {
+          s=avdo37(a,p,av);
+          if(!s) s=fne2(a,p,0);
+          f=q->v;
+          if(f&&f->i) { /* f[1]in 1 2 3 */
+            t=kv0(2); t->t=11;
+            v0(t)[0]=s; v0(t)[1]=f->r;
+            r=fne2(q,t,0);
+            t->c=0; kfree(t);
+          }
+          else r=apply2(q,s,f->r,0);
+          kfree(s);
+        }
+        else { /* f[1]2 */
+          if(q->t==18) q=reduce18(q);
+          if(q->t==11) {
+            s=kv0(p->c+q->c); s->t=11;
+            DO(p->c,v0(s)[i]=v0(p)[i]);
+            DO(q->c,v0(s)[p->c+i]=v0(q)[i]);
+          }
+          else {
+            s=kv0(1+p->c); s->t=11;
+            DO(p->c,v0(s)[i]=v0(p)[i]); v0(s)[p->c]=q;
+          }
+          r=avdo37(a,p,av);
+          if(!r) r=fne2(a,s,0);
+          s->c=0; kfree(s);
+          if(q!=v0(c)[1]) { q->c=0; kfree(q); }
+        }
       }
       else {
         if(ct==11&&a7->v<cc) { /* {x,y,z}[;1;2]3 */

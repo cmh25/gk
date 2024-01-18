@@ -1,13 +1,5 @@
 \l parse.k
 \d .parse
-q:"a+b"
-p q
-u p q
-q~u p q
-q:"a+b*c"
-p q
-u p q
-q~u p q
 q:"(x&(y|xLy)/y|yLx)/(x|y|xLy)/x&y&xLy"
 p q
 u p q

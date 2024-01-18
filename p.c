@@ -247,7 +247,7 @@ static void r017(pgs *s) { /* plist > '[' elist ']' pz */
     aa[1]=d;
     V[vi]=node_new(aa,2,0);
   }
-  else if(d->t==11) { /* plist list */
+  else if(d->t==11) { /* plist plist */
     node_free(a);
     node_free(c);
     if(b->t==12) {
@@ -258,12 +258,8 @@ static void r017(pgs *s) { /* plist > '[' elist ']' pz */
       V[vi]=node_new(aa,2,0);
       V[vi]->t=10; /* plist list */
     }
-    //else if(b->t==10) {
-    //  node_append(b,d);
-    //  V[vi]=d;
-    //}
   }
-  else if(d->t==10) {
+  else if(d->t==10) { /* list of plist */
     bt=11;
     node_prepend(b,d);
     V[vi]=d;
@@ -275,6 +271,16 @@ static void r017(pgs *s) { /* plist > '[' elist ']' pz */
       node_free(d);
       b->t=11;
       V[vi]=b;
+    }
+    else if(b->t==12) {
+      node_free(a);
+      node_free(c);
+      b->t=11;
+      aa=xmalloc(sizeof(node*)*2);
+      aa[0]=b;
+      aa[1]=d;
+      V[vi]=node_new(aa,2,0);
+      V[vi]->t=18;
     }
     else {
       node_free(a);

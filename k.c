@@ -106,7 +106,7 @@ void kfree(K *s) {
    }
 #endif
   if(!s->r) {
-    if(s->t==0||s->t==10||s->t==11||s->t==12||s->t==13||s->t==14||s->t==15||s->t==97)
+    if(s->t==0||s->t==10||s->t==11||s->t==12||s->t==13||s->t==14||s->t==15||s->t==18||s->t==97)
       DO(s->c, kfree(v0(s)[i]))
     else if(s->t== 5) { dfree(s->v); s->v=0; }
     else if(s->t==7||s->t==17||s->t==27||s->t==37||s->t==57||s->t==67||s->t==77||s->t==87) { fnfree(s->v); s->v=0; }

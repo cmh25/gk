@@ -6,18 +6,17 @@
 p:{I::0;{$[l[x]&2=#x;x 1;x]}{$[l x;(,,","),1_ x;x]}t J::"(",x:x dv" "}                  / parse
 N:"abcdefghijklmnopqrstuvwxyz01"                                                        / nouns
 P:"ABCDEFGHIJKLMNOPQRSTUVWXYZ"                                                          / predicates
-V:"`~!#$%^&*-+=|\\<>.?/{}@';",P                                                         / verbs
+V:"~&|/!{}",P                                                                           / verbs
 c:{$[~4:x;"n";&/x lin V;"v";"osn"(&/'x lin/(,"[";",)] "))?1]}                           / class of token
 j:{i -1+I+:1}                                                                           / next token
 i:{$[x<#J;J x;" "]}                                                                     / safe indexing
-k:{$[c[x]in"nv";,x;x]}                                                                  / f(
 g:{x(1;)(~3>#x)|"v"=c x 1}                                                              / (v) -> (v)
 l:{("("~*x)&~x~"()"}                                                                    / ( but not ()
 E:{|/",(["=*j`}{e t`}\                                                                  / (expression)
-t:{$["s"=c i I;"";{"o"=c i I}{$["["=*i I;E x;(j`;x)]}/ $[~l i I;j`;g E i I]]}           / term ("" = ::)
+t:{$["s"=c i I;"";{"o"=c i I}{$["["=*i I;E x;(j`;x)]}/$[~l i I;j`;g E i I]]}            / term ("" = ::)
 e:{$["s"=c i I;x;(v[f:t`])>v`;(f;x;e t`);(x;e f)]}                                      / expression
 r:{$[(*x)in P,N;x;x,":"]}                                                               / operator:
-v:{(c[i I-1])in"vo"}                                                                    / verb or (?
+v:{c[i I-1]in"vo"}                                                                      / verb or (?
 
 / unparse
 u:{$[1=#x;x;~(*x)in V;m x;2=#x;(*x),u x 1;b[u x 1],x[0],u x 2]}                         / unparse
