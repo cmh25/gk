@@ -284,7 +284,6 @@ static K* node_reduce_(node *n, int md, int z) {
     c = node_reducemd(n->a[1]->a[2],z); /* 13 rhs */
     d = node_reducemd(n->a[1]->a[1],z); /* av */
     b = node_reduce(n->a[1]->a[0],z); /* v */
-    a = node_reduce(n->a[0],z);       /* 13 v */
     if(bt==7) {
       f=b->v;
       if(dt==47) {
@@ -293,14 +292,17 @@ static K* node_reduce_(node *n, int md, int z) {
       }
       if(f->i==':') { /* [0]:5 */
         kfree(b);
+        a = node_reduce(n->a[0],z);
         r=kv0(2); v0(r)[0]=a; v0(r)[1]=c; rt=13;
       }
       else { /* [0]+5 */
-        if(ct==17) c=reduce17(c,n);
+        if(ct==17) c=reduce17(c,n);  /* important to reduce rhs first */
+        a = node_reduce(n->a[0],z);  /* v[f:t`]>v` */
         r=kv0(3); v0(r)[0]=a; v0(r)[1]=b; v0(r)[2]=c; rt=15;
       }
     }
     else { /* [1]'[!10;!10] */
+      a = node_reduce(n->a[0],z);
       r = kv0(3); v0(r)[0]=a; v0(r)[1]=b; v0(r)[2]=c; rt=14;
     }
     return r;

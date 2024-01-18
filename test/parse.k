@@ -14,7 +14,7 @@ g:{x(1;)(~3>#x)|"v"=c x 1}                                                      
 l:{("("~*x)&~x~"()"}                                                                    / ( but not ()
 E:{|/",(["=*j`}{e t`}\                                                                  / (expression)
 t:{$["s"=c i I;"";{"o"=c i I}{$["["=*i I;E x;(j`;x)]}/$[~l i I;j`;g E i I]]}            / term ("" = ::)
-e:{$["s"=c i I;x;(v[f:t`])>v`;(f;x;e t`);(x;e f)]}                                      / expression
+e:{$["s"=c i I;x;v[f:t`]>v`;(f;x;e t`);(x;e f)]}                                        / expression
 r:{$[(*x)in P,N;x;x,":"]}                                                               / operator:
 v:{c[i I-1]in"vo"}                                                                      / verb or (?
 
