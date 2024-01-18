@@ -473,6 +473,11 @@ K* drop2_(K *a, K *b, char *av) {
   K *r=0,*r2=0;
   int i,j,m,p,q;
 
+  if(at==-1) {
+    DO(ac,if(v1(a)[i]>(int)bc)return kerror("length"))
+    DO(ac-1,if(v1(a)[i]>v1(a)[i+1])return kerror("domain"))
+  }
+
   switch(at) {
   case -1:
     switch(bt) {
