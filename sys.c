@@ -237,7 +237,7 @@ K* vs2_(K *a, K *b, char *av) {
 
   return r->t ? r : knorm(r);
 }
-MC2A(vs2_);
+MC2A(vs2_)
 
 K* sv2_(K *a, K *b, char *av) {
   K *r=0,*q=0,*p=0,*f=0;
@@ -308,7 +308,7 @@ K* sv2_(K *a, K *b, char *av) {
 
   return r->t ? r : knorm(r);
 }
-MC2A(sv2_);
+MC2A(sv2_)
 
 K* draw2_(K *a, K *b, char *av) {
   K *r=0,*p=0,*a0=0,*a_1=0,*am=0,*bm=0;
@@ -364,7 +364,7 @@ K* draw2_(K *a, K *b, char *av) {
 
   return r->t ? r : knorm(r);
 }
-MC2A(draw2_);
+MC2A(draw2_)
 
 K* ci1_(K *a, char *av) {
   K *r=0;
@@ -375,7 +375,7 @@ K* ci1_(K *a, char *av) {
   }
   return r->t ? r : knorm(r);
 }
-MC1A(ci1_);
+MC1A(ci1_)
 
 K* ic1_(K *a, char *av) {
   K *r=0;
@@ -388,7 +388,7 @@ K* ic1_(K *a, char *av) {
   }
   return r->t ? r : knorm(r);
 }
-MC1A(ic1_);
+MC1A(ic1_)
 
 K* dj1_(K *a, char *av) {
   K *r=0,*am=0;
@@ -415,7 +415,7 @@ K* dj1_(K *a, char *av) {
   }
   return r->t ? r : knorm(r);
 }
-MC1A(dj1_);
+MC1A(dj1_)
 
 K* jd1_(K *a, char *av) {
   K *r=0,*am=0;;
@@ -439,7 +439,7 @@ K* jd1_(K *a, char *av) {
   }
   return r->t ? r : knorm(r);
 }
-MC1A(jd1_);
+MC1A(jd1_)
 
 K* lt1_(K *a, char *av) {
   K *r=0,*am=0;
@@ -466,16 +466,16 @@ K* lt1_(K *a, char *av) {
   }
   return r->t ? r : knorm(r);
 }
-MC1A(lt1_);
+MC1A(lt1_)
 
-MC1D(log1_,log,log,2,2,v2,v2);
-MC1A(log1_);
+MC1D(log1_,log,log,2,2,v2,v2)
+MC1A(log1_)
 
-MC1D(exp1_,exp,exp,2,2,v2,v2);
-MC1A(exp1_);
+MC1D(exp1_,exp,exp,2,2,v2,v2)
+MC1A(exp1_)
 
-MC1(abs1_,abs,fabs,1,2,v1,v2);
-MC1A(abs1_);
+MC1(abs1_,abs,fabs,1,2,v1,v2)
+MC1A(abs1_)
 
 K* sqr1_(K *a, char *av) {
   K *r=0;
@@ -489,16 +489,16 @@ K* sqr1_(K *a, char *av) {
   }
   return r->t ? r : knorm(r);
 }
-MC1A(sqr1_);
+MC1A(sqr1_)
 
-MC1D(sqrt1_,sqrt,sqrt,2,2,v2,v2);
-MC1A(sqrt1_);
+MC1D(sqrt1_,sqrt,sqrt,2,2,v2,v2)
+MC1A(sqrt1_)
 
-MC1D(floor1_,floor,floor,2,2,v2,v2);
-MC1A(floor1_);
+MC1D(floor1_,floor,floor,2,2,v2,v2)
+MC1A(floor1_)
 
-MC1D(ceil1_,ceil,ceil,2,2,v2,v2);
-MC1A(ceil1_);
+MC1D(ceil1_,ceil,ceil,2,2,v2,v2)
+MC1A(ceil1_)
 
 K* ddot2_(K *a, K *b, char *av) {
   K *r=0,*q=0,*am=0,*bm=0,*sa=0,*sb=0,*f=0;
@@ -649,38 +649,38 @@ K* ddot2_(K *a, K *b, char *av) {
   }
   return r->t ? r : knorm(r);
 }
-MC2A(ddot2_);
+MC2A(ddot2_)
 
 
-MC1D(sin1_,sin,sin,2,2,v2,v2);
-MC1A(sin1_);
+MC1D(sin1_,sin,sin,2,2,v2,v2)
+MC1A(sin1_)
 
-MC1D(cos1_,cos,cos,2,2,v2,v2);
-MC1A(cos1_);
+MC1D(cos1_,cos,cos,2,2,v2,v2)
+MC1A(cos1_)
 
-MC1D(tan1_,tan,tan,2,2,v2,v2);
-MC1A(tan1_);
+MC1D(tan1_,tan,tan,2,2,v2,v2)
+MC1A(tan1_)
 
-MC1D(asin1_,asin,asin,2,2,v2,v2);
-MC1A(asin1_);
+MC1D(asin1_,asin,asin,2,2,v2,v2)
+MC1A(asin1_)
 
-MC1D(acos1_,acos,acos,2,2,v2,v2);
-MC1A(acos1_);
+MC1D(acos1_,acos,acos,2,2,v2,v2)
+MC1A(acos1_)
 
-MC1D(atan1_,atan,atan,2,2,v2,v2);
-MC1A(atan1_);
+MC1D(atan1_,atan,atan,2,2,v2,v2)
+MC1A(atan1_)
 
-MC1D(sinh1_,sinh,sinh,2,2,v2,v2);
-MC1A(sinh1_);
+MC1D(sinh1_,sinh,sinh,2,2,v2,v2)
+MC1A(sinh1_)
 
-MC1D(cosh1_,cosh,cosh,2,2,v2,v2);
-MC1A(cosh1_);
+MC1D(cosh1_,cosh,cosh,2,2,v2,v2)
+MC1A(cosh1_)
 
-MC1D(tanh1_,tanh,tanh,2,2,v2,v2);
-MC1A(tanh1_);
+MC1D(tanh1_,tanh,tanh,2,2,v2,v2)
+MC1A(tanh1_)
 
-MC2D(atan2_,atan2,atan2,2,2,v2,v2);
-MC2A(atan2_);
+MC2D(atan2_,atan2,atan2,2,2,v2,v2)
+MC2A(atan2_)
 
 K* euclid2_(K *a, K *b, char *av) {
   K *r=0,*p=0;
@@ -732,37 +732,37 @@ K* euclid2_(K *a, K *b, char *av) {
   if(b0) { p=kmix(r); kfree(r); r=p; }
   return r;
 }
-MC2A(euclid2_);
+MC2A(euclid2_)
 
-MC1D(erf1_,erf,erf,2,2,v2,v2);
-MC1A(erf1_);
+MC1D(erf1_,erf,erf,2,2,v2,v2)
+MC1A(erf1_)
 
-MC1D(erfc1_,erfc,erfc,2,2,v2,v2);
-MC1A(erfc1_);
+MC1D(erfc1_,erfc,erfc,2,2,v2,v2)
+MC1A(erfc1_)
 
-MC1D(gamma1_,tgamma,tgamma,2,2,v2,v2);
-MC1A(gamma1_);
+MC1D(gamma1_,tgamma,tgamma,2,2,v2,v2)
+MC1A(gamma1_)
 
-MC1D(lgamma1_,lgamma,lgamma,2,2,v2,v2);
-MC1A(lgamma1_);
+MC1D(lgamma1_,lgamma,lgamma,2,2,v2,v2)
+MC1A(lgamma1_)
 
-MC1D(rint1_,rint,rint,2,2,v2,v2);
-MC1A(rint1_);
+MC1D(rint1_,rint,rint,2,2,v2,v2)
+MC1A(rint1_)
 
-MC1D(trunc1_,trunc,trunc,2,2,v2,v2);
-MC1A(trunc1_);
+MC1D(trunc1_,trunc,trunc,2,2,v2,v2)
+MC1A(trunc1_)
 
-MC2IO(div2_,/,1);
+MC2IO(div2_,/,1)
 MC2A(div2_)
 
-MC2IO(and2_,&,0);
-MC2A(and2_);
+MC2IO(and2_,&,0)
+MC2A(and2_)
 
-MC2IO(or2_,|,0);
-MC2A(or2_);
+MC2IO(or2_,|,0)
+MC2A(or2_)
 
-MC2IO(xor2_,^,0);
-MC2A(xor2_);
+MC2IO(xor2_,^,0)
+MC2A(xor2_)
 
 K* not1_(K *a, char *av) {
   K *r=0;
@@ -774,7 +774,7 @@ K* not1_(K *a, char *av) {
   }
   return r->t ? r : knorm(r);
 }
-MC1A(not1_);
+MC1A(not1_)
 
 #define ROT(a,b) ((b)>0 ? ((a)<<(b))|((a)>>(32-(b))) : ((a)<<(b))|((a)>>(32-(b))))
 K* rot2_(K *a, K *b, char *av) {
@@ -800,7 +800,7 @@ K* rot2_(K *a, K *b, char *av) {
   }
   return r->t ? r : knorm(r);
 }
-MC2A(rot2_);
+MC2A(rot2_)
 
 K* shift2_(K *a, K *b, char *av) {
   K *r=0;
@@ -825,7 +825,7 @@ K* shift2_(K *a, K *b, char *av) {
   }
   return r->t ? r : knorm(r);
 }
-MC2A(shift2_);
+MC2A(shift2_)
 
 /* svd stuff based on numerical recipes */
 #define MAX(a,b) (((a)>(b))?(a):(b))
@@ -1071,7 +1071,7 @@ K* lsq2_(K *a, K *b, char *av) {
 
   return z;
 }
-MC2A(lsq2_);
+MC2A(lsq2_)
 
 K* atn2_(K *a, K *b, char *av) {
   K *r=0;
@@ -1086,7 +1086,7 @@ K* atn2_(K *a, K *b, char *av) {
   }
   return r->t ? r : knorm(r);
 }
-MC2A(atn2_);
+MC2A(atn2_)
 
 static int sm(char *a, char *b, int an, int bn, int i, int j) {
   int m=1;
@@ -1163,7 +1163,7 @@ K* sm2_(K *a, K *b, char *av) {
   }
   return r->t ? r : knorm(r);
 }
-MC2A(sm2_);
+MC2A(sm2_)
 
 static int ss(char *a, char *b, int an, int bn, int i) {
   int m=1,j,k=i;
@@ -1244,7 +1244,7 @@ K* ss2_(K *a, K *b, char *av) {
   }
   return r->t ? r : knorm(r);
 }
-MC2A(ss2_);
+MC2A(ss2_)
 
 K* kv1_(K *a, char *av) {
   K *r=0;
@@ -1257,22 +1257,22 @@ K* kv1_(K *a, char *av) {
   }
   return r;
 }
-MC1A(kv1_);
+MC1A(kv1_)
 
 K* vk1_(K *a, char *av) {
   if(at) return kerror("type");
   return knorm(kref(a));
 }
-MC1A(vk1_);
+MC1A(vk1_)
 
 K* timer1_(K *a, char *av) {
   return null;
 }
-MC1A(timer1_);
+MC1A(timer1_)
 
 K* error1_(K *a, char *av) {
   if(at==6) printf("%d\n",E);
   else E=a->i;
   return null;
 }
-MC1A(error1_);
+MC1A(error1_)

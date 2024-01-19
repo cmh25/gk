@@ -7,7 +7,7 @@ gk: main.c p.o timer.o node.o x.o ops.o sym.o sort.o k.o dict.o av.o sys.o scope
 	$(CC) $(CFLAGS) -o gk main.c p.o timer.o node.o x.o ops.o sym.o sort.o k.o dict.o av.o sys.o scope.o fn.o avopt.o io.o adcd.o interp.o -lm
 
 gkd:
-	$(MAKE) CFLAGS="-g -Wall -Wformat=2 -Wextra -Wformat-security -Wformat-nonliteral -Wno-unused-parameter"
+	$(MAKE) CFLAGS="-g -Wall -Wformat=2 -Wextra -Wformat-security -Wformat-nonliteral -Wno-unused-parameter -Wpedantic"
 
 test: gk
 	$(MAKE) -C test

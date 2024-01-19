@@ -76,9 +76,9 @@ K* F(K *a, K *b, char *av) { \
   } \
   return rt ? r : knorm(r); \
 }
-MCPMT(plus2_,+);
-MCPMT(minus2_,-);
-MCPMT(times2_,*);
+MCPMT(plus2_,+)
+MCPMT(minus2_,-)
+MCPMT(times2_,*)
 
 K* divide2_(K *a, K *b, char *av) {
   K *r=0;
@@ -195,8 +195,8 @@ K* F(K *a, K *b, char *av) { \
   } \
   return rt ? r : knorm(r); \
 }
-MCMAMO(minand2_,<,-1);
-MCMAMO(maxor2_,>,1);
+MCMAMO(minand2_,<,-1)
+MCMAMO(maxor2_,>,1)
 
 /* less, more, equal */
 #define MCLME(F,O,R) \
@@ -266,11 +266,11 @@ K* F(K *a, K *b, char *av) { \
   } \
   return rt ? r : knorm(r); \
 }
-MCLME(less2_,<,-1);
-MCLME(more2_,>,1);
-MCLME(equal2_,==,0);
+MCLME(less2_,<,-1)
+MCLME(more2_,>,1)
+MCLME(equal2_,==,0)
 
-MC2D(power2_,pow,pow,2,2,v2,v2);
+MC2D(power2_,pow,pow,2,2,v2,v2)
 
 K* modrot2_(K *a, K *b, char *av) {
   K *r=0;

@@ -22,9 +22,9 @@ K* F##avopt(K *a, char *av) { \
   } \
   return r; \
 }
-AVOPTPMT(plus2_,+);
-AVOPTPMT(minus2_,-);
-AVOPTPMT(times2_,*);
+AVOPTPMT(plus2_,+)
+AVOPTPMT(minus2_,-)
+AVOPTPMT(times2_,*)
 
 K* divide2_avopt(K *a, char *av) {
   K *r=0;
@@ -187,9 +187,9 @@ K* F##avopt2(K *a, K *b, char *av) { \
   if(bb) kfree(bb); \
   return r; \
 }
-AVOPT2PMT(plus2_,+);
-AVOPT2PMT(minus2_,-);
-AVOPT2PMT(times2_,*);
+AVOPT2PMT(plus2_,+)
+AVOPT2PMT(minus2_,-)
+AVOPT2PMT(times2_,*)
 
 K* divide2_avopt2(K *a, K *b, char *av) {
   K *r=0,*p=0,*aa=0,*bb=0;
