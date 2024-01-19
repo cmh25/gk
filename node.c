@@ -746,6 +746,14 @@ static K* node_reduce_(node *n, int md, int z) {
         p->c=0; kfree(p);
       }
     }
+    else if(ct==18) {
+      p=knew(7,0,fnnew("@"),'@',0,0);  /* c[1]in"asdf" */
+      q=apply2(p,a,v0(v0(c)[0])[0],0);
+      s=kv0(2); s->t=11; v0(s)[0]=q; v0(s)[1]=((fn*)v0(c)[1]->v)->r;
+      r=avdo37infix(v0(c)[1],s,((fn*)v0(c)[1]->v)->av);
+      if(!r) r=fne2(v0(c)[1],s,0);
+      s->c=0; kfree(s); kfree(p); kfree(q);
+    }
     else if(ct==13) r=assign3_(ao,v0(c)[0],v0(c)[1]);
     else if(ct==14) { /* g[1]'[!10;!10] */
       p=knew(7,0,fnnew("@"),'@',0,0);
