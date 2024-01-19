@@ -5,8 +5,6 @@
 #include "x.h"
 #include "k.h"
 
-#define MIN(X,Y) (((X)<(Y))?(X):(Y))
-
 static int *L,*M;
 
 int* csortg(int *g, int *a, unsigned int n, int min, int max, int down) {
@@ -64,204 +62,51 @@ int* rcsortg(int *g, int *a, unsigned int n, int down) {
   return g;
 }
 
-static void merge1(int *g, int *a, int p, int q, int r, int down) {
-  int i,j,k;
-  int n1 = q-p+1;
-  int n2 = r-q;
-
-  for(i=0;i<n1;i++) L[i] = g[p+i];
-  for(j=0;j<n2;j++) M[j] = g[q+j+1];
-
-  i=j=0; k=p;
-  if(down) {
-    while(i<n1 && j<n2) {
-      if(a[L[i]] >= a[M[j]]) g[k++] = L[i++];
-      else g[k++] = M[j++];
-    }
-  } else {
-    while(i<n1 && j<n2) {
-      if(a[L[i]] <= a[M[j]]) g[k++] = L[i++];
-      else g[k++] = M[j++];
-    }
-  }
-
-  while(i<n1) g[k++] = L[i++];
-  while(j<n2) g[k++] = M[j++];
+#define MIN(X,Y) (((X)<(Y))?(X):(Y))
+#define CMP(x,y) ((x)>(y)?1:(x)<(y)?-1:0)
+#define MS(N,T,C) \
+static void merge##N(int *g, T a, int p, int q, int r, int down) { \
+  int i,j,k; \
+  int n1 = q-p+1; \
+  int n2 = r-q; \
+ \
+  for(i=0;i<n1;i++) L[i] = g[p+i]; \
+  for(j=0;j<n2;j++) M[j] = g[q+j+1]; \
+ \
+  i=j=0; k=p; \
+  if(down) { \
+    while(i<n1 && j<n2) { \
+      if(C(a[L[i]],a[M[j]])>=0) g[k++] = L[i++]; \
+      else g[k++] = M[j++]; \
+    } \
+  } else { \
+    while(i<n1 && j<n2) { \
+      if(C(a[L[i]],a[M[j]])<=0) g[k++] = L[i++]; \
+      else g[k++] = M[j++]; \
+    } \
+  } \
+ \
+  while(i<n1) g[k++] = L[i++]; \
+  while(j<n2) g[k++] = M[j++]; \
+} \
+void msortg##N(int *g, T a, int l, int r, int down) { \
+  int c,m,e; \
+ \
+  L=xmalloc(sizeof(int)*r); \
+  M=xmalloc(sizeof(int)*r); \
+  for(c=1;c<=r;c<<=1) { \
+    for(l=0;l<r;l+=2*c) { \
+      m = MIN(l+c-1,r); \
+      e = MIN(l+2*c-1,r); \
+      merge##N(g,a,l,m,e,down); \
+    } \
+  } \
+  if(L){xfree(L);L=0;} \
+  if(M){xfree(M);M=0;} \
 }
 
-void msortg1(int *g, int *a, int l, int r, int down) {
-  int c,m,e;
-
-  L=xmalloc(sizeof(int)*r);
-  M=xmalloc(sizeof(int)*r);
-  for(c=1;c<=r;c<<=1) {
-    for(l=0;l<r;l+=2*c) {
-      m = MIN(l+c-1,r);
-      e = MIN(l+2*c-1,r);
-      merge1(g,a,l,m,e,down);
-    }
-  }
-  if(L){xfree(L);L=0;}
-  if(M){xfree(M);M=0;}
-}
-
-static void merge2(int *g, double *a, int p, int q, int r, int down) {
-  int i,j,k;
-  int n1 = q-p+1;
-  int n2 = r-q;
-
-  for(i=0;i<n1;i++) L[i] = g[p+i];
-  for(j=0;j<n2;j++) M[j] = g[q+j+1];
-
-  i=j=0; k=p;
-  if(down) {
-    while(i<n1 && j<n2) {
-      if(CMPFFT(a[L[i]],a[M[j]])>=0) g[k++] = L[i++];
-      else g[k++] = M[j++];
-    }
-  } else {
-    while(i<n1 && j<n2) {
-      if(CMPFFT(a[L[i]],a[M[j]])<=0) g[k++] = L[i++];
-      else g[k++] = M[j++];
-    }
-  }
-
-  while(i<n1) g[k++] = L[i++];
-  while(j<n2) g[k++] = M[j++];
-}
-
-void msortg2(int *g, double *a, int l, int r, int down) {
-  int c,m,e;
-  L=xmalloc(sizeof(int)*r);
-  M=xmalloc(sizeof(int)*r);
-  for(c=1;c<=r;c<<=1) {
-    for(l=0;l<r;l+=2*c) {
-      m = MIN(l+c-1,r);
-      e = MIN(l+2*c-1,r);
-      merge2(g,a,l,m,e,down);
-    }
-  }
-  if(L){xfree(L);L=0;}
-  if(M){xfree(M);M=0;}
-}
-
-static void merge3(int *g, char *a, int p, int q, int r, int down) {
-  int i,j,k;
-  int n1 = q-p+1;
-  int n2 = r-q;
-  for(i=0;i<n1;i++) L[i] = g[p+i];
-  for(j=0;j<n2;j++) M[j] = g[q+j+1];
-
-  i=j=0; k=p;
-  if(down) {
-    while(i<n1 && j<n2) {
-      if(a[L[i]] >= a[M[j]]) g[k++] = L[i++];
-      else g[k++] = M[j++];
-    }
-  } else {
-    while(i<n1 && j<n2) {
-      if(a[L[i]] <= a[M[j]]) g[k++] = L[i++];
-      else g[k++] = M[j++];
-    }
-  }
-
-  while(i<n1) g[k++] = L[i++];
-  while(j<n2) g[k++] = M[j++];
-}
-
-void msortg3(int *g, char *a, int l, int r, int down) {
-  int c,m,e;
-  L=xmalloc(sizeof(int)*r);
-  M=xmalloc(sizeof(int)*r);
-  for(c=1;c<=r;c<<=1) {
-    for(l=0;l<r;l+=2*c) {
-      m = MIN(l+c-1,r);
-      e = MIN(l+2*c-1,r);
-      merge3(g,a,l,m,e,down);
-    }
-  }
-  if(L){xfree(L);L=0;}
-  if(M){xfree(M);M=0;}
-}
-
-static void merge4(int *g, char **a, int p, int q, int r, int down) {
-  int i,j,k;
-  int n1 = q-p+1;
-  int n2 = r-q;
-  for(i=0;i<n1;i++) L[i] = g[p+i];
-  for(j=0;j<n2;j++) M[j] = g[q+j+1];
-
-  i=j=0; k=p;
-  if(down) {
-    while(i<n1 && j<n2) {
-      if(strcmp(a[L[i]],a[M[j]])>=0) g[k++] = L[i++];
-      else g[k++] = M[j++];
-    }
-  } else {
-    while(i<n1 && j<n2) {
-      if(strcmp(a[L[i]],a[M[j]])<=0) g[k++] = L[i++];
-      else g[k++] = M[j++];
-    }
-  }
-
-  while(i<n1) g[k++] = L[i++];
-  while(j<n2) g[k++] = M[j++];
-}
-
-void msortg4(int *g, char **a, int l, int r, int down) {
-  int c,m,e;
-  L=xmalloc(sizeof(int)*r);
-  M=xmalloc(sizeof(int)*r);
-  for(c=1;c<=r;c<<=1) {
-    for(l=0;l<r;l+=2*c) {
-      m = MIN(l+c-1,r);
-      e = MIN(l+2*c-1,r);
-      merge4(g,a,l,m,e,down);
-    }
-  }
-  if(L){xfree(L);L=0;}
-  if(M){xfree(M);M=0;}
-}
-
-static void merge0(int *g, K **a, int p, int q, int r, int down) {
-  int i,j,m,c;
-  int n1 = q-p+1;
-  int n2 = r-q;
-
-  for(i=0;i<n1;i++) L[i] = g[p+i];
-  for(j=0;j<n2;j++) M[j] = g[q+j+1];
-
-  i=j=0; m=p;
-  if(down) {
-    while(i<n1 && j<n2) {
-      c = kcmp(a[L[i]],a[M[j]]);
-      if(c<0) g[m++] = M[j++];
-      else g[m++] = L[i++];
-
-    }
-  } else {
-    while(i<n1 && j<n2) {
-      c = kcmp(a[L[i]],a[M[j]]);
-      if(c>0) g[m++] = M[j++];
-      else g[m++] = L[i++];
-    }
-  }
-
-  while(i<n1) g[m++] = L[i++];
-  while(j<n2) g[m++] = M[j++];
-}
-
-void msortg0(int *g, K **a, int l, int r, int down) {
-  int c,m,e;
-  L=xmalloc(sizeof(int)*r);
-  M=xmalloc(sizeof(int)*r);
-  for(c=1;c<=r;c<<=1) {
-    for(l=0;l<r;l+=2*c) {
-      m = MIN(l+c-1,r);
-      e = MIN(l+2*c-1,r);
-      merge0(g,a,l,m,e,down);
-    }
-  }
-  if(L){xfree(L);L=0;}
-  if(M){xfree(M);M=0;}
-}
+MS(1,int*,CMP)
+MS(2,double*,CMPFFT)
+MS(3,char*,CMP)
+MS(4,char**,strcmp)
+MS(0,K**,kcmp)
