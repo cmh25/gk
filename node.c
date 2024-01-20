@@ -118,8 +118,8 @@ static K* reduce17(K* c17, node *n) {
   c=f->r;
   if(a7->i>1) { /* a 17 can have a 7 or 37, i will be 0 for 37's, but not primitives or builtins */
     if(ct==16) { r=kref(a); r->t=7; }
-    else if(ct==11&&cc==4) r=apply4(a,v0(c)[0],v0(c)[1],v0(c)[2],v0(c)[3],0); /* @[!10;1 2 3;+;4 5 6] */
-    else if(ct==11&&cc==3) r=apply3(a,v0(c)[0],v0(c)[1],v0(c)[2],0); /* @[!10;1 2 3;{-x}] */
+    else if(ct==11&&cc==4) r=apply4(a,v0(c)[0],v0(c)[1],v0(c)[2],v0(c)[3]); /* @[!10;1 2 3;+;4 5 6] */
+    else if(ct==11&&cc==3) r=apply3(a,v0(c)[0],v0(c)[1],v0(c)[2]); /* @[!10;1 2 3;{-x}] */
     else if(ct==11&&cc==2) r=apply2(a,v0(c)[0],v0(c)[1],0); /* f[1;2] */
     else if(ct==11&&cc==1) r=apply1(a,v0(c)[0],0); /* f[1] */
     else if(ct==7 || ct==27) {
@@ -180,7 +180,7 @@ static K* reduce17(K* c17, node *n) {
       else r=kref(c);
     }
     //else if(ct==17&&((fn*)c->v)->i==':') {
-    //  p=assign2_(ao,r,0);
+    //  p=assign2_(ao,r);
     //  kfree(r);
     //  r=p;
     //}
@@ -358,8 +358,8 @@ static K* node_reduce_(node *n, int md, int z) {
         f->r=kref(c);
         f->v=ac-cc;
       }
-      else if(cc==4) r=apply4(a,v0(c)[0],v0(c)[1],v0(c)[2],v0(c)[3],av); /* @[!10;1 2 3;+;4 5 6] */
-      else if(cc==3) r=apply3(a,v0(c)[0],v0(c)[1],v0(c)[2],av); /* @[!10;1 2 3;{-x}] */
+      else if(cc==4) r=apply4(a,v0(c)[0],v0(c)[1],v0(c)[2],v0(c)[3]); /* @[!10;1 2 3;+;4 5 6] */
+      else if(cc==3) r=apply3(a,v0(c)[0],v0(c)[1],v0(c)[2]); /* @[!10;1 2 3;{-x}] */
       else if(cc==2) r=apply2(a,v0(c)[0],v0(c)[1],av); /* f[1;2] */
       else if(cc==1) r=apply1(a,v0(c)[0],av); /* f[1] */
     }
@@ -481,27 +481,28 @@ static K* node_reduce_(node *n, int md, int z) {
         }
       }
       else if(ct==14) { /* f'[1]'[2]'[3] */
-        if(bt==47) { f=a->v; xfree(f->av); f->av=xstrdup(av); }
-        r=fne2(a,v0(c)[0],0);
-        f=r->v;
+        f=a->v;
+        if(bt==47) { xfree(f->av); f->av=xstrdup(av); }
+        p=avdo37(a,v0(c)[0],f->av);
+        if(!p) p=fne2(a,v0(c)[0],0);
+        f=p->v;
         if(v0(c)[1]->t==47) { xfree(f->av); f->av=xstrdup(v0(c)[1]->v); }
-        if(v0(c)[2]->t==11) {
-          r=applyprj(r,v0(c)[2],0);
+        if(v0(c)[2]->t!=14) {
+          r=applyprj(p,v0(c)[2]);
           f=r->v;
         }
-        else if(v0(c)[2]->t==14) {
+        else {
           pc=v0(c)[2];
-          r=applyprj(r,v0(pc)[0],0);
-          f=r->v;
+          q=applyprj(p,v0(pc)[0]);
+          f=q->v;
           if(v0(pc)[1]->t==47) { xfree(f->av); f->av=xstrdup(v0(pc)[1]->v); }
           if(v0(pc)[2]->t==11) {
-            r=applyprj(r,v0(pc)[2],0);
+            r=applyprj(q,v0(pc)[2]);
             f=r->v;
           }
-          else if(v0(pc)[2]->t==14) {
-            pc=v0(pc)[2];
-          }
+          kfree(q);
         }
+        kfree(p);
       }
       else if(ct==15) { /* f[1]+g[1] */
         p=avdo37(a,v0(c)[0],av);
@@ -511,7 +512,7 @@ static K* node_reduce_(node *n, int md, int z) {
       }
       else if(ct==10) { /* f[1][2][3] */
         r=fne2(a,v0(c)[0],0);
-        for(i=1;i<c->c;i++) { p=r; r=applyprj(p,v0(c)[i],0); kfree(p); }
+        for(i=1;i<c->c;i++) { p=r; r=applyprj(p,v0(c)[i]); kfree(p); }
 
       }
       else if(ct==18) {
@@ -604,10 +605,10 @@ static K* node_reduce_(node *n, int md, int z) {
       }
       else {
         c=reduce17(c,n);
-        r=applyprj(a,c,0);
+        r=applyprj(a,c);
       }
     }
-    else r=applyprj(a,c,0);
+    else r=applyprj(a,c);
   }
   else if(at==87) {
     if(ct==16) { xfree(a7->av); a7->av=xstrdup(av); r=kref(a); }
@@ -676,7 +677,7 @@ static K* node_reduce_(node *n, int md, int z) {
     }
   }
   else if(at==5&&ct==15) { /* a[`b]*3 */
-    p=at2_(a,v0(c)[0],0); EC(p);
+    p=at2_(a,v0(c)[0]); EC(p);
     r=apply2(v0(c)[1],p,v0(c)[2],av);
     kfree(p);
   }
@@ -765,7 +766,7 @@ static K* node_reduce_(node *n, int md, int z) {
     }
     else if(ct==57) {
       fn *f=c->v;
-      if(f->i==':') r=assign2_(ao,f->r,":"); /* global assign */
+      if(f->i==':') r=assign2g_(ao,f->r); /* global assign */
       else if(ao->v) { /* a+:1 */
         ct=7;
         if(((fn*)c->v)->r->t==16) p=apply1(c,a,0);
@@ -773,8 +774,8 @@ static K* node_reduce_(node *n, int md, int z) {
         EC(p);
         ct=57;
         q=dget(cs->d,ao->v);
-        if(!q) r=assign2_(ao,p,":");
-        else { r=assign2_(ao,p,0); kfree(q); }
+        if(!q) r=assign2g_(ao,p);
+        else { r=assign2_(ao,p); kfree(q); }
         kfree(p);
       }
     }
@@ -838,7 +839,7 @@ static K* node_reduce_(node *n, int md, int z) {
       else r=kref(c);
     }
     else if(ct==17&&((fn*)c->v)->i==':') {
-      p=assign2_(ao,r,0);
+      p=assign2_(ao,r);
       kfree(r);
       r=p;
     }

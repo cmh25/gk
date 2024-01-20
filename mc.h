@@ -14,12 +14,12 @@
 */
 
 #define MC1D(F,F1,F2,T1,T2,A1,A2) \
-K* F(K *a, char *av) { \
+K* F(K *a) { \
   K *r=0; \
   switch(at) { \
   case  1: r=k##T1(F1(I2F(a1))); break; \
   case  2: r=k##T2(F2(a2)); break; \
-  case  0: r=kv0(ac); DO(ac, v0(r)[i]=F((v0(a)[i]),av); EC(v0(r)[i])) break; \
+  case  0: r=kv0(ac); DO(ac, v0(r)[i]=F((v0(a)[i])); EC(v0(r)[i])) break; \
   case -1: r=kv##T1(ac); DO(ac, A1(r)[i]=F1(I2F(v1(a)[i]))) break; \
   case -2: r=kv##T2(ac); DO(ac, A2(r)[i]=F2(v2(a)[i])) break; \
   default: return kerror("type"); \
@@ -28,12 +28,12 @@ K* F(K *a, char *av) { \
 }
 
 #define MC1(F,F1,F2,T1,T2,A1,A2) \
-K* F(K *a, char *av) { \
+K* F(K *a) { \
   K *r=0; \
   switch(at) { \
   case  1: r=k##T1(F1(a1)); break; \
   case  2: r=k##T2(F2(a2)); break; \
-  case  0: r=kv0(ac); DO(ac, v0(r)[i]=F((v0(a)[i]),av); EC(v0(r)[i])) break; \
+  case  0: r=kv0(ac); DO(ac, v0(r)[i]=F((v0(a)[i])); EC(v0(r)[i])) break; \
   case -1: r=kv##T1(ac); DO(ac, A1(r)[i]=F1(v1(a)[i])) break; \
   case -2: r=kv##T2(ac); DO(ac, A2(r)[i]=F2(v2(a)[i])) break; \
   default: return kerror("type"); \
@@ -42,10 +42,10 @@ K* F(K *a, char *av) { \
 }
 
 #define MC2D(F,F1,F2,T1,T2,A1,A2) \
-K* F(K *a, K *b, char *av) { \
+K* F(K *a, K *b) { \
   K *r=0; \
-  if(at <= 0 && bt <= 0 && ac != bc && !av) return kerror("length"); \
-  if(at==0 || bt==0) r=each(F,a,b,av); \
+  if(at <= 0 && bt <= 0 && ac != bc) return kerror("length"); \
+  if(at==0 || bt==0) r=each(F,a,b); \
   else { \
   switch(at) { \
   case  1: \
@@ -84,11 +84,11 @@ K* F(K *a, K *b, char *av) { \
 
 /* integer ops */
 #define MC2IO(F,O,N) \
-K* F(K *a, K *b, char *av) { \
+K* F(K *a, K *b) { \
   K *r=0; \
   if((N) && !b1) return kerror("nonce"); \
-  if(at <= 0 && bt <= 0 && ac != bc && !av) return kerror("length"); \
-  if(at==0 || bt==0) r=each(F,a,b,av); \
+  if(at <= 0 && bt <= 0 && ac != bc) return kerror("length"); \
+  if(at==0 || bt==0) r=each(F,a,b); \
   else { \
   switch(at) { \
   case  1: \
@@ -108,7 +108,7 @@ K* F(K *a, K *b, char *av) { \
 }
 
 /* optimized adverb stubs */
-#define MC1A(F) K* F##avopt(K *a, char *av) { return 0; }
-#define MC2A(F) K* F##avopt2(K *a, K *b, char *av) { return 0; }
+#define MC1A(F) K* F##avopt(K *a, char *av) { (void)a; (void)av; return 0; }
+#define MC2A(F) K* F##avopt2(K *a, K *b, char *av) { (void)a; (void)b; (void)av; return 0; }
 
 #endif /* MC_H */

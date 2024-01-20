@@ -17,7 +17,7 @@ K* reduce(node *a, pgs *s, int top) {
     r=node_reduce(a->a[i],0);
     if(A) {
       if(ecount) { --ecount; dset(Z,"s",null); }
-      else { help1_(0,0); }
+      else { help1_(0); }
       if(!DEPTH) A=0;
       else { node_free(a); pgfree(s); kfree(r); return null; }
     }

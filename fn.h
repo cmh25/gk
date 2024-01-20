@@ -21,8 +21,8 @@ typedef struct fn {
 } fn;
 
 extern int DEPTH;
-extern K* (*dt2[256])(K *a, K *b, char *av);
-extern K* (*dt1[256])(K *a, char *av);
+extern K* (*dt2[256])(K *a, K *b);
+extern K* (*dt1[256])(K *a);
 extern K* (*dt2avo[256])(K *a, char *av);
 extern K* (*dt2avo2[256])(K *a, K *b, char *av);
 

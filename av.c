@@ -17,19 +17,19 @@ K* avdom(K *f, K *a, char *av) {
   if(av[n-1]=='\'') {
     if(at==11) {
       if(ac==1) r=eachm(f,v0(a)[0],av2); /* f'[a] */
-      else r=eachparam(f,a,av2);
+      else r=eachparam(f,a);
     }
     else r=eachm(f,a,av2);        /* f'a */
   }
   else if(av[n-1]=='/') {
-    if(at==11) r=over(f,a,av2);   /* f/[a;b] */
-    else if(ffi=='@'&&at<=0&&ac) r=overm(f,a,av2); /* a/1 (index converge) */
+    if(at==11) r=over(f,a);   /* f/[a;b] */
+    else if(ffi=='@'&&at<=0&&ac) r=overm(f,a); /* a/1 (index converge) */
     else if(f->c==1) r=kerror("type"); /* ic/"asdf" ??? */
     else r=overd(f,a,av2);        /* f/a */
   }
   else if(av[n-1]=='\\') {
-    if(at==11) r=scan(f,a,av2);   /* f\[a;b] */
-    else if(ffi=='@'&&at<=0&&ac) r=scanm(f,a,av2); /* a\1 (index converge) */
+    if(at==11) r=scan(f,a);   /* f\[a;b] */
+    else if(ffi=='@'&&at<=0&&ac) r=scanm(f,a); /* a\1 (index converge) */
     else r=scand(f,a,av2);        /* f\a */
   }
   return r;
@@ -38,17 +38,17 @@ K* avdom(K *f, K *a, char *av) {
 K* eachm(K *f, K *a, char *av) {
   K *r=0,*am=0;
   unsigned int n;
-  K*(*ff)(K*,char*)=dt1[ffi];
+  K*(*ff)(K*)=dt1[ffi];
   if(at<0) am=kmix(a); else am=a;
   n=strlen(av);
   if(at>0) {
     if(n) r=avdom(f,am,av);
-    else r=ff(am,0);
+    else r=ff(am);
   }
   else {
     r=kv0(ac);
     if(n) DO(ac,v0(r)[i]=avdom(f,v0(am)[i],av); EC(v0(r)[i]))
-    else DO(ac,v0(r)[i]=ff(v0(am)[i],0); EC(v0(r)[i]))
+    else DO(ac,v0(r)[i]=ff(v0(am)[i]); EC(v0(r)[i]))
   }
   if(am!=a) kfree(am);
   return r->t ? r : knorm(r);
@@ -57,7 +57,7 @@ K* eachm(K *f, K *a, char *av) {
 K* overd(K *f, K *a, char *av) {
   K *r=0,*p=0,*q=0,*am=0;
   unsigned int i,n;
-  K*(*ff)(K*,K*,char*)=dt2[ffi];
+  K*(*ff)(K*,K*)=dt2[ffi];
 
   n=strlen(av);
   if(n) {
@@ -112,7 +112,7 @@ K* overd(K *f, K *a, char *av) {
   else am=a;
   r = am->c ? kref(v0(am)[0]) : kref(am);
   for(i=1;i<am->c;i++) {
-    p=ff(r,v0(am)[i],0); EC(p);
+    p=ff(r,v0(am)[i]); EC(p);
     kfree(r);
     r=p;
   }
@@ -123,7 +123,7 @@ K* overd(K *f, K *a, char *av) {
 K* scand(K *f, K *a, char *av) {
   K *r=0,*p=0,*q=0,*am=0,*sr=0;
   unsigned int i,j=0,n;
-  K*(*ff)(K*,K*,char*)=dt2[ffi];
+  K*(*ff)(K*,K*)=dt2[ffi];
 
   n=strlen(av);
   if(n) {
@@ -165,15 +165,15 @@ K* scand(K *f, K *a, char *av) {
   else am=a;
   r=kv0(ac);
   v0(r)[0]=kref(v0(am)[0]);
-  for(i=1;i<am->c;i++) { v0(r)[i]=ff(v0(r)[i-1],v0(am)[i],0); EC(v0(r)[i]); }
+  for(i=1;i<am->c;i++) { v0(r)[i]=ff(v0(r)[i-1],v0(am)[i]); EC(v0(r)[i]); }
   if(am!=a) kfree(am);
   return r->t ? r : knorm(r);
 }
 
-K* over(K *f, K *a, char *av) {
+K* over(K *f, K *a) {
   K *r=0,*p=0,*q=0;
   unsigned int i,m=1;
-  K*(*ff)(K*,K*,char*)=dt2[ffi];
+  K*(*ff)(K*,K*)=dt2[ffi];
 
   if(at!=11) return kerror("type");
   if(ac!=2) return kerror("valence");
@@ -188,13 +188,13 @@ K* over(K *f, K *a, char *av) {
     if(p->t<0) v0(q)[i]=kmix(p);
     else v0(q)[i]=kref(p);
   }
-  if(m==1) r=ff(v0(a)[0],v0(a)[1],av);
+  if(m==1) r=ff(v0(a)[0],v0(a)[1]);
   else {
     r=kref(v0(a)[0]);
     for(i=0;i<m;i++) {
       p=r;
-      if(v0(q)[1]->t>0) r=ff(p,v0(q)[1],av);
-      else r=ff(p,v0(v0(q)[1])[i],av);
+      if(v0(q)[1]->t>0) r=ff(p,v0(q)[1]);
+      else r=ff(p,v0(v0(q)[1])[i]);
       kfree(p);
       EC(r);
     }
@@ -204,10 +204,10 @@ K* over(K *f, K *a, char *av) {
   return r;
 }
 
-K* scan(K *f, K *a, char *av) {
+K* scan(K *f, K *a) {
   K *r=0,*p=0,*q=0;
   unsigned int i,m=1;
-  K*(*ff)(K*,K*,char*)=dt2[ffi];
+  K*(*ff)(K*,K*)=dt2[ffi];
 
   if(at!=11) return kerror("type");
   if(ac!=2) return kerror("valence");
@@ -222,13 +222,13 @@ K* scan(K *f, K *a, char *av) {
     if(p->t<0) v0(q)[i]=kmix(p);
     else v0(q)[i]=kref(p);
   }
-  if(m==1) r=ff(v0(a)[0],v0(a)[1],av);
+  if(m==1) r=ff(v0(a)[0],v0(a)[1]);
   else {
     r=kv0(m+1);
     v0(r)[0]=kref(v0(a)[0]);
     for(i=0;i<m;i++) {
-      if(v0(q)[1]->t>0) v0(r)[i+1]=ff(v0(r)[i],v0(q)[1],av);
-      else v0(r)[i+1]=ff(v0(r)[i],v0(v0(q)[1])[i],av);
+      if(v0(q)[1]->t>0) v0(r)[i+1]=ff(v0(r)[i],v0(q)[1]);
+      else v0(r)[i+1]=ff(v0(r)[i],v0(v0(q)[1])[i]);
       EC(v0(r)[i+1]);
     }
   }
@@ -238,18 +238,18 @@ K* scan(K *f, K *a, char *av) {
 }
 
 /* only for index converge */
-K* overm(K *f, K *a, char *av) {
+K* overm(K *f, K *a) {
   K *r=0,*p=0,*q=0;
-  K*(*ff)(K*,K*,char*)=dt2[ffi];
+  K*(*ff)(K*,K*)=dt2[ffi];
 
   q=v0(a)[1];                 /* first */
-  p=ff(v0(a)[0],v0(a)[1],av); /* previous */
+  p=ff(v0(a)[0],v0(a)[1]); /* previous */
   if(kcmp(p,q)) {
-    r=ff(v0(a)[0],p,av); EC(r);
+    r=ff(v0(a)[0],p); EC(r);
     while(kcmp(r,q)&&kcmp(r,p)) {
       kfree(p);
       p=r;
-      r=ff(v0(a)[0],p,av); EC(r);
+      r=ff(v0(a)[0],p); EC(r);
     }
   } else r=kref(p);
   kfree(r);
@@ -258,24 +258,24 @@ K* overm(K *f, K *a, char *av) {
 }
 
 /* only for index converge */
-K* scanm(K *f, K *a, char *av) {
+K* scanm(K *f, K *a) {
   K *r=0,*p=0,*q=0,*sr=0;
   unsigned int j=0;
-  K*(*ff)(K*,K*,char*)=dt2[ffi];
+  K*(*ff)(K*,K*)=dt2[ffi];
 
   q=v0(a)[1];                 /* first */
-  p=ff(v0(a)[0],v0(a)[1],av); EC(p); /* previous */
+  p=ff(v0(a)[0],v0(a)[1]); EC(p); /* previous */
   if(p==q) kfree(q);
   sr=kv0(32);
   v0(sr)[j++]=kref(q);
   if(kcmp(p,q)) {
     v0(sr)[j++]=p;
-    r=ff(v0(a)[0],p,av); EC(r);
+    r=ff(v0(a)[0],p); EC(r);
     while(kcmp(r,q)&&kcmp(r,p)) {
       if(j==sr->c) { sr->c<<=1; sr->v=xrealloc(sr->v,sizeof(K*)*sr->c); }
       v0(sr)[j++]=r;
       p=r;
-      r=ff(v0(a)[0],p,av); EC(r);
+      r=ff(v0(a)[0],p); EC(r);
     }
   }
   kfree(r);
@@ -285,7 +285,7 @@ K* scanm(K *f, K *a, char *av) {
   return r->t ? r : knorm(r);
 }
 
-K* eachparam(K *f, K *a, char *av) {
+K* eachparam(K *f, K *a) {
   K *r=0,*p=0,*q=0;
   int i,m;
   if(at!=11) return kerror("type");
@@ -296,7 +296,7 @@ K* eachparam(K *f, K *a, char *av) {
   if(q->t==16) return kerror("valence");  /* TODO: projection */
   m=p->c<q->c?q->c:p->c;
   r=kv0(m);
-  for(i=0;i<m;i++) { v0(r)[i]=dt2[ffi](p->t>0?p:v0(p)[i],q->t>0?q:v0(q)[i],av); EC(v0(r)[i]); }
+  for(i=0;i<m;i++) { v0(r)[i]=dt2[ffi](p->t>0?p:v0(p)[i],q->t>0?q:v0(q)[i]); EC(v0(r)[i]); }
   if(p!=v0(a)[0]) kfree(p);
   if(q!=v0(a)[1]) kfree(q);
   return r->t ? r : knorm(r);
@@ -318,40 +318,40 @@ K* avdo(K *f, K *a, K *b, char *av) {
   return r;
 }
 
-K* eachprior(K *f, K *a, K *b, char *av) {
-  K *r=0,*bm=0;
-  int n;
-  K*(*ff)(K*,K*,char*)=dt2[ffi];
-  if(bt<=0&&!bc) return kv0(0);
-  if(at<=0&&!ac) return kv0(0);
-  if(bt<0) bm=kmix(b); else bm=b;
-
-  n=strlen(av);
-  if(bt>0) {
-    if(n) r=avdo(f,b,a,av);
-    else r=ff(b,a,av);
-  }
-  else {
-    r=kv0(bc);
-    if(n) {
-      v0(r)[0]=avdo(f,v0(bm)[0],a,av); EC(v0(r)[0]);
-      DO(bc-1, v0(r)[i+1]=avdo(f,v0(bm)[i+1],v0(bm)[i],av); EC(v0(r)[i+1]))
-    }
-    else {
-      v0(r)[0]=ff(v0(bm)[0],a,0); EC(v0(r)[0]);
-      DO(bc-1, v0(r)[i+1]=ff(v0(bm)[i+1],v0(bm)[i],0); EC(v0(r)[i+1]))
-    }
-  }
-
-  if(bm!=b) kfree(bm);
-  return r->t ? r : knorm(r);
-}
+//K* eachprior(K *f, K *a, K *b, char *av) {
+//  K *r=0,*bm=0;
+//  int n;
+//  K*(*ff)(K*,K*)=dt2[ffi];
+//  if(bt<=0&&!bc) return kv0(0);
+//  if(at<=0&&!ac) return kv0(0);
+//  if(bt<0) bm=kmix(b); else bm=b;
+//
+//  n=strlen(av);
+//  if(bt>0) {
+//    if(n) r=avdo(f,b,a,av);
+//    else r=ff(b,a);
+//  }
+//  else {
+//    r=kv0(bc);
+//    if(n) {
+//      v0(r)[0]=avdo(f,v0(bm)[0],a,av); EC(v0(r)[0]);
+//      DO(bc-1, v0(r)[i+1]=avdo(f,v0(bm)[i+1],v0(bm)[i],av); EC(v0(r)[i+1]))
+//    }
+//    else {
+//      v0(r)[0]=ff(v0(bm)[0],a); EC(v0(r)[0]);
+//      DO(bc-1, v0(r)[i+1]=ff(v0(bm)[i+1],v0(bm)[i]); EC(v0(r)[i+1]))
+//    }
+//  }
+//
+//  if(bm!=b) kfree(bm);
+//  return r->t ? r : knorm(r);
+//}
 
 K* slide(K *f, K *a, K *b, char *av) {
   K *r=0,*bm=0;
   unsigned int n,s,v,m;
   int d;
-  K*(*ff)(K*,K*,char*)=dt2[ffi];
+  K*(*ff)(K*,K*)=dt2[ffi];
   if(at!=1) return kerror("type");
   if(!a1) return kerror("type");
   if(bt<=0&&!bc) return kv0(0);
@@ -367,7 +367,7 @@ K* slide(K *f, K *a, K *b, char *av) {
   n=strlen(av);
   if(bt>0) {
     if(n) r=avdo(f,b,b,av);
-    else r=ff(b,b,av);
+    else r=ff(b,b);
   }
   else {
     r=kv0(m);
@@ -375,8 +375,8 @@ K* slide(K *f, K *a, K *b, char *av) {
       v0(r)[0]=avdo(f,v0(bm)[0],a,av); EC(v0(r)[0]);
       DO(bc-1, v0(r)[i+1]=avdo(f,v0(bm)[i+1],v0(bm)[i],av); EC(v0(r)[i+1]))
     }
-    else if(d<0) DO(m, v0(r)[i]=ff(v0(bm)[i*s+1],v0(bm)[i*s],0); EC(v0(r)[i]))
-    else if(d>0) DO(m, v0(r)[i]=ff(v0(bm)[i*s],v0(bm)[i*s+1],0); EC(v0(r)[i]))
+    else if(d<0) DO(m, v0(r)[i]=ff(v0(bm)[i*s+1],v0(bm)[i*s]); EC(v0(r)[i]))
+    else if(d>0) DO(m, v0(r)[i]=ff(v0(bm)[i*s],v0(bm)[i*s+1]); EC(v0(r)[i]))
   }
 
   if(bm!=b) kfree(bm);
@@ -386,17 +386,17 @@ K* slide(K *f, K *a, K *b, char *av) {
 K* eachright(K *f, K *a, K *b, char *av) {
   K *r=0,*bm=0;
   int n;
-  K*(*ff)(K*,K*,char*)=dt2[ffi];
+  K*(*ff)(K*,K*)=dt2[ffi];
   if(bt<0) bm=kmix(b); else bm=b;
-  n=strlen(av);
+  n=av?strlen(av):0;
   if(bt>0) {
     if(n) r=avdo(f,a,bm,av);
-    else r=ff(a,bm,0);
+    else r=ff(a,bm);
   }
   else {
     r = kv0(bc);
     if(n) DO(bc,v0(r)[i]=avdo(f,a,v0(bm)[i],av);EC(v0(r)[i]))
-    else DO(bc,v0(r)[i]=ff(a,v0(bm)[i],0);EC(v0(r)[i]))
+    else DO(bc,v0(r)[i]=ff(a,v0(bm)[i]);EC(v0(r)[i]))
   }
   if(bm!=b) kfree(bm);
   return r->t ? r : knorm(r);
@@ -405,17 +405,17 @@ K* eachright(K *f, K *a, K *b, char *av) {
 K* eachleft(K *f, K *a, K *b, char *av) {
   K *r=0,*am=0;
   int n;
-  K*(*ff)(K*,K*,char*)=dt2[ffi];
+  K*(*ff)(K*,K*)=dt2[ffi];
   if(at<0) am=kmix(a); else am=a;
-  n=strlen(av);
+  n=av?strlen(av):0;
   if(at>0) {
     if(n) r=avdo(f,am,b,av);
-    else r=ff(am,b,0);
+    else r=ff(am,b);
   }
   else {
     r = kv0(ac);
     if(n) DO(ac,v0(r)[i]=avdo(f,v0(am)[i],b,av);EC(v0(r)[i]))
-    else DO(ac,v0(r)[i]=ff(v0(am)[i],b,0);EC(v0(r)[i]))
+    else DO(ac,v0(r)[i]=ff(v0(am)[i],b);EC(v0(r)[i]))
   }
   if(am!=a) kfree(am);
   return r->t ? r : knorm(r);
@@ -442,7 +442,7 @@ K* avdo37(K *f, K *a, char *av) {
   }
   else if(ff->v==2) {
     if(av[n-1]=='\'') {
-      if(at==11) r=eachparam37(f,a,av2); /* {x+y}'[a;b] */
+      if(at==11) r=eachparam37(f,a); /* {x+y}'[a;b] */
       else r=eachprior37(f,a,av2);       /* {x+y}'a */
     }
     else if(av[n-1]=='/') {
@@ -456,7 +456,7 @@ K* avdo37(K *f, K *a, char *av) {
   }
   else {
     if(av[n-1]=='\'') {
-      if(at==11) r=eachparam37(f,a,av2); /* {x+y+z}'[a;b;c] */
+      if(at==11) r=eachparam37(f,a); /* {x+y+z}'[a;b;c] */
       else r=kerror("type");
     }
     else if(av[n-1]=='/') {
@@ -552,7 +552,7 @@ K* eachleft37(K *f, K *a, char *av) {
   return r->t ? r : knorm(r);
 }
 
-K* eachparam37(K *f, K *a, char *av) {
+K* eachparam37(K *f, K *a) {
   K *r=0,*p=0,*q=0;
   unsigned int m=1;
   if(ac!=((fn*)f->v)->v) return kerror("valence");
@@ -782,13 +782,13 @@ K* eachprior37(K *f, K *a, char *av) {
   }
   else if((!at||at==11)&&ac==2) {
     if(v0(a)[0]->t>0) {
-      p=join2_(v0(a)[0],v0(a)[1],0);
+      p=join2_(v0(a)[0],v0(a)[1]);
       if(p->t<0) am=kmix(p); else am=p;
     }
     else { /* 1 2 {x,y}' 3 4 */
-      p=enlist_(v0(a)[0],0);
+      p=enlist_(v0(a)[0]);
       q=v0(a)[1]->t<0?kmix(v0(a)[1]):kref(v0(a)[1]);
-      am=join2_(p,q,0);
+      am=join2_(p,q);
       kfree(p);
       kfree(q);
       p=0;
@@ -947,7 +947,7 @@ K* scand37(K *f, K *a, char *av) {
   return r->t ? r : knorm(r);
 }
 
-K* each(K*(*f)(K*,K*,char*), K *a, K *b, char *av) {
+K* each(K*(*f)(K*,K*), K *a, K *b) {
   K *r=0,*am=0,*bm=0;
   if(a) {
     if(!b) return kerror("valence");
@@ -958,17 +958,17 @@ K* each(K*(*f)(K*,K*,char*), K *a, K *b, char *av) {
 
     if(at<=0 && bt<=0) {
       r=kv0(ac);
-      if(bt<=0) DO(ac, v0(r)[i]=f(v0(am)[i],v0(bm)[i],av);EC(v0(r)[i]))
+      if(bt<=0) DO(ac, v0(r)[i]=f(v0(am)[i],v0(bm)[i]);EC(v0(r)[i]))
     }
     else if(at<=0 && bt>0) {
       r=kv0(ac);
-      DO(ac, v0(r)[i]=f(v0(am)[i],bm,av);EC(v0(r)[i]))
+      DO(ac, v0(r)[i]=f(v0(am)[i],bm);EC(v0(r)[i]))
     }
     else if(at>0 && bt<=0) {
       r=kv0(bc);
-      DO(bc, v0(r)[i]=f(am,v0(bm)[i],av);EC(v0(r)[i]))
+      DO(bc, v0(r)[i]=f(am,v0(bm)[i]);EC(v0(r)[i]))
     }
-    else r=f(am,bm,av);
+    else r=f(am,bm);
 
     if(a!=am) kfree(am);
     if(b!=bm) kfree(bm);
@@ -976,7 +976,7 @@ K* each(K*(*f)(K*,K*,char*), K *a, K *b, char *av) {
   else {
     r=kv0(bc);
     if(bt<0) bm=kmix(b); else bm=b;
-    DO(bc, v0(r)[i]=f(0,v0(bm)[i],av);EC(v0(r)[i]))
+    DO(bc, v0(r)[i]=f(0,v0(bm)[i]);EC(v0(r)[i]))
     if(b!=bm) kfree(bm);
   }
   return r->t ? r : knorm(r);
@@ -993,17 +993,17 @@ K* avdomfc(K *f, K *a, char *av) {
   if(av[n-1]=='\'') {
     if(at==11) {
       if(ac==1) r=eachmfc(f,v0(a)[0],av2); /* f'[a] */
-      else r=eachparamfc(f,a,av2);
+      else r=eachparamfc(f,a);
     }
     else r=eachmfc(f,a,av2);        /* f'a */
   }
   else if(av[n-1]=='/') {
-    if(at==11) r=overfc(f,a,av2);   /* f/[a;b] */
+    if(at==11) r=overfc(f,a);   /* f/[a;b] */
     else if(f->c==1) r=kerror("type"); /* ic/"asdf" ??? */
     else r=overdfc(f,a,av2);        /* f/a */
   }
   else if(av[n-1]=='\\') {
-    if(at==11) r=scanfc(f,a,av2);   /* f\[a;b] */
+    if(at==11) r=scanfc(f,a);   /* f\[a;b] */
     else r=scandfc(f,a,av2);        /* f\a */
   }
   return r;
@@ -1016,12 +1016,12 @@ K* eachmfc(K *f, K *a, char *av) {
   n=strlen(av);
   if(at>0) {
     if(n) r=avdomfc(f,am,av);
-    else r=applyfc1_(f,am,0);
+    else r=applyfc1_(f,am);
   }
   else {
     r=kv0(ac);
     if(n) DO(ac,v0(r)[i]=avdomfc(f,v0(am)[i],av);EC(v0(r)[i]))
-    else DO(ac,v0(r)[i]=applyfc1_(f,v0(am)[i],0);EC(v0(r)[i]))
+    else DO(ac,v0(r)[i]=applyfc1_(f,v0(am)[i]);EC(v0(r)[i]))
   }
   if(am!=a) kfree(am);
   return r->t ? r : knorm(r);
@@ -1054,7 +1054,7 @@ K* overdfc(K *f, K *a, char *av) {
   else am=a;
   r = am->c ? kref(v0(am)[0]) : kref(am);
   for(i=1;i<am->c;i++) {
-    p=applyfc2_(f,r,v0(am)[i],0); EC(p);
+    p=applyfc2_(f,r,v0(am)[i]); EC(p);
     kfree(r);
     r=p;
   }
@@ -1093,12 +1093,12 @@ K* scandfc(K *f, K *a, char *av) {
   else am=a;
   r=kv0(ac);
   v0(r)[0]=kref(v0(am)[0]);
-  for(i=1;i<am->c;i++) { v0(r)[i]=applyfc2_(f,v0(r)[i-1],v0(am)[i],0); EC(v0(r)[i]); }
+  for(i=1;i<am->c;i++) { v0(r)[i]=applyfc2_(f,v0(r)[i-1],v0(am)[i]); EC(v0(r)[i]); }
   if(am!=a) kfree(am);
   return r->t ? r : knorm(r);
 }
 
-K* overfc(K *f, K *a, char *av) {
+K* overfc(K *f, K *a) {
   K *r=0,*p=0,*q=0;
   unsigned int i,m=1;
 
@@ -1115,13 +1115,13 @@ K* overfc(K *f, K *a, char *av) {
     if(p->t<0) v0(q)[i]=kmix(p);
     else v0(q)[i]=kref(p);
   }
-  if(m==1) r=applyfc2_(f,v0(a)[0],v0(a)[1],0);
+  if(m==1) r=applyfc2_(f,v0(a)[0],v0(a)[1]);
   else {
     r=kref(v0(a)[0]);
     for(i=0;i<m;i++) {
       p=r;
-      if(v0(q)[1]->t>0) r=applyfc2_(f,p,v0(q)[1],0);
-      else r=applyfc2_(f,p,v0(v0(q)[1])[i],0);
+      if(v0(q)[1]->t>0) r=applyfc2_(f,p,v0(q)[1]);
+      else r=applyfc2_(f,p,v0(v0(q)[1])[i]);
       EC(r);
       kfree(p);
     }
@@ -1131,7 +1131,7 @@ K* overfc(K *f, K *a, char *av) {
   return r;
 }
 
-K* scanfc(K *f, K *a, char *av) {
+K* scanfc(K *f, K *a) {
   K *r=0,*p=0,*q=0;
   unsigned int i,m=1;
 
@@ -1148,13 +1148,13 @@ K* scanfc(K *f, K *a, char *av) {
     if(p->t<0) v0(q)[i]=kmix(p);
     else v0(q)[i]=kref(p);
   }
-  if(m==1) r=applyfc2_(f,v0(a)[0],v0(a)[1],0);
+  if(m==1) r=applyfc2_(f,v0(a)[0],v0(a)[1]);
   else {
     r=kv0(m+1);
     v0(r)[0]=kref(v0(a)[0]);
     for(i=0;i<m;i++) {
-      if(v0(q)[1]->t>0) v0(r)[i+1]=applyfc2_(f,v0(r)[i],v0(q)[1],0);
-      else v0(r)[i+1]=applyfc2_(f,v0(r)[i],v0(v0(q)[1])[i],0);
+      if(v0(q)[1]->t>0) v0(r)[i+1]=applyfc2_(f,v0(r)[i],v0(q)[1]);
+      else v0(r)[i+1]=applyfc2_(f,v0(r)[i],v0(v0(q)[1])[i]);
       EC(v0(r)[i+1]);
     }
   }
@@ -1163,7 +1163,7 @@ K* scanfc(K *f, K *a, char *av) {
   return r;
 }
 
-K* eachparamfc(K *f, K *a, char *av) {
+K* eachparamfc(K *f, K *a) {
   K *r=0,*p=0,*q=0;
   int m;
   if(at!=11) return kerror("type");
@@ -1174,7 +1174,7 @@ K* eachparamfc(K *f, K *a, char *av) {
   if(q->t==16) return kerror("valence");  /* TODO: projection */
   m=p->c<q->c?q->c:p->c;
   r=kv0(m);
-  DO(m, v0(r)[i]=applyfc2_(f,p->t>0?p:v0(p)[i],q->t>0?q:v0(q)[i],0); EC(v0(r)[i]));
+  DO(m, v0(r)[i]=applyfc2_(f,p->t>0?p:v0(p)[i],q->t>0?q:v0(q)[i]); EC(v0(r)[i]));
   if(p!=v0(a)[0]) kfree(p);
   if(q!=v0(a)[1]) kfree(q);
   return r->t ? r : knorm(r);
@@ -1195,33 +1195,33 @@ K* avdofc(K *f, K *a, K *b, char *av) {
   return r;
 }
 
-K* eachpriorfc(K *f, K *a, K *b, char *av) {
-  K *r=0,*bm=0;
-  int n;
-  if(bt<=0&&!bc) return kv0(0);
-  if(at<=0&&!ac) return kv0(0);
-  if(bt<0) bm=kmix(b); else bm=b;
-
-  n=strlen(av);
-  if(bt>0) {
-    if(n) r=avdofc(f,b,a,av);
-    else r=applyfc2_(f,b,a,0);
-  }
-  else {
-    r=kv0(bc);
-    if(n) {
-      v0(r)[0]=avdofc(f,v0(bm)[0],a,av); EC(v0(r)[0]);
-      DO(bc-1, v0(r)[i+1]=avdofc(f,v0(bm)[i+1],v0(bm)[i],av); EC(v0(r)[i+1]))
-    }
-    else {
-      v0(r)[0]=applyfc2_(f,v0(bm)[0],a,0); EC(v0(r)[0]);
-      DO(bc-1, v0(r)[i+1]=applyfc2_(f,v0(bm)[i+1],v0(bm)[i],0); EC(v0(r)[i+1]))
-    }
-  }
-
-  if(bm!=b) kfree(bm);
-  return r->t ? r : knorm(r);
-}
+//K* eachpriorfc(K *f, K *a, K *b, char *av) {
+//  K *r=0,*bm=0;
+//  int n;
+//  if(bt<=0&&!bc) return kv0(0);
+//  if(at<=0&&!ac) return kv0(0);
+//  if(bt<0) bm=kmix(b); else bm=b;
+//
+//  n=strlen(av);
+//  if(bt>0) {
+//    if(n) r=avdofc(f,b,a,av);
+//    else r=applyfc2_(f,b,a);
+//  }
+//  else {
+//    r=kv0(bc);
+//    if(n) {
+//      v0(r)[0]=avdofc(f,v0(bm)[0],a,av); EC(v0(r)[0]);
+//      DO(bc-1, v0(r)[i+1]=avdofc(f,v0(bm)[i+1],v0(bm)[i],av); EC(v0(r)[i+1]))
+//    }
+//    else {
+//      v0(r)[0]=applyfc2_(f,v0(bm)[0],a); EC(v0(r)[0]);
+//      DO(bc-1, v0(r)[i+1]=applyfc2_(f,v0(bm)[i+1],v0(bm)[i]); EC(v0(r)[i+1]))
+//    }
+//  }
+//
+//  if(bm!=b) kfree(bm);
+//  return r->t ? r : knorm(r);
+//}
 
 K* slidefc(K *f, K *a, K *b, char *av) {
   K *r=0,*bm=0;
@@ -1242,7 +1242,7 @@ K* slidefc(K *f, K *a, K *b, char *av) {
   n=strlen(av);
   if(bt>0) {
     if(n) r=avdofc(f,b,b,av);
-    else r=applyfc2_(f,b,b,0);
+    else r=applyfc2_(f,b,b);
   }
   else {
     r=kv0(m);
@@ -1250,8 +1250,8 @@ K* slidefc(K *f, K *a, K *b, char *av) {
       v0(r)[0]=avdofc(f,v0(bm)[0],a,av); EC(v0(r)[0]);
       DO(bc-1, v0(r)[i+1]=avdofc(f,v0(bm)[i+1],v0(bm)[i],av); EC(v0(r)[i+1]))
     }
-    else if(d<0) DO(m,v0(r)[i]=applyfc2_(f,v0(bm)[i*s+1],v0(bm)[i*s],0);EC(v0(r)[i]))
-    else if(d>0) DO(m,v0(r)[i]=applyfc2_(f,v0(bm)[i*s],v0(bm)[i*s+1],0);EC(v0(r)[i]))
+    else if(d<0) DO(m,v0(r)[i]=applyfc2_(f,v0(bm)[i*s+1],v0(bm)[i*s]);EC(v0(r)[i]))
+    else if(d>0) DO(m,v0(r)[i]=applyfc2_(f,v0(bm)[i*s],v0(bm)[i*s+1]);EC(v0(r)[i]))
   }
 
   if(bm!=b) kfree(bm);
@@ -1265,12 +1265,12 @@ K* eachrightfc(K *f, K *a, K *b, char *av) {
   n=strlen(av);
   if(bt>0) {
     if(n) r=avdofc(f,a,bm,av);
-    else r=applyfc2_(f,a,bm,0);
+    else r=applyfc2_(f,a,bm);
   }
   else {
     r=kv0(bc);
     if(n) DO(bc,v0(r)[i]=avdofc(f,a,v0(bm)[i],av);EC(v0(r)[i]))
-    else DO(bc,v0(r)[i]=applyfc2_(f,a,v0(bm)[i],0);EC(v0(r)[i]))
+    else DO(bc,v0(r)[i]=applyfc2_(f,a,v0(bm)[i]);EC(v0(r)[i]))
   }
   if(bm!=b) kfree(bm);
   return r->t ? r : knorm(r);
@@ -1283,12 +1283,12 @@ K* eachleftfc(K *f, K *a, K *b, char *av) {
   n=strlen(av);
   if(at>0) {
     if(n) r=avdofc(f,am,b,av);
-    else r=applyfc2_(f,am,b,0);
+    else r=applyfc2_(f,am,b);
   }
   else {
     r=kv0(ac);
     if(n) DO(ac,v0(r)[i]=avdofc(f,v0(am)[i],b,av);EC(v0(r)[i]))
-    else DO(ac,v0(r)[i]=applyfc2_(f,v0(am)[i],b,0);EC(v0(r)[i]))
+    else DO(ac,v0(r)[i]=applyfc2_(f,v0(am)[i],b);EC(v0(r)[i]))
   }
   if(am!=a) kfree(am);
   return r->t ? r : knorm(r);

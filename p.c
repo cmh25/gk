@@ -94,6 +94,7 @@ static int RC[RCSIZE]={1,2,0,2,2,1,1,1,3,0,1,1,1,1,1,0,1,4,0,1,2,1,0,1,1,3,2,0,3
 int quiet,quiet2,btime;
 
 static void r000(pgs *s) { /* $a > ss */
+  (void)s;
   if(debug) printf("r000()\n");
 }
 static void r001(pgs *s) { /* ss > s sz */
@@ -196,18 +197,23 @@ static void r009(pgs *s) { /* ez > */
   s->vi=vi;
 }
 static void r010(pgs *s) { /* ez > e */
+  (void)s;
   if(debug) printf("r010()\n");
 }
 static void r011(pgs *s) { /* ez > plist */
+  (void)s;
   if(debug) printf("r011()\n");
 }
 static void r012(pgs *s) { /* o > N */
+  (void)s;
   if(debug) printf("r012()\n");
 }
 static void r013(pgs *s) { /* o > V */
+  (void)s;
   if(debug) printf("r013()\n");
 }
 static void r014(pgs *s) { /* o > klist */
+  (void)s;
   if(debug) printf("r014()\n");
 }
 static void r015(pgs *s) { /* av > */
@@ -218,6 +224,7 @@ static void r015(pgs *s) { /* av > */
   s->vi=vi;
 }
 static void r016(pgs *s) { /* av > AV */
+  (void)s;
   if(debug) printf("r016()\n");
 }
 static void r017(pgs *s) { /* plist > '[' elist ']' pz */
@@ -321,6 +328,7 @@ static void r020(pgs *s) { /* pz > AV pz2 */
   s->vi=vi;
 }
 static void r021(pgs *s) { /* pz > plist */
+  (void)s;
   if(debug) printf("r021()\n");
 }
 static void r022(pgs *s) { /* pz2 > */
@@ -331,9 +339,11 @@ static void r022(pgs *s) { /* pz2 > */
   s->vi=vi;
 }
 static void r023(pgs *s) { /* pz2 > e */
+  (void)s;
   if(debug) printf("r023()\n");
 }
 static void r024(pgs *s) { /* pz2 > plist */
+  (void)s;
   if(debug) printf("r024()\n");
 }
 static void r025(pgs *s) { /* klist > '(' elist ')' */
@@ -406,6 +416,7 @@ static void r029(pgs *s) { /* ee > */
   s->vi=vi;
 }
 static void r030(pgs *s) { /* ee > e */
+  (void)s;
   if(debug) printf("r030()\n");
 }
 

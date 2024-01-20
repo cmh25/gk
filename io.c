@@ -43,7 +43,7 @@ static K* fsize_(FILE *fp, long *bs) {
   return null;
 }
 
-K* bzcolon1_(K *a, char *av) {
+K* bzcolon1_(K *a) {
   char *s=0;
   if(at==3) printf("%c", a->i);
   else if(at==-3) DO(ac,putchar(v3(a)[i]))
@@ -55,7 +55,7 @@ K* bzcolon1_(K *a, char *av) {
   return null;
 }
 
-K* zerocolon2_(K *a, K *b, char *av) {
+K* zerocolon2_(K *a, K *b) {
   FILE *fp;
   K *p;
   if(bt!=-3&&bt!=4&&bt!=0) return kerror("type");
@@ -68,7 +68,7 @@ K* zerocolon2_(K *a, K *b, char *av) {
   return null;
 }
 
-K* zerocolon1_(K *a, char *av) {
+K* zerocolon1_(K *a) {
   K *r=0;
   FILE *fp;
   int n=0,i;
@@ -95,12 +95,12 @@ K* zerocolon1_(K *a, char *av) {
   return r;
 }
 
-K* onecolon2_(K *a, K *b, char *av) {
+K* onecolon2_(K *a, K *b) {
   FILE *fp;
   K *r;
   if(at!=-3&&at!=4) return kerror("type");
   EC(fopen_(a,"wb",&fp));
-  r=bd1_(b,0);
+  r=bd1_(b);
   fwrite(r->v,1,r->c,fp);
   fclose(fp);
   kfree(r);
@@ -108,11 +108,11 @@ K* onecolon2_(K *a, K *b, char *av) {
 }
 
 #ifdef _WIN32
-K* onecolon1_(K *a, char *av) {
-  return twocolon1_(a,av); /* TODO: map */
+K* onecolon1_(K *a) {
+  return twocolon1_(a); /* TODO: map */
 }
 #else
-K* onecolon1_(K *a, char *av) {
+K* onecolon1_(K *a) {
   K *r;
   int fd,h,t,c;
   char *s;
@@ -128,7 +128,7 @@ K* onecolon1_(K *a, char *av) {
   n=read(fd,&t,sizeof(int)); if(n==-1) return ferr(s,errno);
   n=read(fd,&c,sizeof(int)); if(n==-1) return ferr(s,errno);
   if(at==-3) xfree(s);
-  if(t!=-1&&t!=-2&&t!=-3) { close(fd); return twocolon1_(a,av); }
+  if(t!=-1&&t!=-2&&t!=-3) { close(fd); return twocolon1_(a); }
   if(t==-1) len=12+c*sizeof(int);
   else if(t==-2) len=12+c*sizeof(double);
   else if(t==-3) len=12+c*sizeof(char);
@@ -145,7 +145,7 @@ K* onecolon1_(K *a, char *av) {
 }
 #endif
 
-K* twocolon1_(K *a, char *av) {
+K* twocolon1_(K *a) {
   K *r=0,*p=0;
   FILE *fp;
   int n;
@@ -158,13 +158,13 @@ K* twocolon1_(K *a, char *av) {
   n=fread(b,1,bs,fp);
   if(ferror(fp)) return kerror("io");
   p=kv3(1); xfree(p->v); p->v=b; p->c=n;
-  r=db1_(p,0);
+  r=db1_(p);
   fclose(fp);
   kfree(p);
   return r;
 }
 
-K* fivecolon2_(K *a, K *b, char *av) {
+K* fivecolon2_(K *a, K *b) {
   K *r,*p;
   FILE *fp;
   int n,t,c=0;
@@ -177,7 +177,7 @@ K* fivecolon2_(K *a, K *b, char *av) {
     m=fread(&t,sizeof(int),1,fp); if(m<=0&&ferror(fp)) return ferr("",errno);
     m=fread(&c,sizeof(int),1,fp); if(m<=0&&ferror(fp)) return ferr("",errno);
     if(t!=bt) { fclose(fp); return kerror("type"); }
-    p=bd1_(b,0);
+    p=bd1_(b);
     fseek(fp,0,SEEK_END);
     fwrite(12+(char*)p->v,1,p->c-12,fp);
     fclose(fp);                  /* close and reopen to edit count */
@@ -189,7 +189,7 @@ K* fivecolon2_(K *a, K *b, char *av) {
     r=k1(n);
   }
   else {
-    p=bd1_(b,0);
+    p=bd1_(b);
     fwrite(p->v,1,p->c,fp);
     fclose(fp);
     r=null;
@@ -198,7 +198,7 @@ K* fivecolon2_(K *a, K *b, char *av) {
   return r;
 }
 
-K* sixcolon2_(K *a, K *b, char *av) {
+K* sixcolon2_(K *a, K *b) {
   FILE *fp;
   if(at!=-3&&at!=4&&at!=0) return kerror("type");
   if(bt!=-3) return kerror("type");
@@ -212,7 +212,7 @@ K* sixcolon2_(K *a, K *b, char *av) {
   return null;
 }
 
-K* sixcolon1_(K *a, char *av) {
+K* sixcolon1_(K *a) {
   K *r=0;
   FILE *fp;
   int n=0;
@@ -229,7 +229,7 @@ K* sixcolon1_(K *a, char *av) {
   return r;
 }
 
-K* del1_(K *a, char *av) {
+K* del1_(K *a) {
   char *s;
   if(at==4) s=a->v;
   else if(at==-3) s=xstrndup(a->v,ac);

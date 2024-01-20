@@ -33,12 +33,12 @@ static size_t gtakei=0;
 
 /* plus, minus, times */
 #define MCPMT(F,O) \
-K* F(K *a, K *b, char *av) { \
+K* F(K *a, K *b) { \
   K *r=0; \
   int *pai,*pbi,*pri; \
   double af,bf,*paf,*pbf,*prf; \
   if(at<=0 && bt<=0 && ac!=bc) return kerror("length"); \
-  if(at==0 || bt==0) { r=each(F,a,b,av); return rt ? r : knorm(r); } \
+  if(at==0 || bt==0) { r=each(F,a,b); return rt ? r : knorm(r); } \
   switch(at) { \
   case 1: \
     switch(bt) { \
@@ -80,12 +80,12 @@ MCPMT(plus2_,+)
 MCPMT(minus2_,-)
 MCPMT(times2_,*)
 
-K* divide2_(K *a, K *b, char *av) {
+K* divide2_(K *a, K *b) {
   K *r=0;
   int *pai,*pbi;
   double af,bf,*prf,*paf,*pbf;
   if(at<=0 && bt<=0 && ac!=bc) return kerror("length");
-  if(at==0 || bt==0) { r=each(divide2_,a,b,av); return rt ? r : knorm(r); }
+  if(at==0 || bt==0) { r=each(divide2_,a,b); return rt ? r : knorm(r); }
   switch(at) {
   case 1:
     switch(bt) {
@@ -126,14 +126,14 @@ K* divide2_(K *a, K *b, char *av) {
 
 /* minand, maxor */
 #define MCMAMO(F,O,R) \
-K* F(K *a, K *b, char *av) { \
+K* F(K *a, K *b) { \
   K *r=0; \
   int *pri,*pai,*pbi; \
   double af,bf,*prf,*paf,*pbf; \
   char *prc,*pac,*pbc; \
   char **prs,**pas,**pbs; \
   if(at<=0 && bt<=0 && ac!=bc) return kerror("length"); \
-  if(at==0 || bt==0) { r=each(F,a,b,av); return rt ? r : knorm(r); }\
+  if(at==0 || bt==0) { r=each(F,a,b); return rt ? r : knorm(r); }\
   switch(at) { \
   case 1: \
     switch(bt) { \
@@ -200,11 +200,11 @@ MCMAMO(maxor2_,>,1)
 
 /* less, more, equal */
 #define MCLME(F,O,R) \
-K* F(K *a, K *b, char *av) { \
+K* F(K *a, K *b) { \
   K *r=0; \
   double af; \
   if(at<=0 && bt<=0 && ac!=bc) return kerror("length"); \
-  if(at==0 || bt==0) { r=each(F,a,b,av); return rt ? r : knorm(r); } \
+  if(at==0 || bt==0) { r=each(F,a,b); return rt ? r : knorm(r); } \
   switch(at) { \
   case  1: \
     switch(bt) { \
@@ -272,7 +272,7 @@ MCLME(equal2_,==,0)
 
 MC2D(power2_,pow,pow,2,2,v2,v2)
 
-K* modrot2_(K *a, K *b, char *av) {
+K* modrot2_(K *a, K *b) {
   K *r=0;
   double rd;
   int ri;
@@ -312,11 +312,11 @@ K* modrot2_(K *a, K *b, char *av) {
   return rt ? r : knorm(r);
 }
 
-K* match2_(K *a, K *b, char *av) {
+K* match2_(K *a, K *b) {
   return k1(kcmp(a,b)?0:1);
 }
 
-K* join2_(K *a, K *b, char *av) {
+K* join2_(K *a, K *b) {
   K *r=0;
   int j=0;
 
@@ -397,7 +397,7 @@ K* join2_(K *a, K *b, char *av) {
   return rt ? r : knorm(r);
 }
 
-K* take2_(K *a, K *b, char *av) {
+K* take2_(K *a, K *b) {
   K *r=0,*a0=0,*a_1=0,*bb=0,*rr=0;
   int n=0,gt=0,ai=0;
 
@@ -414,7 +414,7 @@ K* take2_(K *a, K *b, char *av) {
     return r;
   }
 
-  if(at==1&&a1<0) bb=reverse_(b,0);
+  if(at==1&&a1<0) bb=reverse_(b);
   else bb=kref(b);
   ai=abs(a->i);
   switch(at) {
@@ -453,23 +453,23 @@ K* take2_(K *a, K *b, char *av) {
   case -1:
     DO(ac,VSIZE(v1(a)[i]));
     if(!gtake) {gtake=bb;gt=1;gtakei=0;}
-    a0=drop2_(one,a,0); EC(a0);
+    a0=drop2_(one,a); EC(a0);
     if(a0->c==1) {a_1=k1(v1(a0)[0]); kfree(a0);}
     else a_1=a0;
-    r=kv0(v1(a)[0]); DO(rc,v0(r)[i]=take2_(a_1,bb,0); EC(v0(r)[i]));
+    r=kv0(v1(a)[0]); DO(rc,v0(r)[i]=take2_(a_1,bb); EC(v0(r)[i]));
     kfree(a_1);
     if(gt) {gtake=0;gtakei=0;}
     break;
   default: return kerror("int");
   }
   kfree(bb);
-  if(at==1&&a1<0) rr=reverse_(r,0);
+  if(at==1&&a1<0) rr=reverse_(r);
   else rr=kref(r);
   kfree(r);
   return rr->t ? rr : knorm(rr);
 }
 
-K* drop2_(K *a, K *b, char *av) {
+K* drop2_(K *a, K *b) {
   K *r=0,*r2=0;
   int i,j,m,p,q;
 
@@ -574,7 +574,7 @@ static K* form2w(char *t, int w) {
   } else r=knew(-3,l,t,0,0,0);
   return r;
 }
-K* form2_(K *a, K *b, char *av) {
+K* form2_(K *a, K *b) {
   K *r=0,*p=0,*q=0;
   int n,l,m,x,y;
   char *c,t[2048],*s=t;
@@ -597,9 +597,9 @@ K* form2_(K *a, K *b, char *av) {
       break;
     case  4: sprintf(t,"%s",b4); r=form2w(t,a1); break;
     case  5: sprintf(t,".(..)"); r=form2w(t,a1); break;
-    case  0: r=kv0(bc); DO(bc,v0(r)[i]=form2_(a,v0(b)[i],av); EC(v0(r)[i])) break;
+    case  0: r=kv0(bc); DO(bc,v0(r)[i]=form2_(a,v0(b)[i]); EC(v0(r)[i])) break;
     case -1:
-    case -2: p=kmix(b); r=kv0(p->c); DO(p->c,v0(r)[i]=form2_(a,v0(p)[i],av); EC(v0(r)[i])); kfree(p); break;
+    case -2: p=kmix(b); r=kv0(p->c); DO(p->c,v0(r)[i]=form2_(a,v0(p)[i]); EC(v0(r)[i])); kfree(p); break;
     case -3:
       b->v=xrealloc(b->v,bc+1); v3(b)[bc]=0;
       if(!a1) {
@@ -624,7 +624,7 @@ K* form2_(K *a, K *b, char *av) {
         else return kerror("domain");
       }
       break;
-    case -4: p=kmix(b); r=kv0(p->c); DO(p->c,v0(r)[i]=form2_(a,v0(p)[i],av); EC(v0(r)[i])); kfree(p); break;
+    case -4: p=kmix(b); r=kv0(p->c); DO(p->c,v0(r)[i]=form2_(a,v0(p)[i]); EC(v0(r)[i])); kfree(p); break;
     default: return kerror("type");
     } break;
   case 2:
@@ -648,9 +648,9 @@ K* form2_(K *a, K *b, char *av) {
       break;
     case  3: if(b3<48||b3>57) return kerror("domain"); sprintf(s,"%c",b3); r=k2(xstrtod(s,0)); break;
     case  4: return kerror("type");
-    case  0: r=kv0(bc); DO(bc,v0(r)[i]=form2_(a,v0(b)[i],av); EC(v0(r)[i])) break;
+    case  0: r=kv0(bc); DO(bc,v0(r)[i]=form2_(a,v0(b)[i]); EC(v0(r)[i])) break;
     case -1:
-    case -2: p=kmix(b); r=kv0(p->c); DO(p->c,v0(r)[i]=form2_(a,v0(p)[i],av); EC(v0(r)[i])); kfree(p); break;
+    case -2: p=kmix(b); r=kv0(p->c); DO(p->c,v0(r)[i]=form2_(a,v0(p)[i]); EC(v0(r)[i])); kfree(p); break;
     case -3: s=xmalloc(bc+1); DO(bc,s[i]=v3(b)[i]); s[bc]=0; r=k2(xstrtod(s,0)); xfree(s); break;
     default: return kerror("type");
     } break;
@@ -658,28 +658,28 @@ K* form2_(K *a, K *b, char *av) {
     switch(bt) {
     case  3:
     case -3: r=kcp(b); break;
-    case  0: r=kv0(bc); DO(bc,v0(r)[i]=form2_(a,v0(b)[i],av); EC(v0(r)[i])) break;
+    case  0: r=kv0(bc); DO(bc,v0(r)[i]=form2_(a,v0(b)[i]); EC(v0(r)[i])) break;
     default: return kerror("type");
     } break;
   case 4:
     if(strlen(a4)) return kerror("nonce");
     switch(bt) {
     case  3: sprintf(s,"%c",b3); r=knew(4,0,s,0,0,0); break;
-    case  0: r=kv0(bc); DO(bc,v0(r)[i]=form2_(a,v0(b)[i],av); EC(v0(r)[i])) break;
+    case  0: r=kv0(bc); DO(bc,v0(r)[i]=form2_(a,v0(b)[i]); EC(v0(r)[i])) break;
     case -3: r=k4(0); s=xmalloc(bc+1); DO(bc,s[i]=v3(b)[i]); s[bc]=0; r->v=sp(s); xfree(s); break;
     default: return kerror("type");
     } break;
   case 37: /* {} only */
     switch(bt) {
-    case  0: r=kv0(bc); DO(bc,v0(r)[i]=form2_(a,v0(b)[i],av); EC(v0(r)[i])) break;
+    case  0: r=kv0(bc); DO(bc,v0(r)[i]=form2_(a,v0(b)[i]); EC(v0(r)[i])) break;
     case -3: s=xmalloc(bc+1); DO(bc,s[i]=v3(b)[i]); s[bc]=0; r=knew(7,0,fnnew(s),0,0,0); xfree(s); break;
     default: return kerror("type");
     } break;
   case 0:
     switch(bt) {
     case  3:
-    case -3: r=kv0(ac); DO(ac,v0(r)[i]=form2_(v0(a)[i],b,av); EC(v0(r)[i])) break;
-    case  0: r=kv0(ac); DO(ac,v0(r)[i]=form2_(v0(a)[i],v0(b)[i],av); EC(v0(r)[i])) break;
+    case -3: r=kv0(ac); DO(ac,v0(r)[i]=form2_(v0(a)[i],b); EC(v0(r)[i])) break;
+    case  0: r=kv0(ac); DO(ac,v0(r)[i]=form2_(v0(a)[i],v0(b)[i]); EC(v0(r)[i])) break;
     default: return kerror("type");
     } break;
   case -1:
@@ -688,35 +688,35 @@ K* form2_(K *a, K *b, char *av) {
     case  2:
     case  3:
     case  4:
-    case  5: r=kv0(ac); p=kmix(a); DO(ac,v0(r)[i]=form2_(v0(p)[i],b,av); EC(v0(r)[i])); kfree(p); break;
-    case  0: r=kv0(ac); p=kmix(a); DO(ac,v0(r)[i]=form2_(v0(p)[i],v0(b)[i],av); EC(v0(r)[i])); kfree(p); break;
+    case  5: r=kv0(ac); p=kmix(a); DO(ac,v0(r)[i]=form2_(v0(p)[i],b); EC(v0(r)[i])); kfree(p); break;
+    case  0: r=kv0(ac); p=kmix(a); DO(ac,v0(r)[i]=form2_(v0(p)[i],v0(b)[i]); EC(v0(r)[i])); kfree(p); break;
     case -1:
-    case -2: r=kv0(ac); p=kmix(a); q=kmix(b); DO(ac,v0(r)[i]=form2_(v0(p)[i],v0(q)[i],av); EC(v0(r)[i])); kfree(p); kfree(q); break;
-    case -3: r=kv0(ac); p=kmix(a); DO(ac,v0(r)[i]=form2_(v0(p)[i],b,av); EC(v0(r)[i])); kfree(p); break;
-    case -4: r=kv0(ac); p=kmix(a); q=kmix(b); DO(ac,v0(r)[i]=form2_(v0(p)[i],v0(q)[i],av); EC(v0(r)[i])); kfree(p); kfree(q); break;
+    case -2: r=kv0(ac); p=kmix(a); q=kmix(b); DO(ac,v0(r)[i]=form2_(v0(p)[i],v0(q)[i]); EC(v0(r)[i])); kfree(p); kfree(q); break;
+    case -3: r=kv0(ac); p=kmix(a); DO(ac,v0(r)[i]=form2_(v0(p)[i],b); EC(v0(r)[i])); kfree(p); break;
+    case -4: r=kv0(ac); p=kmix(a); q=kmix(b); DO(ac,v0(r)[i]=form2_(v0(p)[i],v0(q)[i]); EC(v0(r)[i])); kfree(p); kfree(q); break;
     default: return kerror("type");
     } break;
   case -2:
     switch(bt) {
-    case  3: r=kv0(ac); p=kmix(a); DO(ac,v0(r)[i]=form2_(v0(p)[i],b,av); EC(v0(r)[i])); kfree(p); break;
-    case  0: r=kv0(ac); p=kmix(a); DO(ac,v0(r)[i]=form2_(v0(p)[i],v0(b)[i],av); EC(v0(r)[i])); kfree(p); break;
+    case  3: r=kv0(ac); p=kmix(a); DO(ac,v0(r)[i]=form2_(v0(p)[i],b); EC(v0(r)[i])); kfree(p); break;
+    case  0: r=kv0(ac); p=kmix(a); DO(ac,v0(r)[i]=form2_(v0(p)[i],v0(b)[i]); EC(v0(r)[i])); kfree(p); break;
     case -1:
-    case -2: r=kv0(ac); p=kmix(a); q=kmix(b); DO(ac,v0(r)[i]=form2_(v0(p)[i],v0(q)[i],av); EC(v0(r)[i])); kfree(p); kfree(q); break;
-    case -3: r=kv0(ac); p=kmix(a); DO(ac,v0(r)[i]=form2_(v0(p)[i],b,av); EC(v0(r)[i])); kfree(p); break;
+    case -2: r=kv0(ac); p=kmix(a); q=kmix(b); DO(ac,v0(r)[i]=form2_(v0(p)[i],v0(q)[i]); EC(v0(r)[i])); kfree(p); kfree(q); break;
+    case -3: r=kv0(ac); p=kmix(a); DO(ac,v0(r)[i]=form2_(v0(p)[i],b); EC(v0(r)[i])); kfree(p); break;
     default: return kerror("type");
     } break;
   case -3:
     switch(bt) {
     case  3: r=kv3(1); v3(r)[0]=b3; break;
-    case  0: r=kv0(bc); DO(bc,v0(r)[i]=form2_(a,v0(b)[i],av); EC(v0(r)[i])) break;
+    case  0: r=kv0(bc); DO(bc,v0(r)[i]=form2_(a,v0(b)[i]); EC(v0(r)[i])) break;
     case -3: r=kcp(b); break;
     default: return kerror("type");
     } break;
   case -4:
     switch(bt) {
     case  3:
-    case -3: r=kv0(ac); p=kmix(a); DO(ac,v0(r)[i]=form2_(v0(p)[i],b,av); EC(v0(r)[i])); kfree(p); break;
-    case  0: r=kv0(ac); p=kmix(a); DO(ac,v0(r)[i]=form2_(v0(p)[i],v0(b)[i],av); EC(v0(r)[i])); kfree(p); break;
+    case -3: r=kv0(ac); p=kmix(a); DO(ac,v0(r)[i]=form2_(v0(p)[i],b); EC(v0(r)[i])); kfree(p); break;
+    case  0: r=kv0(ac); p=kmix(a); DO(ac,v0(r)[i]=form2_(v0(p)[i],v0(b)[i]); EC(v0(r)[i])); kfree(p); break;
     default: return kerror("type");
     } break;
   default: return kerror("type");
@@ -725,7 +725,7 @@ K* form2_(K *a, K *b, char *av) {
   return rt ? r : knorm(r);
 }
 
-K* find2_(K *a, K *b, char *av) {
+K* find2_(K *a, K *b) {
   K *r=0;
 
   if(at>0) return kerror("domain");
@@ -742,7 +742,7 @@ K* find2_(K *a, K *b, char *av) {
   return rt ? r : knorm(r);
 }
 
-K* at2s_(K *a, K *b, char *av) {
+K* at2s_(K *a, K *b) {
   K *r=0,*p=0,*q=0;
   unsigned int bi,n;
 
@@ -765,18 +765,18 @@ K* at2s_(K *a, K *b, char *av) {
       p=v0(b)[bi];
       if(p->t==16) p=null;
       if(p->t<=0) n=p->c; else if(p->t==6) n=ac; else n=1;
-      r=at2_(a,v0(b)[bi++],0);
+      r=at2_(a,v0(b)[bi++]);
       if(bi==bc) break;
       else if(bi==bc-1) {
-        if(n==1) q = at2_(r,v0(b)[bi],0);
-        else { q=kv0(rc); DO(q->c,v0(q)[i]=at2_(v0(r)[i],v0(b)[bi],0); EC(v0(q)[i])) }
+        if(n==1) q = at2_(r,v0(b)[bi]);
+        else { q=kv0(rc); DO(q->c,v0(q)[i]=at2_(v0(r)[i],v0(b)[bi]); EC(v0(q)[i])) }
         kfree(r); r=q;
       }
       else {
         p=kv0(bc-1);
         DO(p->c,v0(p)[i]=kcp(v0(b)[i+1]))
-        if(n==1) { q=at2s_(r,p,0); EC(q); }
-        else { q=kv0(rc); DO(q->c,v0(q)[i]=at2s_(v0(r)[i],p,0); EC(v0(q)[i])) }
+        if(n==1) { q=at2s_(r,p); EC(q); }
+        else { q=kv0(rc); DO(q->c,v0(q)[i]=at2s_(v0(r)[i],p); EC(v0(q)[i])) }
         kfree(r); r=q; kfree(p);
       } break;
     default: return kerror("type");
@@ -786,7 +786,7 @@ K* at2s_(K *a, K *b, char *av) {
   return rt ? r : knorm(r);
 }
 
-K* at2_(K *a, K *b, char *av) {
+K* at2_(K *a, K *b) {
   K *r=0,*q=0,*bm=0;
   fn *f;
 
@@ -799,11 +799,11 @@ K* at2_(K *a, K *b, char *av) {
 
   if(bt==16) b=null;
   if(bt==6&&at!=5) { r=kcp(a); return r; }
-  if(at!=37&&bt==0) { r=kv0(bc); DO(rc,v0(r)[i]=at2_(a,v0(b)[i],0); EC(v0(r)[i])); }
-  else if(bt==11) { r=at2s_(a,b,av); EC(r); }
+  if(at!=37&&bt==0) { r=kv0(bc); DO(rc,v0(r)[i]=at2_(a,v0(b)[i]); EC(v0(r)[i])); }
+  else if(bt==11) { r=at2s_(a,b); EC(r); }
   else {
   switch(at) {
-  case 37: bm=bt<0?kmix(b):b; r=fne2(a,bm,av); if(bm!=b) kfree(bm); break;
+  case 37: bm=bt<0?kmix(b):b; r=fne2(a,bm,0); if(bm!=b) kfree(bm); break;
   case  5:
     switch(bt) {
     case  4: r=dget(a5,b4);if(!r)r=null; break;
@@ -813,7 +813,7 @@ K* at2_(K *a, K *b, char *av) {
     default: return kerror("type");
     } break;
   case  6: r=bt==6?kv0(0):kcp(b); break;
-  case 27: f=a->v; r=avdo(a,f->l,b,f->av); if(!r) r=dt2[f->i](f->l,b,0); break;
+  case 27: f=a->v; r=avdo(a,f->l,b,f->av); if(!r) r=dt2[f->i](f->l,b); break;
   case  0:
     switch(bt) {
     case  1: r=kcp(v0(a)[b1]); break;
@@ -852,25 +852,25 @@ K* at2_(K *a, K *b, char *av) {
 
 K* dot0(K* a, K *b) {
   K *r,*p,*q,*t,*pm;
-  K*(*ff)(K*,K*,char*);
+  K*(*ff)(K*,K*);
   if(bc==0) r=kcp(a); /* a . () */
-  else if(bc==1) { r=at2_(a,v0(b)[0],0); EC(r); }/* a . ,0 */
+  else if(bc==1) { r=at2_(a,v0(b)[0]); EC(r); }/* a . ,0 */
   else { /* a . (0 1;1 2;1 2) */
     p=v0(b)[0];
-    t=bc==2?kcp(v0(b)[1]):drop2_(one,b,0);
+    t=bc==2?kcp(v0(b)[1]):drop2_(one,b);
     ff=bc==2?at2_:dot2_;
     if(p->c) {
       r=kv0(p->c);
       pm=p->t<0?kmix(p):p;
-      DO(p->c,q=at2_(a,v0(pm)[i],0); EC(q); v0(r)[i]=ff(q,t,0); EC(v0(r)[i]); kfree(q))
+      DO(p->c,q=at2_(a,v0(pm)[i]); EC(q); v0(r)[i]=ff(q,t); EC(v0(r)[i]); kfree(q))
       if(pm!=p) kfree(pm);
     }
-    else { q=at2_(a,p,0); EC(q); r=ff(q,t,0); EC(r); kfree(q); }
+    else { q=at2_(a,p); EC(q); r=ff(q,t); EC(r); kfree(q); }
     kfree(t);
   }
   return r;
 }
-K* dot2_(K *a, K *b, char *av) {
+K* dot2_(K *a, K *b) {
   K *r=0,*t=0,*bm=0,*q,*f;
   fn *z=0,*ff;
 
@@ -884,12 +884,12 @@ K* dot2_(K *a, K *b, char *av) {
     ff=f->v;
     if(bt<0) { bm=kmix(b); bm->t=11; } else bm=b;
     if(f->t==37) r=fne2(f,bm,0);
-    else if(f->t==7&&bm->c==2) r=dt2[ff->i](v0(bm)[0],v0(bm)[1],0);
-    else if(f->t==7&&bm->c==1) r=dt1[ff->i](v0(bm)[0],0);
-    else if(f->t==7&&bm->t>0) r=dt1[ff->i](bm,0);
+    else if(f->t==7&&bm->c==2) r=dt2[ff->i](v0(bm)[0],v0(bm)[1]);
+    else if(f->t==7&&bm->c==1) r=dt1[ff->i](v0(bm)[0]);
+    else if(f->t==7&&bm->t>0) r=dt1[ff->i](bm);
     else if(f->t==7) r=kerror("valence");
-    else if(f->t==27&&bm->c==1) r=dt2[ff->i](ff->l,v0(bm)[0],0);
-    else if(f->t==27&&bm->t>0) r=dt2[ff->i](ff->l,bm,0);
+    else if(f->t==27&&bm->c==1) r=dt2[ff->i](ff->l,v0(bm)[0]);
+    else if(f->t==27&&bm->t>0) r=dt2[ff->i](ff->l,bm);
     else if(f->t==27) r=kerror("valence");
     else if(f->t==67&&bm->c==2) r=applyfc2(f,v0(bm)[0],v0(bm)[1],0);
     else if(f->t==67&&bm->c==1) r=applyfc1(f,v0(bm)[0],0);
@@ -901,26 +901,26 @@ K* dot2_(K *a, K *b, char *av) {
     break;
   case  5:
     switch(bt) {
-    case  4: r=at2_(a,b,0); break;
+    case  4: r=at2_(a,b); break;
     case  6: r=dvals(a5); break;
     case  0: r=dot0(a,b); break;
     case -4: if(bc) { t=a; DO(bc, r=dget(t->v,v4(b)[i]); t=r; kfree(r);) r=kcp(t); } else r=kcp(a); break;
     default: return kerror("type");
     } break;
-  case 37: bm=bt<0?kmix(b):b; if(!bm->t) bm->t=11; r=fne2(a,bm,av); if(bm!=b) kfree(bm); break;
-  case  7: z=a->v; bm=bt<0?kmix(b):b; if(bc==2) r=dt2[z->i](v0(bm)[0],v0(bm)[1],0); if(bm!=b) kfree(bm); break;
+  case 37: bm=bt<0?kmix(b):b; if(!bm->t) bm->t=11; r=fne2(a,bm,0); if(bm!=b) kfree(bm); break;
+  case  7: z=a->v; bm=bt<0?kmix(b):b; if(bc==2) r=dt2[z->i](v0(bm)[0],v0(bm)[1]); if(bm!=b) kfree(bm); break;
   case  0:
     switch(bt) {
-    case  1: r=at2_(a,b,0); break;
+    case  1: r=at2_(a,b); break;
     case  0: r=dot0(a,b); break;
-    case -1: bm=kmix(b); r=kcp(a); DO(bc,q=at2_(r,v0(bm)[i],0); kfree(r); r=q; EC(r)) kfree(bm); break;
+    case -1: bm=kmix(b); r=kcp(a); DO(bc,q=at2_(r,v0(bm)[i]); kfree(r); r=q; EC(r)) kfree(bm); break;
     default: return kerror("type");
     } break;
   case -1: case -2: case -3: case -4:
     switch(bt) {
-    case  1: r=at2_(a,b,0); break;
-    case  0: r=kv0(bc); DO(bc,v0(r)[i]=dot2_(a,v0(b)[i],0); EC(v0(r)[i])) break;
-    case -1: r=at2_(a,b,0); break;
+    case  1: r=at2_(a,b); break;
+    case  0: r=kv0(bc); DO(bc,v0(r)[i]=dot2_(a,v0(b)[i]); EC(v0(r)[i])) break;
+    case -1: r=at2_(a,b); break;
     default: return kerror("type");
     } break;
   default: return kerror("type");
@@ -928,17 +928,24 @@ K* dot2_(K *a, K *b, char *av) {
   return rt ? r : knorm(r);
 }
 
-K* assign2_(K *a, K *b, char *av) {
+K* assign2_(K *a, K *b) {
   if(at!=99) return kerror("type");
   if(!b) return kerror("parse");
   if(kreserved(a4)) return kerror("reserved");
-  if(av&&*av==':') scope_set(gs,a->v,b);
-  else scope_set(cs,a->v,b);
+  scope_set(cs,a->v,b);
+  quiet2=1;
+  return kcp(a);
+}
+K* assign2g_(K *a, K *b) {
+  if(at!=99) return kerror("type");
+  if(!b) return kerror("parse");
+  if(kreserved(a4)) return kerror("reserved");
+  scope_set(gs,a->v,b);
   quiet2=1;
   return kcp(a);
 }
 
-K* flip_(K *a, char *av) {
+K* flip_(K *a) {
   K *r=0,*p=0;
   int m=-1;
   unsigned int i;
@@ -964,12 +971,12 @@ K* flip_(K *a, char *av) {
   return rt ? r : knorm(r);
 }
 
-K* negate_(K *a, char *av) {
+K* negate_(K *a) {
   K *r=0;
   switch(at) {
   case  1: r=k1(-a1); break;
   case  2: r=k2(-a2); break;
-  case  0: r=kv0(ac); DO(rc,v0(r)[i]=negate_(v0(a)[i],av); EC(v0(r)[i])); break;
+  case  0: r=kv0(ac); DO(rc,v0(r)[i]=negate_(v0(a)[i]); EC(v0(r)[i])); break;
   case -1: r=kv1(ac); DO(rc,v1(r)[i]=-v1(a)[i]); break;
   case -2: r=kv2(ac); DO(rc,v2(r)[i]=-v2(a)[i]); break;
   default: return kerror("type");
@@ -977,7 +984,7 @@ K* negate_(K *a, char *av) {
   return rt ? r : knorm(r);
 }
 
-K* first_(K *a, char *av) {
+K* first_(K *a) {
   K *r=0;
   if(at>0) return kcp(a);
   switch(at) {
@@ -991,12 +998,12 @@ K* first_(K *a, char *av) {
   return rt ? r : knorm(r);
 }
 
-K* reciprocal_(K *a, char *av) {
+K* reciprocal_(K *a) {
   K *r=0;
   switch(at) {
   case  1: r=k2(1.0/I2F(a1)); break;
   case  2: r=k2(1.0/a2); break;
-  case  0: r=kv0(ac); DO(rc,v0(r)[i]=reciprocal_(v0(a)[i],0); EC(v0(r)[i])) break;
+  case  0: r=kv0(ac); DO(rc,v0(r)[i]=reciprocal_(v0(a)[i]); EC(v0(r)[i])) break;
   case -1: r=kv2(ac); DO(rc,v2(r)[i]=1.0/I2F(v1(a)[i])) break;
   case -2: r=kv2(ac); DO(rc,v2(r)[i]=1.0/v2(a)[i]) break;
   default: return kerror("type");
@@ -1004,7 +1011,7 @@ K* reciprocal_(K *a, char *av) {
   return rt ? r : knorm(r);
 }
 
-K* where_(K *a, char *av) {
+K* where_(K *a) {
   K *r=0;
   int j,kk;
   switch(at) {
@@ -1016,7 +1023,7 @@ K* where_(K *a, char *av) {
   return rt ? r : knorm(r);
 }
 
-K* reverse_(K *a, char *av) {
+K* reverse_(K *a) {
   K *r=0;
   switch(at) {
   case  1: case  2: case  3: case  4: case  5: case  6:
@@ -1031,7 +1038,7 @@ K* reverse_(K *a, char *av) {
   return rt ? r : knorm(r);
 }
 
-K* upgrade_(K *a, char *av) {
+K* upgrade_(K *a) {
   K *r=0;
   switch(at) {
   case  1: case  2: case  3: case  4: case  5: case  6:
@@ -1046,7 +1053,7 @@ K* upgrade_(K *a, char *av) {
   return rt ? r : knorm(r);
 }
 
-K* downgrade_(K *a, char *av) {
+K* downgrade_(K *a) {
   K *r=0;
   switch(at) {
   case  1: case  2: case  3: case  4: case  5: case  6:
@@ -1061,7 +1068,7 @@ K* downgrade_(K *a, char *av) {
   return rt ? r : knorm(r);
 }
 
-K* group_(K *a, char *av) {
+K* group_(K *a) {
   K *r=0,*p=0,**ht,**pk,**hk;
   int *n,min=INT_MAX,max=INT_MIN,*hi,bni=0;
   unsigned int i;
@@ -1245,7 +1252,7 @@ K* group_(K *a, char *av) {
   return rt ? r : knorm(r);
 }
 
-K* shape_(K *a, char *av) {
+K* shape_(K *a) {
   K *r=0,*p=0,**q=0,**t=0;;
   unsigned int i,c[256],ci,qc,tc;
 
@@ -1301,8 +1308,8 @@ static K* lsdir(char *p) {
   }
   q->c=n;
   closedir(f);
-  s=upgrade_(q,0);
-  r=at2_(q,s,0);
+  s=upgrade_(q);
+  r=at2_(q,s);
   kfree(q);
   kfree(s);
   return r;
@@ -1329,14 +1336,14 @@ static K* lsdir(char *p) {
   } while(FindNextFile(h,&ffd));
   q->c=n;
   FindClose(h);
-  s=upgrade_(q,0);
-  r=at2_(q,s,0);
+  s=upgrade_(q);
+  r=at2_(q,s);
   kfree(q);
   kfree(s);
   return r;
 }
 #endif
-K* enumerate_(K *a, char *av) {
+K* enumerate_(K *a) {
   K *r=0,*q=null;
   char s[2],*p=s;
 
@@ -1365,12 +1372,12 @@ K* enumerate_(K *a, char *av) {
   return rt ? r : knorm(r);
 }
 
-K* not_(K *a, char *av) {
+K* not_(K *a) {
   K *r=0;
   switch(at) {
   case  1: r=k1(a1==0); break;
   case  2: r=k1(a2==0.0); break;
-  case  0: r=kv0(ac); DO(rc,v0(r)[i]=not_(v0(a)[i],av); EC(v0(r)[i])) break;
+  case  0: r=kv0(ac); DO(rc,v0(r)[i]=not_(v0(a)[i]); EC(v0(r)[i])) break;
   case -1: r=kv1(ac); DO(rc,v1(r)[i]=v1(a)[i]==0) break;
   case -2: r=kv1(ac); DO(rc,v1(r)[i]=v2(a)[i]==0) break;
   default: return kerror("type");
@@ -1378,7 +1385,7 @@ K* not_(K *a, char *av) {
   return rt ? r : knorm(r);
 }
 
-K* enlist_(K *a, char *av) {
+K* enlist_(K *a) {
   K *r=0;
   switch(at) {
   case  1: r=kv1(1); v1(r)[0]=a1; break;
@@ -1398,16 +1405,16 @@ K* enlist_(K *a, char *av) {
   return rt ? r : knorm(r);
 }
 
-K* count_(K *a, char *av) {
+K* count_(K *a) {
   return k1(at>0?1:ac);
 }
 
-K* flr_(K *a, char *av) {
+K* flr_(K *a) {
   K *r=0;
   switch(at) {
   case  1: r=kcp(a); break;
   case  2: r=k1(floor(a2+EPSILON)); break;
-  case  0: r=kv0(ac); DO(rc,v0(r)[i]=flr_(v0(a)[i],0); EC(v0(r)[i])) break;
+  case  0: r=kv0(ac); DO(rc,v0(r)[i]=flr_(v0(a)[i]); EC(v0(r)[i])) break;
   case -1: r=kcp(a); break;
   case -2: r=kv1(ac); DO(rc, v1(r)[i]=floor(v2(a)[i]+EPSILON)) break;
   default: return kerror("type");
@@ -1415,7 +1422,7 @@ K* flr_(K *a, char *av) {
   return rt ? r : knorm(r);
 }
 
-K* format_(K *a, char *av) {
+K* format_(K *a) {
   K *r=0;
   char ds[32];
   switch(at) {
@@ -1437,8 +1444,8 @@ K* format_(K *a, char *av) {
   case  4: r=kv3(strlen(v3(a))); strncpy(v3(r),v3(a),rc); break;
   case  5: r=knew(-3,5,".(..)",0,0,0); break;
   case  6: r=kv3(0); break;
-  case  7: case 27: case 37: case 67: case 77: case 87: r=fivecolon1_(a,0); break;
-  case  0: r=kv0(ac); DO(ac,v0(r)[i]=format_(v0(a)[i],av); EC(v0(r)[i])) break;
+  case  7: case 27: case 37: case 67: case 77: case 87: r=fivecolon1_(a); break;
+  case  0: r=kv0(ac); DO(ac,v0(r)[i]=format_(v0(a)[i]); EC(v0(r)[i])) break;
   case -1:
     r=kv0(ac);
     DO(ac,
@@ -1465,7 +1472,7 @@ K* format_(K *a, char *av) {
   return rt ? r : knorm(r);
 }
 
-K* unique_(K *a, char *av) {
+K* unique_(K *a) {
   K *r=0,**hk,**kp;
   int *hi,*n;
   char hc[256]={0},*c,**hs,**s,*pr;
@@ -1572,11 +1579,11 @@ K* unique_(K *a, char *av) {
   return rt ? r : knorm(r);
 }
 
-K* atom_(K *a, char *av) {
+K* atom_(K *a) {
   return k1(at>0);
 }
 
-K* value_(K *a, char *av) {
+K* value_(K *a) {
   K *r=0,*f=0,*am=0,*p=0;
   pgs *s;
   node *n;
@@ -1587,7 +1594,7 @@ K* value_(K *a, char *av) {
   switch(at) {
   case  0:
     for(i=0;i<ac;i++) if(v0(a)[i]->t!=-3) break;
-    if(ac&&i==ac) { r=kv0(ac); DO(rc,v0(r)[i]=value_(v0(a)[i],av); EC(v0(r)[i])); break; }
+    if(ac&&i==ac) { r=kv0(ac); DO(rc,v0(r)[i]=value_(v0(a)[i]); EC(v0(r)[i])); break; }
     for(i=0;i<ac;i++) {
       p=v0(a)[i];
       if(p->c!=2&&p->c!=3) break;
@@ -1603,12 +1610,12 @@ K* value_(K *a, char *av) {
       ff=f->v;
       if(v0(a)[1]->t<0) { am=kmix(v0(a)[1]); am->t=11; } else am=kcp(v0(a)[1]);
       if(f->t==37) r=fne2(f,am,0);
-      else if(f->t==7&&am->c==2) r=dt2[ff->i](v0(am)[0],v0(am)[1],0);
-      else if(f->t==7&&am->c==1) r=dt1[ff->i](v0(am)[0],0);
-      else if(f->t==7&&am->t>0) r=dt1[ff->i](am,0);
+      else if(f->t==7&&am->c==2) r=dt2[ff->i](v0(am)[0],v0(am)[1]);
+      else if(f->t==7&&am->c==1) r=dt1[ff->i](v0(am)[0]);
+      else if(f->t==7&&am->t>0) r=dt1[ff->i](am);
       else if(f->t==7) r=kerror("valence");
-      else if(f->t==27&&am->c==1) r=dt2[ff->i](ff->l,v0(am)[0],0);
-      else if(f->t==27&&am->t>0) r=dt2[ff->i](ff->l,am,0);
+      else if(f->t==27&&am->c==1) r=dt2[ff->i](ff->l,v0(am)[0]);
+      else if(f->t==27&&am->t>0) r=dt2[ff->i](ff->l,am);
       else if(f->t==27) r=kerror("valence");
       else if(f->t==67&&am->c==2) r=applyfc2(f,v0(am)[0],v0(am)[1],0);
       else if(f->t==67&&am->c==1) r=applyfc1(f,v0(am)[0],0);
@@ -1656,20 +1663,20 @@ K* value_(K *a, char *av) {
   return rt ? r : knorm(r);
 }
 
-K* return_(K *a, char *av) {
+K* return_(K *a) {
   //if(fret) kfree(gk);
   gk=a;
   fret=1;
   return kref(a);
 }
 
-K* fourcolon1_(K *a, char *av) {
+K* fourcolon1_(K *a) {
   int t=at;
   if(t==37||t==27||t==67) t=7;
   return knew(1,0,0,t,0,0);
 }
 
-K* fivecolon1_(K *a, char *av) {
+K* fivecolon1_(K *a) {
   K *r=0;
   int n;
   char *s=kprint5(a,"",0,0);
@@ -1681,19 +1688,19 @@ K* fivecolon1_(K *a, char *av) {
   return r;
 }
 
-K* precision1_(K *a, char *av) {
+K* precision1_(K *a) {
   if(at==6) printf("%d\n",precision);
   else precision=a->i;
   return null;
 }
 
-K* kdump1_(K *a, char *av) {
+K* kdump1_(K *a) {
   if(at==4&&a4==sp("-l")) kdump(1);
   else kdump(0);
   return null;
 }
 
-K* apply4(K *f, K *a, K *b, K *c, K *d, char *av) {
+K* apply4(K *f, K *a, K *b, K *c, K *d) {
   K *r=0;
   fn *ff=f->v;
   quiet2=0;
@@ -1704,7 +1711,7 @@ K* apply4(K *f, K *a, K *b, K *c, K *d, char *av) {
   kfree(a); kfree(b); kfree(c); kfree(d);
   return r;
 }
-K* apply3(K *f, K *a, K *b, K *c, char *av) {
+K* apply3(K *f, K *a, K *b, K *c) {
   K *r=0;
   fn *ff=f->v;
   quiet2=0;
@@ -1736,8 +1743,8 @@ K* apply2(K *f, K *a, K *b, char *av) {
   if(ff->i!=':') SG2(a);
   SG2(b);
   if(at==98||bt==98) return kerror("value");
-  if(at==77) r=applyprj(a,b,0);
-  else { r=avdo(f,a,b,av2); if(!r) r=dt2[ff->i](a,b,av2); }
+  if(at==77) r=applyprj(a,b);
+  else { r=avdo(f,a,b,av2); if(!r) r=dt2[ff->i](a,b); }
   if(ff->i!=':') kfree(a);
   kfree(b);
   return r;
@@ -1753,11 +1760,11 @@ K* apply1(K *f, K *a, char *av) {
   SG2(f); SG2(a);
   if(f->t==98||at==98) return kerror("value");
   r=avdom(f,a,av2);
-  if(!r) r=dt1[ff->i](a,av2);
+  if(!r) r=dt1[ff->i](a);
   kfree(f); kfree(a);
   return r;
 }
-K* applyfc2_(K *f, K *a, K *b, char *av) {
+K* applyfc2_(K *f, K *a, K *b) {
   K *r=0,*p=0;
   fn *ff=f->v;
   int i;
@@ -1776,11 +1783,11 @@ K* applyfc2(K *f, K *a, K *b, char *av) {
   SG2(f); SG2(a); SG2(b);
   if(f->t==98||at==98) return kerror("value");
   r=avdofc(f,a,b,av2);
-  if(!r) r=applyfc2_(f,a,b,av);
+  if(!r) r=applyfc2_(f,a,b);
   kfree(f); kfree(a); kfree(b);
   return r;
 }
-K* applyfc1_(K *f, K *a, char *av) {
+K* applyfc1_(K *f, K *a) {
   K *r=0,*p=0;
   fn *ff=f->v;
   int i;
@@ -1807,11 +1814,11 @@ K* applyfc1(K *f, K *a, char *av) {
   SG2(f); SG2(a);
   if(f->t==98||at==98) return kerror("value");
   r=avdomfc(f,a,av2);
-  if(!r) r=applyfc1_(f,a,av);
+  if(!r) r=applyfc1_(f,a);
   kfree(f); kfree(a);
   return r;
 }
-K* applyprj(K *f, K *a, char *av) {
+K* applyprj(K *f, K *a) {
   K *r=0,*pf,*pa,*aa;
   fn *ff=f->v,*fp;
   int n=0,pe=0;
@@ -1856,12 +1863,12 @@ K* applyprj(K *f, K *a, char *av) {
   }
   while(i<aa->c) v0(aa)[i++]=inull;
   if(((fn*)pf->v)->v==aa->c&&pf->t==37) r=fne2(pf,aa,0);
-  else if(((fn*)pf->v)->v==aa->c&&pf->t==77) r=applyprj(pf,aa,0);
+  else if(((fn*)pf->v)->v==aa->c&&pf->t==77) r=applyprj(pf,aa);
   kfree(aa);
   return r;
 }
 extern int ecount;
-K* signal_(K* a, char *av) {
+K* signal_(K* a) {
   char e[32];
   if(cs->p) cs=cs->p;
   if(ecount) --ecount;
@@ -1871,11 +1878,11 @@ K* signal_(K* a, char *av) {
   return gk;
 }
 extern int A;
-K* abort1_(K* a, char *av) {
+K* abort1_(K* a) {
   A=1;
   return a;
 }
-K* dir1_(K* a, char *av) {
+K* dir1_(K* a) {
   char *s,*p,*ss,*pp,*sr;
   dict *d;
   K *q,*t=0;
@@ -1939,7 +1946,7 @@ K* dir1_(K* a, char *av) {
   return null;
 }
 
-K* val1_(K *a, char *av) {
+K* val1_(K *a) {
   K *r=0;
   switch(at) {
    case 27: r=k1(1); break;
@@ -1950,7 +1957,7 @@ K* val1_(K *a, char *av) {
   return r;
 }
 
-K* help1_(K *a, char *av) {
+K* help1_(K *a) {
   if(!a) {
     fprintf(stderr,""
 "\\0 data\n"
@@ -2171,7 +2178,7 @@ K* deserialize(char **s) {
   case  5: q=kv0(*(int*)*s); *s+=si; DO(q->c,v0(q)[i]=deserialize(s)); d=l2d(q); r=k5(d); kfree(q); break;
   case  6: r=null; break;
   case  7: case 27: case 37: r=knew(t,0,fnnew(*s),0,0,0); *s+=1+strlen(*s); break;
-  case 67: case 77: case 87: n=strlen(*s); q=kv3(n); memcpy(q->v,*s,q->c); *s+=1+n; r=value_(q,0); kfree(q); break;
+  case 67: case 77: case 87: n=strlen(*s); q=kv3(n); memcpy(q->v,*s,q->c); *s+=1+n; r=value_(q); kfree(q); break;
   case -4: r=kv4(*(int*)*s); *s+=si; DO(rc,v4(r)[i]=sp(*s);*s+=1+strlen(*s)); break;
   case -3: r=kv3(*(int*)*s); *s+=si; memcpy(r->v,*s,rc); *s+=rc; break;
   case -2: r=kv2(*(int*)*s); *s+=si; memcpy(r->v,*s,rc*sd); *s+=rc*sd; break;
@@ -2181,7 +2188,7 @@ K* deserialize(char **s) {
   }
   return r;
 }
-K* bd1_(K *a, char *av) {
+K* bd1_(K *a) {
   K *r=0;
   int n=4,m=4;
   char *b=xcalloc(m,1);
@@ -2194,7 +2201,7 @@ K* bd1_(K *a, char *av) {
   return r;
 }
 
-K* db1_(K *a, char *av) {
+K* db1_(K *a) {
   char h[4],*s;
   if(at!=-3) return kerror("type");
   memcpy(h,a->v,4);
@@ -2202,7 +2209,7 @@ K* db1_(K *a, char *av) {
   return deserialize(&s);
 }
 
-K* load1_(K *a, char *av) {
+K* load1_(K *a) {
   if(at!=4) return kerror("type");
   load(a4);
   return null;

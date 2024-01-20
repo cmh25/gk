@@ -12,8 +12,8 @@
 
 int DEPTH;
 
-K* (*dt2[256])(K *a, K *b, char *av);
-K* (*dt1[256])(K *a, char *av);
+K* (*dt2[256])(K *a, K *b);
+K* (*dt1[256])(K *a);
 K* (*dt2avo[256])(K *a, char *av);
 K* (*dt2avo2[256])(K *a, K *b, char *av);
 
@@ -514,6 +514,7 @@ K* fne2(K *f, K *a, char *av) {
   unsigned int i,j,fa=0,rv,e=0,n=0;
   int k;
   fn *ff=f->v,*fp;
+  (void)av;
 
   if(at==99){fa=1;SG(a);}
   if(a&&!at) DO(ac,SG2(v0(a)[i]);if(v0(a)[i]->t==98)return v0(a)[i])

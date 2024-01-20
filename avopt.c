@@ -90,12 +90,12 @@ K* maxor2_avopt(K *a, char *av) {
   return r;
 }
 
-K* less2_avopt(K *a, char *av) { return 0; }
-K* more2_avopt(K *a, char *av) { return 0; }
-K* equal2_avopt(K *a, char *av) { return 0; }
-K* power2_avopt(K *a, char *av) { return 0; }
-K* modrot2_avopt(K *a, char *av) { return 0; }
-K* match2_avopt(K *a, char *av) { return 0; }
+K* less2_avopt(K *a, char *av) { (void)a; (void)av; return 0; }
+K* more2_avopt(K *a, char *av) { (void)a; (void)av; return 0; }
+K* equal2_avopt(K *a, char *av) { (void)a; (void)av; return 0; }
+K* power2_avopt(K *a, char *av) { (void)a; (void)av; return 0; }
+K* modrot2_avopt(K *a, char *av) { (void)a; (void)av; return 0; }
+K* match2_avopt(K *a, char *av) { (void)a; (void)av; return 0; }
 K* join2_avopt(K *a, char *av) {
   K *r=0,*p=0;
   int n=0,t,s=1;
@@ -126,16 +126,16 @@ K* join2_avopt(K *a, char *av) {
   }
   return r;
 }
-K* take2_avopt(K *a, char *av) { return 0; }
-K* drop2_avopt(K *a, char *av) { return 0; }
-K* form2_avopt(K *a, char *av) { return 0; }
-K* find2_avopt(K *a, char *av) { return 0; }
-K* at2_avopt(K *a, char *av) { return 0; }
-K* dot2_avopt(K *a, char *av) { return 0; }
-K* assign2_avopt(K *a, char *av) { return 0; }
+K* take2_avopt(K *a, char *av) { (void)a; (void)av; return 0; }
+K* drop2_avopt(K *a, char *av) { (void)a; (void)av; return 0; }
+K* form2_avopt(K *a, char *av) { (void)a; (void)av; return 0; }
+K* find2_avopt(K *a, char *av) { (void)a; (void)av; return 0; }
+K* at2_avopt(K *a, char *av) { (void)a; (void)av; return 0; }
+K* dot2_avopt(K *a, char *av) { (void)a; (void)av; return 0; }
+K* assign2_avopt(K *a, char *av) { (void)a; (void)av; return 0; }
 
-K* fourcolon1_avopt(K *a, char *av) { return 0; }
-K* fivecolon1_avopt(K *a, char *av) { return 0; }
+K* fourcolon1_avopt(K *a, char *av) { (void)a; (void)av; return 0; }
+K* fivecolon1_avopt(K *a, char *av) { (void)a; (void)av; return 0; }
 
 /* plus minus times */
 #define AVOPT2PMT(F,O) \
@@ -233,17 +233,17 @@ K* divide2_avopt2(K *a, K *b, char *av) {
   if(bb) kfree(bb);
   return r;
 }
-K* minand2_avopt2(K *a, K *b, char *av) { return 0; }
-K* maxor2_avopt2(K *a, K *b, char *av) { return 0; }
-K* less2_avopt2(K *a, K *b, char *av) { return 0; }
-K* more2_avopt2(K *a, K *b, char *av) { return 0; }
-K* equal2_avopt2(K *a, K *b, char *av) { return 0; }
-K* power2_avopt2(K *a, K *b, char *av) { return 0; }
-K* modrot2_avopt2(K *a, K *b, char *av) { return 0; }
-K* match2_avopt2(K *a, K *b, char *av) { return 0; }
-K* join2_avopt2(K *a, K *b, char *av) { return 0; }
-K* take2_avopt2(K *a, K *b, char *av) { return 0; }
-K* drop2_avopt2(K *a, K *b, char *av) { return 0; }
+K* minand2_avopt2(K *a, K *b, char *av) { (void)a; (void)b; (void)av; return 0; }
+K* maxor2_avopt2(K *a, K *b, char *av) { (void)a; (void)b; (void)av; return 0; }
+K* less2_avopt2(K *a, K *b, char *av) { (void)a; (void)b; (void)av; return 0; }
+K* more2_avopt2(K *a, K *b, char *av) { (void)a; (void)b; (void)av; return 0; }
+K* equal2_avopt2(K *a, K *b, char *av) { (void)a; (void)b; (void)av; return 0; }
+K* power2_avopt2(K *a, K *b, char *av) { (void)a; (void)b; (void)av; return 0; }
+K* modrot2_avopt2(K *a, K *b, char *av) { (void)a; (void)b; (void)av; return 0; }
+K* match2_avopt2(K *a, K *b, char *av) { (void)a; (void)b; (void)av; return 0; }
+K* join2_avopt2(K *a, K *b, char *av) { (void)a; (void)b; (void)av; return 0; }
+K* take2_avopt2(K *a, K *b, char *av) { (void)a; (void)b; (void)av; return 0; }
+K* drop2_avopt2(K *a, K *b, char *av) { (void)a; (void)b; (void)av; return 0; }
 K* form2_avopt2(K *a, K *b, char *av) {
   K *r=0;
   char s[2];
@@ -400,26 +400,26 @@ K* find2_avopt2(K *a, K *b, char *av) {
   }
   return r;
 }
-K* at2_avopt2(K *a, K *b, char *av) { return 0; }
-K* dot2_avopt2(K *a, K *b, char *av) { return 0; }
-K* assign2_avopt2(K *a, K *b, char *av) { return 0; }
+K* at2_avopt2(K *a, K *b, char *av) { (void)a; (void)b; (void)av; return 0; }
+K* dot2_avopt2(K *a, K *b, char *av) { (void)a; (void)b; (void)av; return 0; }
+K* assign2_avopt2(K *a, K *b, char *av) { (void)a; (void)b; (void)av; return 0; }
 
-K* flip_avopt(K *a, char *av) { return 0; }
-K* negate_avopt(K *a, char *av) { return 0; }
-K* first_avopt(K *a, char *av) { return 0; }
-K* reciprocal_avopt(K *a, char *av) { return 0; }
-K* where_avopt(K *a, char *av) { return 0; }
-K* reverse_avopt(K *a, char *av) { return 0; }
-K* upgrade_avopt(K *a, char *av) { return 0; }
-K* downgrade_avopt(K *a, char *av) { return 0; }
-K* group_avopt(K *a, char *av) { return 0; }
-K* shape_avopt(K *a, char *av) { return 0; }
-K* enumerate_avopt(K *a, char *av) { return 0; }
-K* not_avopt(K *a, char *av) { return 0; }
-K* enlist_avopt(K *a, char *av) { return 0; }
-K* count_avopt(K *a, char *av) { return 0; }
-K* flr_avopt(K *a, char *av) { return 0; }
-K* format_avopt(K *a, char *av) { return 0; }
-K* unique_avopt(K *a, char *av) { return 0; }
-K* atom_avopt(K *a, char *av) { return 0; }
-K* value_avopt(K *a, char *av) { return 0; }
+K* flip_avopt(K *a, char *av) { (void)a; (void)av; return 0; }
+K* negate_avopt(K *a, char *av) { (void)a; (void)av; return 0; }
+K* first_avopt(K *a, char *av) { (void)a; (void)av; return 0; }
+K* reciprocal_avopt(K *a, char *av) { (void)a; (void)av; return 0; }
+K* where_avopt(K *a, char *av) { (void)a; (void)av; return 0; }
+K* reverse_avopt(K *a, char *av) { (void)a; (void)av; return 0; }
+K* upgrade_avopt(K *a, char *av) { (void)a; (void)av; return 0; }
+K* downgrade_avopt(K *a, char *av) { (void)a; (void)av; return 0; }
+K* group_avopt(K *a, char *av) { (void)a; (void)av; return 0; }
+K* shape_avopt(K *a, char *av) { (void)a; (void)av; return 0; }
+K* enumerate_avopt(K *a, char *av) { (void)a; (void)av; return 0; }
+K* not_avopt(K *a, char *av) { (void)a; (void)av; return 0; }
+K* enlist_avopt(K *a, char *av) { (void)a; (void)av; return 0; }
+K* count_avopt(K *a, char *av) { (void)a; (void)av; return 0; }
+K* flr_avopt(K *a, char *av) { (void)a; (void)av; return 0; }
+K* format_avopt(K *a, char *av) { if(!ac||!av) return 0; return 0; }
+K* unique_avopt(K *a, char *av) { (void)a; (void)av; return 0; }
+K* atom_avopt(K *a, char *av) { (void)a; (void)av; return 0; }
+K* value_avopt(K *a, char *av) { (void)a; (void)av; return 0; }

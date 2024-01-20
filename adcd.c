@@ -83,7 +83,7 @@ K* cond1(K *a) {
   node *n = parse(a->v);
   if(n->v==1) { /* format $[5] */
     b=node_reduce(n->a[0],0); EC(b);
-    r=format_(b,0);
+    r=format_(b);
     kfree(b);
     node_free(n);
     return r;
@@ -91,7 +91,7 @@ K* cond1(K *a) {
   if(n->v==2) { /* form2 $[0;"5"] */
     b=node_reduce(n->a[1],0); EC(b);
     c=node_reduce(n->a[0],0); EC(c);
-    r=form2_(b,c,0);
+    r=form2_(b,c);
     kfree(b); kfree(c);
     node_free(n);
     return r;
@@ -158,7 +158,7 @@ K* amendi3_pd(K *a, K *b, K *c) {
 
   if(bt==1) {
     j=b1;
-    if(ct==7) p=dt1[((fn*)c->v)->i](v0(r)[j],0);
+    if(ct==7) p=dt1[((fn*)c->v)->i](v0(r)[j]);
     else p=fne2(c,v0(r)[j],0);
     EC(p);
     kfree(v0(r)[j]);
@@ -166,9 +166,9 @@ K* amendi3_pd(K *a, K *b, K *c) {
   }
   else if(bt==4) {
     q=k4(b->v);
-    p=at2_(r,q,0); EC(p);
+    p=at2_(r,q); EC(p);
     kfree(q);
-    if(ct==7) q=dt1[((fn*)c->v)->i](p,0);
+    if(ct==7) q=dt1[((fn*)c->v)->i](p);
     else q=fne2(c,p,0);
     EC(q);
     dset(r->v,b->v,q);
@@ -185,7 +185,7 @@ K* amendi3_pd(K *a, K *b, K *c) {
       b0=v0(bm)[i];
       if(b0->t==1) {
         j=b0->i;
-        if(ct==7) p=dt1[((fn*)c->v)->i](v0(r)[j],0);
+        if(ct==7) p=dt1[((fn*)c->v)->i](v0(r)[j]);
         else p=fne2(c,v0(r)[j],0);
         EC(p);
         kfree(v0(r)[j]);
@@ -193,8 +193,8 @@ K* amendi3_pd(K *a, K *b, K *c) {
       }
       else if(b0->t==4) {
         q=k4(b0->v);
-        a0=at2_(r,q,0); EC(a0);
-        if(ct==7) p=dt1[((fn*)c->v)->i](a0,0);
+        a0=at2_(r,q); EC(a0);
+        if(ct==7) p=dt1[((fn*)c->v)->i](a0);
         else p=fne2(c,a0,0);
         EC(p);
         dset(r->v,b0->v,p);
@@ -271,7 +271,7 @@ K* amend3_pd(K *a, K *b, K *c) {
   else if(bc==1) { r=amendi3_(a,b,c); kfree(a); }
   else if(at>0&&!bc) {
     if(ct==37) r=fne2(c,a,0);
-    else r=dt1[((fn*)c->v)->i](a,0);
+    else r=dt1[((fn*)c->v)->i](a);
     EC(r);
     kfree(a);
   }
@@ -290,7 +290,7 @@ K* amend3_pd(K *a, K *b, K *c) {
           }
           else {
             if(ct==37) s=fne2(c,q,0);
-            else s=dt1[((fn*)c->v)->i](q,0);
+            else s=dt1[((fn*)c->v)->i](q);
             EC(s); kfree(q); v0(p)[i]=s;
           }
         }
@@ -299,7 +299,7 @@ K* amend3_pd(K *a, K *b, K *c) {
     else {
       ff = bm->c==2 ? amendi3_ : amend3_;
       p=v0(bm)[0];
-      q=drop2_(one,bm,0);
+      q=drop2_(one,bm);
       if(p->t>0) { pm=kv0(1); v0(pm)[0]=kref(p); }
       else if(p->t<0) pm=kmix(p);
       for(i=0;i<pm->c;i++) {
@@ -402,7 +402,7 @@ K* amendi4_pd(K *a, K *b, K *c, K *d) {
   if(bt==1) {
     j=b1;
     if(j>rc) return kerror("index");
-    if(ct==7) p=((fn*)c->v)->i==':' ? kref(d) : dt2[((fn*)c->v)->i](v0(r)[j],d,0);
+    if(ct==7) p=((fn*)c->v)->i==':' ? kref(d) : dt2[((fn*)c->v)->i](v0(r)[j],d);
     else p=runfne2(c,v0(r)[j],d,0);
     EC(p);
     kfree(v0(r)[j]);
@@ -410,9 +410,9 @@ K* amendi4_pd(K *a, K *b, K *c, K *d) {
   }
   else if(bt==4) {
     q=k4(b->v);
-    p=at2_(r,q,0); EC(p);
+    p=at2_(r,q); EC(p);
     kfree(q);
-    if(ct==7) q=((fn*)c->v)->i==':' ? kref(d) : dt2[((fn*)c->v)->i](p,d,0);
+    if(ct==7) q=((fn*)c->v)->i==':' ? kref(d) : dt2[((fn*)c->v)->i](p,d);
     else q=runfne2(c,p,d,0);
     EC(q);
     dset(r->v,b->v,q);
@@ -439,7 +439,7 @@ K* amendi4_pd(K *a, K *b, K *c, K *d) {
       if(b0->t==1) {
         j=b0->i;
         if(j>=rc) return kerror("index");
-        if(ct==7) p=((fn*)c->v)->i==':' ? kref(d0) : dt2[((fn*)c->v)->i](v0(r)[j],d0,0);
+        if(ct==7) p=((fn*)c->v)->i==':' ? kref(d0) : dt2[((fn*)c->v)->i](v0(r)[j],d0);
         else p=runfne2(c,v0(r)[j],d0,0);
         EC(p);
         kfree(v0(r)[j]);
@@ -447,8 +447,8 @@ K* amendi4_pd(K *a, K *b, K *c, K *d) {
       }
       else if(b0->t==4) {
         q=k4(b0->v);
-        a0=at2_(r,q,0); EC(a0);
-        if(ct==7) p=((fn*)c->v)->i==':' ? kref(d0) : dt2[((fn*)c->v)->i](a0,d0,0);
+        a0=at2_(r,q); EC(a0);
+        if(ct==7) p=((fn*)c->v)->i==':' ? kref(d0) : dt2[((fn*)c->v)->i](a0,d0);
         else p=runfne2(c,a0,d0,0);
         EC(p);
         dset(r->v,b0->v,p);
@@ -506,7 +506,7 @@ K* amend4_pd(K *a, K *b, K *c, K *d) {
   bm=bt<0?kmix(b):kref(b);
   dm=d;
 
-  v=shape_(b,0);
+  v=shape_(b);
 
   if(bm->t==1) {
     p=amendi4_pd(r,bm,c,dm); EC(p);
@@ -523,7 +523,7 @@ K* amend4_pd(K *a, K *b, K *c, K *d) {
       for(i=0;i<u->c;i++) {
         t=dm->t?dm:v0(dm)[i];
         s=dget(r->v,v4(u)[i]);
-        if(ct==7) p=((fn*)c->v)->i==':' ? kref(t) : dt2[((fn*)c->v)->i](s,t,0);
+        if(ct==7) p=((fn*)c->v)->i==':' ? kref(t) : dt2[((fn*)c->v)->i](s,t);
         else p=runfne2(c,s,t,0);
         EC(p);
         dset(r->v,v4(u)[i],p);
@@ -534,7 +534,7 @@ K* amend4_pd(K *a, K *b, K *c, K *d) {
     else {
       for(i=0;i<rc;i++) {
         t=dm->t?dm:v0(dm)[i];
-        if(ct==7) p=((fn*)c->v)->i==':' ? kref(t) : dt2[((fn*)c->v)->i](v0(r)[i],t,0);
+        if(ct==7) p=((fn*)c->v)->i==':' ? kref(t) : dt2[((fn*)c->v)->i](v0(r)[i],t);
         else p=runfne2(c,v0(r)[i],t,0);
         EC(p);
         kfree(v0(r)[i]);
@@ -544,7 +544,7 @@ K* amend4_pd(K *a, K *b, K *c, K *d) {
     kfree(dm);
   }
   else if(bm->c==0) {
-    if(ct==7) p=((fn*)c->v)->i==':' ? kref(dm) : dt2[((fn*)c->v)->i](r,dm,0);
+    if(ct==7) p=((fn*)c->v)->i==':' ? kref(dm) : dt2[((fn*)c->v)->i](r,dm);
     else p=runfne2(c,r,dm,0);
     EC(p);
     kfree(r);
@@ -554,7 +554,7 @@ K* amend4_pd(K *a, K *b, K *c, K *d) {
     dm=dt<0&&bc<=v->c?kmix(d):kref(d);
     ff=bc==2?amendi4_:amend4_;
     p=v0(bm)[0];
-    q=bc==2?kref(v0(bm)[1]):drop2_(one,bm,0);
+    q=bc==2?kref(v0(bm)[1]):drop2_(one,bm);
     if(p->t==1) {
       if(bc==2) t=dm->t?dm:v0(dm)[0];
       else t=dm->t?dm:bc<=v->c?v0(dm)[0]:dm;
