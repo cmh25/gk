@@ -433,7 +433,7 @@ static void push(pgs *s, int t, node *v) {
 static int ii;
 static double ff;
 static char *p;
-static int gn_() {
+static int gn_(void) {
   char c,*q=p;
   int s=0;
   while(1) {
@@ -561,7 +561,7 @@ static int gn(pgs *pgs) {
 }
 
 static char *ss;
-static int gsym_() {
+static int gsym_(void) {
   char *q,c,s=0;
   if(*p!='`') return 0;
   q=++p;
@@ -955,7 +955,7 @@ static int lex(pgs *pgs) {
   return 1;
 }
 
-pgs* pgnew() {
+pgs* pgnew(void) {
   pgs *s=xmalloc(sizeof(pgs));
   s->Sm=s->Rm=s->Vm=1024;
   s->tm=s->vm=1024;
@@ -980,12 +980,12 @@ void pgfree(pgs *s) {
 }
 
 node* pgparse(pgs *s) {
-  int i,j,r;
+  int i,r;
   s->ti=s->tc=0;
   s->si=s->ri=s->vi=s->lt=-1;
   if(!lex(s)) { DO(s->tc,node_free(s->v[i])); return 0; }
   s->S[++s->si]=T000; /* $a */
-  for(i=0;;i++) {
+  while(1) {
     if(s->si>=s->Sm-RCSIZE+2) { s->Sm<<=1; s->S=xrealloc(s->S,s->Sm*sizeof(int)); }
     if(s->ri>=s->Rm-1) { s->Rm<<=1; s->R=xrealloc(s->R,s->Rm*sizeof(int)); }
     if(s->vi>=s->Vm-1) { s->Vm<<=1; s->V=xrealloc(s->V,s->Vm*sizeof(node*)); }
@@ -998,7 +998,7 @@ node* pgparse(pgs *s) {
       if(r==-1) { printf("parse\n"); return 0; }
       s->R[++s->ri]=r;
       s->S[++s->si]=-2; /* reduction marker */
-      for(j=RC[r]-1;j>=0;j--) s->S[++s->si]=RT[r][j];
+      for(i=RC[r]-1;i>=0;i--) s->S[++s->si]=RT[r][i];
     }
     while(s->si>=0&&s->S[s->si]==-2) { (*F[s->R[s->ri--]])(s); --s->si; }
     if(s->si<0) break;

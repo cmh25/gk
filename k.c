@@ -20,7 +20,7 @@ K *D,*one,*zero,*null,*inull;
 static K **KS;
 static int ksi=-1,km=1024;
 
-void kinit() {
+void kinit(void) {
   K *p;
   Z = dnew();
   KS=xmalloc(sizeof(K*)*km);

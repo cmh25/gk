@@ -6,8 +6,8 @@
 
 K* sleep1_(K *a);
 K* exit1_(K *a);
-K* t0();
-K* tt0();
+K* t0(void);
+K* tt0(void);
 
 K* vs2_(K *a, K *b);      K* vs2_avopt2(K *a, K *b, char *av);
 K* sv2_(K *a, K *b);      K* sv2_avopt2(K *a, K *b, char *av);

@@ -10,7 +10,7 @@ typedef struct dict {
   int r;
 } dict;
 
-dict* dnew();
+dict* dnew(void);
 void dfree(dict *d);
 dict* l2d(K *l);
 K* d2l(dict *d);

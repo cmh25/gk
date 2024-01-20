@@ -123,11 +123,11 @@ K* exit1_(K *a) {
   exit(a->i);
 }
 
-K* t0() { /* ts */
+K* t0(void) { /* ts */
   return k1(time(0)-2051222400l); /* 2035-1970 */
 }
 
-K* tt0() { /* TS */
+K* tt0(void) { /* TS */
   struct timeval tv;
   gettimeofday(&tv,0);
   double d = tv.tv_sec - 2051222400l; /* 2035-1970 */

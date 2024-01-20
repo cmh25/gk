@@ -6,7 +6,7 @@
 #include "sym.h"
 #include "fn.h"
 
-dict* dnew() {
+dict* dnew(void) {
   dict *d = xmalloc(sizeof(dict));
   d->c = 0;
   d->k = 0;

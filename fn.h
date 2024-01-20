@@ -29,7 +29,7 @@ extern K* (*dt2avo2[256])(K *a, K *b, char *av);
 fn* fnnew(char *f);
 void fnfree(fn *fn);
 fn* fncp(fn *fn);
-void fninit();
+void fninit(void);
 K* fnd(K *f);
 K* fne2(K *f, K *a, char *av);
 

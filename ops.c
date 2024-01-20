@@ -490,35 +490,35 @@ K* drop2_(K *a, K *b) {
     case  1: case 2: case 3: case 4: case 5: case 6:
     case  7: case 27: case 37: case 67: case 77: case 87: r=kcp(b); break;
     case  0:
-      if(abs(a1)>=bc) r=kv0(0);
+      if((unsigned int)abs(a1)>=bc) r=kv0(0);
       else if(!a1) r=kcp(b);
       else if(a1>0) { r=kv0(bc-a1); DO(bc-a1,v0(r)[i]=kcp(v0(b)[i+a1])) }
       else if(a1<0) { r=kv0(bc+a1); DO(bc+a1,v0(r)[i]=kcp(v0(b)[i])) }
       else return kerror("type");
       break;
     case -1:
-      if(abs(a1)>=bc) r=kv1(0);
+      if((unsigned int)abs(a1)>=bc) r=kv1(0);
       else if(!a1) r=kcp(b);
       else if(a1>0) { r=kv1(bc-a1); DO(bc-a1,v1(r)[i]=v1(b)[i+a1]) }
       else if(a1<0) { r=kv1(bc+a1); DO(bc+a1,v1(r)[i]=v1(b)[i]) }
       else return kerror("type");
       break;
     case -2:
-      if(abs(a1)>=bc) r=kv2(0);
+      if((unsigned int)abs(a1)>=bc) r=kv2(0);
       else if(!a1) r=kcp(b);
       else if(a1>0) { r=kv2(bc-a1); DO(bc-a1,v2(r)[i]=v2(b)[i+a1]) }
       else if(a1<0) { r=kv2(bc+a1); DO(bc+a1,v2(r)[i]=v2(b)[i]) }
       else return kerror("type");
       break;
     case -3:
-      if(abs(a1)>=bc) r=kv3(0);
+      if((unsigned int)abs(a1)>=bc) r=kv3(0);
       else if(!a1) r=kcp(b);
       else if(a1>0) { r=kv3(bc-a1); DO(bc-a1,v3(r)[i]=v3(b)[i+a1]) }
       else if(a1<0) { r=kv3(bc+a1); DO(bc+a1,v3(r)[i]=v3(b)[i]) }
       else return kerror("type");
       break;
     case -4:
-      if(abs(a1)>=bc) r=kv4(0);
+      if((unsigned int)abs(a1)>=bc) r=kv4(0);
       else if(!a1) r=kcp(b);
       else if(a1>0) { r=kv4(bc-a1); DO(bc-a1,v4(r)[i]=v4(b)[i+a1]) }
       else if(a1<0) { r=kv4(bc+a1); DO(bc+a1,v4(r)[i]=v4(b)[i]) }

@@ -61,7 +61,7 @@ fn* fncp(fn *f) {
   return g;
 }
 
-void fninit() {
+void fninit(void) {
   C=dnew();
 
   dt1['+']=flip_;

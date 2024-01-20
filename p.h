@@ -51,7 +51,7 @@ typedef struct {
   int tm,vm;     /* max for t v */
 } pgs;
 
-pgs* pgnew();
+pgs* pgnew(void);
 void pgfree(pgs *s);
 node* pgparse(pgs *s);
 
