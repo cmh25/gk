@@ -287,7 +287,7 @@ char* kprint_(K *p, char *s, unsigned int plevel, int nl) {
     }
     break;
   case 6: case 16: if(strlen(s)) oc+=sprintf(o+oc,"%s",s); else nl=0; break;
-  case 7: case 37: oc+=sprintf(o+oc,"%s%s",s,((fn*)p->v)->f);
+  case 7: case 37: oc+=sprintf(o+oc,"%s%s",s,((fn*)p->v)->d);
           if(((fn*)p->v)->av) oc+=sprintf(o+oc,"%s",((fn*)p->v)->av);
           break;
   case 27:
@@ -298,13 +298,13 @@ char* kprint_(K *p, char *s, unsigned int plevel, int nl) {
     break;
   case 67:
     f=p->v;
-    xfree(kprint_(f->a[0],s,plevel,0));
-    DO(f->an-1,xfree(kprint_(f->a[i+1],"",plevel,0)))
+    xfree(kprint_(f->c[0],s,plevel,0));
+    DO(f->cn-1,xfree(kprint_(f->c[i+1],"",plevel,0)))
     break;
   case 77: case 87:
     f=p->v;
     xfree(kprint_(f->l,s,plevel,0));
-    xfree(kprint_(f->r,s,plevel,0));
+    xfree(kprint_(f->a,s,plevel,0));
     if(f->av) oc+=sprintf(o+oc,"%s",f->av);
     break;
   case 97:
@@ -392,7 +392,7 @@ char* kprint_(K *p, char *s, unsigned int plevel, int nl) {
         case  3: xfree(kprint_(p2,"",0,0)); break;
         case  4: oc+=sprintf(o+oc,"`%s", v3(p2)); break;
         case  5: oc+=sprintf(o+oc,".()"); break;
-        case  7: case 37: oc+=sprintf(o+oc,"%s",((fn*)p2->v)->f);
+        case  7: case 37: oc+=sprintf(o+oc,"%s",((fn*)p2->v)->d);
                  if(((fn*)p2->v)->av) oc+=sprintf(o+oc,"%s",((fn*)p2->v)->av);
                  break;
         case 27:
@@ -403,12 +403,12 @@ char* kprint_(K *p, char *s, unsigned int plevel, int nl) {
           break;
         case 67:
           f=p2->v;
-          DO(f->an,xfree(kprint_(f->a[i],"",0,0)))
+          DO(f->cn,xfree(kprint_(f->c[i],"",0,0)))
           break;
         case 77: case 87:
           f=p2->v;
           xfree(kprint_(f->l,"",0,0));
-          xfree(kprint_(f->r,"",0,0));
+          xfree(kprint_(f->a,"",0,0));
           if(f->av) oc+=sprintf(o+oc,"%s",f->av);
           break;
         case 97:

@@ -1732,7 +1732,7 @@ K* apply2(K *f, K *a, K *b, char *av) {
     fp=p->v;
     fp->l=kref(f);
     aa=kv0(2); v0(aa)[0]=kcp(a); v0(aa)[1]=kcp(b); aa->t=11;
-    fp->r=aa;
+    fp->a=aa;
     fp->v=1;
     return p;
   }
@@ -1768,9 +1768,9 @@ K* applyfc2_(K *f, K *a, K *b) {
   K *r=0,*p=0;
   fn *ff=f->v;
   int i;
-  i=ff->an-1;
-  r=apply2(ff->a[i],a,b,0);
-  for(i--;i>=0;i--) { p=apply1(ff->a[i],r,0); kfree(r); r=p; }
+  i=ff->cn-1;
+  r=apply2(ff->c[i],a,b,0);
+  for(i--;i>=0;i--) { p=apply1(ff->c[i],r,0); kfree(r); r=p; }
   return r;
 }
 K* applyfc2(K *f, K *a, K *b, char *av) {
@@ -1791,13 +1791,13 @@ K* applyfc1_(K *f, K *a) {
   K *r=0,*p=0;
   fn *ff=f->v;
   int i;
-  i=ff->an-1;
-  if(ff->a[i]->t==27) r=apply2(ff->a[i],((fn*)ff->a[i]->v)->l,a,0);
-  else r=apply1(ff->a[i],a,0);
+  i=ff->cn-1;
+  if(ff->c[i]->t==27) r=apply2(ff->c[i],((fn*)ff->c[i]->v)->l,a,0);
+  else r=apply1(ff->c[i],a,0);
   EC(r);
   for(i--;i>=0;i--) {
-    if(ff->a[i]->t==27) p=apply2(ff->a[i],((fn*)ff->a[i]->v)->l,r,0);
-    else p=apply1(ff->a[i],r,0);
+    if(ff->c[i]->t==27) p=apply2(ff->c[i],((fn*)ff->c[i]->v)->l,r,0);
+    else p=apply1(ff->c[i],r,0);
     EC(p);
     kfree(r);
     r=p;
@@ -1824,7 +1824,7 @@ K* applyprj(K *f, K *a) {
   int n=0,pe=0;
   unsigned int i,j=0,ae=0,an=0;
   pf=ff->l;
-  pa=ff->r;
+  pa=ff->a;
   if(at==11) DO(ac,if(v0(a)[i]->t==16)ae++)
   else if(at==6)ae++;
   an=at==11?ac:1;
@@ -1834,7 +1834,7 @@ K* applyprj(K *f, K *a) {
     fp->l=kref(f);
     if(at==11) aa=kcp(a);
     else { aa=kv0(1); v0(aa)[0]=kcp(a); aa->t=11; }
-    fp->r=aa;
+    fp->a=aa;
     fp->v=ff->v-an-ae;
     fp->s_=scope_cp(ff->s_);
     return r;

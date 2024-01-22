@@ -6,7 +6,7 @@
 #include "scope.h"
 
 typedef struct fn {
-  char *f;        /* definition */
+  char *d;        /* definition */
   unsigned int v; /* valence */
   node *n;        /* ast */
   scope *s_;      /* initial scope */
@@ -14,9 +14,9 @@ typedef struct fn {
   char *av;       /* adverbs */
   int q;          /* explicit formal params */
   K *l;           /* left arg, fixed dyad, projection */
-  K *r;           /* right arg, intermediate parse */
-  K **a;          /* 7 list, function composition */
-  int an;         /* count, function composition */
+  K *a;           /* right arg, intermediate parse */
+  K **c;          /* 7 list, function composition */
+  int cn;         /* count, function composition */
   int i;          /* index into dt */
 } fn;
 

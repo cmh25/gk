@@ -115,7 +115,7 @@ static K* reduce17(K* c17, node *n) {
   fn *f=c17->v,*g;
   ERR *e;
   a=c17;
-  c=f->r;
+  c=f->a;
   if(a7->i>1) { /* a 17 can have a 7 or 37, i will be 0 for 37's, but not primitives or builtins */
     if(ct==16) { r=kref(a); r->t=7; }
     else if(ct==11&&cc==4) r=apply4(a,v0(c)[0],v0(c)[1],v0(c)[2],v0(c)[3]); /* @[!10;1 2 3;+;4 5 6] */
@@ -124,24 +124,24 @@ static K* reduce17(K* c17, node *n) {
     else if(ct==11&&cc==1) r=apply1(a,v0(c)[0],0); /* f[1] */
     else if(ct==7 || ct==27) {
       f=fnnew("");
-      f->a=xmalloc(sizeof(K*)*2);
-      f->a[0]=kcp(a); f->a[0]->t=7;
-      f->a[1]=kref(c);
-      f->an=2;
+      f->c=xmalloc(sizeof(K*)*2);
+      f->c[0]=kcp(a); f->c[0]->t=7;
+      f->c[1]=kref(c);
+      f->cn=2;
       r=knew(67,0,f,0,0,0);
     }
     else if(ct==67) {
       f=fnnew("");
       g=c->v;
-      f->a=xmalloc(sizeof(K*)*(1+g->an));
-      f->a[0]=kcp(a); f->a[0]->t=7;
-      DO(g->an,f->a[i+1]=kref(g->a[i]))
-      f->an=1+g->an;
+      f->c=xmalloc(sizeof(K*)*(1+g->cn));
+      f->c[0]=kcp(a); f->c[0]->t=7;
+      DO(g->cn,f->c[i+1]=kref(g->c[i]))
+      f->cn=1+g->cn;
       r=knew(67,0,f,0,0,0);
     }
     else r=apply1(a,c,0);
   }
-  else if(a7->an) { /* 67 */
+  else if(a7->cn) { /* 67 */
     r=applyfc1(a,c,0);
   }
   else {
@@ -176,7 +176,7 @@ static K* reduce17(K* c17, node *n) {
     r=interp(0);
     if(rt==7&&((fn*)r->v)->i==':') {
       kfree(r);
-      if(ct==17) r=kref(((fn*)c->v)->r);
+      if(ct==17) r=kref(((fn*)c->v)->a);
       else r=kref(c);
     }
     //else if(ct==17&&((fn*)c->v)->i==':') {
@@ -201,8 +201,8 @@ static K* make17(K *a, K *b, K *c, node *n) {
   if(bt==47) strcat(av,b->v);
   if(strlen(av)) { if(f->av) xfree(f->av); f->av=xstrdup(av); }
   if(ct==17) c=reduce17(c,n);
-  if(f->r) kfree(f->r);
-  f->r=kref(c);
+  if(f->a) kfree(f->a);
+  f->a=kref(c);
   r->t=17;
   return r;
 }
@@ -217,22 +217,22 @@ static void appendav(fn *f, char *av) {
 static K* make67(K *a, K *c, char *av) {
   fn *f;
   f=fnnew("");
-  f->a=xmalloc(sizeof(K*)*2);
-  f->a[0]=kcp(a);
-  appendav(f->a[0]->v,av);
-  f->a[1]=kref(c);
-  f->an=2;
+  f->c=xmalloc(sizeof(K*)*2);
+  f->c[0]=kcp(a);
+  appendav(f->c[0]->v,av);
+  f->c[1]=kref(c);
+  f->cn=2;
   return knew(67,0,f,0,0,0);
 }
 static K* append67(K *a, K *c, char *av) {
   fn *f,*g;
   f=fnnew("");
   g=c->v;
-  f->a=xmalloc(sizeof(K*)*(1+g->an));
-  f->a[0]=kcp(a);
-  appendav(f->a[0]->v,av);
-  DO(g->an,f->a[i+1]=kref(g->a[i]))
-  f->an=1+g->an;
+  f->c=xmalloc(sizeof(K*)*(1+g->cn));
+  f->c[0]=kcp(a);
+  appendav(f->c[0]->v,av);
+  DO(g->cn,f->c[i+1]=kref(g->c[i]))
+  f->cn=1+g->cn;
   return knew(67,0,f,0,0,0);
 }
 static K* reduce18(K *a) {
@@ -355,7 +355,7 @@ static K* node_reduce_(node *n, int md, int z) {
         r=knew(7,0,fnnew(""),'p',0,0); r->t=87;
         f=r->v;
         f->l=kref(a);
-        f->r=kref(c);
+        f->a=kref(c);
         f->v=ac-cc;
       }
       else if(cc==4) r=apply4(a,v0(c)[0],v0(c)[1],v0(c)[2],v0(c)[3]); /* @[!10;1 2 3;+;4 5 6] */
@@ -379,8 +379,8 @@ static K* node_reduce_(node *n, int md, int z) {
     }
     else { /* 7 monadic enabled */
       if(ct==16) { xfree(a7->av); a7->av=xstrdup(av); r=kref(a); }
-      else if(ct==17&&((fn*)c->v)->i==':') r=apply2(c,ao,((fn*)c->v)->r,0);
-      else if(ct==17&&ao->t==99&&ac!=1) r=apply2(c,ao,((fn*)c->v)->r,0);
+      else if(ct==17&&((fn*)c->v)->i==':') r=apply2(c,ao,((fn*)c->v)->a,0);
+      else if(ct==17&&ao->t==99&&ac!=1) r=apply2(c,ao,((fn*)c->v)->a,0);
       else if(ct==17) {
         c=reduce17(c,n);
         if(ct==7 || ct==27) r=make67(a,c,av);
@@ -408,11 +408,11 @@ static K* node_reduce_(node *n, int md, int z) {
       if(ct==17) {
         if(((fn*)c->v)->i>1&&a7->i!=1&&!strlen(av)) { /* a->i==1 indicates a resolved builtin like in, lin, ssr */
           f=c->v;
-          r=apply2(c,a,f->r,0);
+          r=apply2(c,a,f->a,0);
         }
         else {
           f=c->v;
-          if(strlen(f->f)>1&&strlen(f->av)) { /* {x<3}{x+1}\  store do/while */
+          if(strlen(f->d)>1&&strlen(f->av)) { /* {x<3}{x+1}\  store do/while */
             r=kv0(2);
             v0(r)[0]=kref(a);
             v0(r)[1]=kref(c);
@@ -445,29 +445,29 @@ static K* node_reduce_(node *n, int md, int z) {
       else if(ct==17) {
         f=c->v;
         if(f->i==':') {
-          if(strchr(ao->v,'.'))  r=assign3_(ao,0,f->r);
-          else r=apply2(c,ao,f->r,0);
+          if(strchr(ao->v,'.'))  r=assign3_(ao,0,f->a);
+          else r=apply2(c,ao,f->a,0);
         }
-        else if(strlen(f->f)==1&&bt!=47) r=apply2(c,a,f->r,0); /* {},{} */
-        else if(f->an) { c->t=67; r=applyfc2(c,a,f->r,0); c->t=17; }
+        else if(strlen(f->d)==1&&bt!=47) r=apply2(c,a,f->a,0); /* {},{} */
+        else if(f->cn) { c->t=67; r=applyfc2(c,a,f->a,0); c->t=17; }
         else if(f->v==2) {
-          p=kv0(2); v0(p)[0]=a; v0(p)[1]=f->r; p->t=11;
+          p=kv0(2); v0(p)[0]=a; v0(p)[1]=f->a; p->t=11;
           r=avdo37(c,p,av);
           if(!r) r=fne2(c,p,0);
           p->c=0; kfree(p);
         }
-        else if(strlen(f->f)>1&&strlen(f->av)&&f->r->t!=16) { /* do/while */
-          p=kv0(2); v0(p)[0]=a; v0(p)[1]=f->r;
+        else if(strlen(f->d)>1&&strlen(f->av)&&f->a->t!=16) { /* do/while */
+          p=kv0(2); v0(p)[0]=a; v0(p)[1]=f->a;
           r=avdo37infix(c,p,f->av);
           p->c=0;
           kfree(p);
         }
         else if(((fn*)c->v)->i>1&&a7->i!=1&&!strlen(av)) { /* a->i==1 indicates a resolved builtin like in, lin, ssr */
-          r=apply2(c,a,f->r,0);
+          r=apply2(c,a,f->a,0);
         }
         else {
           f=c->v;
-          if(strlen(f->f)>1&&strlen(f->av)) { /* {x<3}{x+1}\  store do/while */
+          if(strlen(f->d)>1&&strlen(f->av)) { /* {x<3}{x+1}\  store do/while */
             r=kv0(2);
             v0(r)[0]=kref(a);
             v0(r)[1]=kref(c);
@@ -523,11 +523,11 @@ static K* node_reduce_(node *n, int md, int z) {
           f=q->v;
           if(f&&f->i) { /* f[1]in 1 2 3 */
             t=kv0(2); t->t=11;
-            v0(t)[0]=s; v0(t)[1]=f->r;
+            v0(t)[0]=s; v0(t)[1]=f->a;
             r=fne2(q,t,0);
             t->c=0; kfree(t);
           }
-          else r=apply2(q,s,f->r,0);
+          else r=apply2(q,s,f->a,0);
           kfree(s);
         }
         else { /* f[1]2 */
@@ -565,14 +565,14 @@ static K* node_reduce_(node *n, int md, int z) {
   else if(at==57) { /* +: */
     if(md) {
       if(ct==17) c=reduce17(c,n);
-      if(a7->r) kfree(a7->r);
-      a7->r=kref(c);
+      if(a7->a) kfree(a7->a);
+      a7->a=kref(c);
       r=kref(a);
     }
   }
   else if(at==67&&ct!=16) {
     if(md) r=make17(a,b,c,n);
-    else if(ct==17&&((fn*)c->v)->i==':') r=apply2(c,ao,((fn*)c->v)->r,0);
+    else if(ct==17&&((fn*)c->v)->i==':') r=apply2(c,ao,((fn*)c->v)->a,0);
     else if(ct==11&&cc==2&&(!b->v||!strlen(b->v))) r=applyfc2(a,v0(c)[0],v0(c)[1],0);
     else r=applyfc1(a,c,b->v);
   }
@@ -584,24 +584,24 @@ static K* node_reduce_(node *n, int md, int z) {
     else if(ct==17) {
       f=c->v;
       if(f->i==':') {
-        if(strchr(ao->v,'.'))  r=assign3_(ao,0,f->r);
-        else r=apply2(c,ao,f->r,0);
+        if(strchr(ao->v,'.'))  r=assign3_(ao,0,f->a);
+        else r=apply2(c,ao,f->a,0);
       }
-      else if(strlen(f->f)==1&&bt!=47) r=apply2(c,a,f->r,0); /* {},{} */
-      else if(f->an) { c->t=67; r=applyfc2(c,a,f->r,0); c->t=17; }
+      else if(strlen(f->d)==1&&bt!=47) r=apply2(c,a,f->a,0); /* {},{} */
+      else if(f->cn) { c->t=67; r=applyfc2(c,a,f->a,0); c->t=17; }
       else if(f->v==2) {
-        p=kv0(2); v0(p)[0]=a; v0(p)[1]=f->r; p->t=11;
+        p=kv0(2); v0(p)[0]=a; v0(p)[1]=f->a; p->t=11;
         r=avdo37(c,p,av);
         if(!r) r=fne2(c,p,0);
         p->c=0; kfree(p);
       }
-      else if(strlen(f->f)>1&&strlen(f->av)) { /* do/while */
-        p=kv0(2); v0(p)[0]=a; v0(p)[1]=f->r;
+      else if(strlen(f->d)>1&&strlen(f->av)) { /* do/while */
+        p=kv0(2); v0(p)[0]=a; v0(p)[1]=f->a;
         r=avdo37infix(c,p,f->av);
         p->c=0; kfree(p);
       }
       else if(((fn*)c->v)->i>1&&a7->i!=1&&!strlen(av)) { /* a->i==1 indicates a resolved builtin like in, lin, ssr */
-        r=apply2(c,a,f->r,0);
+        r=apply2(c,a,f->a,0);
       }
       else {
         c=reduce17(c,n);
@@ -615,36 +615,36 @@ static K* node_reduce_(node *n, int md, int z) {
     else if(ct==17) {
       f=c->v;
       if(f->i==':') {
-        if(strchr(ao->v,'.'))  r=assign3_(ao,0,f->r);
-        else r=apply2(c,ao,f->r,av);
+        if(strchr(ao->v,'.'))  r=assign3_(ao,0,f->a);
+        else r=apply2(c,ao,f->a,av);
       }
       else if(f->i=='@') {
-        r=apply2(((fn*)a->v)->l,v0(((fn*)a->v)->r)[0],((fn*)c->v)->r,av);
+        r=apply2(((fn*)a->v)->l,v0(((fn*)a->v)->a)[0],((fn*)c->v)->a,av);
       }
       else if(f->i=='.') {
-        r=apply2(((fn*)a->v)->l,v0(((fn*)a->v)->r)[0],((fn*)c->v)->r,av);
+        r=apply2(((fn*)a->v)->l,v0(((fn*)a->v)->a)[0],((fn*)c->v)->a,av);
       }
     }
     else if(ct==11) {
       f=a->v;
-      p=f->r;
-      if(f->r->c==2) {
+      p=f->a;
+      if(f->a->c==2) {
         if(c->c!=1) r=kerror("valence");
         else if(v0(p)[0]->t==16) r=apply2(f->l,v0(c)[0],v0(p)[1],av);
         else r=apply2(f->l,v0(p)[0],v0(c)[0],av);
       }
-      else if(f->r->c==1) {
+      else if(f->a->c==1) {
         r=apply2(f->l,v0(p)[0],v0(c)[0],av);
       }
     }
     else {
       f=a->v;
-      p=f->r;
-      if(f->r->c==2) {
+      p=f->a;
+      if(f->a->c==2) {
         if(v0(p)[0]->t==16) r=apply2(f->l,c,v0(p)[1],av);
         else r=apply2(f->l,v0(p)[0],c,av);
       }
-      else if(f->r->c==1) {
+      else if(f->a->c==1) {
         r=apply2(f->l,v0(p)[0],c,av);
       }
     }
@@ -654,13 +654,13 @@ static K* node_reduce_(node *n, int md, int z) {
     else if(ct==17) {
       f=c->v;
       if(f->i==':') {
-        if(strchr(ao->v,'.'))  r=assign3_(ao,0,f->r);
-        else r=apply2(c,ao,f->r,av);
+        if(strchr(ao->v,'.'))  r=assign3_(ao,0,f->a);
+        else r=apply2(c,ao,f->a,av);
       }
       else {
         p=kv0(2); v0(p)[0]=v0(a)[0];
-        if(((fn*)c->v)->i=='@') v0(p)[1]=((fn*)c->v)->r;
-        else if(((fn*)c->v)->i=='.') v0(p)[1]=((fn*)c->v)->r;
+        if(((fn*)c->v)->i=='@') v0(p)[1]=((fn*)c->v)->a;
+        else if(((fn*)c->v)->i=='.') v0(p)[1]=((fn*)c->v)->a;
         else { c=reduce17(c,n); v0(p)[1]=c; }
         r=avdo37infix(v0(a)[1],p,((fn*)v0(a)[1]->v)->av);
         p->c=0;
@@ -692,53 +692,53 @@ static K* node_reduce_(node *n, int md, int z) {
     else if(ct==17) {
       f=c->v;
       if(f->i==':') {
-        if(ao->t==99&&strchr(ao->v,'.')) r=assign3_(ao,0,f->r);
-        else r=apply2(c,ao,f->r,av);
+        if(ao->t==99&&strchr(ao->v,'.')) r=assign3_(ao,0,f->a);
+        else r=apply2(c,ao,f->a,av);
       }
-      else if(at==1&&f->r->t==16&&strlen(f->f)>1&&!f->i&&strlen(f->av)&&(!strcmp(f->av,"\\")||!strcmp(f->av,"/"))) { /* 5{x+1}\  store do/while */
+      else if(at==1&&f->a->t==16&&strlen(f->d)>1&&!f->i&&strlen(f->av)&&(!strcmp(f->av,"\\")||!strcmp(f->av,"/"))) { /* 5{x+1}\  store do/while */
         r=kv0(2);
         v0(r)[0]=kref(a);
         v0(r)[1]=kref(c);
         r->t=97;
       }
-      else if(f->r->t==16) {
+      else if(f->a->t==16) {
         if(strlen(av)) {
           if(f->av) xfree(f->av);
           if(strlen(av)) f->av=xstrdup(av);
         }
         r=kcp(c); ((fn*)r->v)->l=kref(a); r->t=27;
       }
-      else if(f->r->t==7) {
+      else if(f->a->t==7) {
         c=reduce17(c,n);
         r=kref(c);
         f=r->v;
-        ((fn*)f->a[0]->v)->l=kref(a);
-        f->a[0]->t=27;
+        ((fn*)f->c[0]->v)->l=kref(a);
+        f->c[0]->t=27;
       }
-      else if(f->r->t==27) {
+      else if(f->a->t==27) {
         c=reduce17(c,n);
         r=kref(c);
         f=r->v;
-        ((fn*)f->a[0]->v)->l=kref(a);
-        f->a[0]->t=27;
+        ((fn*)f->c[0]->v)->l=kref(a);
+        f->c[0]->t=27;
       }
-      else if(f->r->t==67) {
+      else if(f->a->t==67) {
         c=reduce17(c,n);
         f=c->v;
-        ((fn*)f->a[0]->v)->l=kref(a);
-        f->a[0]->t=27;
+        ((fn*)f->c[0]->v)->l=kref(a);
+        f->c[0]->t=27;
         r=kref(c);
       }
-      else if(f->an) {
+      else if(f->cn) {
         ct=67;
-        r=applyfc2(c,a,f->r,b->v);
+        r=applyfc2(c,a,f->a,b->v);
         ct=17;
       }
       else if(((fn*)c->v)->i>1) { /* >1 indicates primitive verb */
-        r=apply2(c,a,f->r,b->v);
+        r=apply2(c,a,f->a,b->v);
       }
       else {
-        p=kv0(2); v0(p)[0]=a; v0(p)[1]=f->r; p->t=11;
+        p=kv0(2); v0(p)[0]=a; v0(p)[1]=f->a; p->t=11;
         if(!f->n) c=fnd(c);
         if(b->v) strcat(av,b->v);
         if(f->av) strcat(av,f->av);
@@ -750,7 +750,7 @@ static K* node_reduce_(node *n, int md, int z) {
     else if(ct==18) {
       p=knew(7,0,fnnew("@"),'@',0,0);  /* c[1]in"asdf" */
       q=apply2(p,a,v0(v0(c)[0])[0],0);
-      s=kv0(2); s->t=11; v0(s)[0]=q; v0(s)[1]=((fn*)v0(c)[1]->v)->r;
+      s=kv0(2); s->t=11; v0(s)[0]=q; v0(s)[1]=((fn*)v0(c)[1]->v)->a;
       r=avdo37infix(v0(c)[1],s,((fn*)v0(c)[1]->v)->av);
       if(!r) r=fne2(v0(c)[1],s,0);
       s->c=0; kfree(s); kfree(p); kfree(q);
@@ -766,11 +766,11 @@ static K* node_reduce_(node *n, int md, int z) {
     }
     else if(ct==57) {
       fn *f=c->v;
-      if(f->i==':') r=assign2g_(ao,f->r); /* global assign */
+      if(f->i==':') r=assign2g_(ao,f->a); /* global assign */
       else if(ao->v) { /* a+:1 */
         ct=7;
-        if(((fn*)c->v)->r->t==16) p=apply1(c,a,0);
-        else p=apply2(c,a,((fn*)c->v)->r,0);
+        if(((fn*)c->v)->a->t==16) p=apply1(c,a,0);
+        else p=apply2(c,a,((fn*)c->v)->a,0);
         EC(p);
         ct=57;
         q=dget(cs->d,ao->v);
@@ -781,8 +781,8 @@ static K* node_reduce_(node *n, int md, int z) {
     }
     else if(ct==67) {
       f=c->v;
-      ((fn*)f->a[0]->v)->l=kref(a);
-      f->a[0]->t=27;
+      ((fn*)f->c[0]->v)->l=kref(a);
+      f->c[0]->t=27;
       r=kref(c);
     }
     else { /* a is a noun, c is a noun */
@@ -835,7 +835,7 @@ static K* node_reduce_(node *n, int md, int z) {
     r=interp(0);
     if(rt==7&&((fn*)r->v)->i==':') {
       kfree(r);
-      if(ct==17) r=kref(((fn*)c->v)->r);
+      if(ct==17) r=kref(((fn*)c->v)->a);
       else r=kref(c);
     }
     else if(ct==17&&((fn*)c->v)->i==':') {

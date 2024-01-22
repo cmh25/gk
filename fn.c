@@ -19,7 +19,7 @@ K* (*dt2avo2[256])(K *a, K *b, char *av);
 
 fn* fnnew(char *s) {
   fn *f=xmalloc(sizeof(fn));
-  f->f=xstrdup(s);
+  f->d=xstrdup(s);
   f->v=0;
   f->n=0;
   f->s_=0;
@@ -27,35 +27,35 @@ fn* fnnew(char *s) {
   f->av=xstrdup("");
   f->q = 0;
   f->l = 0;
-  f->r = 0;
   f->a = 0;
-  f->an = 0;
+  f->c = 0;
+  f->cn = 0;
   f->i = 0;
   return f;
 }
 
 void fnfree(fn *f) {
-  xfree(f->f);
+  xfree(f->d);
   if(f->n) node_free(f->n);
   if(f->av) xfree(f->av);
   if(f->l) kfree(f->l);
-  if(f->r) kfree(f->r);
-  if(f->a) { DO(f->an,kfree(f->a[i])); xfree(f->a); }
+  if(f->a) kfree(f->a);
+  if(f->c) { DO(f->cn,kfree(f->c[i])); xfree(f->c); }
   xfree(f);
 }
 
 fn* fncp(fn *f) {
-  fn *g=fnnew(f->f);
+  fn *g=fnnew(f->d);
   g->v=f->v;
   xfree(g->av);
   g->av=xstrdup(f->av);
   g->q=f->q;
   if(f->l) g->l = kcp(f->l);
-  if(f->r) g->r = kcp(f->r);
-  if(f->a) {
-    g->an=f->an;
-    g->a=xmalloc(sizeof(K*)*g->an);
-    DO(g->an,g->a[i]=kcp(f->a[i]));
+  if(f->a) g->a = kcp(f->a);
+  if(f->c) {
+    g->cn=f->cn;
+    g->c=xmalloc(sizeof(K*)*g->cn);
+    DO(g->cn,g->c[i]=kcp(f->c[i]));
   }
   g->i=f->i;
   return g;
@@ -350,7 +350,7 @@ K* fnd(K *a) {
   pgs *pgs;
   SG2(a);
   ff=a->v;
-  f=ff->f;
+  f=ff->d;
 
   if(linei==linem) {
     linem<<=1;
@@ -487,9 +487,9 @@ K* fnd(K *a) {
   for(i=0;i<q;i++) { if(kreserved(v[i])) return kerror("reserved"); else scope_set(ff->s_,v[i],null); }
 
   /* build ast */
-  u=strlen(ff->f);
+  u=strlen(ff->d);
   g=h=xmalloc(u);
-  strncpy(h,&ff->f[1],u-1);
+  strncpy(h,&ff->d[1],u-1);
   h[u-2]='\n';
   h[u-1]=0;
   while(*h==' '||*h=='\t')++h;
@@ -509,7 +509,7 @@ K* fnd(K *a) {
 }
 
 K* fne2(K *f, K *a, char *av) {
-  K *r=0,*p=0,*q=0,*o=0,*s=0,*self=0,*aa;
+  K *r=0,*p=0,*q=0,*s=0,*self=0,*aa;
   scope *os=0,*fs=0;
   unsigned int i,j,fa=0,rv,e=0,n=0;
   int k;
@@ -531,7 +531,7 @@ K* fne2(K *f, K *a, char *av) {
     fp->l=kref(f);
     if(at==11) aa=kref(a);
     else { aa=kv0(1); v0(aa)[0]=kref(a); aa->t=11; }
-    fp->r=aa;
+    fp->a=aa;
     fp->v=ff->v-n+e;
     fp->s_=scope_cp(ff->s_);
     return p;
@@ -545,35 +545,10 @@ K* fne2(K *f, K *a, char *av) {
   else if(at==11&&ff->v==1) return kerror("valence");
   fs=ff->s;
 
-  o=ff->l;
   rv=ff->v; /* real valence */
-  if(o) {
-    if(o->t==11) { DO(o->c,if(v0(o)[i]->t==16)++e);rv+=o->c-e; }
-    else if(o->t==10) { DO(o->c,s=v0(o)[i];DO2(s->c,if(v0(s)[j]->t==16)++e);rv+=s->c);rv-=e; }
-    else rv+=1;
-  }
-
   q=kv0(rv); /* gather parameters */
   i=j=0;
   if(rv>1) {
-    if(o) {
-      /* projected */
-      if(o->t==11) {
-        for(i=0;i<o->c;i++) {
-          if(v0(o)[i]->t==16) v0(q)[i]=at==11?v0(a)[j++]:a;
-          else v0(q)[i]=v0(o)[i];
-        }
-      }
-      else if(o->t==10) {
-        for(j=0;j<o->c;j++) {
-          s=v0(o)[j];
-          DO3(s->c,v0(q)[i++]=v0(s)[k])
-        }
-      }
-      else if(o->t==16) v0(q)[i++]=at==11?v0(a)[j++]:a;
-      else v0(q)[i++]=o;
-    }
-    /* actual */
     if(ac) for(;i<rv;i++) v0(q)[i]=v0(a)[j++];
     else v0(q)[i]=a;
   }
