@@ -1386,22 +1386,8 @@ K* not_(K *a) {
 }
 
 K* enlist_(K *a) {
-  K *r=0;
-  switch(at) {
-  case  1: r=kv1(1); v1(r)[0]=a1; break;
-  case  2: r=kv2(1); v2(r)[0]=a2; break;
-  case  3: r=kv3(1); v3(r)[0]=a3; break;
-  case  4: r=kv4(1); v4(r)[0]=a4; break;
-  case  5: r=kv0(1); v0(r)[0]=kcp(a); break;
-  case  6: r=kv0(1); v0(r)[0]=null; break;
-  case  7: case 27: case 37: case 67: case 77: case 87: r=kv0(1); v0(r)[0]=kcp(a); break;
-  case  0: r=kv0(1); v0(r)[0]=kcp(a); break;
-  case -1: r=kv0(1); v0(r)[0]=knew(-1,ac,v1(a),0,0,0); break;
-  case -2: r=kv0(1); v0(r)[0]=knew(-2,ac,v2(a),0,0,0); break;
-  case -3: r=kv0(1); v0(r)[0]=kcp(a); break;
-  case -4: r=kv0(1); v0(r)[0]=kcp(a); break;
-  default: return kerror("type");
-  }
+  K *r=kv0(1);
+  v0(r)[0]=kcp(a);
   return rt ? r : knorm(r);
 }
 
