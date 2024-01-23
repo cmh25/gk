@@ -481,19 +481,17 @@ static int gn_(void) {
       break;
     case 10: return 0; /* error */
     case 11: /* int */
-      c=*--p;
-      *p=0;
+      c=*--p; *p=0;
       ii=xatoi(q);
       *p=c;
       return 1;
     case 12: /* double */
-      c=*--p;
-      *p=0;
+      c=*--p; *p=0;
       ff=xstrtod(q,0);
       *p=c;
       return 2;
     }
-    p++;
+    ++p;
   }
   return 0;
 }
@@ -574,8 +572,7 @@ static int gsym_(void) {
       else s=1;
       break;
     case 1:
-      --p;
-      c=*p; *p=0;
+      c=*--p; *p=0;
       ss=xunesc(q);
       *p=c;
       if(*p=='"')p++;
@@ -585,8 +582,7 @@ static int gsym_(void) {
       else if(*p=='"') {
         c=*p; *p=0;
         ss=xunesc(q);
-        *p=c;
-        p++;
+        *p++=c;
         return 1;
       }
       break;
@@ -690,42 +686,15 @@ static int gc(pgs *pgs) {
   return 1;
 }
 
-static int gname(pgs *pgs) {
+static int gname(pgs *pgs, int v) {
   char c,*q=p;
-  int s=*p=='.'?1:0;
+  int s=*p=='.';
   while(1) {
-    if(!s) {
-      if(isalpha(*p)) { p++; s=1; }
-      else break;
-    }
-    else {
-      if(isalnum(*p)) p++;
-      else if(*p=='.') { p++; s=0; }
-      else break;
-    }
+    if(!s) { if(isalpha(*p)) { p++; s=1; } else break; }
+    else { if(isalnum(*p)) p++; else if(*p=='.') { p++; s=0; } else break; }
   }
   c=*p; *p=0;
-  push(pgs,T018,node_newli(0,0,knew(4,0,sp(q),0,0,0),linei,p-ln));
-  *p=c;
-  return 1;
-}
-
-static int gv(pgs *pgs) {
-  char c,*q=p;
-  int s=*p=='.'?1:0;
-  while(1) {
-    if(!s) {
-      if(isalpha(*p)) { p++; s=1; }
-      else break;
-    }
-    else {
-      if(isalnum(*p)) p++;
-      else if(*p=='.') { p++; s=0; }
-      else break;
-    }
-  }
-  c=*p; *p=0;
-  push(pgs,T018,node_newli(0,0,knew(99,0,sp(q),0,0,0),linei,p-ln));
+  push(pgs,T018,node_newli(0,0,knew(v?99:4,0,sp(q),0,0,0),linei,p-ln));
   *p=c;
   return 1;
 }
@@ -843,13 +812,9 @@ static int lex(pgs *pgs) {
     else if(!strncmp("0:",p,2)) { p+=2; push(pgs,T019,node_newli(0,0,knew(7,0,fnnew("0:"),128,0,0),linei,p-ln)); }
     else if(!strncmp("1:",p,2)) { p+=2; push(pgs,T019,node_newli(0,0,knew(7,0,fnnew("1:"),129,0,0),linei,p-ln)); }
     else if(!strncmp("2:",p,2)) { p+=2; push(pgs,T019,node_newli(0,0,knew(7,0,fnnew("2:"),131,0,0),linei,p-ln)); }
-    //else if(!strncmp("3:",p,2)) { p+=2; push(pgs,T019,node_newli(0,0,knew(7,0,fnnew("3:"),132,0,0),linei,p-ln)); }
     else if(!strncmp("4:",p,2)) { p+=2; push(pgs,T019,node_newli(0,0,knew(7,0,fnnew("4:"),133,0,0),linei,p-ln)); }
     else if(!strncmp("5:",p,2)) { p+=2; push(pgs,T019,node_newli(0,0,knew(7,0,fnnew("5:"),134,0,0),linei,p-ln)); }
     else if(!strncmp("6:",p,2)) { p+=2; push(pgs,T019,node_newli(0,0,knew(7,0,fnnew("6:"),135,0,0),linei,p-ln)); }
-    //else if(!strncmp("7:",p,2)) { p+=2; push(pgs,T019,node_newli(0,0,knew(7,0,fnnew("7:"),136,0,0),linei,p-ln)); }
-    //else if(!strncmp("8:",p,2)) { p+=2; push(pgs,T019,node_newli(0,0,knew(7,0,fnnew("8:"),137,0,0),linei,p-ln)); }
-    //else if(!strncmp("9:",p,2)) { p+=2; push(pgs,T019,node_newli(0,0,knew(7,0,fnnew("9:"),138,0,0),linei,p-ln)); }
     else if(isdigit(*p)||(*p=='.'&&isdigit(p[1]))) gn(pgs);
     else if(*p=='-') {
       if(p[1]==':') gp(pgs);
@@ -857,7 +822,7 @@ static int lex(pgs *pgs) {
       else if(isdigit(p[1])||(p[1]=='.'&&isdigit(p[2]))) gn(pgs);
       else { ++p; push(pgs,T019,node_newli(0,0,knew(7,0,fnnew("-"),'-',0,0),linei,p-ln)); }
     }
-    else if((*p=='.'&&isalpha(p[1]))||isalpha(*p)) gv(pgs);
+    else if((*p=='.'&&isalpha(p[1]))||isalpha(*p)) gname(pgs,1);
     else if(*p=='+'||*p=='*'||*p=='%'||*p=='&'||*p=='|'||*p=='<'||
       *p=='>'||*p=='='||*p=='^'||*p=='!'||*p=='~'||*p==','||*p=='#'||*p=='_'||
       *p=='$'||*p=='?'||*p=='@'||*p=='.'||*p==':') gp(pgs);
@@ -918,7 +883,7 @@ static int lex(pgs *pgs) {
       push(pgs,T019,node_newli(0,0,knew(7,0,fnnew("\\d"),177,0,0),linei,p-ln));
       p+=2;
       while(*p==' ')p++;
-      if(isalpha(*p)||(*p=='.'&&isalpha(p[1]))) gname(pgs);
+      if(isalpha(*p)||(*p=='.'&&isalpha(p[1]))) gname(pgs,0);
       else if(*p=='^') { push(pgs,T018,node_new(0,0,knew(3,0,0,'^',0,0))); ++p; }
       else push(pgs,T018,node_new(0,0,null));
     }
@@ -937,14 +902,10 @@ static int lex(pgs *pgs) {
     else if(*p=='`') gsym(pgs);
     else if(*p=='"') gc(pgs);
     else if(f&&*p=='\'') gp(pgs);
-    else if(f&&*p=='\\'&&*(p+1)=='0') { p+=2; push(pgs,T019,node_new(0,0,knew(7,0,fnnew("\\0"),179,0,0))); push(pgs,T018,node_new(0,0,k3('0'))); }
-    else if(f&&*p=='\\'&&*(p+1)=='+') { p+=2; push(pgs,T019,node_new(0,0,knew(7,0,fnnew("\\0"),179,0,0))); push(pgs,T018,node_new(0,0,k3('+'))); }
-    else if(f&&*p=='\\'&&*(p+1)=='\'') { p+=2; push(pgs,T019,node_new(0,0,knew(7,0,fnnew("\\0"),179,0,0))); push(pgs,T018,node_new(0,0,k3('\''))); }
-    else if(f&&*p=='\\'&&*(p+1)=='_') { p+=2; push(pgs,T019,node_new(0,0,knew(7,0,fnnew("\\0"),179,0,0))); push(pgs,T018,node_new(0,0,k3('_'))); }
-    else if(f&&*p=='\\'&&*(p+1)=='.') { p+=2; push(pgs,T019,node_new(0,0,knew(7,0,fnnew("\\0"),179,0,0))); push(pgs,T018,node_new(0,0,k3('.'))); }
-    else if(f&&*p=='\\'&&*(p+1)==':') { p+=2; push(pgs,T019,node_new(0,0,knew(7,0,fnnew("\\0"),179,0,0))); push(pgs,T018,node_new(0,0,k3(':'))); }
-    else if(f&&*p=='\\'&&*(p+1)=='-') { p+=2; push(pgs,T019,node_new(0,0,knew(7,0,fnnew("\\0"),179,0,0))); push(pgs,T018,node_new(0,0,k3('-'))); }
-    else if(f&&*p=='\\'&&*(p+1)=='?') { p+=2; push(pgs,T019,node_new(0,0,knew(7,0,fnnew("\\0"),179,0,0))); push(pgs,T018,node_new(0,0,k3('?'))); }
+    else if(f&&*p=='\\'&&strchr("0+'_.:-?",*(p+1))) { /* help */
+      push(pgs,T019,node_new(0,0,knew(7,0,fnnew(""),179,0,0)));
+      push(pgs,T018,node_new(0,0,k3(*(p+1)))); p+=2;
+    }
     else if(*p=='\''||*p=='/'||*p=='\\') { /* check for k32 adverb use */
       if(*(p+1)&&*(p+1)==':') { printf("lex\n"); return 0; }
       else if(!gav(pgs)) { printf("lex\n"); return 0; }
