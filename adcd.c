@@ -8,18 +8,14 @@
 
 static node* parse(char *s) {
   int u;
-  char *h;
-  pgs *pgs;
   node *n;
+  pgs *p=pgnew();
   u=strlen(s)+2;
-  h=xmalloc(u);
-  strncpy(h,s,u-1);
-  h[u-2]='\n';
-  h[u-1]=0;
-  pgs=pgnew();
-  pgs->p=h;
-  n=pgparse(pgs);
-  pgfree(pgs);
+  p->p=xmalloc(u);
+  strncpy(p->p,s,u-1);
+  strcat(p->p,"\n");
+  n=pgparse(p);
+  pgfree(p);
   return n;
 }
 

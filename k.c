@@ -170,14 +170,54 @@ char* kprint5(K *p, char *s, unsigned int plevel, int nl) {
   return r;
 }
 
+static void pi(char *s, char *c, int i) {
+  if(i==INT_MAX) oc+=sprintf(o+oc,"%s%s0I",s,c);
+  else if(i==INT_MIN) oc+=sprintf(o+oc,"%s%s0N",s,c);
+  else if(i==INT_MIN+1) oc+=sprintf(o+oc,"%s%s-0I",s,c);
+  else oc+=sprintf(o+oc,"%s%s%d",s,c,i);
+}
+static void pf(char *s, char *c, double f) {
+  char ds[256];
+  if(isinf(f)&&f>0.0) oc+=sprintf(o+oc,"%s%s0i",s,c);
+  else if(isnan(f)) oc+=sprintf(o+oc,"%s%s0n",s,c);
+  else if(isinf(f)&&f<0.0) oc+=sprintf(o+oc,"%s%s-0i",s,c);
+  else {
+    sprintf(ds,"%0.*g",precision,f);
+    if(!strchr(ds,'.')&&!strchr(ds,'e')) strcat(ds, ".0");
+    oc+=sprintf(o+oc,"%s%s%s",s,c,ds);
+  }
+}
+static void ps(char *s, char *p) {
+  int v; char *e;
+  v=vname(p,strlen(p));
+  oc+=sprintf(o+oc,"%s`",s);
+  if(!v) oc+=sprintf(o+oc,"\"");
+  e=xesc(p);
+  oc+=sprintf(o+oc,"%s",e);
+  xfree(e);
+  if(!v) oc+=sprintf(o+oc,"\"");
+}
+static void pc(unsigned char c) {
+  if((c<32||c>126)) {
+    if(c==8) oc+=sprintf(o+oc,"\\b");
+    else if(c==9) oc+=sprintf(o+oc,"\\t");
+    else if(c==10) oc+=sprintf(o+oc,"\\n");
+    else if(c==13) oc+=sprintf(o+oc,"\\r");
+    else oc+=sprintf(o+oc,"\\%03o",c);
+  }
+  else {
+    if(c==34) oc+=sprintf(o+oc,"\\\"");
+    else if(c==92) oc+=sprintf(o+oc,"\\\\");
+    else oc+=sprintf(o+oc,"%c",c);
+  }
+}
 char* kprint_(K *p, char *s, unsigned int plevel, int nl) {
-  int add0=1,v;
-  unsigned int i,j;
-  char s2[128],s3[128],*e;
+  int add0=1;
+  unsigned int i;
+  char s2[128],s3[128];
   int z=0;
   K *p2=0;
   dict *d=0;
-  unsigned char c;
   fn *f=0;
   char *ee[11]={"domain","index","int","length","nonce","parse","rank","reserved","type","valence","value"};
   int en=11;
@@ -188,48 +228,10 @@ char* kprint_(K *p, char *s, unsigned int plevel, int nl) {
   SG2(p);
 
   switch(p->t) {
-  case 1:
-    if(p->i==INT_MAX) oc+=sprintf(o+oc,"%s0I", s);
-    else if(p->i==INT_MIN) oc+=sprintf(o+oc,"%s0N", s);
-    else if(p->i==INT_MIN+1) oc+=sprintf(o+oc,"%s-0I", s);
-    else oc+=sprintf(o+oc,"%s%d", s, p->i);
-    break;
-  case 2:
-    if(isinf(p->f)&&p->f>0.0) oc+=sprintf(o+oc,"%s0i", s);
-    else if(isnan(p->f)) oc+=sprintf(o+oc,"%s0n", s);
-    else if(isinf(p->f)&&p->f<0.0) oc+=sprintf(o+oc,"%s-0i", s);
-    else {
-      sprintf(ds, "%0.*g", precision, p->f);
-      if(!strchr(ds, '.')&&!strchr(ds,'e')) strcat(ds, ".0");
-      oc+=sprintf(o+oc,"%s%s", s, ds);
-    }
-    break;
-  case 3:
-    c=p->i;
-    oc+=sprintf(o+oc,"%s\"",s);
-    if((c<32||c>126)) {
-      if(c==8) oc+=sprintf(o+oc,"\\b");
-      else if(c==9) oc+=sprintf(o+oc,"\\t");
-      else if(c==10) oc+=sprintf(o+oc,"\\n");
-      else if(c==13) oc+=sprintf(o+oc,"\\r");
-      else oc+=sprintf(o+oc,"\\%03o",c);
-    }
-    else {
-      if(c==34) oc+=sprintf(o+oc,"\\\"");
-      else if(c==92) oc+=sprintf(o+oc,"\\\\");
-      else oc+=sprintf(o+oc,"%c",c);
-    }
-    oc+=sprintf(o+oc,"\"");
-    break;
-  case 4:
-    v=vname(v3(p),strlen(v3(p)));
-    oc+=sprintf(o+oc,"%s`",s);
-    if(!v) oc+=sprintf(o+oc,"\"");
-    e=xesc(v3(p));
-    oc+=sprintf(o+oc,"%s",e);
-    xfree(e);
-    if(!v) oc+=sprintf(o+oc,"\"");
-    break;
+  case 1: pi(s,"",p->i); break;
+  case 2: pf(s,"",p->f); break;
+  case 3: oc+=sprintf(o+oc,"%s\"",s); pc(p->i); oc+=sprintf(o+oc,"\""); break;
+  case 4: ps(s,v3(p)); break;
   case 5:
     d = p->v;
     if(d->c == 0) oc+=sprintf(o+oc,"%s.()",s);
@@ -242,8 +244,7 @@ char* kprint_(K *p, char *s, unsigned int plevel, int nl) {
         oc+=sprintf(o+oc,";)");
       } else {
         oc+=sprintf(o+oc,"%s.,(`%s\n",s,d->k[0]);
-        sprintf(s2, "%s   ", s);
-        for(i=0;i<plevel;i++) strcat(s2, " ");
+        sprintf(s2, "%s%*s   ", s, plevel, "");
         xfree(kprint_(p2, s2, plevel, 0));
         oc+=sprintf(o+oc,"\n%s   )",s);
       }
@@ -255,16 +256,13 @@ char* kprint_(K *p, char *s, unsigned int plevel, int nl) {
         oc+=sprintf(o+oc,"(`%s;",d->k[0]);
         xfree(kprint_(p2, "", plevel, 0));
         oc+=sprintf(o+oc,";)\n");
-        sprintf(s2, "%s  ", s);
-        for(i=0;i<plevel;i++) strcat(s2, " ");
+        sprintf(s2, "%s%*s  ", s, plevel, "");
       } else {
         oc+=sprintf(o+oc,"(`%s\n",d->k[0]);
-        sprintf(s2, "%s   ", s);
-        for(i=0;i<plevel;i++) strcat(s2, " ");
+        sprintf(s2, "%s%*s   ", s, plevel, "");
         xfree(kprint_(p2, s2, plevel, 0));
         oc+=sprintf(o+oc,"\n%s)\n",s2);
-        sprintf(s2, "%s  ", s);
-        for(i=0;i<plevel;i++) strcat(s2, " ");
+        sprintf(s2, "%s%*s  ", s, plevel, "");
       }
       for(i=1;(int)i<d->c;i++) {
         if(oc<<1 > bs) { bs+=bs0; o=xrealloc(o,bs); }
@@ -277,8 +275,7 @@ char* kprint_(K *p, char *s, unsigned int plevel, int nl) {
           else oc+=sprintf(o+oc,";)\n");
         } else {
           oc+=sprintf(o+oc,"%s(`%s\n",s2,d->k[i]);
-          sprintf(s3, "%s   ", s);
-          for(j=0;j<plevel;j++) strcat(s3, " ");
+          sprintf(s3, "%s%*s   ", s, plevel, "");
           xfree(kprint_(p2, s3, plevel, 0));
           if((int)i==d->c-1)oc+=sprintf(o+oc,"\n%s))",s3);
           else oc+=sprintf(o+oc,"\n%s)\n",s3);
@@ -287,9 +284,11 @@ char* kprint_(K *p, char *s, unsigned int plevel, int nl) {
     }
     break;
   case 6: case 16: if(strlen(s)) oc+=sprintf(o+oc,"%s",s); else nl=0; break;
-  case 7: case 37: oc+=sprintf(o+oc,"%s%s",s,((fn*)p->v)->d);
-          if(((fn*)p->v)->av) oc+=sprintf(o+oc,"%s",((fn*)p->v)->av);
-          break;
+  case 7:
+  case 37:
+    oc+=sprintf(o+oc,"%s%s",s,((fn*)p->v)->d);
+    if(((fn*)p->v)->av) oc+=sprintf(o+oc,"%s",((fn*)p->v)->av);
+    break;
   case 27:
     xfree(kprint_(((fn*)p->v)->l,s,plevel,0));
     p->t=7;
@@ -333,36 +332,23 @@ char* kprint_(K *p, char *s, unsigned int plevel, int nl) {
     /* any elements with count>0 (except cv and fixed dyad) */
     for(i=0;i<p->c;i++) {
       if(v0(p)[i]->c && v0(p)[i]->t != -3 && v0(p)[i]->t != 27 && v0(p)[i]->t != 97) {
-        z = 1;
+        z=1;
         break;
       }
     }
-
     /* more than one and all cv? */
     if(!z && p->c>0) {
       z=1;
-      for(i=0;i<p->c;i++)
-        if(v0(p)[i]->t != -3) {
-          z=0;
-          break;
-        }
+      for(i=0;i<p->c;i++) if(v0(p)[i]->t != -3) { z=0; break; }
     }
-
     /* any dictionaries? */
-    if(!z) {
-      for(i=0;i<p->c;i++)
-        if(v0(p)[i]->t == 5 && ((dict*)v0(p)[i]->v)->c) {
-          z=1;
-          break;
-        }
-    }
+    if(!z) for(i=0;i<p->c;i++) if(v0(p)[i]->t == 5 && ((dict*)v0(p)[i]->v)->c) { z=1; break; }
 
     if(z) {
       oc+=sprintf(o+oc,"%s(", s);
       xfree(kprint_(v0(p)[0],"",strlen(s)+plevel+1,1));
       if(v0(p)[0]->t==6||v0(p)[0]->t==16) oc+=sprintf(o+oc,"\n");
-      sprintf(s2, "%s ", s);
-      for(i=0;i<plevel;i++) strcat(s2, " ");
+      sprintf(s2, "%s%*s ", s, plevel, "");
       for(i=1;i<p->c-1;i++) xfree(kprint_(v0(p)[i],s2,0,1));
       xfree(kprint_(v0(p)[i],s2,0,0));
       oc+=sprintf(o+oc,")");
@@ -373,28 +359,16 @@ char* kprint_(K *p, char *s, unsigned int plevel, int nl) {
         if(oc<<1 > bs) { bs+=bs0; o=xrealloc(o,bs); }
         p2=v0(p)[i];
         switch(p2->t) {
-        case  1:
-          if(p2->i==INT_MAX) oc+=sprintf(o+oc,"0I");
-          else if(p2->i==INT_MIN) oc+=sprintf(o+oc,"0N");
-          else if(p2->i==INT_MIN+1) oc+=sprintf(o+oc,"-0I");
-          else oc+=sprintf(o+oc,"%d", p2->i);
-          break;
-        case  2:
-          if(isinf(p2->f)&&p2->f>0.0) oc+=sprintf(o+oc,"0i");
-          else if(isnan(p2->f)) oc+=sprintf(o+oc,"0n");
-          else if(isinf(p2->f)&&p2->f<0.0) oc+=sprintf(o+oc,"-0i");
-          else {
-            sprintf(ds, "%0.*g", precision, p2->f);
-            if(!strchr(ds, '.')&&!strchr(ds,'e')) strcat(ds, ".0");
-            oc+=sprintf(o+oc,"%s", ds);
-          }
-          break;
+        case  1: pi("","",p2->i); break;
+        case  2: pf("","",p2->f); break;
         case  3: xfree(kprint_(p2,"",0,0)); break;
         case  4: oc+=sprintf(o+oc,"`%s", v3(p2)); break;
         case  5: oc+=sprintf(o+oc,".()"); break;
-        case  7: case 37: oc+=sprintf(o+oc,"%s",((fn*)p2->v)->d);
-                 if(((fn*)p2->v)->av) oc+=sprintf(o+oc,"%s",((fn*)p2->v)->av);
-                 break;
+        case  7:
+        case 37:
+          oc+=sprintf(o+oc,"%s",((fn*)p2->v)->d);
+          if(((fn*)p2->v)->av) oc+=sprintf(o+oc,"%s",((fn*)p2->v)->av);
+          break;
         case 27:
           xfree(kprint_(((fn*)p2->v)->l,"",0,0));
           p2->t=7;
@@ -432,39 +406,20 @@ char* kprint_(K *p, char *s, unsigned int plevel, int nl) {
     }
   case -1:
     if(p->c == 0) oc+=sprintf(o+oc,"%s!0", s);
-    else if(p->c == 1) {
-      if(v1(p)[0]==INT_MAX) oc+=sprintf(o+oc,"%s,0I",s);
-      else if(v1(p)[0]==INT_MIN) oc+=sprintf(o+oc,"%s,0N",s);
-      else if(v1(p)[0]==INT_MIN+1) oc+=sprintf(o+oc,"%s,-0I",s);
-      else oc+=sprintf(o+oc,"%s,%d",s,v1(p)[0]);
-    }
+    else if(p->c == 1) pi(s,",",v1(p)[0]);
     else {
-      if(v1(p)[0]==INT_MAX) oc+=sprintf(o+oc,"%s0I",s);
-      else if(v1(p)[0]==INT_MIN) oc+=sprintf(o+oc,"%s0N",s);
-      else if(v1(p)[0]==INT_MIN+1) oc+=sprintf(o+oc,"%s-0I",s);
-      else oc+=sprintf(o+oc,"%s%d",s,v1(p)[0]);
+      pi(s,"",v1(p)[0]);
       for(i=1;i<p->c;i++) {
         if(oc<<1 > bs) { bs+=bs0; o=xrealloc(o,bs); }
-        if(v1(p)[i]==INT_MAX) oc+=sprintf(o+oc," 0I");
-        else if(v1(p)[i]==INT_MIN) oc+=sprintf(o+oc," 0N");
-        else if(v1(p)[i]==INT_MIN+1) oc+=sprintf(o+oc," -0I");
-        else oc+=sprintf(o+oc," %d",v1(p)[i]);
+        pi(" ","",v1(p)[i]);
         VSIZE2(oc)
       }
     }
     break;
   case -2:
-    if(p->c == 0) {
-      sprintf(ds, "0#0.0");
-      oc+=sprintf(o+oc,"%s%s", s, ds);
-    } else if(p->c == 1) {
-      sprintf(ds, ",%0.*g", precision, v2(p)[0]);
-      if(!strchr(ds, '.')&&!strchr(ds,'e')) strcat(ds, ".0");
-      if(isinf(v2(p)[0])&&v2(p)[0]>0.0) sprintf(ds, ",0i");
-      else if(isnan(v2(p)[0])) sprintf(ds, ",0n");
-      else if(isinf(v2(p)[0])&&v2(p)[0]<0.0) sprintf(ds, ",-0i");
-      oc+=sprintf(o+oc,"%s%s", s, ds);
-    } else {
+    if(p->c==0) { sprintf(ds, "0#0.0"); oc+=sprintf(o+oc,"%s%s", s, ds); }
+    else if(p->c==1) pf(s,",",v2(p)[0]);
+    else {
       sprintf(ds, "%0.*g", precision, v2(p)[0]);
       if(isinf(v2(p)[0])&&v2(p)[0]>0.0) { sprintf(ds, "0i"); add0=0; }
       else if(isnan(v2(p)[0])) { sprintf(ds, "0n"); add0=0; }
@@ -490,44 +445,18 @@ char* kprint_(K *p, char *s, unsigned int plevel, int nl) {
     oc+=sprintf(o+oc,"\"");
     for(i=0;i<p->c;i++) {
       if(oc<<1 > bs) { bs+=bs0; o=xrealloc(o,bs); }
-      c=v3(p)[i];
-      if((c<32||c>126)) {
-        if(c==8) oc+=sprintf(o+oc,"\\b");
-        else if(c==9) oc+=sprintf(o+oc,"\\t");
-        else if(c==10) oc+=sprintf(o+oc,"\\n");
-        else if(c==13) oc+=sprintf(o+oc,"\\r");
-        else oc+=sprintf(o+oc,"\\%03o",c);
-      }
-      else {
-        if(c==34) oc+=sprintf(o+oc,"\\\"");
-        else if(c==92) oc+=sprintf(o+oc,"\\\\");
-        else oc+=sprintf(o+oc,"%c",c);
-      }
+      pc(v3(p)[i]);
     }
     oc+=sprintf(o+oc,"\"");
     break;
   case -4:
-    if(p->c == 0) oc+=sprintf(o+oc,"%s0#`",s);
-    else if(p->c == 1) {
-      oc+=sprintf(o+oc,"%s,`%s", s, v4(p)[0]);
-    }
+    if(p->c==0) oc+=sprintf(o+oc,"%s0#`",s);
+    else if(p->c==1) oc+=sprintf(o+oc,"%s,`%s", s, v4(p)[0]);
     else {
-      v=vname(v4(p)[0],strlen(v4(p)[0]));
-      oc+=sprintf(o+oc,"%s`",s);
-      if(!v) oc+=sprintf(o+oc,"\"");
-      e=xesc(v4(p)[0]);
-      oc+=sprintf(o+oc,"%s",e);
-      xfree(e);
-      if(!v) oc+=sprintf(o+oc,"\"");
+      ps(s,v4(p)[0]);
       for(i=1;i<p->c;i++) {
         if(oc<<1 > bs) { bs+=bs0; o=xrealloc(o,bs); }
-        v=vname(v4(p)[i],strlen(v4(p)[i]));
-        oc+=sprintf(o+oc," `");
-        if(!v) oc+=sprintf(o+oc,"\"");
-        e=xesc(v4(p)[i]);
-        oc+=sprintf(o+oc,"%s",e);
-        xfree(e);
-        if(!v) oc+=sprintf(o+oc,"\"");
+        ps(" ",v4(p)[i]);
         VSIZE2(oc)
       }
     }
