@@ -508,23 +508,13 @@ K* fnd(K *a) {
   return r;
 }
 
-K* fne2(K *f, K *a, char *av) {
-  K *r=0,*p=0,*q=0,*s=0,*self=0,*aa;
-  scope *os=0,*fs=0;
-  unsigned int i,j,fa=0,rv,e=0,n=0;
-  int k;
+K* fnprj(K *f, K *a) {
+  K *aa,*p=0,*s;
   fn *ff=f->v,*fp;
-  (void)av;
-
-  if(at==99){fa=1;SG(a);}
-  if(a&&!at) DO(ac,SG2(v0(a)[i]);if(v0(a)[i]->t==98)return v0(a)[i])
-
-  ff->s=scope_cp(ff->s_);
-  if(!cs->k) ff->s->p=cs; /* function in function */
+  unsigned int e=0,n=0;
+  if(cs->k) n=1;
   if(at==11) { DO(ac,if(v0(a)[i]->t==16)++e); n=ac; }
   else if(at==10) DO(ac,s=v0(a)[i];DO2(s->c,++n;if(v0(s)[j]->t==16)++e))
-  else n=1;
-
   if(ff->v>1&&(ff->v>n||e)) { /* make projection */
     p=knew(7,0,fnnew(""),'p',0,0); p->t=77;
     fp=p->v;
@@ -534,8 +524,26 @@ K* fne2(K *f, K *a, char *av) {
     fp->a=aa;
     fp->v=ff->v-n+e;
     fp->s_=scope_cp(ff->s_);
-    return p;
   }
+  return p;
+}
+
+K* fne2(K *f, K *a, char *av) {
+  K *r=0,*p=0,*q=0,*self=0;
+  scope *os=0,*fs=0;
+  unsigned int i,j,fa=0,rv;
+  int k;
+  fn *ff=f->v;
+  (void)av;
+
+  if(at==99){fa=1;SG(a);}
+  if(a&&!at) DO(ac,SG2(v0(a)[i]);if(v0(a)[i]->t==98)return v0(a)[i])
+
+  ff->s=scope_cp(ff->s_);
+  if(!cs->k) ff->s->p=cs; /* function in function */
+
+  if((p=fnprj(f,a))) return p;
+
   if(at==11&&ac==1) {
     a=v0(a)[0];
     if(a&&!at) DO(ac,SG2(v0(a)[i]);if(v0(a)[i]->t==98)return v0(a)[i])

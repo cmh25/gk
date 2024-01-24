@@ -1813,27 +1813,15 @@ K* applyfc1(K *f, K *a, char *av) {
   return r;
 }
 K* applyprj(K *f, K *a) {
-  K *r=0,*pf,*pa,*aa;
-  fn *ff=f->v,*fp;
+  K *r=0,*pf,*pa,*aa,*p;
+  fn *ff=f->v;
   int n=0,pe=0;
-  unsigned int i,j=0,ae=0,an=0;
+  unsigned int i,j=0;
+
+  if((p=fnprj(f,a))) return p; /* projection of projection? */
+
   pf=ff->l;
   pa=ff->a;
-  if(at==11) DO(ac,if(v0(a)[i]->t==16)ae++)
-  else if(at==6)ae++;
-  an=at==11?ac:1;
-  if(ff->v>an-ae) { /* projection of projection */
-    r=knew(7,0,fnnew(""),'p',0,0); r->t=77;
-    fp=r->v;
-    fp->l=kref(f);
-    if(at==11) aa=kcp(a);
-    else { aa=kv0(1); v0(aa)[0]=kcp(a); aa->t=11; }
-    fp->a=aa;
-    fp->v=ff->v-an-ae;
-    fp->s_=scope_cp(ff->s_);
-    return r;
-  }
-
   DO(pa->c,if(v0(pa)[i]->t==16)pe++)
   n=pa->c+(at==11?ac:1)-pe;
   aa=kv0(n); aa->t=11;

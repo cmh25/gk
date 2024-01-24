@@ -31,6 +31,7 @@ void fnfree(fn *fn);
 fn* fncp(fn *fn);
 void fninit(void);
 K* fnd(K *f);
+K* fnprj(K *f, K *a);
 K* fne2(K *f, K *a, char *av);
 
 #endif /* FN_H */
