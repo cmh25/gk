@@ -473,7 +473,7 @@ static int gn_(void) {
       else s=12;
       break;
     case 7: if(isdigit(*p)) s=9; else s=10; break;
-    case 8: if(isdigit(*p)||*p=='-') s=9; else s=10; break;
+    case 8: if(isdigit(*p)||*p=='-'||*p=='+') s=9; else s=10; break;
     case 9:
       if(isdigit(*p)) s=9;
       else if(*p=='e'||*p=='E') s=8;
