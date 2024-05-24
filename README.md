@@ -2,7 +2,7 @@
 
 This is an implementation of the k programming language, originally invented by [Arthur Whitney](https://en.wikipedia.org/wiki/Arthur_Whitney_(computer_scientist)).
 
-It's loosely based on k32, but with some changes suggested by [Stevan Apter](https://nsl.com/).
+It's loosely based on k3, but with some changes suggested by [Stevan Apter](https://nsl.com/).
 
 Some other notable open source implementations of k:
 
@@ -23,10 +23,10 @@ win: (requires visual studio cli)
 make.bat
 ```
 
-## gk differences from k32
+## gk differences from k3
 
 ### verbs
-The verbs are all like k32. However, there is no "force monadic" (ex: #:'). The valence of primitive verbs (including composition) is always determined from context. A few examples:
+The verbs are all like k3. However, there is no "force monadic" (ex: #:'). The valence of primitive verbs (including composition) is always determined from context. A few examples:
 ```
   #'(1 2;3 4 5)
 2 3
@@ -40,7 +40,7 @@ The verbs are all like k32. However, there is no "force monadic" (ex: #:'). The 
 -1 -0.5 -0.3333333
 ```
 ### adverbs
-The adverbs are similar to k32, but `/: \: ':` are gone. The only adeverbs are `/ \ '`. How they operate depends on the context and the valence of the modified verb. Here's a quick synopsis:
+The adverbs are similar to k3, but `/: \: ':` are gone. The only adeverbs are `/ \ '`. How they operate depends on the context and the valence of the modified verb. Here's a quick synopsis:
 ```
       monad: each      f'x
        dyad: eachprior f'x
@@ -83,9 +83,9 @@ The left argument is a positive or negative integer. Its sign indicates the orde
 ("ba"
  "dc")
 ```
-So `-1 f' a` in gk is equivalent to `f': a` in k32. gk gives up the k32 behavior of prepending the left argument of eachprior to the result in order to have a much more flexible adverb.
+So `-1 f' a` in gk is equivalent to `f': a` in k3. gk gives up the k3 behavior of prepending the left argument of eachprior to the result in order to have a much more flexible adverb.
 
-I believe its a good tradeoff since I've never found a good use for something like this in k32:
+I believe its a good tradeoff since I've never found a good use for something like this in k3:
 ```
   `a-':1 2 3
 (`a;1;1)
@@ -104,7 +104,7 @@ Underscores are not allowed in variable names. It makes things cleaner since the
   a_b
 2 3
 ```
-Most of the reserved names from k32 are still there, but with the _ removed.
+Most of the reserved names from k3 are still there, but with the _ removed.
 ```
   draw[10;10]
 7 2 7 6 6 3 6 2 5 8
@@ -115,7 +115,7 @@ Most of the reserved names from k32 are still there, but with the _ removed.
 ```
 I didn't want to reserve single-letter names, so some have changed.
 ```
-k32    gk
+k3     gk
 ---    ---
  _n    nul
  _t    ts
