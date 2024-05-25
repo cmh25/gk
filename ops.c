@@ -1668,7 +1668,7 @@ K* return_(K *a) {
 
 K* fourcolon1_(K *a) {
   int t=at;
-  if(t==37||t==27||t==67) t=7;
+  if(t==27||t==37||t==67||t==77||t==87||t==97) t=7;
   return knew(1,0,0,t,0,0);
 }
 
@@ -1976,26 +1976,26 @@ K* help1_(K *a) {
   }
   else if(a->i=='+') {
     fprintf(stderr,""
-"   dyad          monad\n"
-"+  plus          flip\n"
-"-  minus         negate\n"
-"*  times         first\n"
-"%%  divide        reciprocal\n"
-"&  min/and       where\n"
-"|  max/or        reverse\n"
-"<  less          upgrade\n"
-">  more          downgrade\n"
-"=  equal         group\n"
-"^  power         shape\n"
-"!  mod/rotate    enumerate\n"
-"~  match         not\n"
-",  join          enlist\n"
-"#  take/reshape  count\n"
-"_  drop/cut      floor\n"
-"$  form          format\n"
-"?  find          unique\n"
-"@  at            atom  amend trap\n"
-".  dot           value amend trap\n");
+"   dyad            monad\n"
+"+  plus            flip\n"
+"-  minus           negate\n"
+"*  times           first\n"
+"%%  divide          reciprocal\n"
+"&  min/and         where\n"
+"|  max/or          reverse\n"
+"<  less            upgrade\n"
+">  more            downgrade\n"
+"=  equal           group\n"
+"^  power           shape\n"
+"!  mod/rotate      enumerate\n"
+"~  match           not\n"
+",  join            enlist\n"
+"#  take/reshape    count\n"
+"_  drop/cut        floor\n"
+"$  form            format\n"
+"?  find/draw/deal  unique\n"
+"@  at              atom  amend trap\n"
+".  dot             value amend trap\n");
   }
   else if(a->i=='\'') {
     fprintf(stderr,""
