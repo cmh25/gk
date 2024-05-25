@@ -21,94 +21,7 @@
 #include "mc.h"
 #include "fn.h"
 #include "sym.h"
-
-static int *gdeck=0,gdeckc=0,gdecki=0;
-
-static void draw(K *s, int m) {
-  unsigned int i;
-#ifdef _WIN32
-  static unsigned long long x=123456789, y=362436069, z=521288629, t;
-#else
-  static unsigned long x=123456789, y=362436069, z=521288629, t;
-#endif
-  int rm=2147483647; /* instead of RAND_MAX */
-  double rmi=1.0/rm;
-
-  if(m) {
-    for(i=0;i<s->c;i++) {
-      x ^= x << 16;
-      x ^= x >> 5;
-      x ^= x << 1;
-      t = x; x = y; y = z;
-      z = t ^ x ^ y;
-      v1(s)[i] = z%m;
-    }
-  }
-  else {
-    for(i=0;i<s->c;i++) {
-      x ^= x << 16;
-      x ^= x >> 5;
-      x ^= x << 1;
-      t = x; x = y; y = z;
-      z = t ^ x ^ y;
-      v2(s)[i] = (double)(z%rm)*rmi;
-    }
-  }
-}
-
-static int rr(unsigned int *s) {
-  unsigned int x;
-  unsigned int a = 0x9d2c5680;
-  unsigned int b = 0xefc60000;
-  *s *= 1103515245 + 12345;
-  x = *s;
-  x = x ^ (x >> 11);
-  x = x ^ (x << 7 & a);
-  x = x ^ (x << 15 & b);
-  x = x ^ (x >> 18);
-  return x>>1;
-}
-
-static void shuffle(int *a, int n) {
-  static unsigned int p=1;
-  int i,j,t;
-  int rm=2147483647; /* instead of RAND_MAX */
-  if(n>1) {
-    for(i=0;i<n-1;i++) {
-      j = i + rr(&p) / (rm / (n - i) + 1);
-      t = a[j];
-      a[j] = a[i];
-      a[i] = t;
-    }
-  }
-}
-
-static void deal(K *s, int n, int m) {
-  int i;
-  if(m == 0) {
-    gdeck = xmalloc(sizeof(int)*n);
-    for(i=0;i<n;i++) gdeck[i]=i;
-    shuffle(gdeck,n);
-    gdecki=0;
-    gdeckc=n;
-  }
-  else if(m == 1 && !gdeck) {
-    gdeck = xmalloc(sizeof(int)*n);
-    for(i=0;i<n;i++) gdeck[i]=i;
-    shuffle(gdeck,n);
-    DO(s->c, v1(s)[i]=gdeck[i])
-    xfree(gdeck);
-    gdeck=0;
-    gdecki=0;
-    gdeckc=0;
-  }
-  else if(m == 1) {
-    if(gdecki+(int)s->c > gdeckc) {printf("error: overflow in deal()\n");exit(1);}
-    DO(s->c, v1(s)[i]=gdeck[gdecki++])
-  }
-  else if(m == 2) {xfree(gdeck);gdeck=0;gdecki=0;gdeckc=0;}
-  else {printf("error: unknown m in deal()\n");exit(1);}
-}
+#include "rand.h"
 
 K* sleep1_(K *a) {
   #ifdef _WIN32
@@ -311,8 +224,7 @@ K* sv2_(K *a, K *b) {
 MC2A(sv2_)
 
 K* draw2_(K *a, K *b) {
-  K *r=0,*p=0,*a0=0,*a_1=0,*am=0,*bm=0;
-  int t=1,z=0;
+  K *r=0,*p=0,*q=0,*f=0;
 
   if(at && at!=1 && at!=-1) return kerror("type");
   if(at==1 && bt==1 && b1<0 && a1>abs(b1)) return kerror("length");
@@ -320,48 +232,56 @@ K* draw2_(K *a, K *b) {
   switch(at) {
   case 0:
     if(ac) return kerror("type");
-    if(bt!=1) return kerror("int");
-    else if(b1>0) { p=kv1(1); draw(p,b1); r=k1(v1(p)[0]); kfree(p); }
-    else if(b1<0) { p=kv1(1); deal(p,abs(b1),1); r=k1(v1(p)[0]); kfree(p); }
-    else { p=kv2(1); draw(p,b1); r=k2(v2(p)[0]); kfree(p); }
-    break;
+    switch(bt) {
+    case 1:
+      if(b1>0) { p=kv1(1); drawi(p,b1); r=k1(v1(p)[0]); kfree(p); }
+      else if(b1<0) { p=kv1(1); deal(p,abs(b1)); r=k1(v1(p)[0]); kfree(p); }
+      else { p=kv2(1); drawf(p,1.0); r=k2(v2(p)[0]); kfree(p); }
+      break;
+    case 2: p=kv2(1); drawf(p,b2); r=k2(v2(p)[0]); kfree(p); break;
+    default: return kerror("type");
+    } break;
   case 1:
     VSIZE(a1);
     if(a1<0) return kerror("wsfull");
-    if(bt!=1) return kerror("int");
-    else if(b1>0) { r=kv1(a1); draw(r,b1); }
-    else if(b1<0) { r=kv1(a1); deal(r,abs(b1),1); }
-    else { r=kv2(a1); draw(r,b1); }
-    break;
+    switch(bt) {
+    case 1:
+      if(b1>0) { r=kv1(a1); drawi(r,b1); }
+      else if(b1<0) { r=kv1(a1); deal(r,abs(b1)); }
+      else { r=kv2(a1); drawf(r,1.0); }
+      break;
+    case 2: r=kv2(a1); drawf(r,b2); break;
+    default: return kerror("type");
+    } break;
   case -1:
     DO(ac,VSIZE(v1(a)[i]))
     DO(ac,if(v1(a)[i]<0) return kerror("wsfull"))
     switch(bt) {
     case 1:
-      if(b1<0) {
-        DO(ac, t*=v1(a)[i])
-        if(t>abs(b1)) return kerror("length");
-        else if(!gdeck) {deal(0,abs(b1),0);z=1;}
-      }
-      a0=drop2_(one,a);
-      r=kv0(v1(a)[0]);
-      if(a0->c == 1) {a_1=first_(a0);kfree(a0);}
-      else a_1 = a0;
-      DO(rc, v0(r)[i]=draw2_(a_1,b); EC(v0(r)[i]))
-      kfree(a_1);
-      if(z) deal(0,0,2);
+      f=knew(7,0,fnnew("*"),'*',0,0);
+      p=avdom(f,a,"/"); kfree(f);
+      if(b1<0 && p->i>abs(b1)) return kerror("length");
+      q=b1?kv1(p->i):kv2(p->i); kfree(p);
+      if(b1<0) deal(q,abs(b1));
+      else if(b1>0) drawi(q,b1);
+      else drawf(q,1.0);
+      r=take2_(a,q); kfree(q);
+      break;
+    case 2:
+      f=knew(7,0,fnnew("*"),'*',0,0);
+      p=avdom(f,a,"/"); kfree(f);
+      q=kv2(p->i); kfree(p);
+      drawf(q,b2);
+      r=take2_(a,q); kfree(q);
       break;
     case -1:
       if(ac!=bc) return kerror("length");
-      am=kmix(a); bm=kmix(b);
-      r=kv0(ac); DO(ac,v0(r)[i]=draw2_(v0(am)[i],v0(bm)[i]); EC(v0(r)[i]))
-      kfree(am); kfree(bm);
+      r=each(draw2_,a,b);
       break;
     default: return kerror("type");
     } break;
   default: return kerror("type");
   }
-
   return r->t ? r : knorm(r);
 }
 MC2A(draw2_)

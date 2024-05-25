@@ -1,6 +1,6 @@
 @echo off
 if "%1%"=="test" goto test
-cl main.c p.c timer.c node.c x.c ops.c sym.c sort.c k.c dict.c av.c sys.c systime.c scope.c fn.c avopt.c io.c adcd.c interp.c /Fe:gk /O2
+cl main.c p.c timer.c node.c x.c ops.c sym.c sort.c k.c dict.c av.c sys.c systime.c scope.c fn.c avopt.c io.c adcd.c interp.c rand.c /Fe:gk /O2
 exit /b 0
 :test
 cd test

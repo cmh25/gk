@@ -22,6 +22,7 @@
 #include "mc.h"
 #include "adcd.h"
 #include "interp.h"
+#include "sys.h"
 
 #ifdef _WIN32
 #define strtok_r strtok_s
@@ -736,9 +737,10 @@ K* form2_(K *a, K *b) {
 K* find2_(K *a, K *b) {
   K *r=0;
 
+  if(at==1) return draw2_(a,b);
   if(at>0) return kerror("domain");
 
-  r = k1(ac);
+  r=k1(ac);
   switch(at) {
   case  0: DO(ac,if(!kcmp(v0(a)[i],b)){r->i=i; break;}) break;
   case -1: if(bt==1) DO(ac,if(v1(a)[i]==b1){r->i=i; break;}) break;
