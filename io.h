@@ -3,7 +3,7 @@
 
 #include "k.h"
 
-K* bzcolon1_(K *a);
+K* b0colon1_(K *a);
 K* zerocolon2_(K *a, K *b);
 K* zerocolon1_(K *a);
 K* onecolon2_(K *a, K *b);

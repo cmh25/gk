@@ -1,14 +1,14 @@
 #include "io.h"
+#ifdef _WIN32
+  #define strtok_r strtok_s
+#else
+  #include <fcntl.h>
+  #include <unistd.h>
+  #include <sys/mman.h>
+#endif
 #include <stdio.h>
 #include <errno.h>
 #include <string.h>
-#ifndef _WIN32
-#include <sys/types.h>
-#include <sys/stat.h>
-#include <fcntl.h>
-#include <unistd.h>
-#include <sys/mman.h>
-#endif
 #include "x.h"
 #include "sym.h"
 #include "ops.h"
@@ -43,7 +43,7 @@ static K* fsize_(FILE *fp, long *bs) {
   return null;
 }
 
-K* bzcolon1_(K *a) {
+K* b0colon1_(K *a) {
   char *s=0;
   if(at==3) printf("%c", a->i);
   else if(at==-3) DO(ac,putchar(v3(a)[i]))
@@ -87,11 +87,11 @@ K* zerocolon1_(K *a) {
   i=0;
   p=strtok(b,"\n");
   do{
-    if(rc==m) { m<<=1; r->v=xrealloc(r->v,m*sizeof(K*)); }
+    if(r->c==m) { m<<=1; r->v=xrealloc(r->v,m*sizeof(K*)); }
     v0(r)[i++]=knew(-3,strlen(p),p,0,0,0);
   }while((p=strtok(0,"\n")));
   xfree(b);
-  rc=i;
+  r->c=i;
   return r;
 }
 

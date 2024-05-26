@@ -9,6 +9,7 @@
 #include "avopt.h"
 #include "p.h"
 #include "io.h"
+#include "os.h"
 
 int DEPTH;
 
@@ -91,7 +92,10 @@ void fninit(void) {
   dt1[133]=fourcolon1_;
   dt1[134]=fivecolon1_;
   dt1[135]=sixcolon1_;
-  dt1[140]=bzcolon1_;
+  dt1[136]=b0colon1_;
+  dt1[137]=b3colon1_;
+  dt1[138]=b4colon1_;
+  dt1[139]=b8colon1_;
   dt1[141]=exit1_;
   dt1[142]=precision1_;
   dt1[143]=kdump1_;

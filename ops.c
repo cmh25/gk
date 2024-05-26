@@ -1951,6 +1951,7 @@ K* help1_(K *a) {
 "\\. assign define control debug\n"
 "\\: input/output\n"
 "\\- client/server\n"
+"\\` os commands\n"
 "\\? commands\n");
   }
   else if(a->i=='0') {
@@ -1971,8 +1972,7 @@ K* help1_(K *a) {
 " d.k  d`k  d[`k]  d@`k  d.`k\n"
 "\n"
 "4:x    type: atom(1..7)[ifcsdnx] list(0..-4)[KIFCS]\n"
-"5:x    ascii representation\n"
-);
+"5:x    ascii representation\n");
   }
   else if(a->i=='+') {
     fprintf(stderr,""
@@ -2056,8 +2056,7 @@ K* help1_(K *a) {
 "      kv  (list from vector)  vk  (vector from list)\n"
 "\n"
 "sys:  exit code\n"
-"      del file\n"
-"\n");
+"      del file\n");
   }
   else if(a->i=='.') {
     fprintf(stderr,""
@@ -2079,8 +2078,7 @@ K* help1_(K *a) {
 " :  return\n"
 " '  signal\n"
 "\n"
-"error trap .[f;(x;y;z);:] and @[f;x;:]\n"
-"\n");
+"error trap .[f;(x;y;z);:] and @[f;x;:]\n");
   }
   else if(a->i==':') {
     fprintf(stderr,""
@@ -2089,13 +2087,17 @@ K* help1_(K *a) {
 "       f 5:x  append k data\n"
 " 2:f          read k data\n"
 " 6:f   f 6:x  read/write bytes\n"
-"     (,f)6:x  append bytes\n"
-"\n");
+"     (,f)6:x  append bytes\n");
   }
   else if(a->i=='-') {
     fprintf(stderr,""
-"coming soon...\n"
-"\n");
+"coming soon...\n");
+  }
+  else if(a->i=='`') {
+    fprintf(stderr,""
+"`3:\"cmd\"  set\n"
+"`4:\"cmd\"  get stdout\n"
+"`8:\"cmd\"  get (rc;stdout;stderr)\n");
   }
   else if(a->i=='?') {
     fprintf(stderr,""
@@ -2104,8 +2106,7 @@ K* help1_(K *a) {
 "\\l f      load script f\n"
 "\\p [n]    print precision\n"
 "\\t x      time in milliseconds to execute x\n"
-"\\v [-l]   variables\n"
-"\n");
+"\\v [-l]   variables\n");
   }
   return null;
 }

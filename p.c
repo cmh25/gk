@@ -898,11 +898,14 @@ static int lex(pgs *pgs) {
       else push(pgs,T018,node_new(0,0,null));
       *p=c;
     }
-    else if(*p=='`'&&p[1]=='0'&&p[2]==':') { p+=3;  push(pgs,T019,node_new(0,0,knew(7,0,fnnew("`0:"),140,0,0))); }
+    else if(!strncmp("`0:",p,3)) { p+=3; push(pgs,T019,node_newli(0,0,knew(7,0,fnnew("`0:"),136,0,0),linei,p-ln)); }
+    else if(!strncmp("`3:",p,3)) { p+=3; push(pgs,T019,node_newli(0,0,knew(7,0,fnnew("`3:"),137,0,0),linei,p-ln)); }
+    else if(!strncmp("`4:",p,3)) { p+=3; push(pgs,T019,node_newli(0,0,knew(7,0,fnnew("`4:"),138,0,0),linei,p-ln)); }
+    else if(!strncmp("`8:",p,3)) { p+=3; push(pgs,T019,node_newli(0,0,knew(7,0,fnnew("`8:"),139,0,0),linei,p-ln)); }
     else if(*p=='`') gsym(pgs);
     else if(*p=='"') gc(pgs);
     else if(f&&*p=='\'') gp(pgs);
-    else if(f&&*p=='\\'&&strchr("0+'_.:-?",*(p+1))) { /* help */
+    else if(f&&*p=='\\'&&strchr("0+'_.:-`?",*(p+1))) { /* help */
       push(pgs,T019,node_new(0,0,knew(7,0,fnnew(""),179,0,0)));
       push(pgs,T018,node_new(0,0,k3(*(p+1)))); p+=2;
     }
