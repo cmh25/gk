@@ -2106,7 +2106,8 @@ K* help1_(K *a) {
 "\\l f      load script f\n"
 "\\p [n]    print precision\n"
 "\\t x      time in milliseconds to execute x\n"
-"\\v [-l]   variables\n");
+"\\v        variables\n"
+"\\V        variables (long listing)\n");
   }
   return null;
 }

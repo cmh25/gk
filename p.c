@@ -770,9 +770,90 @@ static int gcon(pgs *pgs, int n, int t) {
   return 1;
 }
 
-static int lex(pgs *pgs) {
+static int gback(pgs *pgs) {
   char *q,c;
-  int f=1,s=0,prec,err;
+  int prec,err;
+  if(p[1]=='\n') {
+    push(pgs,T019,node_new(0,0,knew(7,0,fnnew("abort"),176,0,0)));
+    push(pgs,T018,node_new(0,0,null));
+    p++;
+  }
+  else if(p[1]=='\\') {
+    push(pgs,T019,node_new(0,0,knew(7,0,fnnew("exit"),141,0,0)));
+    push(pgs,T018,node_new(0,0,knew(1,0,0,0,0,0)));
+    p+=2;
+  }
+  else if(p[1]=='e'&&p[2]&&strchr(" \n\t",p[2])) {
+    push(pgs,T019,node_new(0,0,knew(7,0,fnnew("\\e"),175,0,0)));
+    p+=2;
+    while(*p==' ')p++;
+    q=p;
+    if(isdigit(*p)) {
+      while(isdigit(*p))p++;
+      c=*p; *p=0;
+      err=xatoi(q);
+      if(!err)err=0;
+      push(pgs,T018,node_new(0,0,knew(1,0,0,err,0,0)));
+      *p=c;
+    }
+    else push(pgs,T018,node_new(0,0,null));
+  }
+  else if(p[1]=='t'&&p[2]&&strchr(" \n\t",p[2])) { p+=2; push(pgs,T019,node_new(0,0,knew(7,0,fnnew("\\t"),174,0,0))); }
+  else if(p[1]=='p'&&p[2]&&strchr(" \n\t",p[2])) {
+    push(pgs,T019,node_new(0,0,knew(7,0,fnnew("\\p"),142,0,0)));
+    p+=2;
+    while(*p==' ')p++;
+    q=p;
+    if(isdigit(*p)) {
+      while(isdigit(*p))p++;
+      c=*p; *p=0;
+      prec=xatoi(q);
+      if(!prec)prec=17;
+      push(pgs,T018,node_new(0,0,knew(1,0,0,prec,0,0)));
+      *p=c;
+    }
+    else push(pgs,T018,node_new(0,0,null));
+  }
+  else if(p[1]=='v'&&p[2]&&strchr(" \n\t",p[2])) {
+    push(pgs,T019,node_new(0,0,knew(7,0,fnnew("\\v"),143,0,0)));
+    p+=2;
+    push(pgs,T018,node_new(0,0,null));
+  }
+  else if(p[1]=='V'&&p[2]&&strchr(" \n\t",p[2])) {
+    push(pgs,T019,node_new(0,0,knew(7,0,fnnew("\\v"),143,0,0)));
+    p+=2;
+    push(pgs,T018,node_newli(0,0,knew(4,0,sp("-l"),0,0,0),linei,p-ln));
+  }
+  else if(p[1]=='d'&&p[2]&&strchr(" \n\t",p[2])) {
+    push(pgs,T019,node_newli(0,0,knew(7,0,fnnew("\\d"),177,0,0),linei,p-ln));
+    p+=2;
+    while(*p==' ')p++;
+    if(isalpha(*p)||(*p=='.'&&isalpha(p[1]))) gname(pgs,0);
+    else if(*p=='^') { push(pgs,T018,node_new(0,0,knew(3,0,0,'^',0,0))); ++p; }
+    else push(pgs,T018,node_new(0,0,null));
+  }
+  else if(p[1]=='l'&&p[2]&&strchr(" \n\t",p[2])) {
+    push(pgs,T019,node_newli(0,0,knew(7,0,fnnew("\\l"),184,0,0),linei,p-ln));
+    p+=2;
+    while(*p==' ')p++;
+    q=p;
+    while(*p&&*p!='\n')p++;
+    c=*p; *p=0;
+    if(strlen(q )) push(pgs,T018,node_newli(0,0,knew(4,0,sp(q),0,0,0),linei,p-ln));
+    else push(pgs,T018,node_new(0,0,null));
+    *p=c;
+  }
+  else if(strchr("0+'_.:-`?",p[1])) { /* help */
+    push(pgs,T019,node_new(0,0,knew(7,0,fnnew(""),179,0,0)));
+    push(pgs,T018,node_new(0,0,k3(*(p+1))));
+    p+=2;
+  }
+  else return 0;
+  return 1;
+}
+
+static int lex(pgs *pgs) {
+  int f=1,s=0;
   ln=p=pgs->p;
   if(!linem) {
     linem=2;
@@ -823,80 +904,13 @@ static int lex(pgs *pgs) {
       else { ++p; push(pgs,T019,node_newli(0,0,knew(7,0,fnnew("-"),'-',0,0),linei,p-ln)); }
     }
     else if((*p=='.'&&isalpha(p[1]))||isalpha(*p)) gname(pgs,1);
-    else if(*p=='+'||*p=='*'||*p=='%'||*p=='&'||*p=='|'||*p=='<'||
-      *p=='>'||*p=='='||*p=='^'||*p=='!'||*p=='~'||*p==','||*p=='#'||*p=='_'||
-      *p=='$'||*p=='?'||*p=='@'||*p=='.'||*p==':') gp(pgs);
+    else if(*p&&strchr("+*%&|<>=^!~,#_$?@.:",*p)) gp(pgs);
     else if(!*p) { push(pgs,T025,0); break; }
-    else if(f&&*p=='\\'&&*(p+1)=='\n') {
-      push(pgs,T019,node_new(0,0,knew(7,0,fnnew("abort"),176,0,0)));
-      push(pgs,T018,node_new(0,0,null));
-      p++;
-    }
-    else if(*p=='\\'&&*(p+1)=='\\') {
-      push(pgs,T019,node_new(0,0,knew(7,0,fnnew("exit"),141,0,0)));
-      push(pgs,T018,node_new(0,0,knew(1,0,0,0,0,0)));
-      p+=2;
-    }
-    else if(*p=='\\'&&*(p+1)=='e') {
-      push(pgs,T019,node_new(0,0,knew(7,0,fnnew("\\e"),175,0,0)));
-      p+=2;
-      while(*p==' ')p++;
-      q=p;
-      if(isdigit(*p)) {
-        while(isdigit(*p))p++;
-        c=*p; *p=0;
-        err=xatoi(q);
-        if(!err)err=0;
-        push(pgs,T018,node_new(0,0,knew(1,0,0,err,0,0)));
-        *p=c;
+    else if(f&&*p=='\\') {
+      if(!gback(pgs)) {
+        if(system(p+1)) return 0;
+        while(*p!='\n')++p;
       }
-      else push(pgs,T018,node_new(0,0,null));
-    }
-    else if(*p=='\\'&&*(p+1)=='t') { p+=2; push(pgs,T019,node_new(0,0,knew(7,0,fnnew("\\t"),174,0,0))); }
-    else if(*p=='\\'&&*(p+1)=='p') {
-      push(pgs,T019,node_new(0,0,knew(7,0,fnnew("\\p"),142,0,0)));
-      p+=2;
-      while(*p==' ')p++;
-      q=p;
-      if(isdigit(*p)) {
-        while(isdigit(*p))p++;
-        c=*p; *p=0;
-        prec=xatoi(q);
-        if(!prec)prec=17;
-        push(pgs,T018,node_new(0,0,knew(1,0,0,prec,0,0)));
-        *p=c;
-      }
-      else push(pgs,T018,node_new(0,0,null));
-    }
-    else if(*p=='\\'&&*(p+1)=='v') {
-      push(pgs,T019,node_new(0,0,knew(7,0,fnnew("\\v"),143,0,0)));
-      p+=2;
-      while(*p==' ')p++;
-      q=p;
-      while(*p&&*p!='\n')p++;
-      c=*p; *p=0;
-      if(strlen(q )) push(pgs,T018,node_newli(0,0,knew(4,0,sp(q),0,0,0),linei,p-ln));
-      else push(pgs,T018,node_new(0,0,null));
-      *p=c;
-    }
-    else if(*p=='\\'&&*(p+1)=='d') {
-      push(pgs,T019,node_newli(0,0,knew(7,0,fnnew("\\d"),177,0,0),linei,p-ln));
-      p+=2;
-      while(*p==' ')p++;
-      if(isalpha(*p)||(*p=='.'&&isalpha(p[1]))) gname(pgs,0);
-      else if(*p=='^') { push(pgs,T018,node_new(0,0,knew(3,0,0,'^',0,0))); ++p; }
-      else push(pgs,T018,node_new(0,0,null));
-    }
-    else if(*p=='\\'&&*(p+1)=='l') {
-      push(pgs,T019,node_newli(0,0,knew(7,0,fnnew("\\l"),184,0,0),linei,p-ln));
-      p+=2;
-      while(*p==' ')p++;
-      q=p;
-      while(*p&&*p!='\n')p++;
-      c=*p; *p=0;
-      if(strlen(q )) push(pgs,T018,node_newli(0,0,knew(4,0,sp(q),0,0,0),linei,p-ln));
-      else push(pgs,T018,node_new(0,0,null));
-      *p=c;
     }
     else if(!strncmp("`0:",p,3)) { p+=3; push(pgs,T019,node_newli(0,0,knew(7,0,fnnew("`0:"),136,0,0),linei,p-ln)); }
     else if(!strncmp("`3:",p,3)) { p+=3; push(pgs,T019,node_newli(0,0,knew(7,0,fnnew("`3:"),137,0,0),linei,p-ln)); }
@@ -905,10 +919,6 @@ static int lex(pgs *pgs) {
     else if(*p=='`') gsym(pgs);
     else if(*p=='"') gc(pgs);
     else if(f&&*p=='\'') gp(pgs);
-    else if(f&&*p=='\\'&&strchr("0+'_.:-`?",*(p+1))) { /* help */
-      push(pgs,T019,node_new(0,0,knew(7,0,fnnew(""),179,0,0)));
-      push(pgs,T018,node_new(0,0,k3(*(p+1)))); p+=2;
-    }
     else if(*p=='\''||*p=='/'||*p=='\\') { /* check for k32 adverb use */
       if(*(p+1)&&*(p+1)==':') { printf("lex\n"); return 0; }
       else if(!gav(pgs)) { printf("lex\n"); return 0; }
