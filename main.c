@@ -21,7 +21,7 @@ int main(int argc, char **argv) {
   #else
   signal(SIGINT,ctlc);
   #endif
-  kinit();
+  kinit(argc,argv);
   if(argc>1) load(argv[1]);
   interp(1);
   return 0;

@@ -20,8 +20,8 @@ K *D,*one,*zero,*null,*inull;
 static K **KS;
 static int ksi=-1,km=1024;
 
-void kinit(void) {
-  K *p;
+void kinit(int argc, char **argv) {
+  K *p,*a;
   Z = dnew();
   KS=xmalloc(sizeof(K*)*km);
   one = knew(1,0,0,1,0,-1);
@@ -40,6 +40,13 @@ void kinit(void) {
   dset(C,"nul",null);
   D=k4(".k"); D->r=-1;
   dset(Z,"s",null); /* self */
+  if(argc>1) {
+    a=kv0(argc-2);
+    DO(argc-2,v0(a)[i]=knew(-3,strlen(argv[i+2]),argv[i+2],0,0,0))
+  }
+  else a=kv0(0);
+  dset(Z,"x",a); /* argv */
+  kfree(a);
 }
 
 K* knew(char t, unsigned int c, void *v, int i, double f, int r) {

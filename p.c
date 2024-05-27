@@ -852,8 +852,16 @@ static int gback(pgs *pgs) {
   return 1;
 }
 
+static void stripcr(char *s) {
+  char *p=s,*q=s;
+  if(!s) return;
+  for(;*q;q++) if(*q!='\r') *p++=*q;
+  *p=0;
+}
+
 static int lex(pgs *pgs) {
   int f=1,s=0;
+  stripcr(pgs->p);
   ln=p=pgs->p;
   if(!linem) {
     linem=2;

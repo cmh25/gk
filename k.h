@@ -124,7 +124,7 @@ extern K *D,*one,*zero,*null,*inull;
  : CMPFFE(A,B))
 #endif
 
-void kinit(void);
+void kinit(int argc, char **argv);
 K* knew(char t, unsigned int c, void *v, int i, double f, int r);
 void kfree(K *k);
 void kdump(int l);

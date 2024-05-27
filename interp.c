@@ -62,6 +62,7 @@ void load(char *fnm) {
     if(c!=' '&&c!='\t'&&c!='\\') f=0;
     if(c=='\n') f=1;
   }
+  if(s->p[i-1]!='\n') s->p[i++]='\n';
   s->p[i]=0;
   a=pgparse(s);
   if(!a) { pgfree(s); return; }
