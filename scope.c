@@ -7,15 +7,16 @@
 #include "sys.h"
 
 #define SM 1000000
+
+#ifdef _WIN32
+  #define strtok_r strtok_s
+#endif
+
 static scope *scopea[SM];
 scope *ks,*gs,*cs;
 dict *ktree,*C,*Z;
 
 extern K *null;
-
-#ifdef _WIN32
-  #define strtok_r strtok_s
-#endif
 
 static scope* scope_new_(scope *p, char *k) {
   int i;
@@ -48,12 +49,12 @@ void scope_free(scope *s) {
 /* n is a global reference. ex: .k.a.b.c */
 static K* ktree_get(char *n) {
   K *r=null,*q;
-  char *s,*p;
+  char *s,*p,*sp;
   if(!strcmp(n,".")) { ktree->r++; return k5(ktree); }
   s=xstrdup(n);
-  p=strtok(s,".");
+  p=strtok_r(s,".",&sp);
   r=dget(ktree,p);
-  while((p=strtok(0,"."))) {
+  while((p=strtok_r(0,".",&sp))) {
     if(!r) { xfree(s); return kerror("value"); }
     if(r->t!=5) { xfree(s); kfree(r); return kerror("value"); }
     q=dget(r->v,p);

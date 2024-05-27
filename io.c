@@ -72,7 +72,7 @@ K* zerocolon1_(K *a) {
   K *r=0;
   FILE *fp;
   int n=0,i;
-  char *b,*p;
+  char *b,*p,*s;
   long bs;
   unsigned int m=2;
   if(at!=-3&&at!=4) return kerror("type");
@@ -85,11 +85,11 @@ K* zerocolon1_(K *a) {
   fclose(fp);
   r=kv0(m);
   i=0;
-  p=strtok(b,"\n");
+  p=strtok_r(b,"\n",&s);
   do{
     if(r->c==m) { m<<=1; r->v=xrealloc(r->v,m*sizeof(K*)); }
     v0(r)[i++]=knew(-3,strlen(p),p,0,0,0);
-  }while((p=strtok(0,"\n")));
+  }while((p=strtok_r(0,"\n",&s)));
   xfree(b);
   r->c=i;
   return r;
