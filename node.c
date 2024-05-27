@@ -14,7 +14,7 @@
 #include "interp.h"
 
 #ifdef _WIN32
-#define strtok_r strtok_s
+  #define strtok_r strtok_s
 #endif
 
 #define DLIMIT 2000

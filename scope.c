@@ -14,7 +14,7 @@ dict *ktree,*C,*Z;
 extern K *null;
 
 #ifdef _WIN32
-#define strtok_r strtok_s
+  #define strtok_r strtok_s
 #endif
 
 static scope* scope_new_(scope *p, char *k) {

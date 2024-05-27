@@ -1,8 +1,9 @@
 #ifdef _WIN32
-#define WIN32_LEAN_AND_MEAN
-#include <windows.h>
+  #define WIN32_LEAN_AND_MEAN
+  #include <windows.h>
+  #define strtok_r strtok_s
 #else
-#include <dirent.h>
+  #include <dirent.h>
 #endif
 #include "ops.h"
 #include <stdlib.h>
@@ -23,10 +24,6 @@
 #include "adcd.h"
 #include "interp.h"
 #include "sys.h"
-
-#ifdef _WIN32
-#define strtok_r strtok_s
-#endif
 
 int fret; K *gk; /* function return */
 static K *gtake=0;
@@ -906,7 +903,7 @@ K* dot2_(K *a, K *b) {
     else if(f->t==67&&bm->t>0) r=applyfc1(f,bm,0);
     else if(f->t==67) r=kerror("valence");
     else r=kerror("type");
-    if(bm!=b) kfree(bm); 
+    if(bm!=b) kfree(bm);
     kfree(f);
     break;
   case  5:
@@ -1300,31 +1297,7 @@ K* shape_(K *a) {
   return rt ? r : knorm(r);
 }
 
-#ifndef _WIN32
-static K* lsdir(char *p) {
-  K *r=0,*q=0,*s=0;
-  unsigned int n=0;
-  DIR *f=opendir(p);
-  struct dirent *e;
-  if(!f) return kerror("value");
-  q=kv0(32);
-  while((e=readdir(f))) {
-    if(!strcmp(e->d_name,".")||!strcmp(e->d_name,"..")) continue;
-    ++n;
-    if(n==q->c) { q->c<<=1; q->v=xrealloc(q->v,q->c*sizeof(K*)); }
-    v0(q)[n-1]=kv3(1+strlen(e->d_name));
-    strcpy(v0(q)[n-1]->v,e->d_name);
-    v0(q)[n-1]->c--;
-  }
-  q->c=n;
-  closedir(f);
-  s=upgrade_(q);
-  r=at2_(q,s);
-  kfree(q);
-  kfree(s);
-  return r;
-}
-#else
+#ifdef _WIN32
 static K* lsdir(char *p) {
   K *r=0,*q=0,*s=0;
   int n=0;
@@ -1352,6 +1325,31 @@ static K* lsdir(char *p) {
   kfree(s);
   return r;
 }
+#else
+static K* lsdir(char *p) {
+  K *r=0,*q=0,*s=0;
+  unsigned int n=0;
+  DIR *f=opendir(p);
+  struct dirent *e;
+  if(!f) return kerror("value");
+  q=kv0(32);
+  while((e=readdir(f))) {
+    if(!strcmp(e->d_name,".")||!strcmp(e->d_name,"..")) continue;
+    ++n;
+    if(n==q->c) { q->c<<=1; q->v=xrealloc(q->v,q->c*sizeof(K*)); }
+    v0(q)[n-1]=kv3(1+strlen(e->d_name));
+    strcpy(v0(q)[n-1]->v,e->d_name);
+    v0(q)[n-1]->c--;
+  }
+  q->c=n;
+  closedir(f);
+  s=upgrade_(q);
+  r=at2_(q,s);
+  kfree(q);
+  kfree(s);
+  return r;
+}
+
 #endif
 K* enumerate_(K *a) {
   K *r=0,*q=null;

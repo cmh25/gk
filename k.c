@@ -5,7 +5,7 @@
 #include <limits.h>
 #include <ctype.h>
 #ifndef _WIN32
-#include <sys/mman.h>
+  #include <sys/mman.h>
 #endif
 #include "x.h"
 #include "sym.h"

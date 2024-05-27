@@ -1,9 +1,9 @@
 #include "timer.h"
 #include <stdio.h>
 #ifdef _WIN32
-#include "systime.h"
+  #include "systime.h"
 #else
-#include <sys/time.h>
+  #include <sys/time.h>
 #endif
 
 static struct timeval tvs;

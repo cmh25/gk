@@ -40,20 +40,20 @@ static char* read_(HANDLE f) {
   BOOL res;
 
   b=xmalloc(m);
-  while(1) { 
+  while(1) {
     res=ReadFile(f,buf,1024,&len,0);
-    if(!res||!len) break; 
+    if(!res||!len) break;
     while(m<n+len) { m<<=1; b=xrealloc(b,m); }
     memcpy(b+n,buf,len);
     n+=len;
-  } 
+  }
   b[n]=0;
   return b;
 }
 
 K* b3colon1_(K *a) {
   char *cmd;
-  PROCESS_INFORMATION pi; 
+  PROCESS_INFORMATION pi;
   STARTUPINFO si;
   BOOL res;
 
@@ -62,22 +62,22 @@ K* b3colon1_(K *a) {
 
   ZeroMemory(&pi, sizeof(PROCESS_INFORMATION));
   ZeroMemory(&si, sizeof(STARTUPINFO));
-  si.cb = sizeof(STARTUPINFO); 
+  si.cb = sizeof(STARTUPINFO);
 
   cmd=xmalloc(ac+8);
   sprintf(cmd,"cmd /c ");
   strncat(cmd,v3(a),ac);
 
-  res=CreateProcess(0, 
-     cmd,  // command line 
-     0,    // process security attributes 
-     0,    // primary thread security attributes 
-     TRUE, // handles are inherited 
-     0,    // creation flags 
-     0,    // use parent's environment 
-     0,    // use parent's current directory 
-     &si,  // STARTUPINFO pointer 
-     &pi); // receives PROCESS_INFORMATION 
+  res=CreateProcess(0,
+     cmd,  // command line
+     0,    // process security attributes
+     0,    // primary thread security attributes
+     TRUE, // handles are inherited
+     0,    // creation flags
+     0,    // use parent's environment
+     0,    // use parent's current directory
+     &si,  // STARTUPINFO pointer
+     &pi); // receives PROCESS_INFORMATION
 
   xfree(cmd);
   if(!res) return kerror("domain");
@@ -92,18 +92,18 @@ K* b4colon1_(K *a) {
   char *cmd,*buf1,*buf2;
   DWORD status;
   HANDLE out[2],err[2];
-  PROCESS_INFORMATION pi; 
+  PROCESS_INFORMATION pi;
   STARTUPINFO si;
   BOOL res;
-  SECURITY_ATTRIBUTES sa; 
+  SECURITY_ATTRIBUTES sa;
 
   if(at!=-3) return kerror("type");
   if(!ac) return kerror("domain");
 
-  // Set the bInheritHandle flag so pipe handles are inherited. 
-  sa.nLength = sizeof(SECURITY_ATTRIBUTES); 
-  sa.bInheritHandle = TRUE; 
-  sa.lpSecurityDescriptor = 0; 
+  // Set the bInheritHandle flag so pipe handles are inherited.
+  sa.nLength = sizeof(SECURITY_ATTRIBUTES);
+  sa.bInheritHandle = TRUE;
+  sa.lpSecurityDescriptor = 0;
 
   if(!CreatePipe(&out[0], &out[1], &sa, 0)) return kerror("domain");
   if(!SetHandleInformation(out[0], HANDLE_FLAG_INHERIT, 0)) return kerror("domain");
@@ -112,7 +112,7 @@ K* b4colon1_(K *a) {
 
   ZeroMemory(&pi, sizeof(PROCESS_INFORMATION));
   ZeroMemory(&si, sizeof(STARTUPINFO));
-  si.cb = sizeof(STARTUPINFO); 
+  si.cb = sizeof(STARTUPINFO);
   si.hStdOutput = out[1];
   si.hStdError = err[1];
   si.dwFlags |= STARTF_USESTDHANDLES;
@@ -121,16 +121,16 @@ K* b4colon1_(K *a) {
   sprintf(cmd,"cmd /c ");
   strncat(cmd,v3(a),ac);
 
-  res=CreateProcess(0, 
-     cmd,  // command line 
-     0,    // process security attributes 
-     0,    // primary thread security attributes 
-     TRUE, // handles are inherited 
-     0,    // creation flags 
-     0,    // use parent's environment 
-     0,    // use parent's current directory 
-     &si,  // STARTUPINFO pointer 
-     &pi); // receives PROCESS_INFORMATION 
+  res=CreateProcess(0,
+     cmd,  // command line
+     0,    // process security attributes
+     0,    // primary thread security attributes
+     TRUE, // handles are inherited
+     0,    // creation flags
+     0,    // use parent's environment
+     0,    // use parent's current directory
+     &si,  // STARTUPINFO pointer
+     &pi); // receives PROCESS_INFORMATION
 
   xfree(cmd);
   if(!res) return kerror("domain");
@@ -158,18 +158,18 @@ K* b8colon1_(K *a) {
   K *r;
   char *cmd,*buf1,*buf2;
   HANDLE out[2],err[2];
-  PROCESS_INFORMATION pi; 
+  PROCESS_INFORMATION pi;
   STARTUPINFO si;
   BOOL res;
-  SECURITY_ATTRIBUTES sa; 
+  SECURITY_ATTRIBUTES sa;
 
   if(at!=-3) return kerror("type");
   if(!ac) return kerror("domain");
 
-  // Set the bInheritHandle flag so pipe handles are inherited. 
-  sa.nLength = sizeof(SECURITY_ATTRIBUTES); 
-  sa.bInheritHandle = TRUE; 
-  sa.lpSecurityDescriptor = 0; 
+  // Set the bInheritHandle flag so pipe handles are inherited.
+  sa.nLength = sizeof(SECURITY_ATTRIBUTES);
+  sa.bInheritHandle = TRUE;
+  sa.lpSecurityDescriptor = 0;
 
   if(!CreatePipe(&out[0], &out[1], &sa, 0)) return kerror("domain");
   if(!CreatePipe(&err[0], &err[1], &sa, 0)) return kerror("domain");
@@ -178,7 +178,7 @@ K* b8colon1_(K *a) {
 
   ZeroMemory( &pi, sizeof(PROCESS_INFORMATION) );
   ZeroMemory( &si, sizeof(STARTUPINFO) );
-  si.cb = sizeof(STARTUPINFO); 
+  si.cb = sizeof(STARTUPINFO);
   si.hStdError = err[1];
   si.hStdOutput = out[1];
   si.dwFlags |= STARTF_USESTDHANDLES;
@@ -187,24 +187,24 @@ K* b8colon1_(K *a) {
   sprintf(cmd,"cmd /c ");
   strncat(cmd,v3(a),ac);
 
-  res=CreateProcess(0, 
-     cmd,  // command line 
-     0,    // process security attributes 
-     0,    // primary thread security attributes 
-     TRUE, // handles are inherited 
-     0,    // creation flags 
-     0,    // use parent's environment 
-     0,    // use parent's current directory 
-     &si,  // STARTUPINFO pointer 
-     &pi); // receives PROCESS_INFORMATION 
-  
+  res=CreateProcess(0,
+     cmd,  // command line
+     0,    // process security attributes
+     0,    // primary thread security attributes
+     TRUE, // handles are inherited
+     0,    // creation flags
+     0,    // use parent's environment
+     0,    // use parent's current directory
+     &si,  // STARTUPINFO pointer
+     &pi); // receives PROCESS_INFORMATION
+
   if(!res) return kerror("domain");
 
   // Close handles to the child process and its primary thread.
   WaitForSingleObject(pi.hProcess,INFINITE);
   CloseHandle(pi.hProcess);
   CloseHandle(pi.hThread);
-   
+
   // Close handles to the stdout pipe no longer needed by the child process.
   CloseHandle(out[1]);
   CloseHandle(err[1]);

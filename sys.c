@@ -1,20 +1,17 @@
 #include <stdio.h>
 #include <time.h>
-#ifndef _WIN32
-#include <sys/time.h>
+#ifdef _WIN32
+  #include "systime.h"
+  #include "unistd.h"
 #else
-#include "systime.h"
+  #include <sys/time.h>
+  #include <unistd.h>
 #endif
 #include "sys.h" /* has to be after systime.h on win32 */
 #include <math.h>
 #include <limits.h>
 #include <string.h>
 #include <ctype.h>
-#ifndef _WIN32
-#include <unistd.h>
-#else
-#include "unistd.h"
-#endif
 #include "av.h"
 #include "x.h"
 #include "ops.h"
@@ -951,7 +948,7 @@ static K* svdcmp(double **a, int m, int n, double *w, double **v, double *t) {
 }
 
 K* lsq2_(K *a, K *b) {
-  K *x,*y,*z; 
+  K *x,*y,*z;
   double **u,*w,**v,*t,wmax,thresh,TOL=1.0e-6,s;
   unsigned int r,n,m;
   if(at > 0 || at < -2 || bt) return kerror("type");
