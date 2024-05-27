@@ -19,7 +19,7 @@
 
 #define DLIMIT 2000
 
-int E=1,A=0;
+int E=1,A,S;
 
 static node* node_new_(node **a, int v, K *s, int line, int linei) {
   node *n = xmalloc(sizeof(node));
@@ -693,6 +693,7 @@ static K* node_reduce_(node *n, int md, int z) {
       f=c->v;
       if(f->i==':') {
         if(ao->t==99&&strchr(ao->v,'.')) r=assign3_(ao,0,f->a);
+        else if(f->a->t==16) r=kerror("syntax");
         else r=apply2(c,ao,f->a,av);
       }
       else if(at==1&&f->a->t==16&&strlen(f->d)>1&&!f->i&&strlen(f->av)&&(!strcmp(f->av,"\\")||!strcmp(f->av,"/"))) { /* 5{x+1}\  store do/while */
@@ -849,6 +850,7 @@ static K* node_reduce_(node *n, int md, int z) {
   return r ? r : null;
 }
 K* node_reduce(node *n, int z) {
+  if(S) { S=0; return kerror("stop"); }
   return node_reduce_(n,0,z);
 }
 static K* node_reducemd(node *n, int z) {

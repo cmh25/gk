@@ -3,7 +3,7 @@
 
 #include "k.h"
 
-extern int E,A;
+extern int E,A,S;
 
 typedef struct node {
   struct node **a;  /* children */
