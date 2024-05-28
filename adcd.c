@@ -5,6 +5,7 @@
 #include "p.h"
 #include "x.h"
 #include "av.h"
+#include "sym.h"
 
 static node* parse(char *s) {
   int u;
@@ -129,19 +130,22 @@ K* amendi3_(K *a, K *b, K *c) {
   if(ct!=7&&ct!=37&&ct!=67&&ct!=77&&ct!=87) return kerror("type");
 
   if(at==4) {
-    p=scope_get(gs,v3(a)); EC(p);
-    if(p->t<0) q=kmix(p);
-    else q=kcp(p);
-    kfree(p);
+    if(!strlen(v3(a))) { q=k5(ktree); ktree->r++; }
+    else { p=scope_get(gs,v3(a)); EC(p); q=p->t<0?kmix(p):kcp(p); kfree(p); }
   }
   else q = at<0 ? kmix(a) : kcp(a);
+
+  if(q->t==5 && at==4 && !strlen(v3(a))) {
+    if(bt==4 && strlen(v3(b))==1 && v3(b)[0]!='k') return kerror("reserved");
+    if(bt==-4 && strlen(v4(b)[0])==1 && v4(b)[0][0]!='k') return kerror("reserved");
+  }
 
   if(q->t>0 && q->t!=5) return kerror("rank");
 
   r = amendi3_pd(q,b,c);
 
   if(at==4) {
-    p=rt?r:knorm(r); scope_set(gs,v3(a),p); kfree(p);
+    p=rt?r:knorm(r); EC(scope_set(gs,v3(a),p)); kfree(p);
     return kref(a);
   }
   return rt ? r : knorm(r);
@@ -236,12 +240,15 @@ K* amend3_(K *a, K *b, K *c) {
   if(ct!=7&&ct!=37&&ct!=67&&ct!=77&&ct!=87) return kerror("type");
 
   if(at==4) {
-    p=scope_get(gs,v3(a)); EC(p);
-    if(p->t<0) q=kmix(p);
-    else q=kcp(p);
-    kfree(p);
+    if(!strlen(v3(a))) { q=k5(ktree); ktree->r++; }
+    else { p=scope_get(gs,v3(a)); EC(p); q=p->t<0?kmix(p):kcp(p); kfree(p); }
   }
   else q = at<0 ? kmix(a) : kcp(a);
+
+  if(q->t==5 && at==4 && !strlen(v3(a))) {
+    if(bt==4 && strlen(v3(b))==1 && v3(b)[0]!='k') return kerror("reserved");
+    if(bt==-4 && strlen(v4(b)[0])==1 && v4(b)[0][0]!='k') return kerror("reserved");
+  }
 
   if(q->t==5 && bt!=4 && bt!=-4 && bt!=0 && bt!=6) return kerror("type");
   if(q->t<=0 && bt!=1 && bt!=-1 && bt!=0 && bt!=6) return kerror("type");
@@ -249,7 +256,7 @@ K* amend3_(K *a, K *b, K *c) {
   r = amend3_pd(q,b,c);
 
   if(at==4) {
-    p=rt?r:knorm(r); scope_set(gs,v3(a),p); kfree(p);
+    p=rt?r:knorm(r); EC(scope_set(gs,v3(a),p)); kfree(p);
     return kref(a);
   }
   return rt ? r : knorm(r);
@@ -374,17 +381,20 @@ K* amendi4_(K *a, K *b, K *c, K *d) {
   if(!conform(b,d)) return kerror("length");
 
   if(at==4) {
-    p=scope_get(gs,v3(a)); EC(p);
-    if(p->t<0) q=kmix(p);
-    else q=kcp(p);
-    kfree(p);
+    if(!strlen(v3(a))) { q=k5(ktree); ktree->r++; }
+    else { p=scope_get(gs,v3(a)); EC(p); q=p->t<0?kmix(p):kcp(p); kfree(p); }
   }
   else q = at<0 ? kmix(a) : kcp(a);
+
+  if(q->t==5 && at==4 && !strlen(v3(a))) {
+    if(bt==4 && strlen(v3(b))==1 && v3(b)[0]!='k') return kerror("reserved");
+    if(bt==-4 && strlen(v4(b)[0])==1 && v4(b)[0][0]!='k') return kerror("reserved");
+  }
 
   r = amendi4_pd(q,b,c,d);
 
   if(at==4) {
-    p=rt?r:knorm(r); scope_set(gs,v3(a),p); kfree(p);
+    p=rt?r:knorm(r); EC(scope_set(gs,v3(a),p)); kfree(p);
     return kref(a);
   }
   return rt ? r : knorm(r);
@@ -477,6 +487,11 @@ K* amend4_(K *a, K *b, K *c, K *d) {
   if(q->t<=0 && bt!=1 && bt!=-1 && bt!=0 && bt!=6) return kerror("type");
   if(q->t==5 && bt==0 && bc && v0(b)[0]->t!=4 && v0(b)[0]->t!=-4 &&v0(b)[0]->t!=6) return kerror("type");
 
+  if(q->t==5 && at==4 && !strlen(v3(a))) {
+    if(bt==4 && strlen(v3(b))==1 && v3(b)[0]!='k') return kerror("reserved");
+    if(bt==-4 && strlen(v4(b)[0])==1 && v4(b)[0][0]!='k') return kerror("reserved");
+  }
+
   r=amend4_pd(q,b,c,d);
 
   if(at==4) {
@@ -486,7 +501,7 @@ K* amend4_(K *a, K *b, K *c, K *d) {
     }
     else {
       p=rt?r:knorm(r);
-      scope_set(gs,v3(a),p);
+      EC(scope_set(gs,v3(a),p));
       kfree(p);
       return kref(a);
     }

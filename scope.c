@@ -18,6 +18,19 @@ dict *ktree,*C,*Z;
 
 extern K *null;
 
+static int reserved(char *s, char *n) {
+  if(!s) return 0;
+  if(strlen(s)>2)
+    if(s[0]=='.'&&s[2]=='.'&&s[1]!='k')
+      return 1;
+  if(strlen(s)==1)
+    if(s[0]=='.' && n && strlen(n)==1 && n[0]!='k')
+      return 1;
+  if(strlen(s)==2 && s[0]=='.' && s[1]!='k')
+    return 1;
+  return 0;
+}
+
 static scope* scope_new_(scope *p, char *k) {
   int i;
   scope *s = xmalloc(sizeof(scope));
@@ -95,8 +108,10 @@ K* scope_get(scope *s, char *n) {
   return r ? r : kerror("value");
 }
 
-void scope_set(scope *s, char *n, K *v) {
+K* scope_set(scope *s, char *n, K *v) {
+  if(reserved(s->k,n)) return kerror("reserved");
   dset(s->d,n,v);
+  return null;
 }
 
 scope* scope_cp(scope *s) {

@@ -488,7 +488,7 @@ K* fnd(K *a) {
   if(vz&&q<3) { v[q++] = sp("x"); }
   if(vy&&q<2) { v[q++] = sp("x"); }
   if(!ff->l) ff->v=q;
-  for(i=0;i<q;i++) { if(kreserved(v[i])) return kerror("reserved"); else scope_set(ff->s_,v[i],null); }
+  for(i=0;i<q;i++) { if(kreserved(v[i])) return kerror("reserved"); else EC(scope_set(ff->s_,v[i],null)); }
 
   /* build ast */
   u=strlen(ff->d);
@@ -568,21 +568,21 @@ K* fne2(K *f, K *a, char *av) {
 
   if(!ff->q) { /* no formal parameters */
     if(rv==3) {
-      scope_set(fs,sp("x"),v0(q)[rv-3]);
-      scope_set(fs,sp("y"),v0(q)[rv-2]);
-      scope_set(fs,sp("z"),v0(q)[rv-1]);
+      EC(scope_set(fs,sp("x"),v0(q)[rv-3]));
+      EC(scope_set(fs,sp("y"),v0(q)[rv-2]));
+      EC(scope_set(fs,sp("z"),v0(q)[rv-1]));
     }
     else if(rv==2) {
-      scope_set(fs,sp("x"),v0(q)[rv-2]);
-      scope_set(fs,sp("y"),v0(q)[rv-1]);
+      EC(scope_set(fs,sp("x"),v0(q)[rv-2]));
+      EC(scope_set(fs,sp("y"),v0(q)[rv-1]));
     }
     else if(rv==1) {
-      scope_set(fs,sp("x"),v0(q)[0]);
+      EC(scope_set(fs,sp("x"),v0(q)[0]));
     }
   }
   else {
-    if(rv==1) scope_set(fs,fs->d->k[0],v0(q)[0]);
-    else DO(rv,scope_set(fs,fs->d->k[i],v0(q)[i]))
+    if(rv==1) { EC(scope_set(fs,fs->d->k[0],v0(q)[0])); }
+    else DO(rv,EC(scope_set(fs,fs->d->k[i],v0(q)[i])))
   }
   q->c=0;
   kfree(q);

@@ -21,7 +21,7 @@ scope* scope_new(scope *p);
 scope* scope_newk(scope *p, char *k);
 void scope_free(scope *s);
 K* scope_get(scope *s, char *n);
-void scope_set(scope *s, char *n, K *v);
+K* scope_set(scope *s, char *n, K *v);
 scope* scope_cp(scope *s);
 scope* scope_find(dict *d);
 

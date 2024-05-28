@@ -939,7 +939,7 @@ K* assign2_(K *a, K *b) {
   if(at!=99) return kerror("type");
   if(!b) return kerror("parse");
   if(kreserved(a4)) return kerror("reserved");
-  scope_set(cs,a->v,b);
+  EC(scope_set(cs,a->v,b));
   quiet2=1;
   return kcp(a);
 }
@@ -947,7 +947,7 @@ K* assign2g_(K *a, K *b) {
   if(at!=99) return kerror("type");
   if(!b) return kerror("parse");
   if(kreserved(a4)) return kerror("reserved");
-  scope_set(gs,a->v,b);
+  EC(scope_set(gs,a->v,b));
   quiet2=1;
   return kcp(a);
 }
@@ -1869,6 +1869,10 @@ K* dir1_(K* a) {
   dict *d;
   K *q,*t=0;
   scope *es;
+
+  if(strlen(v3(D))==2&&v3(D)[0]=='.'&&v3(D)[1]!='k') return kerror("reserved");
+  if(strlen(v3(D))>2&&v3(D)[0]=='.'&&v3(D)[2]=='.'&&v3(D)[1]!='k') return kerror("reserved");
+
   if(at==6) printf("%s\n",(char*)D->v);
   else if(a->v==D->v) { /* do nothing */ }
   else if(at==3&&a->i=='^') { /* go up one level */

@@ -39,6 +39,19 @@ node* node_newli(node **a, int v, K *s, int line, int linei) {
   return node_new_(a,v,s,line,linei);
 }
 
+static int reserved(char *s) {
+  if(!s) return 0;
+  if(strlen(s)>2)
+    if(s[0]=='.'&&s[2]=='.'&&s[1]!='k')
+      return 1;
+  if(strlen(s)==1)
+    if(s[0]=='.')
+      return 1;
+  if(strlen(s)==2 && s[0]=='.' && s[1]!='k')
+    return 1;
+  return 0;
+}
+
 K* assign3_(K *a, K *b, K *c) {
   K *r=0,*m=0,*n=0,*f=0;
   char *an=a->v,*s=0,*t=0,*u=0,*nn,*rp;
@@ -46,6 +59,7 @@ K* assign3_(K *a, K *b, K *c) {
   scope *es=cs;
 
   if(!b) { /* d.a:1 */
+    if(reserved(a->v)) return kerror("reserved");
     nn=xstrdup(a->v);
     u=t=s=strtok_r(nn,".",&rp);
     if(nn[0]=='.') es=ks;
@@ -64,7 +78,7 @@ K* assign3_(K *a, K *b, K *c) {
     SR(c);
     dset(e,t,c);
     if(n) kfree(n);
-    scope_set(es,sp(u),m);
+    EC(scope_set(es,sp(u),m));
     xfree(nn);
     quiet2=1;
     return m;
@@ -80,7 +94,7 @@ K* assign3_(K *a, K *b, K *c) {
   if(bt==0) r=amend4_(a,b,f,c);
   else r=amendi4_(a,b,f,c);
   EC(r);
-  scope_set(cs,an,r);
+  EC(scope_set(cs,an,r));
   kfree(r); kfree(f); kfree(a);
   quiet2=1;
   return ct ? c : knorm(c);
@@ -839,7 +853,7 @@ static K* node_reduce_(node *n, int md, int z) {
       if(ct==17) r=kref(((fn*)c->v)->a);
       else r=kref(c);
     }
-    else if(ct==17&&((fn*)c->v)->i==':') {
+    else if(ct==17&&((fn*)c->v)->i==':'&&strcmp(e->s,"reserved")) {
       p=assign2_(ao,r);
       kfree(r);
       r=p;
