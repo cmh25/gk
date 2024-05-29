@@ -4,8 +4,11 @@
 #include <math.h>
 #include <limits.h>
 #include <ctype.h>
-#ifndef _WIN32
+#ifdef _WIN32
+  #include "unistd.h"
+#else
   #include <sys/mman.h>
+  #include <unistd.h>
 #endif
 #include "x.h"
 #include "sym.h"
@@ -22,6 +25,13 @@ static int ksi=-1,km=1024;
 
 void kinit(int argc, char **argv) {
   K *p,*a;
+  char hn[256];
+  #ifdef _WIN32
+  int size=256;
+  GetComputerNameA(hn,&size);
+  #else
+  gethostname(hn,256);
+  #endif
   Z = dnew();
   KS=xmalloc(sizeof(K*)*km);
   one = knew(1,0,0,1,0,-1);
@@ -46,6 +56,10 @@ void kinit(int argc, char **argv) {
   }
   else a=kv0(0);
   dset(Z,"x",a); /* argv */
+  dset(Z,"i",k1(getpid()));
+  dset(Z,"h",k4(hn));
+  dset(Z,"t",null);
+  dset(Z,"T",null);
   kfree(a);
 }
 

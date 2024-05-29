@@ -117,10 +117,13 @@ I didn't want to reserve single-letter names, so some have changed.
 ```
 k3     gk
 ---    ---
- _n    nul
- _t    ts
- _T    TS
+ _P    .z.i
+ _T    .z.T
  _f    .z.s
+ _h    .z.h
+ _i    .z.x
+ _n    nul
+ _t    .z.t
 ```
 
 ### $ replaces : in cond

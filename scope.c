@@ -82,8 +82,8 @@ K* scope_get(scope *s, char *n) {
   char *p=0,*nn,*rp;
   if(!s) return 0;
   if(!n) return 0;
-  if(n==sp("ts")) return t0();
-  else if(n==sp("TS")) return tt0();
+  t=t0(); dset(Z,"t",t); kfree(t);
+  t=tt0(); dset(Z,"T",t); kfree(t);
   if(n[0]=='.') return ktree_get(n);
   if(s->k) { /* refresh scope dict from ktree */
     q=ktree_get(s->k);
