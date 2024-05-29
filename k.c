@@ -49,17 +49,17 @@ void kinit(int argc, char **argv) {
   fninit();
   dset(C,"nul",null);
   D=k4(".k"); D->r=-1;
-  dset(Z,"s",null); /* self */
   if(argc>1) {
     a=kv0(argc-2);
     DO(argc-2,v0(a)[i]=knew(-3,strlen(argv[i+2]),argv[i+2],0,0,0))
   }
   else a=kv0(0);
-  dset(Z,"x",a); /* argv */
-  dset(Z,"i",k1(getpid()));
   dset(Z,"h",k4(hn));
-  dset(Z,"t",null);
+  dset(Z,"P",k1(getpid()));
+  dset(Z,"i",a);
   dset(Z,"T",null);
+  dset(Z,"t",null);
+  dset(Z,"f",null);
   kfree(a);
 }
 

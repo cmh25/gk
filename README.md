@@ -117,12 +117,12 @@ I didn't want to reserve single-letter names, so some have changed.
 ```
 k3     gk
 ---    ----
- _P    .z.i
- _T    .z.T
- _f    .z.s
- _h    .z.h
- _i    .z.x
  _n    nul
+ _P    .z.P
+ _T    .z.T
+ _f    .z.f
+ _h    .z.h
+ _i    .z.i
  _t    .z.t
 ```
 

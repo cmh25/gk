@@ -587,8 +587,8 @@ K* fne2(K *f, K *a, char *av) {
   q->c=0;
   kfree(q);
 
-  self=dget(Z,"s");
-  dset(Z,"s",f);
+  self=dget(Z,"f");
+  dset(Z,"f",f);
 
   os=cs;cs=fs;
   r=null;
@@ -596,12 +596,12 @@ K* fne2(K *f, K *a, char *av) {
     kfree(r);
     quiet2=0;
     r=node_reduce(ff->n->a[k],0);
-    if(r->t==98) { dset(Z,"s",self); kfree(self); return r; }
+    if(r->t==98) { dset(Z,"f",self); kfree(self); return r; }
     if(fret) { fret=0; break; }
   }
   kfree(p);
 
-  dset(Z,"s",self);
+  dset(Z,"f",self);
   kfree(self);
 
   SR(r);
