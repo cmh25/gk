@@ -116,7 +116,7 @@ Most of the reserved names from k3 are still there, but with the _ removed.
 I didn't want to reserve single-letter names, so some have changed.
 ```
 k3     gk
----    ---
+---    ----
  _P    .z.i
  _T    .z.T
  _f    .z.s
