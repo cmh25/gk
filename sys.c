@@ -19,6 +19,9 @@
 #include "fn.h"
 #include "sym.h"
 #include "rand.h"
+#include "md5.h"
+#include "sha1.h"
+#include "sha2.h"
 
 K* sleep1_(K *a) {
   #ifdef _WIN32
@@ -1194,3 +1197,30 @@ K* error1_(K *a) {
   return null;
 }
 MC1A(error1_)
+
+K* md5_(K *a) {
+  K *r=kv3(32);
+  if(at==-3) md5(r->v,a->v,ac);
+  else if(at==4) md5(r->v,a->v,strlen(a->v));
+  else {kfree(r);return kerror("type");}
+  return r;
+}
+MC1A(md5_)
+
+K* sha1_(K *a) {
+  K *r=kv3(40);
+  if(at==-3) sha1(r->v,a->v,ac);
+  else if(at==4) sha1(r->v,a->v,strlen(a->v));
+  else {kfree(r);return kerror("type");}
+  return r;
+}
+MC1A(sha1_)
+
+K* sha2_(K *a) {
+  K *r=kv3(64);
+  if(at==-3) sha2(r->v,a->v,ac);
+  else if(at==4) sha2(r->v,a->v,strlen(a->v));
+  else {kfree(r);return kerror("type");}
+  return r;
+}
+MC1A(sha2_)
