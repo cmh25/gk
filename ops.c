@@ -2059,6 +2059,7 @@ K* help1_(K *a) {
 "data: bd d (bytes from data) and db b (data from bytes)\n"
 "      val (valence of fun)\n"
 "      kv  (list from vector)  vk  (vector from list)\n"
+"      md5 x (128 bit) sha1 x (160-bit) sha2 x (256-bit)\n"
 "\n"
 "sys:  exit code\n"
 "      del file\n");

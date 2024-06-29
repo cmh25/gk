@@ -1199,28 +1199,43 @@ K* error1_(K *a) {
 MC1A(error1_)
 
 K* md5_(K *a) {
-  K *r=kv3(32);
-  if(at==-3) md5(r->v,a->v,ac);
-  else if(at==4) md5(r->v,a->v,strlen(a->v));
-  else {kfree(r);return kerror("type");}
+  K *r=0,*p=0;
+  if(at==0) DO(ac,if(v0(a)[i]->t!=-3) return kerror("type"))
+  switch(at) {
+  case -3: r=kv3(32); md5(r->v,a->v,ac); break;
+  case  4: r=kv3(32); md5(r->v,a->v,strlen(a->v)); break;
+  case -4: r=kv0(ac); p=kmix(a); DO(ac,v0(r)[i]=md5_(v0(p)[i])); kfree(p); break;
+  case  0: r=kv0(ac); DO(ac,v0(r)[i]=md5_(v0(a)[i])); break;
+  default: return kerror("type");
+  }
   return r;
 }
 MC1A(md5_)
 
 K* sha1_(K *a) {
-  K *r=kv3(40);
-  if(at==-3) sha1(r->v,a->v,ac);
-  else if(at==4) sha1(r->v,a->v,strlen(a->v));
-  else {kfree(r);return kerror("type");}
+  K *r=0,*p=0;
+  if(at==0) DO(ac,if(v0(a)[i]->t!=-3) return kerror("type"))
+  switch(at) {
+  case -3: r=kv3(40); sha1(r->v,a->v,ac); break;
+  case  4: r=kv3(40); sha1(r->v,a->v,strlen(a->v)); break;
+  case -4: r=kv0(ac); p=kmix(a); DO(ac,v0(r)[i]=sha1_(v0(p)[i])); kfree(p); break;
+  case  0: r=kv0(ac); DO(ac,v0(r)[i]=sha1_(v0(a)[i])); break;
+  default: return kerror("type");
+  }
   return r;
 }
 MC1A(sha1_)
 
 K* sha2_(K *a) {
-  K *r=kv3(64);
-  if(at==-3) sha2(r->v,a->v,ac);
-  else if(at==4) sha2(r->v,a->v,strlen(a->v));
-  else {kfree(r);return kerror("type");}
+  K *r=0,*p=0;
+  if(at==0) DO(ac,if(v0(a)[i]->t!=-3) return kerror("type"))
+  switch(at) {
+  case -3: r=kv3(64); sha2(r->v,a->v,ac); break;
+  case  4: r=kv3(64); sha2(r->v,a->v,strlen(a->v)); break;
+  case -4: r=kv0(ac); p=kmix(a); DO(ac,v0(r)[i]=sha2_(v0(p)[i])); kfree(p); break;
+  case  0: r=kv0(ac); DO(ac,v0(r)[i]=sha2_(v0(a)[i])); break;
+  default: return kerror("type");
+  }
   return r;
 }
 MC1A(sha2_)
