@@ -13,5 +13,6 @@ K* fivecolon2_(K *a, K *b);
 K* sixcolon2_(K *a, K *b);
 K* sixcolon1_(K *a);
 K* del1_(K *a);
+K* rename1_(K *a, K *b);
 
 #endif /* IO_H */

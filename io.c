@@ -238,3 +238,17 @@ K* del1_(K *a) {
   if(at==-3) xfree(s);
   return null;
 }
+
+K* rename1_(K *a, K *b) {
+  char *p,*q;
+  if(at==4) p=a->v;
+  else if(at==-3) p=xstrndup(a->v,ac);
+  else return kerror("type");
+  if(bt==4) q=b->v;
+  else if(bt==-3) q=xstrndup(b->v,bc);
+  else return kerror("type");
+  if((rename(p,q)==-1)) return kerror(strerror(errno));
+  if(at==-3) xfree(p);
+  if(bt==-3) xfree(q);
+  return null;
+}

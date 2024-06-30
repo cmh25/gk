@@ -2059,10 +2059,14 @@ K* help1_(K *a) {
 "data: bd d (bytes from data) and db b (data from bytes)\n"
 "      val (valence of fun)\n"
 "      kv  (list from vector)  vk  (vector from list)\n"
-"      md5 x (128 bit) sha1 x (160-bit) sha2 x (256-bit)\n"
+"      md5 x (128-bit) sha1 x (160-bit) sha2 x (256-bit)\n"
+"        x is type -3 4 -4 0\n"
+"      (iv;key) encrypt x, (iv;key) decrypt x  (aes256)\n"
+"        x is type -3 4 -4 0, iv:16 draw 256, key:32 draw 256\n"
 "\n"
 "sys:  exit code\n"
-"      del file\n");
+"      del file\n"
+"      old rename new\n");
   }
   else if(a->i=='.') {
     fprintf(stderr,""

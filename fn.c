@@ -186,6 +186,7 @@ void fninit(void) {
   dt2[154]=lsq2_;
   dt2[155]=encrypt_;
   dt2[156]=decrypt_;
+  dt2[157]=rename1_;
 
   /* these are needed because of over dyad */
   dt2avo['+']=plus2_avopt;
@@ -356,6 +357,7 @@ void fninit(void) {
   dset(C,"lsq",knew(7,2,fnnew("lsq"),154,0,-1));
   dset(C,"encrypt",knew(7,2,fnnew("encrypt"),155,0,-1));
   dset(C,"decrypt",knew(7,2,fnnew("decrypt"),156,0,-1));
+  dset(C,"rename",knew(7,2,fnnew("rename"),157,0,-1));
 }
 
 K* fnd(K *a) {
