@@ -22,6 +22,7 @@
 #include "md5.h"
 #include "sha1.h"
 #include "sha2.h"
+#include "aes256.h"
 
 K* sleep1_(K *a) {
   #ifdef _WIN32
@@ -1239,3 +1240,30 @@ K* sha2_(K *a) {
   return r;
 }
 MC1A(sha2_)
+
+static K* crypt_(char*(*f)(char *,unsigned char*,unsigned char*), K *a, K *b) {
+  K *r=0,*iv=0,*key=0;
+  char *s=0,*e=0,*t=0;
+  if(at==0) DO(ac,if(v0(a)[i]->t!=-1) return kerror("type"))
+  if(v0(a)[0]->c!=16) return kerror("iv");
+  if(v0(a)[1]->c!=32) return kerror("key");
+  if(bt!=-3&&bt!=4&&bt!=-4&&bt!=0) return kerror("type");
+  iv=ci1_(v0(a)[0]);
+  key=ci1_(v0(a)[1]);
+  switch(bt) {
+  case -3: s=xstrndup(b->v,bc); e=f(s,iv->v,key->v); r=knew(-3,strlen(e),e,0,0,0); break;
+  case  4: e=f(b->v,iv->v,key->v); r=knew(-3,strlen(e),e,0,0,0); break;
+  case -4: r=kv0(bc); DO(bc,t=f(v4(b)[i],iv->v,key->v); v0(r)[i]=knew(-3,strlen(t),t,0,0,0); xfree(t)); break;
+  case  0: r=kv0(bc); DO(bc,v0(r)[i]=crypt_(f,a,v0(b)[i])); break;
+  default: return kerror("type");
+  }
+  xfree(s); xfree(e);
+  kfree(iv); kfree(key); 
+  return r;
+}
+
+K* encrypt_(K *a, K *b) { return crypt_(aes256e,a,b); }
+MC2A(encrypt_)
+
+K* decrypt_(K *a, K *b) { return crypt_(aes256d,a,b); }
+MC2A(decrypt_)

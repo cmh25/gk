@@ -184,6 +184,8 @@ void fninit(void) {
   dt2[152]=sm2_;
   dt2[153]=ss2_;
   dt2[154]=lsq2_;
+  dt2[155]=encrypt_;
+  dt2[156]=decrypt_;
 
   /* these are needed because of over dyad */
   dt2avo['+']=plus2_avopt;
@@ -275,6 +277,8 @@ void fninit(void) {
   dt2avo2[152]=sm2_avopt2;
   dt2avo2[153]=ss2_avopt2;
   dt2avo2[154]=lsq2_avopt2;
+  dt2avo2[155]=encrypt_avopt2;
+  dt2avo2[156]=decrypt_avopt2;
 
   /* builtins */
   dset(C,"in",knew(37,0,fnnew("{(#y)>y?x}"),1,0,-1));
@@ -350,6 +354,8 @@ void fninit(void) {
   dset(C,"sm",knew(7,2,fnnew("sm"),152,0,-1));
   dset(C,"ss",knew(7,2,fnnew("ss"),153,0,-1));
   dset(C,"lsq",knew(7,2,fnnew("lsq"),154,0,-1));
+  dset(C,"encrypt",knew(7,2,fnnew("encrypt"),155,0,-1));
+  dset(C,"decrypt",knew(7,2,fnnew("decrypt"),156,0,-1));
 }
 
 K* fnd(K *a) {

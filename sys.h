@@ -62,5 +62,7 @@ K* error1_(K *a);         K* error1_avopt(K *a, char *av);
 K* md5_(K *a);            K* md5_avopt(K *a, char *av);
 K* sha1_(K *a);           K* sha1_avopt(K *a, char *av);
 K* sha2_(K *a);           K* sha2_avopt(K *a, char *av);
+K* encrypt_(K *a, K *b);  K* encrypt_avopt2(K *a, K *b, char *av);
+K* decrypt_(K *a, K *b);  K* decrypt_avopt2(K *a, K *b, char *av);
 
 #endif /* SYS_H */
