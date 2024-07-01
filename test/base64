@@ -1,0 +1,23 @@
+\d base64
+
+B64:"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/"
+e0:{
+ i:-4#0 0 0 0,64 vs 256 sv 3#(ic x),0 0
+ p:3-#x
+ ((-p)_ B64 i),p#"="}
+e:{
+ if[~#x;:""]
+ p:(3-(#x)!3)!3
+ b:x,p#" "
+ c:b@+=(#b)#!3
+ r:@[c;-1+#c;{(-p) _ x}]
+ ,/e0'r}
+d0:{(-+/"="=x)_ ci -3#0 0 0,256 vs 64 sv B64?/x}
+d:{if[~#x;:""];,/d0'x@+=(#x)#!4}
+
+\
+
+  base64.e"charles"
+"Y2hhcmxlcw=="
+  base64.d base64.e"charles"
+"charles"

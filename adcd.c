@@ -158,6 +158,7 @@ K* amendi3_pd(K *a, K *b, K *c) {
 
   if(bt==1) {
     j=b1;
+    if(j>rc) return kerror("index");
     if(ct==7) p=dt1[((fn*)c->v)->i](v0(r)[j]);
     else p=fne2(c,v0(r)[j],0);
     EC(p);

@@ -206,11 +206,12 @@ static K* make17(K *a, K *b, K *c, node *n) {
   K *r;
   fn *f;
   char av[32];
+  scope *os;
   av[0]=0;
   if(ct==98) return kref(c);
   r=knew(at,a->c,fncp(a->v),a7->i,a->f,0); /* a might be a constant like draw, sv, vs, etc. */
   f=r->v;
-  if(at==37) r=fnd(r);
+  if(at==37) { os=cs; cs=((fn*)a->v)->s_; r=fnd(r); cs=os; }
   if(f->av) strcat(av,f->av);
   if(bt==47) strcat(av,b->v);
   if(strlen(av)) { if(f->av) xfree(f->av); f->av=xstrdup(av); }

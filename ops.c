@@ -1082,6 +1082,7 @@ K* group_(K *a) {
   uint64_t m,w,h,rs=256,ri=0,*hm,q;
   char *c,**s,**hs;
   double *f,*hd;
+  if(at<=0&&ac==0) return kv0(0);
   switch(at) {
   case  0:
     r=kv0(rs); rc=0;
