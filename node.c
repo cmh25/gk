@@ -422,8 +422,15 @@ static K* node_reduce_(node *n, int md, int z) {
     if(md) {
       if(ct==17) {
         if(((fn*)c->v)->i>1&&a7->i!=1&&!strlen(av)) { /* a->i==1 indicates a resolved builtin like in, lin, ssr */
-          f=c->v;
-          r=apply2(c,a,f->a,0);
+          if(c->c==1) {
+            c=reduce17(c,n);
+            r=avdo37(a,c,av);
+            if(!r) r=fne2(a,c,0);
+          }
+          else {
+            f=c->v;
+            r=apply2(c,a,f->a,0);
+          }
         }
         else {
           f=c->v;
@@ -477,8 +484,13 @@ static K* node_reduce_(node *n, int md, int z) {
           p->c=0;
           kfree(p);
         }
-        else if(((fn*)c->v)->i>1&&a7->i!=1&&!strlen(av)) { /* a->i==1 indicates a resolved builtin like in, lin, ssr */
-          r=apply2(c,a,f->a,0);
+        else if(f->i>1&&a7->i!=1&&!strlen(av)) { /* a->i==1 indicates a resolved builtin like in, lin, ssr */
+          if(c->c==1) {
+            c=reduce17(c,n);
+            r=avdo37(a,c,av);
+            if(!r) r=fne2(a,c,0);
+          }
+          else r=apply2(c,a,f->a,0);
         }
         else {
           f=c->v;
