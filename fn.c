@@ -143,6 +143,8 @@ void fninit(void) {
   dt1[185]=md5_;
   dt1[186]=sha1_;
   dt1[187]=sha2_;
+  dt1[188]=hb1_;
+  dt1[189]=bh1_;
 
   dt2['+']=plus2_;
   dt2['-']=minus2_;
@@ -337,6 +339,8 @@ void fninit(void) {
   dset(C,"md5",knew(7,1,fnnew("md5"),185,0,-1));
   dset(C,"sha1",knew(7,1,fnnew("sha1"),186,0,-1));
   dset(C,"sha2",knew(7,1,fnnew("sha2"),187,0,-1));
+  dset(C,"hb",knew(7,1,fnnew("hb"),188,0,-1));
+  dset(C,"bh",knew(7,1,fnnew("bh"),189,0,-1));
 
   /* dyadic */
   dset(C,"draw",knew(7,2,fnnew("draw"),139,0,-1));

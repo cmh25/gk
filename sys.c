@@ -1267,3 +1267,35 @@ MC2A(encrypt_)
 
 K* decrypt_(K *a, K *b) { return crypt_(aes256d,a,b); }
 MC2A(decrypt_)
+
+K* hb1_(K *a) {
+  K *r=0;
+  char *p=0;
+  switch(at) {
+  case -3: r=kv3(1+2*ac); p=v3(r); DO(ac,sprintf(p,"%02x",(unsigned char)v3(a)[i]);p+=2); r->c--; break;
+  case  0: r=kv0(ac); DO(ac,EC(v0(r)[i]=hb1_(v0(a)[i]))); break;
+  default: return kerror("type");
+  }
+  return r;
+}
+MC1A(hb1_)
+
+K* bh1_(K *a) {
+  K *r=0;
+  char *p,*q,b[5];
+  switch(at) {
+  case -3:
+    if(!ac) return kv3(0);
+    p=v3(a);
+    r=kv3(1+ac/2); q=v3(r);
+    if(ac==1) { sprintf(b,"0x0%c",p[0]); *q=strtol(b,0,0); return r; }
+    if(ac%2) { sprintf(b,"0x0%c",p[0]); *q++=strtol(b,0,0); p++; }
+    DO(ac/2, sprintf(b,"0x%c%c",p[0],p[1]); *q++=strtol(b,0,0); p+=2; )
+    r->c--;
+    break;
+  case  0: r=kv0(ac); DO(ac,EC(v0(r)[i]=bh1_(v0(a)[i]))); break;
+  default: return kerror("type");
+  }
+  return r;
+}
+MC1A(bh1_)
