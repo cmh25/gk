@@ -1315,6 +1315,13 @@ K* getenv1_(K *a) {
 }
 MC1A(getenv1_)
 
+static void se(char *k, char *v) {
+  #ifdef _WIN32
+  _putenv_s(k,v);
+  #else
+  setenv(k,v,1);
+  #endif
+}
 K* setenv2_(K *a, K *b) {
   char *p,*q;
   switch(at) {
@@ -1324,7 +1331,7 @@ K* setenv2_(K *a, K *b) {
     case  4: p=xstrndup(v3(a),ac); q=strdup(b4); break;
     default: return kerror("type");
     }
-    setenv(p,q,1);
+    se(p,q);
     xfree(p); xfree(q);
     break;
   case  4:
@@ -1333,12 +1340,12 @@ K* setenv2_(K *a, K *b) {
     case  4: p=strdup(a4); q=strdup(b4); break;
     default: return kerror("type");
     }
-    setenv(p,q,1);
+    se(p,q);
     xfree(p); xfree(q);
     break;
   case -4:
     switch(bt) {
-    case -4: if(ac!=bc) return kerror("length"); DO(ac,setenv(v4(a)[i],v4(b)[i],1)); break;
+    case -4: if(ac!=bc) return kerror("length"); DO(ac,se(v4(a)[i],v4(b)[i])); break;
     default: return kerror("type");
     } break;
   case  0:
