@@ -145,6 +145,7 @@ void fninit(void) {
   dt1[187]=sha2_;
   dt1[188]=hb1_;
   dt1[189]=bh1_;
+  dt1[190]=getenv1_;
 
   dt2['+']=plus2_;
   dt2['-']=minus2_;
@@ -188,7 +189,8 @@ void fninit(void) {
   dt2[154]=lsq2_;
   dt2[155]=encrypt_;
   dt2[156]=decrypt_;
-  dt2[157]=rename1_;
+  dt2[157]=rename2_;
+  dt2[158]=setenv2_;
 
   /* these are needed because of over dyad */
   dt2avo['+']=plus2_avopt;
@@ -341,6 +343,7 @@ void fninit(void) {
   dset(C,"sha2",knew(7,1,fnnew("sha2"),187,0,-1));
   dset(C,"hb",knew(7,1,fnnew("hb"),188,0,-1));
   dset(C,"bh",knew(7,1,fnnew("bh"),189,0,-1));
+  dset(C,"getenv",knew(7,1,fnnew("getenv"),190,0,-1));
 
   /* dyadic */
   dset(C,"draw",knew(7,2,fnnew("draw"),139,0,-1));
@@ -362,6 +365,7 @@ void fninit(void) {
   dset(C,"encrypt",knew(7,2,fnnew("encrypt"),155,0,-1));
   dset(C,"decrypt",knew(7,2,fnnew("decrypt"),156,0,-1));
   dset(C,"rename",knew(7,2,fnnew("rename"),157,0,-1));
+  dset(C,"setenv",knew(7,2,fnnew("setenv"),158,0,-1));
 }
 
 K* fnd(K *a) {

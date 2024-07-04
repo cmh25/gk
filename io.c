@@ -239,7 +239,7 @@ K* del1_(K *a) {
   return null;
 }
 
-K* rename1_(K *a, K *b) {
+K* rename2_(K *a, K *b) {
   char *p,*q;
   if(at==4) p=a->v;
   else if(at==-3) p=xstrndup(a->v,ac);

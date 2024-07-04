@@ -2066,9 +2066,9 @@ K* help1_(K *a) {
 "      (iv;key) encrypt x, (iv;key) decrypt x (aes256)\n"
 "        x is type -3 4 -4 0, iv:16 draw 256, key:32 draw 256\n"
 "\n"
-"sys:  exit code\n"
-"      del file\n"
-"      old rename new\n");
+"sys:  v setenv s, getenv v (set/get environment variable)\n"
+"      del f (delete file), f rename g (rename f to g)\n"
+"      exit code\n");
   }
   else if(a->i=='.') {
     fprintf(stderr,""

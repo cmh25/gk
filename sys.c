@@ -1,4 +1,5 @@
 #include <stdio.h>
+#include <stdlib.h>
 #include <time.h>
 #ifdef _WIN32
   #include "systime.h"
@@ -1205,8 +1206,8 @@ K* md5_(K *a) {
   switch(at) {
   case -3: r=kv3(32); md5(r->v,a->v,ac); break;
   case  4: r=kv3(32); md5(r->v,a->v,strlen(a->v)); break;
-  case -4: r=kv0(ac); p=kmix(a); DO(ac,v0(r)[i]=md5_(v0(p)[i])); kfree(p); break;
-  case  0: r=kv0(ac); DO(ac,v0(r)[i]=md5_(v0(a)[i])); break;
+  case -4: r=kv0(ac); p=kmix(a); DO(ac,EC(v0(r)[i]=md5_(v0(p)[i]))); kfree(p); break;
+  case  0: r=kv0(ac); DO(ac,EC(v0(r)[i]=md5_(v0(a)[i]))); break;
   default: return kerror("type");
   }
   return r;
@@ -1219,8 +1220,8 @@ K* sha1_(K *a) {
   switch(at) {
   case -3: r=kv3(40); sha1(r->v,a->v,ac); break;
   case  4: r=kv3(40); sha1(r->v,a->v,strlen(a->v)); break;
-  case -4: r=kv0(ac); p=kmix(a); DO(ac,v0(r)[i]=sha1_(v0(p)[i])); kfree(p); break;
-  case  0: r=kv0(ac); DO(ac,v0(r)[i]=sha1_(v0(a)[i])); break;
+  case -4: r=kv0(ac); p=kmix(a); DO(ac,EC(v0(r)[i]=sha1_(v0(p)[i]))); kfree(p); break;
+  case  0: r=kv0(ac); DO(ac,EC(v0(r)[i]=sha1_(v0(a)[i]))); break;
   default: return kerror("type");
   }
   return r;
@@ -1233,8 +1234,8 @@ K* sha2_(K *a) {
   switch(at) {
   case -3: r=kv3(64); sha2(r->v,a->v,ac); break;
   case  4: r=kv3(64); sha2(r->v,a->v,strlen(a->v)); break;
-  case -4: r=kv0(ac); p=kmix(a); DO(ac,v0(r)[i]=sha2_(v0(p)[i])); kfree(p); break;
-  case  0: r=kv0(ac); DO(ac,v0(r)[i]=sha2_(v0(a)[i])); break;
+  case -4: r=kv0(ac); p=kmix(a); DO(ac,EC(v0(r)[i]=sha2_(v0(p)[i]))); kfree(p); break;
+  case  0: r=kv0(ac); DO(ac,EC(v0(r)[i]=sha2_(v0(a)[i]))); break;
   default: return kerror("type");
   }
   return r;
@@ -1253,8 +1254,8 @@ static K* crypt_(char*(*f)(char *,unsigned char*,unsigned char*), K *a, K *b) {
   switch(bt) {
   case -3: s=xstrndup(b->v,bc); e=f(s,iv->v,key->v); r=knew(-3,strlen(e),e,0,0,0); break;
   case  4: e=f(b->v,iv->v,key->v); r=knew(-3,strlen(e),e,0,0,0); break;
-  case -4: r=kv0(bc); DO(bc,t=f(v4(b)[i],iv->v,key->v); v0(r)[i]=knew(-3,strlen(t),t,0,0,0); xfree(t)); break;
-  case  0: r=kv0(bc); DO(bc,v0(r)[i]=crypt_(f,a,v0(b)[i])); break;
+  case -4: r=kv0(bc); DO(bc,t=f(v4(b)[i],iv->v,key->v); EC(v0(r)[i]=knew(-3,strlen(t),t,0,0,0)); xfree(t)); break;
+  case  0: r=kv0(bc); DO(bc,EC(v0(r)[i]=crypt_(f,a,v0(b)[i]))); break;
   default: return kerror("type");
   }
   xfree(s); xfree(e);
@@ -1299,3 +1300,54 @@ K* bh1_(K *a) {
   return r;
 }
 MC1A(bh1_)
+
+K* getenv1_(K *a) {
+  K *r=null,*m;
+  char *b,*p;
+  switch(at) {
+  case -3: b=xstrndup(v3(a),ac); p=getenv(b); if(p)r=knew(-3,strlen(p),p,0,0,0); xfree(b); break;
+  case  4: p=getenv(a4); if(p)r=knew(-3,strlen(p),p,0,0,0); break;
+  case -4: r=kv0(ac); m=kmix(a); DO(ac,EC(v0(r)[i]=getenv1_(v0(m)[i]))); kfree(m); break;
+  case  0: r=kv0(ac); DO(ac,EC(v0(r)[i]=getenv1_(v0(a)[i]))); break;
+  default: return kerror("type");
+  }
+  return r;
+}
+MC1A(getenv1_)
+
+K* setenv2_(K *a, K *b) {
+  char *p,*q;
+  switch(at) {
+  case -3:
+    switch(bt) {
+    case -3: p=xstrndup(v3(a),ac); q=xstrndup(v3(b),bc); break;
+    case  4: p=xstrndup(v3(a),ac); q=strdup(b4); break;
+    default: return kerror("type");
+    }
+    setenv(p,q,1);
+    xfree(p); xfree(q);
+    break;
+  case  4:
+    switch(bt) {
+    case -3: p=strdup(a4); q=xstrndup(v3(b),bc); break;
+    case  4: p=strdup(a4); q=strdup(b4); break;
+    default: return kerror("type");
+    }
+    setenv(p,q,1);
+    xfree(p); xfree(q);
+    break;
+  case -4:
+    switch(bt) {
+    case -4: if(ac!=bc) return kerror("length"); DO(ac,setenv(v4(a)[i],v4(b)[i],1)); break;
+    default: return kerror("type");
+    } break;
+  case  0:
+    switch(bt) {
+    case  0: if(ac!=bc) return kerror("length"); DO(ac,EC(setenv2_(v0(a)[i],v0(b)[i]))); break;
+    default: return kerror("type");
+    } break;
+  default: return kerror("type");
+  }
+  return null;
+}
+MC1A(setenv1_)
