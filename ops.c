@@ -2059,6 +2059,7 @@ K* help1_(K *a) {
 "\n"
 "data: bd d (bytes from data)  and db b (data from bytes)\n"
 "      bh d (bytes from hex)   and hb b (hex from bytes)\n"
+"      zb b (compress bytes)   and bz z (decompress bytes)\n"
 "      kv v (list from vector) and vk k (vector from list)\n"
 "      val f (valence of fun)\n"
 "      md5 x (128-bit), sha1 x (160-bit), sha2 x (256-bit)\n"

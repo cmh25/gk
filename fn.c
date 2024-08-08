@@ -146,6 +146,8 @@ void fninit(void) {
   dt1[188]=hb1_;
   dt1[189]=bh1_;
   dt1[190]=getenv1_;
+  dt1[191]=zb1_;
+  dt1[192]=bz1_;
 
   dt2['+']=plus2_;
   dt2['-']=minus2_;
@@ -344,6 +346,8 @@ void fninit(void) {
   dset(C,"hb",knew(7,1,fnnew("hb"),188,0,-1));
   dset(C,"bh",knew(7,1,fnnew("bh"),189,0,-1));
   dset(C,"getenv",knew(7,1,fnnew("getenv"),190,0,-1));
+  dset(C,"zb",knew(7,1,fnnew("zb"),191,0,-1));
+  dset(C,"bz",knew(7,1,fnnew("bz"),192,0,-1));
 
   /* dyadic */
   dset(C,"draw",knew(7,2,fnnew("draw"),139,0,-1));

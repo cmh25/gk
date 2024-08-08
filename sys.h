@@ -68,5 +68,7 @@ K* hb1_(K *a);            K* hb1_avopt(K *a, char *av);
 K* bh1_(K *a);            K* bh1_avopt(K *a, char *av);
 K* getenv1_(K *a);        K* getenv1_avopt(K *a, char *av);
 K* setenv2_(K *a, K *b);  K* setenv2_avopt(K *a, K *b, char *av);
+K* zb1_(K *a);            K* zb1_avopt(K *a, char *av);
+K* bz1_(K *a);            K* bb1_avopt(K *a, char *av);
 
 #endif /* SYS_H */

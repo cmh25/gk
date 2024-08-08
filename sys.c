@@ -24,6 +24,7 @@
 #include "sha1.h"
 #include "sha2.h"
 #include "aes256.h"
+#include "lzw.h"
 
 K* sleep1_(K *a) {
   #ifdef _WIN32
@@ -1358,3 +1359,49 @@ K* setenv2_(K *a, K *b) {
   return null;
 }
 MC1A(setenv1_)
+
+K* zb1_(K* a) {
+  K *r;
+  char *b,*pb;
+  size_t n;
+  LZW *z=lzwc(v3(a),ac);
+  n=z->i/8+(z->i%8?1:0);
+  b=xmalloc(sizeof(LZW)+n);
+  pb=b;
+  *b++=z->v;
+  memcpy(b,&z->i,sizeof(size_t)); b+=sizeof(size_t);
+  memcpy(b,&z->n,sizeof(size_t)); b+=sizeof(size_t);
+  memcpy(b,&z->c,sizeof(size_t)); b+=sizeof(size_t);
+  memcpy(b,z->b,n);
+  lzwfree(z);
+  r=kv3(1);
+  xfree(r->v);
+  r->v=pb;
+  r->c=sizeof(LZW)+n;
+  return r;
+}
+MC1A(zb1_)
+
+K* bz1_(K* a) {
+  K *r;
+  LZW *p,*q;
+  char *pa=v3(a);
+  size_t n;
+  p=lzwnew();
+  p->v=*pa++;
+  memcpy(&p->i,pa,sizeof(size_t)); pa+=sizeof(size_t);
+  memcpy(&p->n,pa,sizeof(size_t)); pa+=sizeof(size_t);
+  memcpy(&p->c,pa,sizeof(size_t)); pa+=sizeof(size_t);
+  n=p->i/8+(p->i%8?1:0);
+  p->b=xrealloc(p->b,n);
+  memcpy(p->b,pa,n);
+  q=lzwd(p);
+  lzwfree(p);
+  r=kv3(1);
+  xfree(r->v);
+  r->v=q->b;
+  r->c=q->n;
+  xfree(q);
+  return r;
+}
+MC1A(bz1_)
