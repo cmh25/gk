@@ -572,8 +572,65 @@ K* ddot2_(K *a, K *b) {
   }
   return r->t ? r : knorm(r);
 }
-MC2A(ddot2_)
 
+K* ddot2_avopt2(K *a, K *b, char *av) {
+  K *r=0,*s,*t,*u,*fb;
+  unsigned int i,j,k,am,bm; /* cols */
+  double d;
+  int g;
+  if(!strcmp(av,"\\")) { /* eachleft */
+    if(at==0&&bt==0) { /* ma dot\ mb */
+      if(ac==0||bc==0) return 0;
+      if(v0(a)[0]->t==-2) {
+        DO(ac,if(v0(a)[i]->t!=-2) return 0)
+        DO(bc,if(v0(b)[i]->t!=-2) return 0)
+        am=v0(a)[0]->c; bm=v0(b)[0]->c;
+        DO(ac,if(v0(a)[i]->c!=am) return kerror("length"))
+        DO(bc,if(v0(b)[i]->c!=bm) return kerror("length"))
+        if(am!=bc) return kerror("length");
+        /* ok to multiply */
+        r=kv0(ac);
+        DO(ac,v0(r)[i]=kv2(bm))
+        fb=flip_(b); /* transpose b */
+        for(i=0;i<ac;i++) {
+          s=v0(a)[i];
+          u=v0(r)[i];
+          for(j=0;j<bm;j++) {
+            d=0;
+            t=v0(fb)[j];
+            for(k=0;k<am;k++) d+=v2(s)[k]*v2(t)[k];
+            v2(u)[j]=d;
+          }
+        }
+        kfree(fb);
+      }
+      else if(v0(a)[0]->t==-1) {
+        DO(ac,if(v0(a)[i]->t!=-1) return 0)
+        DO(bc,if(v0(b)[i]->t!=-1) return 0)
+        am=v0(a)[0]->c; bm=v0(b)[0]->c;
+        DO(ac,if(v0(a)[i]->c!=am) return kerror("length"))
+        DO(bc,if(v0(b)[i]->c!=bm) return kerror("length"))
+        if(am!=bc) return kerror("length");
+        /* ok to multiply */
+        r=kv0(ac);
+        DO(ac,v0(r)[i]=kv1(bm))
+        fb=flip_(b); /* transpose b */
+        for(i=0;i<ac;i++) {
+          s=v0(a)[i];
+          u=v0(r)[i];
+          for(j=0;j<bm;j++) {
+            g=0;
+            t=v0(fb)[j];
+            for(k=0;k<am;k++) g+=v1(s)[k]*v1(t)[k];
+            v1(u)[j]=g;
+          }
+        }
+        kfree(fb);
+      }
+    }
+  }
+  return r;
+}
 
 MC1D(sin1_,sin,sin,2,2,v2,v2)
 MC1A(sin1_)
