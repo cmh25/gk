@@ -681,7 +681,7 @@ static int gc(pgs *pgs) {
       return 1;
     default: return 0; /* error */
     }
-    ++p;
+    if(!*++p) return 0;
   }
   return 1;
 }
