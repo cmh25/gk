@@ -15,7 +15,7 @@ void ctlc(int n) { (void)n; S=1; }
 #endif
 
 int main(int argc, char **argv) {
-  if(isatty(fileno(stdin))) fprintf(stderr, "gk-v0.0.1-rc\n\n");
+  if(isatty(fileno(stdin))) fprintf(stderr, "gk-v0.0.1-rc Copyright (c) 2023-2024 Charles Hall\n\n");
   #ifdef _WIN32
   SetConsoleCtrlHandler(ctlc,TRUE);
   #else
