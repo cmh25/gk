@@ -578,7 +578,8 @@ K* ddot2_avopt2(K *a, K *b, char *av) {
   unsigned int i,j,k,am,bm; /* cols */
   double d;
   int g;
-  if(!strcmp(av,"\\")) { /* eachleft */
+  if(!strcmp(av,"\\")||!strcmp(av,"/")) { /* eachleft or eachright */
+    if(!strcmp(av,"/")) { t=a; a=b; b=t; } /* eachright */
     if(at==0&&bt==0) { /* ma dot\ mb */
       if(ac==0||bc==0) return 0;
       if(v0(a)[0]->t==-2) {
