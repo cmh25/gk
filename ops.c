@@ -1749,6 +1749,7 @@ K* apply1(K *f, K *a, char *av) {
   char av2[32];
   fn *ff=f->v;
   av2[0]=0;
+  if(f->c==2) return kerror("valence");
   if(ff->av) strcat(av2,ff->av);
   if(av) strcat(av2,av);
   quiet2=0;
