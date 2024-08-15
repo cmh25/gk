@@ -121,8 +121,8 @@ void kfree(K *s) {
     else { fprintf(stderr,"unexpected mmap'd type\n"); exit(1); }
     munmap((char*)s->v-12,len);
     s->v=0;
-    if(++ksi==km) { km<<=1; KS=xrealloc(KS,km*sizeof(K*)); }
-    KS[ksi]=s;
+    if(1+ksi<km) KS[++ksi]=s;
+    else xfree(s);
     return;
    }
 #endif
@@ -132,8 +132,8 @@ void kfree(K *s) {
     else if(s->t== 5) { dfree(s->v); s->v=0; }
     else if(s->t==7||s->t==17||s->t==27||s->t==37||s->t==57||s->t==67||s->t==77||s->t==87) { fnfree(s->v); s->v=0; }
     if(s->v && s->t!=1 && s->t!=2 && s->t!=3 && s->t!=4 && s->t!=99 ) xfree(s->v);
-    if(++ksi==km) { km<<=1; KS=xrealloc(KS,km*sizeof(K*)); }
-    KS[ksi]=s;
+    if(1+ksi<km) KS[++ksi]=s;
+    else xfree(s);
   }
   else if(s->r<-2) s->r++;
   else s->r--;
