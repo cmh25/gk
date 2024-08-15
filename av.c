@@ -315,6 +315,7 @@ K* avdo(K *f, K *a, K *b, char *av) {
   if(av[n-1]=='\'') r=slide(f,a,b,av2);     /* a f'b */
   else if(av[n-1]=='/') r=eachright(f,a,b,av2); /* a f/b */
   else if(av[n-1]=='\\') r=eachleft(f,a,b,av2); /* a f\b */
+  else if(av[n-1]=='e') r=each(dt2[ffi],a,b); /* special for d[],:a (see node.c specialav) */
   return r;
 }
 

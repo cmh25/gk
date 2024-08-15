@@ -776,14 +776,34 @@ static K* node_reduce_(node *n, int md, int z) {
       }
     }
     else if(ct==18) {
-      p=knew(7,0,fnnew("@"),'@',0,0);  /* c[1]in"asdf" */
-      q=apply2(p,a,v0(v0(c)[0])[0],0);
-      s=kv0(2); s->t=11; v0(s)[0]=q; v0(s)[1]=((fn*)v0(c)[1]->v)->a;
-      r=avdo37infix(v0(c)[1],s,((fn*)v0(c)[1]->v)->av);
-      if(!r) r=fne2(v0(c)[1],s,0);
-      s->c=0; kfree(s); kfree(p); kfree(q);
+      if(at==5 && v0(c)[0]->t==11 && v0(c)[1]->t==57) { /* d[],:v */
+        p=knew(7,0,fnnew("@"),'@',0,0);
+        t=kref(v0(v0(c)[0])[0]);
+        q=apply2(p,a,t,0);
+        kfree(p);
+        f=v0(c)[1]->v;
+        if(t->c||t->t==16) s=apply2(v0(c)[1],q,f->a,"e"); /* specialav */
+        else s=apply2(v0(c)[1],q,f->a,0);
+        if(t->t==16) t=dkeys(a->v);
+        if(t->c) p=s->t<0?kmix(s):kref(s);
+        else p=kref(s);
+        dreplace(a->v,t,p);
+        r=null;
+        kfree(p); kfree(q); kfree(s); kfree(t);
+      }
+      else {
+        p=knew(7,0,fnnew("@"),'@',0,0);  /* c[1]in"asdf" */
+        q=apply2(p,a,v0(v0(c)[0])[0],0);
+        s=kv0(2); s->t=11; v0(s)[0]=q; v0(s)[1]=((fn*)v0(c)[1]->v)->a;
+        r=avdo37infix(v0(c)[1],s,((fn*)v0(c)[1]->v)->av);
+        if(!r) r=fne2(v0(c)[1],s,0);
+        s->c=0; kfree(s); kfree(p); kfree(q);
+      }
     }
-    else if(ct==13) r=assign3_(ao,v0(c)[0],v0(c)[1]);
+    else if(ct==13) {
+      if(v0(c)[0]->c==1 && v0(v0(c)[0])[0]->t==16) r=assign3_(ao,null,v0(c)[1]);
+      else r=assign3_(ao,v0(c)[0],v0(c)[1]);
+    }
     else if(ct==14) { /* g[1]'[!10;!10] */
       p=knew(7,0,fnnew("@"),'@',0,0);
       q=apply2(p,a,v0(c)[0],av); /* 37 */

@@ -127,3 +127,8 @@ uint64_t dhash(dict *d) {
   DO(d->c,r^=khash(d->v[i]))
   return r;
 }
+
+void dreplace(dict *d, K *keys, K *v) {
+  if(keys->t==4) dset(d,keys->v,v);
+  else DO(keys->c,dset(d,v4(keys)[i],v->c?v0(v)[i]:v))
+}

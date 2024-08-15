@@ -21,5 +21,6 @@ K* dvals(dict *d);
 K* dkeys(dict *d);
 int dcmp(dict *d0, dict *d1);
 uint64_t dhash(dict *d);
+void dreplace(dict *d, K *keys, K *v);
 
 #endif /* DICT_H */
