@@ -42,9 +42,11 @@ K* while1(K *a) {
 K* do1(K *a) {
   K *r=0,*b=0;
   unsigned int i;
+  int j;
   node *n=parse(a->v);
   b=node_reduce(n->a[n->v-1],0); EC(b); SR(b);
-  while(b1--) {
+  j=b1;
+  while(j-->0) {
     for(i=1;i<n->v;i++) {
       r=node_reduce(n->a[n->v-1-i],0); EC(r);
       if(fret) break;
