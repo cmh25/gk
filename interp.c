@@ -7,6 +7,7 @@
 #include "fn.h"
 #include <errno.h>
 #include <string.h>
+#include <ctype.h>
 
 int ecount;
 
@@ -59,7 +60,7 @@ void load(char *fnm) {
     if(f==1&&c=='\\') { j=i-1; ++f; }
     else if(f==2&&c=='\\') f=0;
     else if(f==2&&c=='\n') { s->p[j]=0; break; }
-    if(c!=' '&&c!='\t'&&c!='\\') f=0;
+    if(!isblank(c)&&c!='\\') f=0;
     if(c=='\n') f=1;
   }
   if(s->p[i-1]!='\n') s->p[i++]='\n';
@@ -100,10 +101,10 @@ K* interp(int top) {
             else if(c=='{') ++ccount; else if(c=='}') --ccount;
             else if(c=='"') qcount^=1;
             else if(f&&c=='\\') ++f;
-            if(c!=' '&&c!='\t'&&c!='\\') f=0;
+            if(!isblank(c)&&c!='\\') f=0;
           }
           else if(c=='"') qcount^=1;
-          if(c==' '||c=='\t') spc=1; else spc=0;
+          if(isblank(c)) spc=1; else spc=0;
         }
         if(c==EOF) exit(0);
         if(f==3) exit(0);

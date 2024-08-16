@@ -402,7 +402,7 @@ K* fnd(K *a) {
       else return kerror("parse");
       break;
     case 1:
-      while(*f==' '||*f=='\t')++f;
+      while(isblank(*f))++f;
       if(*f=='}') s=2;
       else if(*f=='{') { n++; s=9; }
       else if(*f=='[') s=3;
@@ -522,7 +522,7 @@ K* fnd(K *a) {
   strncpy(h,&ff->d[1],u-1);
   h[u-2]='\n';
   h[u-1]=0;
-  while(*h==' '||*h=='\t')++h;
+  while(isblank(*h))++h;
   if(*h=='[') while(*h++!=']');
   pgs=pgnew();
   pgs->ffli=linei-1;

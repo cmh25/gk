@@ -502,18 +502,18 @@ static int gn(pgs *pgs) {
   double *fv=0;
   char *q;
   r=gn_();
-  if(*p==' ') {
+  if(isblank(*p)) {
     q=p;
-    while(*p==' ')p++;
+    while(isblank(*p))++p;
     if(isdigit(*p)||((*p=='.'||*p=='-')&&isdigit(p[1]))) { /* convert to vector */
       if(r==1) { im<<=1; iv=xrealloc(iv,im*sizeof(int)); iv[ic++]=ii; }
       else if(r==2) { fm<<=1; fv=xrealloc(fv,fm*sizeof(double)); fv[fc++]=ff; }
     }
     p=q;
     if(iv) {
-      while(*p==' ') {
+      while(isblank(*p)) {
         q=p;
-        while(*p==' ')p++;
+        while(isblank(*p))++p;
         r=gn_();
         if(r==1) {
           if(ic==im) { im<<=1; iv=xrealloc(iv,im*sizeof(int)); }
@@ -532,9 +532,9 @@ static int gn(pgs *pgs) {
       }
     }
     if(fv) {
-      while(*p==' ') {
+      while(isblank(*p)) {
         q=p;
-        while(*p==' ')p++;
+        while(isblank(*p))++p;
         r=gn_();
         if(r==1) {
           ff=I2F(ii);
@@ -575,7 +575,7 @@ static int gsym_(void) {
       c=*--p; *p=0;
       ss=xunesc(q);
       *p=c;
-      if(*p=='"')p++;
+      if(*p=='"')++p;
       return 1;
     case 2:
       if(*p=='\\') ++p;
@@ -605,18 +605,18 @@ static int gsym(pgs *pgs) {
   char *q,**sv=0;
   size_t sc=0,sm=1;
   r=gsym_();
-  if(*p==' '||*p=='`') {
+  if(isblank(*p)||*p=='`') {
     q=p;
-    while(*p==' ')p++;
+    while(isblank(*p))++p;
     if(*p=='`') sm<<=1;
     sv=xrealloc(sv,sm*sizeof(char*));
     sv[sc++]=sp(ss);
     xfree(ss);
     p=q;
     if(sv) {
-      while(*p==' '||*p=='`') {
+      while(isblank(*p)||*p=='`') {
         q=p;
-        while(*p==' ')p++;
+        while(isblank(*p))++p;
         r=gsym_();
         if(r==1) {
           if(sc==sm) { sm<<=1; sv=xrealloc(sv,sm*sizeof(char*)); }
@@ -690,8 +690,8 @@ static int gname(pgs *pgs, int v) {
   char c,*q=p;
   int s=*p=='.';
   while(1) {
-    if(!s) { if(isalpha(*p)) { p++; s=1; } else break; }
-    else { if(isalnum(*p)) p++; else if(*p=='.') { p++; s=0; } else break; }
+    if(!s) { if(isalpha(*p)) { ++p; s=1; } else break; }
+    else { if(isalnum(*p)) ++p; else if(*p=='.') { ++p; s=0; } else break; }
   }
   c=*p; *p=0;
   push(pgs,T018,node_newli(0,0,knew(v?99:4,0,sp(q),0,0,0),linei,p-ln));
@@ -776,7 +776,7 @@ static int gback(pgs *pgs) {
   if(p[1]=='\n') {
     push(pgs,T019,node_new(0,0,knew(7,0,fnnew("abort"),176,0,0)));
     push(pgs,T018,node_new(0,0,null));
-    p++;
+    ++p;
   }
   else if(p[1]=='\\') {
     push(pgs,T019,node_new(0,0,knew(7,0,fnnew("exit"),141,0,0)));
@@ -786,10 +786,10 @@ static int gback(pgs *pgs) {
   else if(p[1]=='e'&&p[2]&&strchr(" \n\t",p[2])) {
     push(pgs,T019,node_new(0,0,knew(7,0,fnnew("\\e"),175,0,0)));
     p+=2;
-    while(*p==' ')p++;
+    while(isblank(*p))++p;
     q=p;
     if(isdigit(*p)) {
-      while(isdigit(*p))p++;
+      while(isdigit(*p))++p;
       c=*p; *p=0;
       err=xatoi(q);
       if(!err)err=0;
@@ -802,10 +802,10 @@ static int gback(pgs *pgs) {
   else if(p[1]=='p'&&p[2]&&strchr(" \n\t",p[2])) {
     push(pgs,T019,node_new(0,0,knew(7,0,fnnew("\\p"),142,0,0)));
     p+=2;
-    while(*p==' ')p++;
+    while(isblank(*p))++p;
     q=p;
     if(isdigit(*p)) {
-      while(isdigit(*p))p++;
+      while(isdigit(*p))++p;
       c=*p; *p=0;
       prec=xatoi(q);
       if(!prec)prec=17;
@@ -827,7 +827,7 @@ static int gback(pgs *pgs) {
   else if(p[1]=='d'&&p[2]&&strchr(" \n\t",p[2])) {
     push(pgs,T019,node_newli(0,0,knew(7,0,fnnew("\\d"),177,0,0),linei,p-ln));
     p+=2;
-    while(*p==' ')p++;
+    while(isblank(*p))++p;
     if(isalpha(*p)||(*p=='.'&&isalpha(p[1]))) gname(pgs,0);
     else if(*p=='^') { push(pgs,T018,node_new(0,0,knew(3,0,0,'^',0,0))); ++p; }
     else push(pgs,T018,node_new(0,0,null));
@@ -835,9 +835,9 @@ static int gback(pgs *pgs) {
   else if(p[1]=='l'&&p[2]&&strchr(" \n\t",p[2])) {
     push(pgs,T019,node_newli(0,0,knew(7,0,fnnew("\\l"),184,0,0),linei,p-ln));
     p+=2;
-    while(*p==' ')p++;
+    while(isblank(*p))++p;
     q=p;
-    while(*p&&*p!='\n')p++;
+    while(*p&&*p!='\n')++p;
     c=*p; *p=0;
     if(strlen(q )) push(pgs,T018,node_newli(0,0,knew(4,0,sp(q),0,0,0),linei,p-ln));
     else push(pgs,T018,node_new(0,0,null));
@@ -870,8 +870,8 @@ static int lex(pgs *pgs) {
     linefn=xmalloc(linem*sizeof(int*));
   }
   while(1) {
-    s=*p==' ';
-    while(*p==' ') p++;
+    s=isblank(*p);
+    while(isblank(*p)) ++p;
     if((s||f)&&*p=='/') { while(*++p!='\n'){}; continue; }
     if(*p=='\n') {
       push(pgs,T017,0);
