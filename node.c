@@ -393,7 +393,8 @@ static K* node_reduce_(node *n, int md, int z) {
       else r=make17(a,b,c,n);
     }
     else { /* 7 monadic enabled */
-      if(ct==16) { xfree(a7->av); a7->av=xstrdup(av); r=kref(a); }
+      //if(ct==16) { xfree(a7->av); a7->av=xstrdup(av); r=kref(a); } /* av append under loop */
+      if(ct==16) { r=kcp(a); xfree(((fn*)r->v)->av); ((fn*)r->v)->av=xstrdup(av); }
       else if(ct==17&&((fn*)c->v)->i==':') r=apply2(c,ao,((fn*)c->v)->a,0);
       else if(ct==17&&ao->t==99&&ac!=1) r=apply2(c,ao,((fn*)c->v)->a,0);
       else if(ct==17) {
@@ -414,7 +415,7 @@ static K* node_reduce_(node *n, int md, int z) {
       }
       else if(ct==27&&co->t!=99) r=make67(a,c,av);
       else if(ct==67&&co->t!=99) r=append67(a,c,av);
-      else r=apply1(a,c,av);
+      else r=apply1(a,c,b->v);
     }
   }
   else if(at==37) {
@@ -638,7 +639,8 @@ static K* node_reduce_(node *n, int md, int z) {
     else r=applyprj(a,c);
   }
   else if(at==87) {
-    if(ct==16) { xfree(a7->av); a7->av=xstrdup(av); r=kref(a); }
+    //if(ct==16) { xfree(a7->av); a7->av=xstrdup(av); r=kref(a); } /* av append under loop */
+    if(ct==16) { r=kcp(a); xfree(((fn*)r->v)->av); ((fn*)r->v)->av=xstrdup(av); }
     else if(ct==17) {
       f=c->v;
       if(f->i==':') {
