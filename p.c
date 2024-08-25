@@ -487,7 +487,7 @@ static int gn_(void) {
       return 1;
     case 12: /* double */
       c=*--p; *p=0;
-      ff=xstrtod(q,0);
+      ff=xstrtod(q);
       *p=c;
       return 2;
     }

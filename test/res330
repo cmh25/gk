@@ -1,0 +1,106 @@
+(1234 456 0N 457 1234 458 469 479 489 0N 0N 0N 0N 234 56 1234999 4569999
+ 1.234 1e+70 0n 0n 1.234 1e+50 1e+60 1e+70 1e+80 1e+80 0n 0n 0n 1.234 1e+70 1.235 1e+70
+ ("mnopqr    "
+  " stu      "
+  "abcdef    "
+  " stu      "
+  "mn  qr    "
+  " s u      "
+  " vwx      "
+  " vwx      "
+  " vwx      "
+  " vwx      "
+  " vwx      "
+  "          "
+  "          "
+  "mnopqr    "
+  " stu      "
+  "mnopqrZZZZ"
+  "ZstuZZZZZZ")
+ `stu `vw `ghi `"0w" `"s u" `"v w" `x `x `x `x `x `x ` `stu `vw `stu `vwZ)
+(1234 456 0N 457 1234 458 469 479 489 0N 0N 0N 0N 234 56 1234999 4569999
+ 1.234 1e+70 0n 0n 1.234 1e+50 1e+60 1e+70 1e+80 1e+80 0n 0n 0n 1.234 1e+70 1.235 1e+70
+ ("mnopqr    "
+  " stu      "
+  "abcdef    "
+  " stu      "
+  "mn  qr    "
+  " s u      "
+  " vwx      "
+  " vwx      "
+  " vwx      "
+  " vwx      "
+  " vwx      "
+  "          "
+  "          "
+  "mnopqr    "
+  " stu      "
+  "mnopqrZZZZ"
+  "ZstuZZZZZZ")
+ `stu `vw `ghi `"0w" `"s u" `"v w" `x `x `x `x `x `x ` `stu `vw `stu `vwZ)
+(1234 456 0N 457 1234 458 469 479 489 0N 0N 0N 0N 234 56 1234999 4569999
+ 1.234 1e+70 0n 0n 1.234 1e+50 1e+60 1e+70 1e+80 1e+80 0n 0n 0n 1.234 1e+70 1.235 1e+70
+ ("mnopqr"
+  " stu  "
+  "abcdef"
+  " stu  "
+  "mn  qr"
+  " s u  "
+  " vwx  "
+  " vwx  "
+  " vwx  "
+  " vwx  "
+  " vwx  "
+  "      "
+  "      "
+  "mnopqr"
+  " stu  "
+  "mnopqr"
+  "ZstuZZ")
+ `stu `vw `ghi `"0w" `"s u" `"v w" `x `x `x `x `x `x ` `stu `vw `stu `vwZ)
+(1234 456 0N 457 1234 458 469 479 489 0N 0N 0N 0N 234 56 1234999 4569999
+ 1.234 1e+70 0n 0n 1.234 1e+50 1e+60 1e+70 1e+80 1e+80 0n 0n 0n 1.234 1e+70 1.235 1e+70
+ ("mnopqr"
+  " stu  "
+  "abcdef"
+  " stu  "
+  "mn  qr"
+  " s u  "
+  " vwx  "
+  " vwx  "
+  " vwx  "
+  " vwx  "
+  " vwx  "
+  "      "
+  "      "
+  "mnopqr"
+  " stu  "
+  "mnopqr"
+  "ZstuZZ")
+ `stu `vw `ghi `"0w" `"s u" `"v w" `x `x `x `x `x `x ` `stu `vw `stu `vwZ)
+(1234 456
+ 1.234 1e+70
+ ("mnopqr    "
+  " stu      ")
+ `stu `vw)
+(1234 456
+ 1.234 1e+70
+ ("mnopqr    "
+  " stu      ")
+ `stu `vw)
+(,1234
+ ,1.234
+ ,"mnopqr    "
+ ,`stu)
+(,1234
+ ,1.234
+ ,"mnopqr    "
+ ,`stu)
+(,456
+ ,1e+70
+ ," stu      "
+ ,`vw)
+(,456
+ ,1e+70
+ ," stu      "
+ ,`vw)

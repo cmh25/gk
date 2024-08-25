@@ -652,12 +652,12 @@ K* form2_(K *a, K *b) {
       r=knew(-3,strlen(s),s,0,0,0);
       xfree(s);
       break;
-    case  3: if(b3<48||b3>57) return kerror("domain"); sprintf(s,"%c",b3); r=k2(xstrtod(s,0)); break;
+    case  3: if(b3<48||b3>57) return kerror("domain"); sprintf(s,"%c",b3); r=k2(xstrtod(s)); break;
     case  4: return kerror("type");
     case  0: r=kv0(bc); DO(bc,v0(r)[i]=form2_(a,v0(b)[i]); EC(v0(r)[i])) break;
     case -1:
     case -2: p=kmix(b); r=kv0(p->c); DO(p->c,v0(r)[i]=form2_(a,v0(p)[i]); EC(v0(r)[i])); kfree(p); break;
-    case -3: s=xmalloc(bc+1); DO(bc,s[i]=v3(b)[i]); s[bc]=0; r=k2(xstrtod(s,0)); xfree(s); break;
+    case -3: s=xmalloc(bc+1); DO(bc,s[i]=v3(b)[i]); s[bc]=0; r=k2(xstrtod(s)); xfree(s); break;
     default: return kerror("type");
     } break;
   case 3:
@@ -2101,7 +2101,10 @@ K* help1_(K *a) {
 "       f 5:x  append k data\n"
 " 2:f          read k data\n"
 " 6:f   f 6:x  read/write bytes\n"
-"     (,f)6:x  append bytes\n");
+"     (,f)6:x  append bytes\n"
+"\n"
+" (type;width)0:f    fixedwidth text(IFCS )\n"
+" blank skips. f can be (f;index;length).\n");
   }
   else if(a->i=='-') {
     fprintf(stderr,""

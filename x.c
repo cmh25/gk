@@ -56,26 +56,34 @@ void* xstrndup(const char *s, size_t n) {
 int xatoi(char *s) {
   int r;
   long a;
-  if(!strcmp(s,"0I")) r=INT_MAX;
+  char *e;
+  if(!s||!strlen(s)) return r=INT_MIN;
+  else if(!strcmp(s,"0I")) r=INT_MAX;
   else if(!strcmp(s,"0N")) r=INT_MIN;
   else if(!strcmp(s,"-0N")) r=INT_MIN;
   else if(!strcmp(s,"-0I")) r=INT_MIN+1;
   else {
-    a=strtol(s,0,10);
-    if(a>INT_MAX) r=INT_MAX;
+    a=strtol(s,&e,10);
+    if((size_t)(e-s)!=strlen(s)) r=INT_MIN;
+    else if(a>INT_MAX) r=INT_MAX;
     else if(a<INT_MIN) r=INT_MIN;
     else r=a;
   }
   return r;
 }
 
-double xstrtod(char *s, char **e) {
+double xstrtod(char *s) {
   double r;
-  if(!strcmp(s,"0i")||!strcmp(s,"0I")) r=INFINITY;
+  char *e;
+  if(!s||!strlen(s)) r=NAN;
+  else if(!strcmp(s,"0i")||!strcmp(s,"0I")) r=INFINITY;
   else if(!strcmp(s,"0n")||!strcmp(s,"0N")) r=NAN;
   else if(!strcmp(s,"-0n")||!strcmp(s,"-0N")) r=NAN;
   else if(!strcmp(s,"-0i")||!strcmp(s,"-0I")) r=-INFINITY;
-  else r = strtod(s,e);
+  else {
+    r=strtod(s,&e);
+    if((size_t)(e-s)!=strlen(s)) r=NAN;
+  }
   return r;
 }
 
