@@ -87,7 +87,7 @@ K* zerocolon2_(K *a, K *b) {
   K *r=null,*p,*q,*ff;
   FILE *fp=0;
   size_t B,N,NN,s;
-  unsigned int i,j,k,n=0,m,L=0,u;
+  unsigned int i,j,k,n,m,L=0,u;
   char *z,*pz,*e,*z0,g;
   switch(at) {
   case -3: case 3: case 4:
@@ -104,8 +104,8 @@ K* zerocolon2_(K *a, K *b) {
     if(v0(a)[1]->t!=-1) return kerror("type");
     if(v0(a)[0]->c!=v0(a)[1]->c) return kerror("length");
     p=v0(a)[0]; q=v0(a)[1];
-    DO(p->c,if(!strchr("IFCS ",v3(p)[i]))return kerror("type");if(strchr("IFCS",v3(p)[i]))++n;)
-    n=0;DO(p->c,if(strchr("IFCS",v3(p)[i]))++n)
+    DO(p->c,if(!strchr("IFCS ",v3(p)[i]))return kerror("type"))
+    n=0;DO(p->c,if(v3(p)[i]!=' ')++n)
     DO(q->c,L+=v1(q)[i])
 
     if(bt==0) { /* ("IFCS";7 9 10 3)0:("a.txt";30;30) */
@@ -182,7 +182,7 @@ K* zerocolon2_(K *a, K *b) {
 K* zerocolon1_(K *a) {
   K *r=0;
   FILE *fp;
-  unsigned int n=0,i,m=2;
+  unsigned int n,i,m=2;
   char *b,*p,*s;
   size_t bs;
   if(at!=-3&&at!=4) return kerror("type");
@@ -206,15 +206,108 @@ K* zerocolon1_(K *a) {
 }
 
 K* onecolon2_(K *a, K *b) {
-  FILE *fp;
-  K *r;
-  if(at!=-3&&at!=4) return kerror("type");
-  EC(fopen_(a,"wb",&fp));
-  r=bd1_(b);
-  fwrite(r->v,1,r->c,fp);
-  fclose(fp);
-  kfree(r);
-  return null;
+  K *r=null,*p,*q,*ff;
+  FILE *fp=0;
+  size_t B,N,NN,s;
+  unsigned int i,j,k,n,m,L=0;
+  char *z,*pz,*z0,g;
+  switch(at) {
+  case -3: case 4:
+    if(at!=-3&&at!=4) return kerror("type");
+    EC(fopen_(a,"wb",&fp));
+    r=bd1_(b);
+    fwrite(r->v,1,r->c,fp);
+    fclose(fp);
+    kfree(r);
+    return null;
+    break;
+  case 0:
+    if(ac!=2) return kerror("length");
+    if(v0(a)[0]->t!=-3) return kerror("type");
+    if(v0(a)[1]->t!=-1) return kerror("type");
+    if(v0(a)[0]->c!=v0(a)[1]->c) return kerror("length");
+    p=v0(a)[0]; q=v0(a)[1];
+    DO(p->c,if(!strchr("cbsifd CS",v3(p)[i]))return kerror("type"))
+    n=0;DO(p->c,if(v3(p)[i]!=' ')++n)
+    DO(q->c,L+=v1(q)[i])
+
+    if(bt==0) { /* ("id";4 8)1:("b0";0;48) */
+      if(bc!=3) return kerror("type");
+      if(v0(b)[0]->t!=-3 && v0(b)[0]->t!=3 && v0(b)[0]->t!=4) return kerror("type");
+      if(v0(b)[1]->t!=1 && v0(b)[1]->t!=2) return kerror("type");
+      if(v0(b)[2]->t!=1 && v0(b)[2]->t!=2) return kerror("type");
+      if(v0(b)[1]->t==1) B=v0(b)[1]->i; else B=v0(b)[1]->f;
+      if(v0(b)[2]->t==1) N=v0(b)[2]->i; else N=v0(b)[2]->f;
+      ff=v0(b)[0];
+    }
+    else ff=b;  /* ("id";4 8)1:"b0" */
+    r=kv0(n);
+    EC(fopen_(ff,"rb",&fp));
+    EC(fsize_(ff,&NN));
+    if(bt!=0) { B=0; N=NN; }
+    if(B+N>(size_t)NN) return kerror("length");
+    z0=z=xmalloc(1+N);
+    fseek(fp,B,SEEK_SET);
+    if((s=fread(z,1,N,fp))!=N) return kerror("length");
+    if(N%L) return kerror("length");
+    m=N/L;
+    for(i=0,j=0;i<p->c;i++) {
+      if(v3(p)[i]=='c') v0(r)[j++]=kv3(m);
+      else if(v3(p)[i]=='b') v0(r)[j++]=kv1(m);
+      else if(v3(p)[i]=='s') v0(r)[j++]=kv1(m);
+      else if(v3(p)[i]=='i') v0(r)[j++]=kv1(m);
+      else if(v3(p)[i]=='f') v0(r)[j++]=kv2(m);
+      else if(v3(p)[i]=='d') v0(r)[j++]=kv2(m);
+      else if(v3(p)[i]=='C') v0(r)[j++]=kv0(m);
+      else if(v3(p)[i]=='S') v0(r)[j++]=kv4(m);
+    }
+    for(i=0;i<m;i++) {
+      for(j=0,k=0;j<p->c;j++) {
+        if(v3(p)[j]=='c') v3(v0(r)[k++])[i]=*(unsigned char*)z;
+        else if(v3(p)[j]=='b') v1(v0(r)[k++])[i]=(int)*z;
+        else if(v3(p)[j]=='s') v1(v0(r)[k++])[i]=(int)*(short*)z;
+        else if(v3(p)[j]=='i') v1(v0(r)[k++])[i]=*(int*)z;
+        else if(v3(p)[j]=='f') v2(v0(r)[k++])[i]=*(float*)z;
+        else if(v3(p)[j]=='d') v2(v0(r)[k++])[i]=*(double*)z;
+        else if(v3(p)[j]=='C') v0(v0(r)[k++])[i]=knew(-3,v1(q)[j],z,0,0,0);
+        else if(v3(p)[j]=='S') {
+          g=z[v1(q)[j]];
+          z[v1(q)[j]]=0;
+          pz=z+strlen(z)-1; while(pz>z && isspace(*pz)) --pz; pz[1]=0;
+          pz=z; while(isspace(*pz))++pz;
+          v4(v0(r)[k++])[i]=sp(pz);
+          z[v1(q)[j]]=g;
+        }
+        z+=v1(q)[j];
+      }
+    }
+    xfree(z0);
+    break;
+  case 3:
+    if(bt==0) { /* "c"1:("b3";0;48) */
+      if(bc!=3) return kerror("type");
+      if(v0(b)[0]->t!=-3 && v0(b)[0]->t!=3 && v0(b)[0]->t!=4) return kerror("type");
+      if(v0(b)[1]->t!=1 && v0(b)[1]->t!=2) return kerror("type");
+      if(v0(b)[2]->t!=1 && v0(b)[2]->t!=2) return kerror("type");
+      if(v0(b)[1]->t==1) B=v0(b)[1]->i; else B=v0(b)[1]->f;
+      if(v0(b)[2]->t==1) N=v0(b)[2]->i; else N=v0(b)[2]->f;
+      ff=v0(b)[0];
+    }
+    else ff=b;  /* "c"1:"b3" */
+    EC(fopen_(ff,"rb",&fp));
+    EC(fsize_(ff,&NN));
+    if(bt!=0) { B=0; N=NN; }
+    if(B+N>(size_t)NN) return kerror("length");
+    fseek(fp,B,SEEK_SET);
+    if(a->i=='c') r=kv3(N);
+    else if(a->i=='i') { if(N%sizeof(int)) return kerror("length"); r=kv1(N/sizeof(int)); }
+    else if(a->i=='d') { if(N%sizeof(double)) return kerror("length"); r=kv2(N/sizeof(double)); }
+    if((s=fread(r->v,1,N,fp))!=N) return kerror("length");
+    break;
+  default: return kerror("type");
+  }
+  if(fp) fclose(fp);
+  return r;
 }
 
 #ifdef _WIN32

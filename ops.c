@@ -2103,7 +2103,8 @@ K* help1_(K *a) {
 " 6:f   f 6:x  read/write bytes\n"
 "     (,f)6:x  append bytes\n"
 "\n"
-" (type;width)0:f    fixedwidth text(IFCS )\n"
+" (type;width)0:f   fixedwidth text(IFCS )\n"
+" (type;width)1:f   fixedwidth data(cbsifd CS)\n"
 " blank skips. f can be (f;index;length).\n");
   }
   else if(a->i=='-') {
