@@ -89,7 +89,7 @@ K* interp(int top) {
     for(i=0;;i=0) {
       pcount=scount=ccount=qcount=0;
       while(1) {
-        f=1;spc=0;cmt=1;
+        f=1;spc=0;cmt=0;
         while((c=fgetc(stdin))!=EOF&&c!='\n') {
           s->p[i++]=c;
           if(spc&&c=='/') cmt=1;
