@@ -3,6 +3,7 @@
 #include <string.h>
 #include "x.h"
 #include "sym.h"
+#include "ops.h"
 
 /* plus minus times */
 #define AVOPTPMT(F,O) \
@@ -141,8 +142,8 @@ K* fivecolon1_avopt(K *a, char *av) { (void)a; (void)av; return 0; }
 #define AVOPT2PMT(F,O) \
 K* F##avopt2(K *a, K *b, char *av) { \
   K *r=0,*p=0,*aa=0,*bb=0; \
-  int d,*ppi,*pai,*pbi; \
-  unsigned int s,v,m,n; \
+  int *ppi,*pai,*pbi; \
+  unsigned int n; \
   double f,*ppf,*paf,*pbf; \
   if(!strcmp(av,"/")) { /* eachright */ \
     if(at==-1&&bt==-2) { aa=kv2(ac); DO(ac,v2(aa)[i]=I2F(v1(a)[i])); a=aa; } \
@@ -164,24 +165,8 @@ K* F##avopt2(K *a, K *b, char *av) { \
     else if(at==-1&&bt==-1) { r=kv0(ac); DO(ac,v0(r)[i]=p=kv1(bc);n=v1(a)[i];ppi=v1(p);pbi=v1(b);DO2(bc,*ppi++=*pbi++ O n)); } \
     else if(at==-2&&bt==-2) { r=kv0(ac); DO(ac,v0(r)[i]=p=kv2(bc);f=v2(a)[i];ppf=v2(p);pbf=v2(b);DO2(bc,*ppf++=*pbf++ O f)); } \
   } \
-  else if(!strcmp(av,"'")) { /* slide */ \
-    if(at==1) { \
-      d=a1; if(!d) return kerror("type"); \
-      s=abs(d); \
-      v=2; \
-      m=(bc-v+s)/s; \
-      if((m-1)*s+v!=b->c) return kerror("valence"); \
-      if(bt==-1) { \
-        r=kv1(m); \
-        if(d<0) DO(m,v1(r)[i]=v1(b)[i*s+1] O v1(b)[i*s]) \
-        else if(d>0) DO(m,v1(r)[i]=v1(b)[i*s] O v1(b)[i*s+1]) \
-      } \
-      else if(bt==-2) { \
-        r=kv2(m); \
-        if(d<0) DO(m,v2(r)[i]=v2(b)[i*s+1] O v2(b)[i*s]) \
-        else if(d>0) DO(m,v2(r)[i]=v2(b)[i*s] O v2(b)[i*s+1]) \
-      } \
-    } \
+  else if(!strcmp(av,"'")) { /* each */ \
+    if((at==1||at==2||at==-1||at==-2)&&(bt==1||bt==2||bt==-1||bt==-2)) return F(a,b); \
   } \
   if(aa) kfree(aa); \
   if(bb) kfree(bb); \

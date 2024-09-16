@@ -300,7 +300,8 @@ void fninit(void) {
   dset(C,"inv",knew(37,0,fnnew("{((2##*x)#1,&#*x) lsq x}"),1,0,-1));
   dset(C,"choose",knew(37,0,fnnew("{rint exp lgamma[1+x]-lgamma[1+y]+lgamma[1+x-y]}"),1,0,-1));
   dset(C,"round",knew(37,0,fnnew("{x*rint y%x}"),1,0,-1));
-  dset(C,"ssr",knew(37,0,fnnew("{if[nul~x;:nul];i:1+2*!_.5*#x:(0,,/(0,+/~+\\({x<y}'0,\"[\"=y)-{x<y}'(\"]\"=y$:),0)+/x ss $[3=4:y;$y;y])_ x;,/$[7=4:z;@[x;i;z];4:z$:;@[x;i;:;(#i)#,z];@[x;i;:;z]]}"),1,0,-1));
+  dset(C,"ssr",knew(37,0,fnnew("{if[nul~x;:nul];i:1+2*!_.5*#x:(0,,/(0,+/~+\\ep[<;0,\"[\"=y]-ep[<;(\"]\"=y$:)],0)+/x ss $[3=4:y;$y;y])_ x;,/$[7=4:z;@[x;i;z];4:z$:;@[x;i;:;(#i)#,z];@[x;i;:;z]]}"),1,0,-1));
+  dset(C,"ep",knew(37,0,fnnew("{_[-1;x;y]}"),1,0,-1));
 
   /* monadic */
   dset(C,"exit",knew(7,1,fnnew("exit"),141,0,-1));

@@ -279,7 +279,7 @@ K* draw2_(K *a, K *b) {
       break;
     case -1:
       if(ac!=bc) return kerror("length");
-      r=each(draw2_,a,b);
+      r=eache(draw2_,a,b);
       break;
     default: return kerror("type");
     } break;
@@ -670,7 +670,7 @@ K* euclid2_(K *a, K *b) {
 
   if(at<0 && bt<0 && ac!=bc) return kerror("length");
 
-  if(at==0 || bt==0) { r=each(euclid2_,a,b); b0=1; }
+  if(at==0 || bt==0) { r=eache(euclid2_,a,b); b0=1; }
   else {
   switch(at) {
   case  1:
@@ -761,7 +761,7 @@ MC1A(not1_)
 K* rot2_(K *a, K *b) {
   K *r=0;
   if(at<=0 && bt<=0 && ac!=bc) return kerror("length");
-  if(at==0 || bt==0) r=each(rot2_,a,b);
+  if(at==0 || bt==0) r=eache(rot2_,a,b);
   else {
   switch(at) {
   case  1:
@@ -786,7 +786,7 @@ MC2A(rot2_)
 K* shift2_(K *a, K *b) {
   K *r=0;
   if(at<=0 && bt<=0 && ac!=bc) return kerror("length");
-  if(at==0 || bt==0 ) r=each(shift2_,a,b);
+  if(at==0 || bt==0 ) r=eache(shift2_,a,b);
   else {
   switch(at) {
   case  1:
@@ -1112,8 +1112,8 @@ K* sm2_(K *a, K *b) {
     switch(bt) {
     case  4: r=k1(sm(v3(a),v3(b),strlen(v3(a)),strlen(v3(b)),0,0)); break;
     case -3: r=k1(sm(v3(a),v3(b),strlen(v3(a)),bc,0,0)); break;
-    case -4: r=each(sm2_,a,b); break;
-    case  0: r=each(sm2_,a,b); break;
+    case -4: r=eache(sm2_,a,b); break;
+    case  0: r=eache(sm2_,a,b); break;
     default: return kerror("type");
     } break;
   case -3:
@@ -1126,18 +1126,18 @@ K* sm2_(K *a, K *b) {
     } break;
   case -4:
     switch(bt) {
-    case  4: r=each(sm2_,a,b); break;
+    case  4: r=eache(sm2_,a,b); break;
     case -3: r=eachleft(f,a,b,0); break;
-    case -4: r=each(sm2_,a,b); break;
-    case  0: r=each(sm2_,a,b); break;
+    case -4: r=eache(sm2_,a,b); break;
+    case  0: r=eache(sm2_,a,b); break;
     default: return kerror("type");
     } break;
   case  0:
     switch(bt) {
-    case  4: r=each(sm2_,a,b); break;
+    case  4: r=eache(sm2_,a,b); break;
     case -3: r=eachleft(f,a,b,0); break;
-    case -4: r=each(sm2_,a,b); break;
-    case  0: r=each(sm2_,a,b); break;
+    case -4: r=eache(sm2_,a,b); break;
+    case  0: r=eache(sm2_,a,b); break;
     default: return kerror("type");
     } break;
   default: return kerror("type");
@@ -1216,9 +1216,9 @@ K* ss2_(K *a, K *b) {
   case  0:
     switch(bt) {
     case  4: r=eachleft(f,a,b,0); break;
-    case  0: r=each(ss2_,a,b); break;
+    case  0: r=eache(ss2_,a,b); break;
     case -3: r=eachleft(f,a,b,0); break;
-    case -4: r=each(ss2_,a,b); break;
+    case -4: r=eache(ss2_,a,b); break;
     default: return kerror("type");
     } break;
   default: return kerror("type");

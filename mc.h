@@ -45,7 +45,7 @@ K* F(K *a) { \
 K* F(K *a, K *b) { \
   K *r=0; \
   if(at <= 0 && bt <= 0 && ac != bc) return kerror("length"); \
-  if(at==0 || bt==0) r=each(F,a,b); \
+  if(at==0 || bt==0) r=eache(F,a,b); \
   else { \
   switch(at) { \
   case  1: \
@@ -88,7 +88,7 @@ K* F(K *a, K *b) { \
   K *r=0; \
   if((N) && !b1) return kerror("nonce"); \
   if(at <= 0 && bt <= 0 && ac != bc) return kerror("length"); \
-  if(at==0 || bt==0) r=each(F,a,b); \
+  if(at==0 || bt==0) r=eache(F,a,b); \
   else { \
   switch(at) { \
   case  1: \

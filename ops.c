@@ -36,7 +36,7 @@ K* F(K *a, K *b) { \
   int *pai,*pbi,*pri; \
   double af,bf,*paf,*pbf,*prf; \
   if(at<=0 && bt<=0 && ac!=bc) return kerror("length"); \
-  if(at==0 || bt==0) { r=each(F,a,b); return rt ? r : knorm(r); } \
+  if(at==0 || bt==0) { r=eache(F,a,b); return rt ? r : knorm(r); } \
   switch(at) { \
   case 1: \
     switch(bt) { \
@@ -83,7 +83,7 @@ K* divide2_(K *a, K *b) {
   int *pai,*pbi;
   double af,bf,*prf,*paf,*pbf;
   if(at<=0 && bt<=0 && ac!=bc) return kerror("length");
-  if(at==0 || bt==0) { r=each(divide2_,a,b); return rt ? r : knorm(r); }
+  if(at==0 || bt==0) { r=eache(divide2_,a,b); return rt ? r : knorm(r); }
   switch(at) {
   case 1:
     switch(bt) {
@@ -131,7 +131,7 @@ K* F(K *a, K *b) { \
   char *prc,*pac,*pbc; \
   char **prs,**pas,**pbs; \
   if(at<=0 && bt<=0 && ac!=bc) return kerror("length"); \
-  if(at==0 || bt==0) { r=each(F,a,b); return rt ? r : knorm(r); }\
+  if(at==0 || bt==0) { r=eache(F,a,b); return rt ? r : knorm(r); }\
   switch(at) { \
   case 1: \
     switch(bt) { \
@@ -204,7 +204,7 @@ K* F(K *a, K *b) { \
   double *paf,*pbf,af; \
   char *pac,*pbc,**pas,**pbs; \
   if(at<=0 && bt<=0 && ac!=bc) return kerror("length"); \
-  if(at==0 || bt==0) { r=each(F,a,b); return rt ? r : knorm(r); } \
+  if(at==0 || bt==0) { r=eache(F,a,b); return rt ? r : knorm(r); } \
   switch(at) { \
   case  1: \
     if(bt==-1||bt==-2) { r=kv1(bc); pri=v1(r); } \
@@ -1714,6 +1714,7 @@ K* apply3(K *f, K *a, K *b, K *c) {
   if(at==98||bt==98||ct==98) return kerror("value");
   if(ff->i=='@') r=amendi3_(a,b,c);
   else if(ff->i=='.') r=amend3_(a,b,c);
+  else if(ff->i=='_') r=slide3_(a,b,c);
   kfree(a); kfree(b); kfree(c);
   return r;
 }
@@ -1980,32 +1981,36 @@ K* help1_(K *a) {
   }
   else if(a->i=='+') {
     fprintf(stderr,""
-"   dyad            monad\n"
-"+  plus            flip\n"
-"-  minus           negate\n"
-"*  times           first\n"
-"%%  divide          reciprocal\n"
-"&  min/and         where\n"
-"|  max/or          reverse\n"
-"<  less            upgrade\n"
-">  more            downgrade\n"
-"=  equal           group\n"
-"^  power           shape\n"
-"!  mod/rotate      enumerate\n"
-"~  match           not\n"
-",  join            enlist\n"
-"#  take/reshape    count\n"
-"_  drop/cut        floor\n"
-"$  form            format\n"
-"?  find/draw/deal  unique\n"
-"@  at              atom  amend trap\n"
-".  dot             value amend trap\n");
+"   monad      dyad\n"
+"+  flip       plus\n"
+"-  negate     minus\n"
+"*  first      times\n"
+"%%  recip      divide\n"
+"&  where      min/and\n"
+"|  reverse    max/or\n"
+"<  upgrade    less\n"
+">  downgrade  more\n"
+"=  group      equal\n"
+"^  shape      power\n"
+"!  enumerate  mod/rotate\n"
+"~  not        match\n"
+",  enlist     join\n"
+"#  count      take/reshape\n"
+"_  floor      drop/cut\n"
+"$  format     form\n"
+"?  unique     find/draw/deal\n"
+"@  atom       at\n"
+".  value      dot\n"
+"\n"
+"   triad      tetrad\n"
+"_  slide\n"
+"@  amend/trap amend\n"
+".  amend/trap amend\n");
   }
   else if(a->i=='\'') {
     fprintf(stderr,""
 "      monad: each      f'x\n"
-"       dyad: eachprior f'x\n"
-" infix dyad: slide     n f'x\n"
+" infix dyad: each      x f'y\n"
 "prefix dyad: each      f'[x;y]\n"
 "      other: each      f'[x;y;z]\n"
 "\n"
@@ -2021,7 +2026,9 @@ K* help1_(K *a) {
 "      monad: while     b f/x\n"
 " infix dyad: eachright x f/y\n"
 "prefix dyad: overd     f/x\n"
-"      other: over      f/[x;y;z]\n");
+"      other: over      f/[x;y;z]\n"
+"\n"
+"eachprior is ep[f;x], ex: ep[-;3 2 1]\n");
   }
   else if(a->i=='_') {
     fprintf(stderr,""
@@ -2217,4 +2224,13 @@ K* load1_(K *a) {
   if(at!=4) return kerror("type");
   load(a4);
   return null;
+}
+
+K* slide3_(K *a, K *b, K *c) {
+  K *r=0,*p;
+  if(bt==7) r=slide(b,a,c,"");
+  else if(bt==37) { p=kv0(2); v0(p)[0]=a; v0(p)[1]=c; r=slide37(b,p,""); p->c=0; kfree(p); }
+  else if(bt==67) r=slidefc(b,a,c,"");
+  EC(r);
+  return r;
 }

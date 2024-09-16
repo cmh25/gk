@@ -77,4 +77,6 @@ K* db1_(K *a);
 
 K* load1_(K *a);
 
+K* slide3_(K *a, K *b, K *c);
+
 #endif /* OPS_H */
