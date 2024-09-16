@@ -328,22 +328,21 @@ K* each(K *f, K *a, K *b, char *av) {
   if(bt<0) bm=kmix(b); else bm=b;
 
   n=av?strlen(av):0;
-  if(n) {
-    r=avdo(f,am,bm,av);
-    return r->t ? r : knorm(r);
-  }
 
   if(at<=0 && bt<=0) {
     r=kv0(ac);
-    DO(ac, v0(r)[i]=ff(v0(am)[i],v0(bm)[i]);EC(v0(r)[i]))
+    if(n) DO(ac,v0(r)[i]=avdo(f,v0(am)[i],v0(bm)[i],av);EC(v0(r)[i]))
+    else DO(ac, v0(r)[i]=ff(v0(am)[i],v0(bm)[i]);EC(v0(r)[i]))
   }
   else if(at<=0 && bt>0) {
     r=kv0(ac);
-    DO(ac, v0(r)[i]=ff(v0(am)[i],bm);EC(v0(r)[i]))
+    if(n) DO(ac,v0(r)[i]=avdo(f,v0(am)[i],bm,av);EC(v0(r)[i]))
+    else DO(ac, v0(r)[i]=ff(v0(am)[i],bm);EC(v0(r)[i]))
   }
   else if(at>0 && bt<=0) {
     r=kv0(bc);
-    DO(bc, v0(r)[i]=ff(am,v0(bm)[i]);EC(v0(r)[i]))
+    if(n) DO(bc,v0(r)[i]=avdo(f,am,v0(bm)[i],av);EC(v0(r)[i]))
+    else DO(bc, v0(r)[i]=ff(am,v0(bm)[i]);EC(v0(r)[i]))
   }
   else r=ff(am,bm);
 
@@ -399,7 +398,7 @@ K* eachright(K *f, K *a, K *b, char *av) {
     else r=ff(a,bm);
   }
   else {
-    r = kv0(bc);
+    r=kv0(bc);
     if(n) DO(bc,v0(r)[i]=avdo(f,a,v0(bm)[i],av);EC(v0(r)[i]))
     else DO(bc,v0(r)[i]=ff(a,v0(bm)[i]);EC(v0(r)[i]))
   }
