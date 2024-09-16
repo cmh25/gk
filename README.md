@@ -1,6 +1,6 @@
 # gk
 
-This is an implementation of the k programming language, originally invented by [Arthur Whitney](https://en.wikipedia.org/wiki/Arthur_Whitney_(computer_scientist)).
+gk is an implementation of the k programming language, originally invented by [Arthur Whitney](https://en.wikipedia.org/wiki/Arthur_Whitney_(computer_scientist)).
 
 It's loosely based on k3, but with some changes suggested by [Stevan Apter](https://nsl.com/).
 
@@ -43,8 +43,7 @@ The verbs are all like k3. However, there is no "force monadic" (ex: #:'). The v
 The adverbs are similar to k3, but `/: \: ':` are gone. The only adeverbs are `/ \ '`. How they operate depends on the context and the valence of the modified verb. Here's a quick synopsis:
 ```
       monad: each      f'x
-       dyad: eachprior f'x
- infix dyad: slide     n f'x
+ infix dyad: each      x f'y
 prefix dyad: each      f'[x;y]
       other: each      f'[x;y;z]
 
@@ -61,39 +60,39 @@ prefix dyad: scand     f\x
  infix dyad: eachright x f/y
 prefix dyad: overd     f/x
       other: over      f/[x;y;z]
+
+eachprior is ep[f;x], ex: ep[-;3 2 1]
 ```
 
-### slide adverb
-The slide adverb is an enhanced version of eachpair (aka eachprior). It only takes effect in the context of infix notation.
-
-The left argument is a positive or negative integer. Its sign indicates the order the arguments are passed to the modified verb. Its absolute value indicates the number of steps the sliding window moves each time arguments are taken. These examples should make clear how it works:
+### slide
+slide is an enhanced version of eachprior from k3 (aka eachpair).
 ```
-  1 ,' "abcd"
+_[n;f;a]
+```
+
+The first argument is a positive or negative integer. Its sign indicates the order the arguments are passed to the modified verb. Its absolute value indicates the number of steps the sliding window moves each time arguments are taken. The second argument is a verb. The third argument is a vector or list. These examples should make clear how it works:
+```
+  _[1;,;"abcd"]
 ("ab"
  "bc"
  "cd")
-  -1 ,' "abcd"
+  _[-1;,;"abcd"]
 ("ba"
  "cb"
  "dc")
-  2 ,' "abcd"
+  _[2;,;"abcd"]
 ("ab"
  "cd")
-  -2 ,' "abcd"
+  _[-2;,;"abcd"]
 ("ba"
  "dc")
 ```
-So `-1 f' a` in gk is equivalent to `f': a` in k3. gk gives up the k3 behavior of prepending the left argument of eachprior to the result in order to have a much more flexible adverb.
-
-I believe its a good tradeoff since I've never found a good use for something like this in k3:
+The case of `_[-1;f;a]` in gk is equivalent to `f': a` in k3. gk also has a builtin for eachprior.
 ```
-  `a-':1 2 3
-(`a;1;1)
-```
-However, you can still do that in gk if you need to for some reason. Ex:
-```
-  `a,-1-'1 2 3
-(`a;1;1)
+  ep[,;"asdf"]
+("sa"
+ "ds"
+ "fd")
 ```
 
 ### no underscore in names
