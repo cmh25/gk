@@ -364,7 +364,7 @@ static K* node_reduce_(node *n, int md, int z) {
         }
         cc-=k;
       }
-      if(!strcmp(av,"\\")||!strcmp(av,"/")) r=avdom(a,c,av); /* ,\[0;1 2] over scan */
+      if((!strcmp(av,"\\")||!strcmp(av,"/"))&&cc!=2) r=avdom(a,c,av); /* ,\[0;1 2] over scan */
       else if(!strcmp(av,"'")) r=apply1(a,c,av); /* f'[a] */
       else if(ac&&ac>cc) { /* projection */
         r=knew(7,0,fnnew(""),'p',0,0); r->t=87;
