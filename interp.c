@@ -27,7 +27,7 @@ K* reduce(node *a, pgs *s, int top) {
       if(rt==7&&((fn*)r->v)->i==':'&&!top) { node_free(a); pgfree(s); return r; }
     }
     if(btime) { btime=0; quiet=0; printf("%.3f\n",timer_stop()); }
-    if((!a->a[i]->q||fret)&&!quiet2&&!quiet) kprint(r,"",0,1);
+    if((!a->a[i]->q||fret)&&!quiet2&&!quiet) kprint(r,"","",1);
     node_free(a->a[i]);
     quiet2=0;
     if(r->t==98) { kfree(r); --i; while(i>=0) node_free(a->a[i--]); break; }

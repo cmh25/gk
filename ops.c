@@ -1674,7 +1674,7 @@ K* fourcolon1_(K *a) {
 K* fivecolon1_(K *a) {
   K *r=0;
   int n;
-  char *s=kprint5(a,"",0,0);
+  char *s=kprint5(a,"","",0);
   if(s==(char*)-1) return kerror("wsfull");
   n=strlen(s);
   VSIZE(n)
@@ -2148,7 +2148,7 @@ int serialize(K *a, char **b, char **v, int *m) {
   case  4: n+=1+strlen(a->v); break;
   case  5: n+=si; q=d2l(a->v); break;
   case  6: break;
-  case  7: case 27: case 37: case 67: case 77: case 87: p=kprint5(a,"",0,0); n+=pn=1+strlen(p); break;
+  case  7: case 27: case 37: case 67: case 77: case 87: p=kprint5(a,"","",0); n+=pn=1+strlen(p); break;
   case -4: n+=si; DO(ac,n+=1+strlen(v4(a)[i])); break;
   case -3: n+=si; n+=ac; break;
   case -2: n+=si; n+=ac*sd; break;

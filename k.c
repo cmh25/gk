@@ -152,7 +152,7 @@ void kdump(int l) {
       v=d->v[i];
       t=v->t; if(t==27||t==37||t==67||t==77||t==87) t=7;
       if(v->c>100) { c=v->c; v->c=100; }
-      s=kprint5(v,"",0,0);
+      s=kprint5(v,"","",0);
       if(c) v->c=c;
       s=xrealloc(s,strlen(s)+3);
       if(strlen(s)>30) { s[30]=0; strcat(s,"..."); }
@@ -176,17 +176,17 @@ static size_t oc=0;
 static size_t bs0=10000000;
 static size_t bs=10000000;
 
-void kprint(K *p, char *s, unsigned int plevel, int nl) {
+void kprint(K *p, char *s, char *s0, int nl) {
   if(o){xfree(o);o=0;oc=0;}
-  char *r=kprint_(p,s,plevel,nl);
+  char *r=kprint_(p,s,s0,nl);
   printf("%s",r);
   xfree(r);
   if(o){xfree(o);o=0;oc=0;}
 }
 
-char* kprint5(K *p, char *s, unsigned int plevel, int nl) {
+char* kprint5(K *p, char *s, char *s0, int nl) {
   if(o){xfree(o);o=0;oc=0;}
-  char *r=kprint_(p,s,plevel,nl);
+  char *r=kprint_(p,s,s0,nl);
   if(o){xfree(o);o=0;oc=0;}
   return r;
 }
@@ -232,7 +232,7 @@ static void pc(unsigned char c) {
     else oc+=sprintf(o+oc,"%c",c);
   }
 }
-char* kprint_(K *p, char *s, unsigned int plevel, int nl) {
+char* kprint_(K *p, char *s, char *s0, int nl) {
   int add0=1;
   unsigned int i;
   char s2[128],s3[128];
@@ -261,12 +261,12 @@ char* kprint_(K *p, char *s, unsigned int plevel, int nl) {
       if((((p2->t > 0 || !p2->c) && p2->t != 5) || p2->t == -3)
          || (p2->t==5 && !((dict*)p2->v)->c)) {
         oc+=sprintf(o+oc,"%s.,(`%s;",s,d->k[0]);
-        xfree(kprint_(p2, "", plevel, 0));
+        xfree(kprint_(p2, "", s0, 0));
         oc+=sprintf(o+oc,";)");
       } else {
         oc+=sprintf(o+oc,"%s.,(`%s\n",s,d->k[0]);
-        sprintf(s2, "%s%*s   ", s, plevel, "");
-        xfree(kprint_(p2, s2, plevel, 0));
+        sprintf(s2, "%s%s   ", s, s0);
+        xfree(kprint_(p2, s2, s0, 0));
         oc+=sprintf(o+oc,"\n%s   )",s);
       }
     } else {
@@ -275,15 +275,15 @@ char* kprint_(K *p, char *s, unsigned int plevel, int nl) {
       if((((p2->t > 0 || !p2->c) && p2->t != 5) || p2->t == -3)
          || (p2->t==5 && !((dict*)p2->v)->c)) {
         oc+=sprintf(o+oc,"(`%s;",d->k[0]);
-        xfree(kprint_(p2, "", plevel, 0));
+        xfree(kprint_(p2, "", s0, 0));
         oc+=sprintf(o+oc,";)\n");
-        sprintf(s2, "%s%*s  ", s, plevel, "");
+        sprintf(s2, "%s%s  ", s, s0);
       } else {
         oc+=sprintf(o+oc,"(`%s\n",d->k[0]);
-        sprintf(s2, "%s%*s   ", s, plevel, "");
-        xfree(kprint_(p2, s2, plevel, 0));
+        sprintf(s2, "%s%s   ", s, s0);
+        xfree(kprint_(p2, s2, s0, 0));
         oc+=sprintf(o+oc,"\n%s)\n",s2);
-        sprintf(s2, "%s%*s  ", s, plevel, "");
+        sprintf(s2, "%s%s  ", s, s0);
       }
       for(i=1;(int)i<d->c;i++) {
         if(oc<<1 > bs) { bs+=bs0; o=xrealloc(o,bs); }
@@ -291,13 +291,13 @@ char* kprint_(K *p, char *s, unsigned int plevel, int nl) {
         if((((p2->t > 0 || !p2->c) && p2->t != 5) || p2->t == -3)
            || (p2->t==5 && !((dict*)p2->v)->c)) {
           oc+=sprintf(o+oc,"%s(`%s;",s2,d->k[i]);
-          xfree(kprint_(p2, "", plevel, 0));
+          xfree(kprint_(p2, "", s0, 0));
           if((int)i==d->c-1)oc+=sprintf(o+oc,";))");
           else oc+=sprintf(o+oc,";)\n");
         } else {
           oc+=sprintf(o+oc,"%s(`%s\n",s2,d->k[i]);
-          sprintf(s3, "%s%*s   ", s, plevel, "");
-          xfree(kprint_(p2, s3, plevel, 0));
+          sprintf(s3, "%s%s   ", s, s0);
+          xfree(kprint_(p2, s3, s0, 0));
           if((int)i==d->c-1)oc+=sprintf(o+oc,"\n%s))",s3);
           else oc+=sprintf(o+oc,"\n%s)\n",s3);
         }
@@ -311,42 +311,43 @@ char* kprint_(K *p, char *s, unsigned int plevel, int nl) {
     if(((fn*)p->v)->av) oc+=sprintf(o+oc,"%s",((fn*)p->v)->av);
     break;
   case 27:
-    xfree(kprint_(((fn*)p->v)->l,s,plevel,0));
+    xfree(kprint_(((fn*)p->v)->l,s,s0,0));
     p->t=7;
-    xfree(kprint_(p,"",plevel,0));
+    xfree(kprint_(p,"",s0,0));
     p->t=27;
     break;
   case 67:
     f=p->v;
-    xfree(kprint_(f->c[0],s,plevel,0));
-    DO(f->cn-1,xfree(kprint_(f->c[i+1],"",plevel,0)))
+    xfree(kprint_(f->c[0],s,s0,0));
+    DO(f->cn-1,xfree(kprint_(f->c[i+1],"",s0,0)))
     break;
   case 77: case 87:
     f=p->v;
-    xfree(kprint_(f->l,s,plevel,0));
-    xfree(kprint_(f->a,s,plevel,0));
+    xfree(kprint_(f->l,s,s0,0));
+    xfree(kprint_(f->a,s,s0,0));
     if(f->av) oc+=sprintf(o+oc,"%s",f->av);
     break;
   case 97:
     f=v0(p)[1]->v;
-    xfree(kprint_(v0(p)[0],s,plevel,0));
+    xfree(kprint_(v0(p)[0],s,s0,0));
     v0(p)[1]->t=37;
-    xfree(kprint_(v0(p)[1],s,plevel,0));
+    xfree(kprint_(v0(p)[1],s,s0,0));
     v0(p)[1]->t=17;
     break;
   case 11:
     oc+=sprintf(o+oc,"[");
     if(p->c) {
-      DO(p->c-1,xfree(kprint_(v0(p)[i],"",plevel,0));oc+=sprintf(o+oc,";"))
-      xfree(kprint_(v0(p)[p->c-1],"",plevel,0));
+      DO(p->c-1,xfree(kprint_(v0(p)[i],"",s0,0));oc+=sprintf(o+oc,";"))
+      xfree(kprint_(v0(p)[p->c-1],"",s0,0));
     }
-    else xfree(kprint_(p,"",plevel,0));
+    else xfree(kprint_(p,"",s0,0));
     oc+=sprintf(o+oc,"]");
     break;
   case  0:
     if(p->c == 1) {
       oc+=sprintf(o+oc,"%s,",s);
-      xfree(kprint_(v0(p)[0],"",plevel+1,0));
+      sprintf(s3,"%s%s ",s,s0);
+      xfree(kprint_(v0(p)[0],"",s3,0));
       break;
     }
 
@@ -367,11 +368,12 @@ char* kprint_(K *p, char *s, unsigned int plevel, int nl) {
 
     if(z) {
       oc+=sprintf(o+oc,"%s(", s);
-      xfree(kprint_(v0(p)[0],"",strlen(s)+plevel+1,1));
+      sprintf(s3,"%s%s ",s,s0);
+      xfree(kprint_(v0(p)[0],"",s3,1));
       if(v0(p)[0]->t==6||v0(p)[0]->t==16) oc+=sprintf(o+oc,"\n");
-      sprintf(s2, "%s%*s ", s, plevel, "");
-      for(i=1;i<p->c-1;i++) xfree(kprint_(v0(p)[i],s2,0,1));
-      xfree(kprint_(v0(p)[i],s2,0,0));
+      sprintf(s2, "%s%s ", s, s0);
+      for(i=1;i<p->c-1;i++) xfree(kprint_(v0(p)[i],s2,"",1));
+      xfree(kprint_(v0(p)[i],s2,"",0));
       oc+=sprintf(o+oc,")");
       break;
     } else {
@@ -382,7 +384,7 @@ char* kprint_(K *p, char *s, unsigned int plevel, int nl) {
         switch(p2->t) {
         case  1: pi("","",p2->i); break;
         case  2: pf("","",p2->f); break;
-        case  3: xfree(kprint_(p2,"",0,0)); break;
+        case  3: xfree(kprint_(p2,"","",0)); break;
         case  4: oc+=sprintf(o+oc,"`%s", v3(p2)); break;
         case  5: oc+=sprintf(o+oc,".()"); break;
         case  7:
@@ -391,32 +393,32 @@ char* kprint_(K *p, char *s, unsigned int plevel, int nl) {
           if(((fn*)p2->v)->av) oc+=sprintf(o+oc,"%s",((fn*)p2->v)->av);
           break;
         case 27:
-          xfree(kprint_(((fn*)p2->v)->l,"",0,0));
+          xfree(kprint_(((fn*)p2->v)->l,"","",0));
           p2->t=7;
-          xfree(kprint_(p2,"",0,0));
+          xfree(kprint_(p2,"","",0));
           p2->t=27;
           break;
         case 67:
           f=p2->v;
-          DO(f->cn,xfree(kprint_(f->c[i],"",0,0)))
+          DO(f->cn,xfree(kprint_(f->c[i],"","",0)))
           break;
         case 77: case 87:
           f=p2->v;
-          xfree(kprint_(f->l,"",0,0));
-          xfree(kprint_(f->a,"",0,0));
+          xfree(kprint_(f->l,"","",0));
+          xfree(kprint_(f->a,"","",0));
           if(f->av) oc+=sprintf(o+oc,"%s",f->av);
           break;
         case 97:
           f=v0(p2)[1]->v;
-          xfree(kprint_(v0(p2)[0],"",0,0));
+          xfree(kprint_(v0(p2)[0],"","",0));
           v0(p2)[1]->t=37;
-          xfree(kprint_(v0(p2)[1],"",0,0));
+          xfree(kprint_(v0(p2)[1],"","",0));
           v0(p2)[1]->t=17;
           break;
         case  0: oc+=sprintf(o+oc,"()"); break;
         case -1: oc+=sprintf(o+oc,"!0"); break;
         case -2: oc+=sprintf(o+oc,"0#0.0"); break;
-        case -3: xfree(kprint_(p2,"",0,0)); break;
+        case -3: xfree(kprint_(p2,"","",0)); break;
         case -4: oc+=sprintf(o+oc,"0#`"); break;
         default: break;
         }

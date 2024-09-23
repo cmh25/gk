@@ -176,7 +176,7 @@ static K* reduce17(K* c17, node *n) {
     if(n->line!=-1) { e->i=n->line; e->j=n->linei; }
     if(linef[e->i]!=-1&&e->i!=1+linef[e->i]) fprintf(stderr,"%s ... + %d ",lines[linef[e->i]],e->i-linef[e->i]-1);
     if(linefn[e->i]!=-1) fprintf(stderr,"in %s\n",fnames[linefn[e->i]]); /* TODO: real line by filename */
-    kprint(r,"",0,1);
+    kprint(r,"","",1);
     if(e->i!=1+linef[e->i]||linef[e->i]==-1) {
       fprintf(stderr,"%s\n",lines[e->i]);
       fprintf(stderr,"%*s\n",(int)e->j,"^");
@@ -871,7 +871,7 @@ static K* node_reduce_(node *n, int md, int z) {
     if(n->line!=-1) { e->i=n->line; e->j=n->linei; }
     if(linef[e->i]!=-1&&e->i!=1+linef[e->i]) fprintf(stderr,"%s ... + %d ",lines[linef[e->i]],e->i-linef[e->i]-1);
     if(linefn[e->i]!=-1) fprintf(stderr,"in %s\n",fnames[linefn[e->i]]); /* TODO: real line by filename */
-    kprint(r,"",0,1);
+    kprint(r,"","",1);
     if(e->i!=1+linef[e->i]||linef[e->i]==-1) {
       fprintf(stderr,"%s\n",lines[e->i]);
       fprintf(stderr,"%*s\n",(int)e->j,"^");
