@@ -784,7 +784,7 @@ static K* node_reduce_(node *n, int md, int z) {
         q=apply2(p,a,t,0);
         kfree(p);
         f=v0(c)[1]->v;
-        if(t->c||t->t==16) s=apply2(v0(c)[1],q,f->a,"e"); /* specialav */
+        if(t->c||t->t==16) s=apply2(v0(c)[1],q,f->a,"'");
         else s=apply2(v0(c)[1],q,f->a,0);
         if(t->t==16) t=dkeys(a->v);
         if(t->c) p=s->t<0?kmix(s):kref(s);

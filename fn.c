@@ -19,19 +19,9 @@ K* (*dt2avo[256])(K *a, char *av);
 K* (*dt2avo2[256])(K *a, K *b, char *av);
 
 fn* fnnew(char *s) {
-  fn *f=xmalloc(sizeof(fn));
+  fn *f=xcalloc(1,sizeof(fn));
   f->d=xstrdup(s);
-  f->v=0;
-  f->n=0;
-  f->s_=0;
-  f->s=0;
   f->av=xstrdup("");
-  f->q = 0;
-  f->l = 0;
-  f->a = 0;
-  f->c = 0;
-  f->cn = 0;
-  f->i = 0;
   return f;
 }
 

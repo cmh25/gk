@@ -7,12 +7,7 @@
 #include "fn.h"
 
 dict* dnew(void) {
-  dict *d = xmalloc(sizeof(dict));
-  d->c = 0;
-  d->k = 0;
-  d->v = 0;
-  d->r = 0;
-  return d;
+  return xcalloc(1,sizeof(dict));
 }
 
 void dfree(dict *d) {

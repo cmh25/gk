@@ -314,7 +314,6 @@ K* avdo(K *f, K *a, K *b, char *av) {
   if(av[n-1]=='\'') r=each(f,a,b,av2);     /* a f'b */
   else if(av[n-1]=='/') r=eachright(f,a,b,av2); /* a f/b */
   else if(av[n-1]=='\\') r=eachleft(f,a,b,av2); /* a f\b */
-  else if(av[n-1]=='e') r=eache(dt2[ffi],a,b); /* special for d[],:a (see node.c specialav) */
   return r;
 }
 
@@ -516,7 +515,7 @@ K* each37(K *f, K *a, char *av) {
 
   if(am->t<=0 && bm->t<=0) {
     r=kv0(am->c);
-    DO(ac,v0(q)[0]=v0(am)[i];v0(q)[1]=v0(bm)[i];v0(r)[i]=ff(f,q,av);EC(v0(r)[i]))
+    DO(am->c,v0(q)[0]=v0(am)[i];v0(q)[1]=v0(bm)[i];v0(r)[i]=ff(f,q,av);EC(v0(r)[i]))
   }
   else if(am->t<=0 && bm->t>0) {
     r=kv0(am->c);
@@ -942,31 +941,19 @@ K* eache(K*(*f)(K*,K*), K *a, K *b) {
   if(a) {
     if(!b) return kerror("valence");
     if(at<=0 && bt<=0 && ac!=bc) return kerror("length");
-
     if(at<0) am=kmix(a); else am=a;
     if(bt<0) bm=kmix(b); else bm=b;
-
-    if(at<=0 && bt<=0) {
-      r=kv0(ac);
-      if(bt<=0) DO(ac, v0(r)[i]=f(v0(am)[i],v0(bm)[i]);EC(v0(r)[i]))
-    }
-    else if(at<=0 && bt>0) {
-      r=kv0(ac);
-      DO(ac, v0(r)[i]=f(v0(am)[i],bm);EC(v0(r)[i]))
-    }
-    else if(at>0 && bt<=0) {
-      r=kv0(bc);
-      DO(bc, v0(r)[i]=f(am,v0(bm)[i]);EC(v0(r)[i]))
-    }
+    if(at<=0 && bt<=0) { r=kv0(ac); if(bt<=0) DO(ac,v0(r)[i]=f(v0(am)[i],v0(bm)[i]);EC(v0(r)[i])) }
+    else if(at<=0 && bt>0) { r=kv0(ac); DO(ac,v0(r)[i]=f(v0(am)[i],bm);EC(v0(r)[i])) }
+    else if(at>0 && bt<=0) { r=kv0(bc); DO(bc,v0(r)[i]=f(am,v0(bm)[i]);EC(v0(r)[i])) }
     else r=f(am,bm);
-
     if(a!=am) kfree(am);
     if(b!=bm) kfree(bm);
   }
   else {
     r=kv0(bc);
     if(bt<0) bm=kmix(b); else bm=b;
-    DO(bc, v0(r)[i]=f(0,v0(bm)[i]);EC(v0(r)[i]))
+    DO(bc,v0(r)[i]=f(0,v0(bm)[i]);EC(v0(r)[i]))
     if(b!=bm) kfree(bm);
   }
   return r->t ? r : knorm(r);
