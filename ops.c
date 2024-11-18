@@ -475,9 +475,24 @@ K* take2_(K *a, K *b) {
   return rr->t ? rr : knorm(rr);
 }
 
+static K* splitc(char *s, char c) {
+  K *r=0;
+  int i=0,n=0;
+  char *t=s,*u=s;
+  if(!*s) return kv0(0);
+  DO(strlen(s),if(s[i]==c)++n)
+  r=kv0(1+n);
+  while(*t) {
+    if(*t==c) { v0(r)[i++]=knew(-3,t-u,u,0,0,0); u=++t; }
+    else ++t;
+  }
+  v0(r)[i]=knew(-3,t-u,u,0,0,0);
+  return r;
+}
 K* drop2_(K *a, K *b) {
   K *r=0,*r2=0;
   int i,j,m,p,q;
+  char *s;
 
   if(at==-1) {
     DO(ac,if(v1(a)[i]>(int)bc)return kerror("length"))
@@ -555,6 +570,20 @@ K* drop2_(K *a, K *b) {
       else if(isnan(a2)||isinf(a2)) { r=kv2(bc); DO(bc,v2(r)[i]=NAN) }
       else if(a2<0.00) { r=kv2(bc); DO(bc,for(j=1;;j++) if(CMPFF(-a2*j,v2(b)[i])>=0) { v2(r)[i]=-a2*j; break; }) }
       else { r=kv2(bc); DO(bc,for(j=1;;j++) if(CMPFF(a2*j,v2(b)[i])>0) { v2(r)[i]=a2*(j-1); break; }) }
+      break;
+    default: return kerror("type");
+    } break;
+  case 3:
+    switch(bt) {
+    case -3:
+      s=xstrndup(v3(b),bc);
+      r=splitc(s,a1);
+      xfree(s);
+      break;
+    case  4:
+      s=xstrdup(b4);
+      r=splitc(s,a1);
+      xfree(s);
       break;
     default: return kerror("type");
     } break;
