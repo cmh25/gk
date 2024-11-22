@@ -109,8 +109,8 @@ int dcmp(dict *d0, dict *d1) {
     else if(i<d0->c && i==d1->c) {r=r?r:1;break;}     /* count */
     else if(strcmp(d0->k[i],d1->k[i])<0) r=-1;        /* key */
     else if(strcmp(d0->k[i],d1->k[i])>0) r=1;         /* key */
-    else if(kcmp(d0->v[i],d1->v[i])<0) r=-1;
-    else if(kcmp(d0->v[i],d1->v[i])>0) r=1;
+    else if(kcmpr(d0->v[i],d1->v[i])<0) r=-1;
+    else if(kcmpr(d0->v[i],d1->v[i])>0) r=1;
     i++;
   }
   return r;

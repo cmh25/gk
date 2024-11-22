@@ -594,7 +594,7 @@ int vname(char *s, int len) {
   return v;
 }
 
-int kcmp(K *a, K *b) {
+int kcmpr(K *a, K *b) {
   unsigned int i,r=0,m;
   char *sa,*sb;
 
@@ -655,8 +655,8 @@ int kcmp(K *a, K *b) {
       if(i==ac && i<bc) {r=-1;break;}
       else if(i==bc && i<ac) {r=1;break;}
       else if(i==ac && i==bc) break;
-      else if(kcmp(v0(a)[i],v0(b)[i])<0){r=-1;break;}
-      else if(kcmp(v0(a)[i],v0(b)[i])>0){r=1;break;}
+      else if(kcmpr(v0(a)[i],v0(b)[i])<0){r=-1;break;}
+      else if(kcmpr(v0(a)[i],v0(b)[i])>0){r=1;break;}
     }
   }
 

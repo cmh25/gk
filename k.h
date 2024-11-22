@@ -137,7 +137,7 @@ K* kerror(char *msg);
 K* kmix(K *s);
 K* kcp(K *s);
 int vname(char *s, int len);
-int kcmp(K *a, K *b);
+int kcmpr(K *a, K *b);
 uint64_t khash(K *a);
 int kreserved(char *s);
 

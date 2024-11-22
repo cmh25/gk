@@ -269,7 +269,7 @@ K* find2_avopt2(K *a, K *b, char *av) {
       for(i=0;i<ac;i++) {
         kp++;
         h=khash(*kp)&q;
-        while(hk[h]!=0 && kcmp(hk[h],*kp)) h=(h+1)&q;
+        while(hk[h]!=0 && kcmpr(hk[h],*kp)) h=(h+1)&q;
         if(!hk[h]) hk[h]=*kp;
         hi[h]=i;
       }
@@ -277,7 +277,7 @@ K* find2_avopt2(K *a, K *b, char *av) {
       for(i=0;i<bc;i++) {
         kp++;
         h=khash(*kp)&q;
-        while(hk[h]!=0 && kcmp(hk[h],*kp)) h=(h+1)&q;
+        while(hk[h]!=0 && kcmpr(hk[h],*kp)) h=(h+1)&q;
         v1(r)[i]=hk[h]?hi[h]:ac;
       }
       xfree(hi);

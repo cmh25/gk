@@ -319,7 +319,7 @@ K* modrot2_(K *a, K *b) {
 }
 
 K* match2_(K *a, K *b) {
-  return k1(!kcmp(a,b));
+  return k1(!kcmpr(a,b));
 }
 
 K* join2_(K *a, K *b) {
@@ -768,7 +768,7 @@ K* find2_(K *a, K *b) {
 
   r=k1(ac);
   switch(at) {
-  case  0: DO(ac,if(!kcmp(v0(a)[i],b)){r->i=i; break;}) break;
+  case  0: DO(ac,if(!kcmpr(v0(a)[i],b)){r->i=i; break;}) break;
   case -1: if(bt==1) DO(ac,if(v1(a)[i]==b1){r->i=i; break;}) break;
   case -2: if(bt==2) DO(ac,if(!CMPFFT(v2(a)[i],b2)){r->i=i; break;}) break;
   case -3: if(bt==3) DO(ac,if(v3(a)[i]==b3){r->i=i; break;}) break;
@@ -1124,7 +1124,7 @@ K* group_(K *a) {
     for(i=0;i<ac;i++) {
       pk++;
       h=khash(a)&q;
-      if(*pk) while(!h || (hk[h] && kcmp(hk[h],*pk))) h=(h+1)&q; /* h=0 iff *s=0 */
+      if(*pk) while(!h || (hk[h] && kcmpr(hk[h],*pk))) h=(h+1)&q; /* h=0 iff *s=0 */
       hk[h]=*pk;
       hm[h]++;
     }
@@ -1132,7 +1132,7 @@ K* group_(K *a) {
     for(i=0;i<ac;i++) {
       pk++;
       h=khash(a)&q;
-      if(*pk) while(!h || (hk[h] && kcmp(hk[h],*pk))) h=(h+1)&q; /* h=0 iff *s=0 */
+      if(*pk) while(!h || (hk[h] && kcmpr(hk[h],*pk))) h=(h+1)&q; /* h=0 iff *s=0 */
       p=ht[h];
       if(!p) {
         p=ht[h]=kv1(hm[h]);
@@ -1517,7 +1517,7 @@ K* unique_(K *a) {
     for(i=0;i<ac;i++) {
       kp++;
       h=khash(*kp)&q;
-      while(hk[h] && kcmp(hk[h],*kp)) h=(h+1)&q;
+      while(hk[h] && kcmpr(hk[h],*kp)) h=(h+1)&q;
       if(!hk[h]) hk[h]=v0(r)[j++]=kcp(*kp);
     }
     rc=j;

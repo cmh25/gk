@@ -63,9 +63,9 @@ K* overd(K *f, K *a, char *av) {
   if(n) {
     q=kref(a); /* first */
     p=avdom(f,q,av); EC(p); /* previous */
-    if(kcmp(p,q)) {
+    if(kcmpr(p,q)) {
       r=avdom(f,p,av); EC(r);
-      while(kcmp(r,q)&&kcmp(r,p)) {
+      while(kcmpr(r,q)&&kcmpr(r,p)) {
         kfree(p);
         p=r;
         r=avdom(f,r,av); EC(r);
@@ -131,10 +131,10 @@ K* scand(K *f, K *a, char *av) {
     p=avdom(f,q,av); EC(p); /* previous */
     sr=kv0(32);
     v0(sr)[j++]=q;
-    if(kcmp(p,q)) {
+    if(kcmpr(p,q)) {
       v0(sr)[j++]=p;
       r=avdom(f,p,av); EC(r);
-      while(kcmp(r,q)&&kcmp(r,p)) {
+      while(kcmpr(r,q)&&kcmpr(r,p)) {
         if(j==sr->c) { sr->c<<=1; sr->v=xrealloc(sr->v,sizeof(K*)*sr->c); }
         v0(sr)[j++]=r;
         p=r;
@@ -244,9 +244,9 @@ K* overm(K *f, K *a) {
 
   q=v0(a)[1];                 /* first */
   p=ff(v0(a)[0],v0(a)[1]); /* previous */
-  if(kcmp(p,q)) {
+  if(kcmpr(p,q)) {
     r=ff(v0(a)[0],p); EC(r);
-    while(kcmp(r,q)&&kcmp(r,p)) {
+    while(kcmpr(r,q)&&kcmpr(r,p)) {
       kfree(p);
       p=r;
       r=ff(v0(a)[0],p); EC(r);
@@ -268,10 +268,10 @@ K* scanm(K *f, K *a) {
   if(p==q) kfree(q);
   sr=kv0(32);
   v0(sr)[j++]=kref(q);
-  if(kcmp(p,q)) {
+  if(kcmpr(p,q)) {
     v0(sr)[j++]=p;
     r=ff(v0(a)[0],p); EC(r);
-    while(kcmp(r,q)&&kcmp(r,p)) {
+    while(kcmpr(r,q)&&kcmpr(r,p)) {
       if(j==sr->c) { sr->c<<=1; sr->v=xrealloc(sr->v,sizeof(K*)*sr->c); }
       v0(sr)[j++]=r;
       p=r;
@@ -704,9 +704,9 @@ K* overm37(K *f, K *a, char *av) {
 
   q=a;            /* first */
   p=fne2(f,q,av); EC(p); /* previous */
-  if(kcmp(p,q)) {
+  if(kcmpr(p,q)) {
     r=fne2(f,p,av); EC(r);
-    while(kcmp(r,q)&&kcmp(r,p)) {
+    while(kcmpr(r,q)&&kcmpr(r,p)) {
       kfree(p);
       p=r;
       r=fne2(f,r,av); EC(r);
@@ -726,10 +726,10 @@ K* scanm37(K *f, K *a, char *av) {
   if(p==q) kfree(q);
   sr=kv0(32);
   v0(sr)[j++]=kref(q);
-  if(kcmp(p,q)) {
+  if(kcmpr(p,q)) {
     v0(sr)[j++]=p;
     r=fne2(f,p,av); EC(r);
-    while(kcmp(r,q)&&kcmp(r,p)) {
+    while(kcmpr(r,q)&&kcmpr(r,p)) {
       if(j==sr->c) { sr->c<<=1; sr->v=xrealloc(sr->v,sizeof(K*)*sr->c); }
       v0(sr)[j++]=r;
       p=r;
@@ -865,9 +865,9 @@ K* overd37(K *f, K *a, char *av) {
   if(n) {
     q=kref(a); /* first */
     p=avdo37(f,q,av); EC(p); /* previous */
-    if(kcmp(p,q)) {
+    if(kcmpr(p,q)) {
       r=avdo37(f,p,av); EC(r);
-      while(kcmp(r,q)&&kcmp(r,p)) {
+      while(kcmpr(r,q)&&kcmpr(r,p)) {
         kfree(p);
         p=r;
         r=avdo37(f,r,av); EC(r);
@@ -904,10 +904,10 @@ K* scand37(K *f, K *a, char *av) {
     p=avdo37(f,q,av); EC(p); /* previous */
     sr=kv0(32);
     v0(sr)[j++]=q;
-    if(kcmp(p,q)) {
+    if(kcmpr(p,q)) {
       v0(sr)[j++]=p;
       r=avdo37(f,p,av); EC(r);
-      while(kcmp(r,q)&&kcmp(r,p)) {
+      while(kcmpr(r,q)&&kcmpr(r,p)) {
         if(j==sr->c) { sr->c<<=1; sr->v=xrealloc(sr->v,sizeof(K*)*sr->c); }
         v0(sr)[j++]=r;
         p=r;
@@ -1012,9 +1012,9 @@ K* overdfc(K *f, K *a, char *av) {
   if(n) {
     q=kref(a); /* first */
     p=avdomfc(f,q,av); EC(p); /* previous */
-    if(kcmp(p,q)) {
+    if(kcmpr(p,q)) {
       r=avdomfc(f,p,av); EC(r);
-      while(kcmp(r,q)&&kcmp(r,p)) {
+      while(kcmpr(r,q)&&kcmpr(r,p)) {
         kfree(p);
         p=r;
         r=avdomfc(f,r,av); EC(r);
@@ -1049,10 +1049,10 @@ K* scandfc(K *f, K *a, char *av) {
     p=avdomfc(f,q,av); EC(p); /* previous */
     sr=kv0(32);
     v0(sr)[j++]=q;
-    if(kcmp(p,q)) {
+    if(kcmpr(p,q)) {
       v0(sr)[j++]=p;
       r=avdomfc(f,p,av); EC(r);
-      while(kcmp(r,q)&&kcmp(r,p)) {
+      while(kcmpr(r,q)&&kcmpr(r,p)) {
         if(j==sr->c) { sr->c<<=1; sr->v=xrealloc(sr->v,sizeof(K*)*sr->c); }
         v0(sr)[j++]=r;
         p=r;
