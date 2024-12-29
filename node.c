@@ -468,7 +468,8 @@ static K* node_reduce_(node *n, int md, int z) {
       else if(ct==17) {
         f=c->v;
         if(f->i==':') {
-          if(strchr(ao->v,'.'))  r=assign3_(ao,0,f->a);
+          if(ao->t==6) r=kerror("type");
+          else if(strchr(ao->v,'.'))  r=assign3_(ao,0,f->a);
           else r=apply2(c,ao,f->a,0);
         }
         else if(strlen(f->d)==1&&bt!=47) r=apply2(c,a,f->a,0); /* {},{} */
