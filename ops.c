@@ -838,6 +838,7 @@ K* at2_(K *a, K *b) {
   if(at!=37&&bt==0) { r=kv0(bc); DO(rc,v0(r)[i]=at2_(a,v0(b)[i]); EC(v0(r)[i])); }
   else if(bt==11) { r=at2s_(a,b); EC(r); }
   else {
+  if(at<=0&&bt==1&&(b1<0||b1>=(int)ac)) return kerror("index");
   switch(at) {
   case 37: bm=bt<0?kmix(b):b; r=fne2(a,bm,0); if(bm!=b) kfree(bm); break;
   case  5:
@@ -853,31 +854,31 @@ K* at2_(K *a, K *b) {
   case  0:
     switch(bt) {
     case  1: r=kcp(v0(a)[b1]); break;
-    case -1: r=kv0(bc); DO(rc,v0(r)[i]=kcp(v0(a)[v1(b)[i]])); break;
+    case -1: r=kv0(bc); DO(rc,if(v1(b)[i]<0||v1(b)[i]>=(int)ac){kfree(r);return kerror("index");} v0(r)[i]=kcp(v0(a)[v1(b)[i]])); break;
     default: return kerror("type");
     } break;
   case -1:
     switch(bt) {
     case  1: r=k1(v1(a)[b1]); break;
-    case -1: r=kv1(bc); DO(rc,v1(r)[i]=v1(a)[v1(b)[i]]); break;
+    case -1: r=kv1(bc); DO(rc,if(v1(b)[i]<0||v1(b)[i]>=(int)ac){kfree(r);return kerror("index");} v1(r)[i]=v1(a)[v1(b)[i]]); break;
     default: return kerror("type");
     } break;
   case -2:
     switch(bt) {
     case  1: r=k2(v2(a)[b1]); break;
-    case -1: r=kv2(bc); DO(rc,v2(r)[i]=v2(a)[v1(b)[i]]); break;
+    case -1: r=kv2(bc); DO(rc,if(v1(b)[i]<0||v1(b)[i]>=(int)ac){kfree(r);return kerror("index");} v2(r)[i]=v2(a)[v1(b)[i]]); break;
     default: return kerror("type");
     } break;
   case -3:
     switch(bt) {
     case  1: r=k3(v3(a)[b1]); break;
-    case -1: r=kv3(bc); DO(rc,v3(r)[i]=v3(a)[v1(b)[i]]); break;
+    case -1: r=kv3(bc); DO(rc,if(v1(b)[i]<0||v1(b)[i]>=(int)ac){kfree(r);return kerror("index");} v3(r)[i]=v3(a)[v1(b)[i]]); break;
     default: return kerror("type");
     } break;
   case -4:
     switch(bt) {
     case  1: r=k4(v4(a)[b1]); break;
-    case -1: r=kv4(bc); DO(rc,v4(r)[i]=v4(a)[v1(b)[i]]); break;
+    case -1: r=kv4(bc); DO(rc,if(v1(b)[i]<0||v1(b)[i]>=(int)ac){kfree(r);return kerror("index");} v4(r)[i]=v4(a)[v1(b)[i]]); break;
     default: return kerror("type");
     } break;
   default: return kerror("type");
