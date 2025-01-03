@@ -286,7 +286,7 @@ K* modrot2_(K *a, K *b) {
   switch(at) {
   case  1:
     switch(bt) {
-    case  1: r=k1(0); if(!b1) r->i=a1; else { ri = a1 % b1; r->i = ri < 0 ? ri+b1 : ri; } break;
+    case  1: r=k1(0); if(!b1) r->i=INT_MIN; else { ri = a1 % b1; r->i = ri < 0 ? ri+b1 : ri; } break;
     case  2: r=k2(0); rd = fmod(a1,b2); r->f = rd < 0 ? rd+b2 : rd; break;
     case  0: r=kv0(bc); DO(rc, ri=(i+a1)%(int)bc; if(ri<0)ri=ri+bc; v0(r)[i] = kcp(v0(b)[ri]);) break;
     case -1: r=kv1(bc); DO(rc, ri=(i+a1)%(int)bc; if(ri<0)ri=ri+bc; v1(r)[i]=v1(b)[ri];) break;
@@ -303,7 +303,7 @@ K* modrot2_(K *a, K *b) {
     } break;
   case -1:
     switch(bt) {
-    case 1: r=kv1(ac); DO(rc, ri=v1(a)[i]%b1; v1(r)[i]=ri<0?ri+b1:ri) break;
+    case 1: r=kv1(ac); if(!b1) DO(rc,v1(r)[i]=INT_MIN) else DO(rc, ri=v1(a)[i]%b1; v1(r)[i]=ri<0?ri+b1:ri) break;
     case 2: r=kv2(ac); DO(rc, rd=fmod(v1(a)[i],b2); v2(r)[i]=rd<0?rd+b2:rd) break;
     default: return kerror("int");
     } break;
