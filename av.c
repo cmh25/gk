@@ -79,7 +79,7 @@ K* overd(K *f, K *a, char *av) {
   }
 
   if(!ac&&at<=0) {
-    if(strchr("+*&|",ffi)&&!ac&&at<=0) {
+    if(strchr("+*&|",ffi)) {
       switch(at) {
       case  0:
       case -1:
