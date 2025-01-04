@@ -87,14 +87,12 @@ K* overd(K *f, K *a, char *av) {
         else if(ffi=='*') return k1(1);
         else if(ffi=='&') return k1(1);
         else if(ffi=='|') return k1(0);
-        else if(at==1&&ffi=='=') return k1(1);
         break;
       case -2:
         if(ffi=='+') return k2(0);
         else if(ffi=='*') return k2(1);
         else if(ffi=='&') return k2(INFINITY);
         else if(ffi=='|') return k2(-INFINITY);
-        else if(at==1&&ffi=='=') return k1(1);
         break;
       case -3:
         if(ffi=='&') return k3(0);
