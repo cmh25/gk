@@ -31,7 +31,7 @@ int* rcsortg(int *g, int *a, unsigned int n, int down) {
   mm1=max-min+1;
 
   /* if we have INT_MIN and INT_MAX, can't radixsort */
-  if(!mm1) { DO(n,g[i]=i); msortg1(g,a,0,n-1,down); return g; }
+  if(mm1<=0) { DO(n,g[i]=i); msortg1(g,a,0,n-1,down); return g; }
 
   /* can get by with just count sort? */
   if(mm1<0x10000000) return csortg(g,a,n,min,max,down);
