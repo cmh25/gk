@@ -667,7 +667,7 @@ K* form2_(K *a, K *b) {
     case  1:
     case  2:
       if(bt==1) b2=I2F(b1);
-      sprintf(t,"%g",a2); s=strchr(t,'.');
+      sprintf(t,"%g",roundf(a2*10)/10); s=strchr(t,'.');
       x=a2; m=abs(x); y=s?s[1]-48:0;
       if(x<0||*t=='-') sprintf(t,"%s%0.*e",b2<0?"":" ",y,b2);
       else if(isinf(b2)) *t=0;
@@ -1052,9 +1052,10 @@ K* where_(K *a) {
   K *r=0;
   int j,kk;
   switch(at) {
-  case  1: r=kv1(a1); DO(rc,v1(r)[i]=0) break;
+  case  1: if(a1<0) return kerror("domain"); r=kv1(a1); DO(rc,v1(r)[i]=0) break;
   case  0: if(!ac) r=kv1(0); else return kerror("type"); break;
-  case -1: j=0; DO(ac,j+=v1(a)[i]); r=kv1(j); j=0; DO(ac,kk=v1(a)[i]; while(kk-->0)v1(r)[j++]=i) break;
+  case -1: DO(ac,if(v1(a)[i]<0) return kerror("domain"))
+           j=0; DO(ac,j+=v1(a)[i]); r=kv1(j); j=0; DO(ac,kk=v1(a)[i]; while(kk-->0)v1(r)[j++]=i) break;
   default: return kerror("type");
   }
   return rt ? r : knorm(r);
