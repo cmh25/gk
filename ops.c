@@ -1125,7 +1125,7 @@ K* group_(K *a) {
     pk=v0(a)-1;
     for(i=0;i<ac;i++) {
       pk++;
-      h=khash(a)&q;
+      h=khash(*pk)&q;
       if(*pk) while(!h || (hk[h] && kcmpr(hk[h],*pk))) h=(h+1)&q; /* h=0 iff *s=0 */
       hk[h]=*pk;
       hm[h]++;
@@ -1133,7 +1133,7 @@ K* group_(K *a) {
     pk=v0(a)-1;
     for(i=0;i<ac;i++) {
       pk++;
-      h=khash(a)&q;
+      h=khash(*pk)&q;
       if(*pk) while(!h || (hk[h] && kcmpr(hk[h],*pk))) h=(h+1)&q; /* h=0 iff *s=0 */
       p=ht[h];
       if(!p) {
