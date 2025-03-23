@@ -272,7 +272,7 @@ static K* node_reducemd(node *n, int z);
 static K* node_reduce_(node *n, int md, int z) {
   K *a,*b,*c,*d,*r=0,*p,*q,*s,*t,*ao=null,*co=null,*pc;
   fn *f=0;
-  char av[32];
+  char av[32],av2[32];
   ERR *e;
   unsigned int i,j,k;
   if(++z>DLIMIT) return kerror("wsfull");
@@ -586,7 +586,11 @@ static K* node_reduce_(node *n, int md, int z) {
           }
           cc-=k;
         }
-        r=avdo37(a,c,av);
+        f=a->v;
+        av2[0]=0;
+        if(f->av) strncat(av2,f->av,31);
+        strncat(av2,av,31);
+        r=avdo37(a,c,av2);
         if(!r) r=fne2(a,c,0);
       }
     }
