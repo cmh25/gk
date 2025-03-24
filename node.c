@@ -393,8 +393,7 @@ static K* node_reduce_(node *n, int md, int z) {
       else r=make17(a,b,c,n);
     }
     else { /* 7 monadic enabled */
-      //if(ct==16) { xfree(a7->av); a7->av=xstrdup(av); r=kref(a); } /* av append under loop */
-      if(ct==16) { r=kcp(a); xfree(((fn*)r->v)->av); ((fn*)r->v)->av=xstrdup(av); }
+      if(ct==16) { r=kcp(a); ((fn*)r->v)->av=xrealloc(((fn*)r->v)->av,256); strncat(((fn*)r->v)->av,av,255); }
       else if(ct==17&&((fn*)c->v)->i==':') r=apply2(c,ao,((fn*)c->v)->a,0);
       else if(ct==17&&ao->t==99&&ac!=1) r=apply2(c,ao,((fn*)c->v)->a,0);
       else if(ct==17) {
