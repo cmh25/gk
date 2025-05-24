@@ -40,7 +40,7 @@ The verbs are all like k3. However, there is no "force monadic" (ex: #:'). The v
 -1 -0.5 -0.3333333
 ```
 ### adverbs
-The adverbs are similar to k3, but `/: \: ':` are gone. The only adeverbs are `/ \ '`. How they operate depends on the context and the valence of the modified verb. Here's a quick synopsis:
+The adverbs are similar to k3, but `/: \: ':` are gone. The only adverbs are `/ \ '`. How they operate depends on the context and the valence of the modified verb. Here's a quick synopsis:
 ```
       monad: each      f'x
  infix dyad: each      x f'y
