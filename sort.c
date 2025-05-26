@@ -19,6 +19,8 @@ int* csortg(int *g, int *a, unsigned int n, int min, int max, int down) {
   return g;
 }
 
+#define LO16(x) (((unsigned int)(x)) & 0xffff)
+#define HI16S(x) (((int)(x)) >> 16)
 int* rcsortg(int *g, int *a, unsigned int n, int down) {
   int i=0,mm1=0,as=0;
   unsigned int k;
@@ -37,26 +39,26 @@ int* rcsortg(int *g, int *a, unsigned int n, int down) {
   if(mm1<0x10000000) return csortg(g,a,n,min,max,down);
 
   t = xcalloc(n,sizeof(int));
-  count = xcalloc(0x10000,sizeof(int));
-  for(k=0;k<n;k++) count[a[k]&0xffff]++;
+  count = xcalloc(0x10001,sizeof(int));
+  for(k=0;k<n;k++) count[LO16(a[k])]++;
   if(down) for(i=0x10000-1;i>=0;i--) count[i] += count[i+1];
   else for(i=1;i<0x10000;i++) count[i] += count[i-1];
-  for(i=n-1;i>=0;i--) t[--count[a[i]&0xffff]] = i;
+  for(i=n-1;i>=0;i--) t[--count[LO16(a[i])]] = i;
   xfree(count);
 
   max=INT_MIN;
   min=INT_MAX;
   for(k=0;k<n;k++) {
-    as=(a[k]>>16)&0xffff;
+    as=HI16S(a[k]);
     max = max < as ? as : max;
     min = min > as ? as : min;
   }
   mm1=max-min+1;
-  count = xcalloc(mm1,sizeof(int));
-  for(k=0;k<n;k++) count[((a[k]>>16)&0xffff)-min]++;
+  count = xcalloc(mm1+1,sizeof(int));
+  for(k=0;k<n;k++) count[HI16S(a[k])-min]++;
   if(down) for(i=mm1-1;i>=0;i--) count[i] += count[i+1];
   else for(i=1;i<mm1;i++) count[i] += count[i-1];
-  for(i=n-1;i>=0;i--) g[--count[((a[t[i]]>>16)&0xffff)-min]] = t[i];
+  for(i=n-1;i>=0;i--) g[--count[HI16S(a[t[i]])-min]] = t[i];
   xfree(count);
   xfree(t);
   return g;
