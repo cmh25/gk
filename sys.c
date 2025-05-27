@@ -50,54 +50,31 @@ K* tt0(void) { /* TS */
   return k2(d/60/60/24);
 }
 
-static void justify(K *a) {
-  int j=0,d=0;
-  unsigned int m=0;
-  K *p=0;
-  DO(ac, p=v0(a)[i]; if(m<p->c) m=p->c)
-  DO(ac,
-    p=v0(a)[i];
-    if(p->c<m) {
-      d=m-p->c;
-      p->v=xrealloc(p->v,sizeof(int)*m);
-      for(j=m-1;j-d>=0;j--) v1(p)[j]=v1(p)[j-d];
-      while(j>=0) v1(p)[j--]=0;
-      p->c=m;
-    }
-  )
-}
-
-K* vs2_(K *a, K *b) {
+static K* vs2__(K *a, K *b, unsigned int w) {
   K *r=0,*q=0,*p=0,*f=0;
-  int i,j,x,y,m,d;
-  unsigned int n;
+  int i,x,y,m;
 
   switch(at) {
   case 1:
-    if(a1<0) return kerror("domain");
+    if(a1<=1) return kerror("domain");
     switch(bt) {
     case  1:
-      x=b1; y=a1; i=0; j=2; q=kv1(j);
-      while(x>0) {
-        m=x%y; x/=y;
-        if(++i==j) { j<<=1; q->v=xrealloc(q->v,sizeof(int)*j); }
-        v1(q)[i-1]=m;
-      }
-      q->c=i;
-      r=reverse_(q);
-      kfree(q);
+      if(b1==0) return kv1(0);
+      if(b1<=0) return kerror("domain");
+      x=b1; y=a1; i=w;
+      r=kv1(w);
+      while(x>0) { m=x%y; x/=y; v1(r)[--i]=m; }
+      while(--i>=0) v1(r)[i]=0;
       break;
     case  0:
       q=kv0(bc);
-      DO(q->c, v0(q)[i]=vs2_(a,v0(b)[i]); EC(v0(q)[i]))
-      justify(q);
+      DO(q->c, v0(q)[i]=vs2__(a,v0(b)[i],w); EC(v0(q)[i]))
       r=flip_(q);
       kfree(q);
       break;
     case -1:
       q=kv0(bc);
-      DO(q->c, p=k1(0); p->i=v1(b)[i]; v0(q)[i]=vs2_(a,p); EC(v0(q)[i]); kfree(p))
-      justify(q);
+      DO(q->c, p=k1(v1(b)[i]); v0(q)[i]=vs2__(a,p,w); kfree(p); EC(v0(q)[i]))
       r=flip_(q);
       kfree(q);
       break;
@@ -105,6 +82,7 @@ K* vs2_(K *a, K *b) {
     } break;
   case -1:
     DO(ac,if(v1(a)[i]<0) return kerror("domain"))
+    DO(ac,if(i&&v1(a)[i]<1) return kerror("domain"))
     switch(bt) {
     case  1:
       q=reverse_(a);
@@ -112,38 +90,19 @@ K* vs2_(K *a, K *b) {
       p=avdom(f,q,"\\"); kfree(q);
       kfree(f);
       q=reverse_(p); kfree(p);
-      x=b1; i=0; j=2; r=kv1(j);
-      /* augment? */
-      if(v1(q)[0]<x) {
-        q->v=xrealloc(q->v,sizeof(int)*(q->c+1));
-        DO(q->c, v1(q)[q->c-i]=v1(q)[q->c-i-1])
-        v1(q)[0]=x+1;
-        q->c++;
-      }
-      for(n=0;n<q->c;n++) {
-        y=v1(q)[n];
-        m=x/y; x-=m*y;
-        if(++i==j) { j<<=1; r->v=xrealloc(r->v,sizeof(int)*j); }
-        v1(r)[i-1]=m;
-      }
-      if(++i==j) { j<<=1; r->v=xrealloc(r->v,sizeof(int)*j); }
-      v1(r)[i-1]=x;
-      rc=i;
-      d=rc-ac;
-      /* adjust? */
-      if(d) { rc=ac; DO(rc, v1(r)[i]=v1(r)[i+d]) }
+      DO(q->c-1,v1(q)[i]=v1(q)[i+1]) v1(q)[q->c-1]=1;
+      x=b1; i=0; r=kv1(q->c);
+      DO(q->c,y=v1(q)[i];m=x/y;x-=m*y;v1(r)[i]=v1(a)[i]?m%v1(a)[i]:m)
       kfree(q);
       break;
     case  0:
       q=kv0(bc);
-      DO(q->c, v0(q)[i]=vs2_(a,v0(b)[i]); EC(v0(q)[i]))
-      justify(q);
+      DO(q->c, v0(q)[i]=vs2__(a,v0(b)[i],w); EC(v0(q)[i]))
       r=flip_(q); kfree(q);
       break;
     case -1:
       q=kv0(bc);
-      DO(q->c, p=k1(0); p->i=v1(b)[i]; v0(q)[i]=vs2_(a,p); EC(v0(q)[i]); kfree(p))
-      justify(q);
+      DO(q->c, p=k1(v1(b)[i]); v0(q)[i]=vs2__(a,p,w); EC(v0(q)[i]); kfree(p))
       r=flip_(q); kfree(q);
       break;
     default: return kerror("type");
@@ -152,6 +111,22 @@ K* vs2_(K *a, K *b) {
   }
 
   return r->t ? r : knorm(r);
+}
+static int maxw(K *a, int b) {
+  int w=0,z,n;
+  K *p;
+  if(at==1) { if(b==1) return 1; w=1; n=a1; while(b&&n>=b) { n/=b; ++w; } }
+  else if(at==-1) { DO(a->c,p=k1(v1(a)[i]);z=maxw(p,b);kfree(p);if(w<z)w=z) }
+  else if(at==0) { DO(a->c,z=maxw(v0(a)[i],b);if(w<z)w=z) }
+  return w;
+}
+K * vs2_(K *a, K *b) {
+  if((at==1&&a1<=1)||(at==-1&&!ac)) return kerror("domain");
+  int w,z;
+  if(at==1) w=maxw(b,a1);
+  else if(at==-1) { w=0; DO(ac,z=maxw(b,v1(a)[i]);if(w<z)w=z) }
+  else return kerror("type");
+  return vs2__(a,b,w);
 }
 MC2A(vs2_)
 
