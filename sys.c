@@ -52,7 +52,8 @@ K* tt0(void) { /* TS */
 
 static K* vs2__(K *a, K *b, unsigned int w) {
   K *r=0,*q=0,*p=0,*f=0;
-  int i,x,y,m;
+  int i,m;
+  uint64_t x,y;
 
   switch(at) {
   case 1:
@@ -60,8 +61,8 @@ static K* vs2__(K *a, K *b, unsigned int w) {
     switch(bt) {
     case  1:
       if(b1==0) return kv1(0);
-      if(b1<=0) return kerror("domain");
-      x=b1; y=a1; i=w;
+      //if(b1<=0) return kerror("domain");
+      x=(unsigned int)b1; y=a1; i=w;
       r=kv1(w);
       while(x>0) { m=x%y; x/=y; v1(r)[--i]=m; }
       while(--i>=0) v1(r)[i]=0;
@@ -81,8 +82,8 @@ static K* vs2__(K *a, K *b, unsigned int w) {
     default: return kerror("type");
     } break;
   case -1:
-    DO(ac,if(v1(a)[i]<0) return kerror("domain"))
-    DO(ac,if(i&&v1(a)[i]<1) return kerror("domain"))
+    //DO(ac,if(v1(a)[i]<0) return kerror("domain"))
+    //DO(ac,if(i&&v1(a)[i]<1) return kerror("domain"))
     switch(bt) {
     case  1:
       q=reverse_(a);
@@ -91,7 +92,7 @@ static K* vs2__(K *a, K *b, unsigned int w) {
       kfree(f);
       q=reverse_(p); kfree(p);
       DO(q->c-1,v1(q)[i]=v1(q)[i+1]) v1(q)[q->c-1]=1;
-      x=b1; i=0; r=kv1(q->c);
+      x=(unsigned int)b1; i=0; r=kv1(q->c);
       DO(q->c,y=v1(q)[i];m=x/y;x-=m*y;v1(r)[i]=v1(a)[i]?m%v1(a)[i]:m)
       kfree(q);
       break;
@@ -112,17 +113,27 @@ static K* vs2__(K *a, K *b, unsigned int w) {
 
   return r->t ? r : knorm(r);
 }
-static int maxw(K *a, int b) {
-  int w=0,z,n;
+static int maxw(K *a, uint64_t b) {
+  int w=0,z;
+  uint64_t n;
   K *p;
-  if(at==1) { if(b==1) return 1; w=1; n=a1; while(b&&n>=b) { n/=b; ++w; } }
+  if(at==1) {
+    if(b==1) return b;
+    w=1; n=(unsigned int)a1; while(b&&n>=b) { n/=b; ++w; }
+  }
   else if(at==-1) { DO(a->c,p=k1(v1(a)[i]);z=maxw(p,b);kfree(p);if(w<z)w=z) }
   else if(at==0) { DO(a->c,z=maxw(v0(a)[i],b);if(w<z)w=z) }
   return w;
 }
 K * vs2_(K *a, K *b) {
-  if((at==1&&a1<=1)||(at==-1&&!ac)) return kerror("domain");
   int w,z;
+  if((at==1&&a1<=1)) return kerror("domain");
+  if(at==-1) {
+    if(!ac) return kerror("domain");
+    DO(ac,if(v1(a)[i]<0) return kerror("domain"))
+    DO(ac,if(i&&v1(a)[i]<1) return kerror("domain"))
+    DO(ac,if(v1(a)[i]==INT_MAX||v1(a)[i]==INT_MIN||v1(a)[i]==INT_MIN+1) return kerror("domain"))
+  }
   if(at==1) w=maxw(b,a1);
   else if(at==-1) { w=0; DO(ac,z=maxw(b,v1(a)[i]);if(w<z)w=z) }
   else return kerror("type");
