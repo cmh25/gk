@@ -86,7 +86,10 @@ K* F(K *a, K *b) { \
 #define MC2IO(F,O,N) \
 K* F(K *a, K *b) { \
   K *r=0; \
-  if((N) && !b1) return kerror("nonce"); \
+  if((N)) { \
+    if(bt==1 && !b1) return kerror("nonce"); \
+    if(bt==-1) DO(bc,if(!v1(b)[i]) return kerror("nonce")) \
+  } \
   if(at <= 0 && bt <= 0 && ac != bc) return kerror("length"); \
   if(at==0 || bt==0) r=eache(F,a,b); \
   else { \
