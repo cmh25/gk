@@ -53,7 +53,7 @@ static int reserved(char *s) {
 }
 
 K* assign3_(K *a, K *b, K *c) {
-  K *r=0,*m=0,*n=0,*f=0;
+  K *r=0,*m=0,*n=0,*f=0,*c2;
   char *an=a->v,*s=0,*t=0,*u=0,*nn,*rp;
   dict *d=0,*e=0;
   scope *es=cs;
@@ -76,7 +76,8 @@ K* assign3_(K *a, K *b, K *c) {
     }
     if(strtok_r(0,".",&rp)) { xfree(nn); return kerror("value"); }
     SR(c);
-    dset(e,t,c);
+    if(c==m) { c2=kcp(c); dset(e,t,c2); kfree(c2); }
+    else dset(e,t,c);
     if(n) kfree(n);
     EC(scope_set(es,sp(u),m));
     xfree(nn);
