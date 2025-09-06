@@ -1055,6 +1055,11 @@ K* atn2_(K *a, K *b) {
 }
 MC2A(atn2_)
 
+/* strchr() for non-null terminated string */
+static char* strchr_(char* s, char c, int n) {
+   DO(n,if(s[i]==c) return s+i)
+   return 0;
+}
 static int sm(char *a, char *b, int an, int bn, int i, int j) {
   int m=1;
   for(;;++i,++j) {
@@ -1064,18 +1069,25 @@ static int sm(char *a, char *b, int an, int bn, int i, int j) {
     if(b[j]=='?') continue;
     if(b[j]=='*') {
       if(++j==bn) { ++i; break; }
-      m=0;
-      while(++i<an) if((m=sm(a,b,an,bn,i,j))) break;
+      m=0; while(++i<an) if((m=sm(a,b,an,bn,i,j))) break;
     }
-    if(b[j]=='[') {
-      if(++j==bn) { m=0; break; }
-      if(b[j]=='^') {
-        for(++j;j<bn&&b[j]!=']';j++) if(a[i]==b[j]) break;
-        if(b[j]!=']') { m=0; break; }
+    else if(b[j]=='[' && j+2<bn && b[j+2]==']') { /* escaped? */
+      ++j;
+      if(i<an&&a[i]!=b[j]) { m=0; break; }
+      ++j;
+    }
+    else if(b[j]=='[' && strchr_(b+j,']',bn)) {
+      if(b[++j]=='^') {
+        m=1; for(++j;j<bn&&b[j]!=']';j++) if(a[i]==b[j]) { m=0; break; }
+      }
+      else if(j+2<bn && b[j+1]=='-') {
+        char p=b[j++];
+        ++j;
+        char q=b[j++];
+        m=0; while(p<=q) { if(a[i]==p++) { m=1; break; } }
       }
       else {
-        for(;j<bn&&b[j]!=']';j++) if(a[i]==b[j]) break;
-        if(b[j]==']') { m=0; break; }
+        m=0; for(;j<bn&&b[j]!=']';j++) if(a[i]==b[j]) { m=1; break; }
       }
       while(j<bn&&b[j]!=']') ++j;
     }
@@ -1087,6 +1099,7 @@ static int sm(char *a, char *b, int an, int bn, int i, int j) {
 K* sm2_(K *a, K *b) {
   K *r=0;
   K *f=scope_get(gs,sp("sm"));
+  char s[2];
 
   if(at==-4 && bt==-4 && ac!=bc) return kerror("length");
   if(at== 0 && bt==-4 && ac!=bc) return kerror("length");
@@ -1096,6 +1109,7 @@ K* sm2_(K *a, K *b) {
   switch(at) {
   case  4:
     switch(bt) {
+    case  3: s[0]=b3; s[1]=0; r=k1(sm(v3(a),s,strlen(v3(a)),1,0,0)); break;
     case  4: r=k1(sm(v3(a),v3(b),strlen(v3(a)),strlen(v3(b)),0,0)); break;
     case -3: r=k1(sm(v3(a),v3(b),strlen(v3(a)),bc,0,0)); break;
     case -4: r=eache(sm2_,a,b); break;
@@ -1104,6 +1118,7 @@ K* sm2_(K *a, K *b) {
     } break;
   case -3:
     switch(bt) {
+    case  3: s[0]=b3; s[1]=0; r=k1(sm(v3(a),s,ac,1,0,0)); break;
     case  4: r=k1(sm(v3(a),v3(b),ac,strlen(v3(b)),0,0)); break;
     case -3: r=k1(sm(v3(a),v3(b),ac,bc,0,0)); break;
     case -4: r=eachright(f,a,b,0); break;
@@ -1112,6 +1127,7 @@ K* sm2_(K *a, K *b) {
     } break;
   case -4:
     switch(bt) {
+    case  3: r=eache(sm2_,a,b); break;
     case  4: r=eache(sm2_,a,b); break;
     case -3: r=eachleft(f,a,b,0); break;
     case -4: r=eache(sm2_,a,b); break;
@@ -1120,6 +1136,7 @@ K* sm2_(K *a, K *b) {
     } break;
   case  0:
     switch(bt) {
+    case  3: r=eache(sm2_,a,b); break;
     case  4: r=eache(sm2_,a,b); break;
     case -3: r=eachleft(f,a,b,0); break;
     case -4: r=eache(sm2_,a,b); break;
@@ -1137,16 +1154,23 @@ static int ss(char *a, char *b, int an, int bn, int i) {
   for(j=0;j<bn;j++) {
     if(k==an) break;
     if(b[j]=='?') { }
-    else if(b[j]=='[') {
-      m=1;
-      if(++j==bn) { m=0; break; }
-      if(b[j]=='^') {
-        for(++j;j<bn&&b[j]!=']';j++) if(a[k]==b[j]) break;
-        if(b[j]!=']') { m=0; break; }
+    else if(b[j]=='[' && j+2<bn && b[j+2]=='[') { /* escaped */
+      ++j;
+      if(k<an&&a[k]!=b[j]) { m=0; break; }
+      ++j;
+    }
+    else if(b[j]=='[' && strchr_(b+j,'[',bn)) {
+      if(b[++j]=='^') {
+        m=1; for(++j;j<bn&&b[j]!=']';j++) if(a[k]==b[j]) { m=0; break; }
+      }
+      else if(j+2<bn && b[j+1]=='-') {
+        char p=b[j++];
+        ++j;
+        char q=b[j++];
+        m=0; while(p<=q) { if(a[k]==p++) { m=1; break; } }
       }
       else {
-        for(;j<bn&&b[j]!=']';j++) if(a[k]==b[j]) break;
-        if(b[j]==']') { m=0; break; }
+        m=0; for(;j<bn&&b[j]!=']';j++) if(a[k]==b[j]) { m=1; break; }
       }
       while(j<bn&&b[j]!=']') ++j;
     }
@@ -1159,6 +1183,7 @@ static int ss(char *a, char *b, int an, int bn, int i) {
 K* ss2_(K *a, K *b) {
   K *r=0;
   unsigned int i,n=0,m,s;
+  char s0[2];
   K *f=scope_get(gs,sp("ss"));
 
   if(at!= 0 && at!=-3) return kerror("type");
@@ -1170,6 +1195,19 @@ K* ss2_(K *a, K *b) {
   switch(at) {
   case -3:
     switch(bt) {
+    case  3:
+      r=kv1(2);
+      s0[0]=b3; s0[1]=0;
+      s=1;
+      for(i=0;i<ac;i++) {
+        if((m=ss(v3(a),s0,ac,s,i))) {
+          if(n==rc) { rc<<=1; r->v=(int*)xrealloc(r->v,rc*sizeof(int)); }
+          v1(r)[n++]=i;
+          i+=m-1;
+        }
+      }
+      rc=n;
+      break;
     case  4:
       r=kv1(2);
       s=strlen(v3(b));
@@ -1201,6 +1239,7 @@ K* ss2_(K *a, K *b) {
     } break;
   case  0:
     switch(bt) {
+    case  3: r=eachleft(f,a,b,0); break;
     case  4: r=eachleft(f,a,b,0); break;
     case  0: r=eache(ss2_,a,b); break;
     case -3: r=eachleft(f,a,b,0); break;

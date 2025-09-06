@@ -1,0 +1,11 @@
+"asd" ss "a[[]d"
+"a[d" ss "a[[]d"
+"asd" ss "a[sq]d"
+"asd" ss "a[^sq]d"
+"asd" ss "a[^jq]d"
+"asd" ss "a[s-s]d"
+"asd" ss "a[s-t]d"
+"asd" ss "a[t-t]d"
+"ababab" ss "a"
+("ababab";"ababab") ss "a"
+\\

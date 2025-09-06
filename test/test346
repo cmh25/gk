@@ -1,0 +1,27 @@
+"abab" ss "x"
+"abab" ss "a"
+"abab" ss `x
+"abab" ss `a
+"abab" ss "ax"
+"abab" ss "ab"
+"abab" ss `ax`ax
+"abab" ss `ab`ab
+"abab" ss (`ax`ax;`ax`ax)
+"abab" ss (`ab`ab;`ab`ab)
+("abc";"abc") ss "x"
+("abc";"abc") ss "a"
+("abc";"abc") ss `x
+("abc";"abc") ss `a
+("abc";"abc") ss `ab
+("abc";"abc") ss `abc
+("abc";"abc") ss "xx"
+("abc";"abc") ss "ab"
+("abc";"abc") ss `x`x
+("abc";"abc") ss `a`a
+("abc";"abc") ss `ab`ab
+("abc";"abc") ss `abc`abc
+("abc";"abc") ss (`x;`x`x)
+("abc";"abc") ss (`a;`a`a)
+("abc";"abc") ss (`ab;`ab`ab)
+("abc";"abc") ss (`abc;`abc`abc)
+\\
