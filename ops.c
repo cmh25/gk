@@ -2262,6 +2262,7 @@ K* slide3_(K *a, K *b, K *c) {
   if(bt==7) r=slide(b,a,c,"");
   else if(bt==37) { p=kv0(2); v0(p)[0]=a; v0(p)[1]=c; r=slide37(b,p,""); p->c=0; kfree(p); }
   else if(bt==67) r=slidefc(b,a,c,"");
+  else r=kerror("type");
   EC(r);
   return r;
 }
