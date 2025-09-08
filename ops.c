@@ -2247,6 +2247,10 @@ K* db1_(K *a) {
   char h[4],*s;
   if(at!=-3) return kerror("type");
   memcpy(h,a->v,4);
+  if(h[0]!=1) {
+    fprintf(stderr,"error: db_(): invalid serialization version\n");
+    return kerror("type");;
+  }
   s=4+(char*)a->v;
   return deserialize(&s);
 }
