@@ -1329,7 +1329,9 @@ MC1A(sha2_)
 static K* crypt_(char*(*f)(char *,unsigned char*,unsigned char*), K *a, K *b) {
   K *r=0,*iv=0,*key=0;
   char *s=0,*e=0,*t=0;
-  if(at==0) DO(ac,if(v0(a)[i]->t!=-1) return kerror("type"))
+  if(at) return kerror("type");
+  if(ac!=2) return kerror("length");
+  DO(ac,if(v0(a)[i]->t!=-1) return kerror("type"))
   if(v0(a)[0]->c!=16) return kerror("iv");
   if(v0(a)[1]->c!=32) return kerror("key");
   if(bt!=-3&&bt!=4&&bt!=-4&&bt!=0) return kerror("type");
@@ -1447,6 +1449,7 @@ K* zb1_(K* a) {
   K *r;
   char *b,*pb;
   size_t n;
+  if(at!=-3) return kerror("type");
   LZW *z=lzwc(v3(a),ac);
   n=z->i/8+(z->i%8?1:0);
   b=xmalloc(sizeof(LZW)+n);
@@ -1470,13 +1473,16 @@ K* bz1_(K* a) {
   LZW *p,*q;
   char *pa=v3(a);
   size_t n;
+  if(at!=-3) return kerror("type");
+  if(ac<1+sizeof(size_t)*3) return kerror("length");
   p=lzwnew();
   p->v=*pa++;
   memcpy(&p->i,pa,sizeof(size_t)); pa+=sizeof(size_t);
   memcpy(&p->n,pa,sizeof(size_t)); pa+=sizeof(size_t);
   memcpy(&p->c,pa,sizeof(size_t)); pa+=sizeof(size_t);
   n=p->i/8+(p->i%8?1:0);
-  p->b=xrealloc(p->b,n);
+  if(ac<n+1+sizeof(size_t)*3) return kerror("length");
+  if(n>32) p->b=xrealloc(p->b,n);
   memcpy(p->b,pa,n);
   q=lzwd(p);
   lzwfree(p);
