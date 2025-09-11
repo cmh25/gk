@@ -15,7 +15,7 @@ HT* htnew(size_t m) {
   if(m) {
     for(ht->m=2;(ht->m<<=1)<m;);
     if(!(ht->kh=calloc(ht->m,sizeof(char*)))){fprintf(stderr,"htset");exit(1);}
-    if(!(ht->nh=calloc(ht->m,sizeof(size_t)))){fprintf(stderr,"htset");exit(1);}
+    if(!(ht->nh=calloc(ht->m,sizeof(int)))){fprintf(stderr,"htset");exit(1);}
     if(!(ht->vh=calloc(ht->m,sizeof(int)))){fprintf(stderr,"htset");exit(1);}
   }
   return ht;
