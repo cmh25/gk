@@ -302,6 +302,7 @@ K* onecolon2_(K *a, K *b) {
     if(a->i=='c') r=kv3(N);
     else if(a->i=='i') { if(N%sizeof(int)) return kerror("length"); r=kv1(N/sizeof(int)); }
     else if(a->i=='d') { if(N%sizeof(double)) return kerror("length"); r=kv2(N/sizeof(double)); }
+    else return kerror("domain");
     if((s=fread(r->v,1,N,fp))!=N) return kerror("length");
     break;
   default: return kerror("type");
