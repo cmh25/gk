@@ -1381,7 +1381,6 @@ static K* lsdir(char *p) {
   kfree(s);
   return r;
 }
-
 #endif
 K* enumerate_(K *a) {
   K *r=0,*q=null;
