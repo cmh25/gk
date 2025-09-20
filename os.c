@@ -200,11 +200,6 @@ K* b8colon1_(K *a) {
 
   if(!res) return kerror("domain");
 
-  // Close handles to the child process and its primary thread.
-  WaitForSingleObject(pi.hProcess,INFINITE);
-  CloseHandle(pi.hProcess);
-  CloseHandle(pi.hThread);
-
   // Close handles to the stdout pipe no longer needed by the child process.
   CloseHandle(out[1]);
   CloseHandle(err[1]);
@@ -212,9 +207,16 @@ K* b8colon1_(K *a) {
   buf1=read_(out[0]);
   buf2=read_(err[0]);
 
+  // Close handles to the child process and its primary thread.
+  WaitForSingleObject(pi.hProcess,INFINITE);
+  DWORD status = 0;
+  if(!GetExitCodeProcess(pi.hProcess, &status)) { status = (DWORD)-1; }
+  CloseHandle(pi.hProcess);
+  CloseHandle(pi.hThread);
+
   xfree(cmd);
   r=kv0(3);
-  v0(r)[0]=k1(0);
+  v0(r)[0]=k1(status);
   v0(r)[1]=split(buf1);
   v0(r)[2]=split(buf2);
   xfree(buf1);
@@ -297,6 +299,9 @@ K* b8colon1_(K *a) {
     execvp(argv[0],argv);
   }
   waitpid(p,&status,0);
+  if(WIFEXITED(status)) status = WEXITSTATUS(status);
+  else if(WIFSIGNALED(status)) status = 128 + WTERMSIG(status);
+  else status = -1;
   close(out[1]); close(err[1]);
   buf1=read_(out[0]);
   buf2=read_(err[0]);
