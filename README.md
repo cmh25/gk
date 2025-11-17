@@ -89,7 +89,7 @@ The first argument is a positive or negative integer. Its sign indicates the ord
 ```
 The case of `_[-1;f;a]` in gk is equivalent to `f': a` in k3. gk also has a builtin for eachprior.
 ```
-  ep[,;"asdf"]
+  ep[,]"asdf"
 ("sa"
  "ds"
  "fd")
