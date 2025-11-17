@@ -70,12 +70,14 @@ static K* vs2__(K *a, K *b, unsigned int w) {
     case  0:
       q=kv0(bc);
       DO(q->c, v0(q)[i]=vs2__(a,v0(b)[i],w); EC(v0(q)[i]))
+      DO(q->c, if(!v0(q)[i]->c){kfree(v0(q)[i]);v0(q)[i]=k1(0);})
       r=flip_(q);
       kfree(q);
       break;
     case -1:
       q=kv0(bc);
       DO(q->c, p=k1(v1(b)[i]); v0(q)[i]=vs2__(a,p,w); kfree(p); EC(v0(q)[i]))
+      DO(q->c, if(!v0(q)[i]->c){kfree(v0(q)[i]);v0(q)[i]=k1(0);})
       r=flip_(q);
       kfree(q);
       break;
@@ -99,11 +101,13 @@ static K* vs2__(K *a, K *b, unsigned int w) {
     case  0:
       q=kv0(bc);
       DO(q->c, v0(q)[i]=vs2__(a,v0(b)[i],w); EC(v0(q)[i]))
+      DO(q->c, if(!v0(q)[i]->c){kfree(v0(q)[i]);v0(q)[i]=k1(0);})
       r=flip_(q); kfree(q);
       break;
     case -1:
       q=kv0(bc);
       DO(q->c, p=k1(v1(b)[i]); v0(q)[i]=vs2__(a,p,w); EC(v0(q)[i]); kfree(p))
+      DO(q->c, if(!v0(q)[i]->c){kfree(v0(q)[i]);v0(q)[i]=k1(0);})
       r=flip_(q); kfree(q);
       break;
     default: return kerror("type");
