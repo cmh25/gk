@@ -112,7 +112,7 @@ Most of the reserved names from k3 are still there, but with the _ removed.
   2 vs 5
 1 0 1
 ```
-I didn't want to reserve single-letter names, so some have changed.
+Some single-letter names have changed.
 ```
 k3     gk
 ---    ----
@@ -127,8 +127,8 @@ k3     gk
 
 ### $ replaces : in cond
 ```
-  a:0;$[a;`a;`b]
+  $[0;`a;`b]
 `b
-  a:1;$[a;`a;`b]
+  $[1;`a;`b]
 `a
 ```
