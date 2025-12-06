@@ -430,7 +430,7 @@ static void push(pgs *s, int t, node *v) {
   s->lt=t;
 }
 
-static int ii;
+static int64_t ii;  /* lex in 64-bit space, clamp to 32-bit at end */
 static double ff;
 static char *p;
 static int gn_(void) {
@@ -482,7 +482,11 @@ static int gn_(void) {
     case 10: return 0; /* error */
     case 11: /* int */
       c=*--p; *p=0;
-      ii=xatoi(q);
+      /* handle special int literals 0N, 0I, -0N, -0I */
+      if(!strcmp(q,"0N")||!strcmp(q,"-0N")) ii=INT_MIN;
+      else if(!strcmp(q,"0I")) ii=INT_MAX;
+      else if(!strcmp(q,"-0I")) ii=INT_MIN+1;
+      else ii=strtoll(q,NULL,10);  /* 64-bit, no clamp - defer to gn() */
       *p=c;
       return 1;
     case 12: /* double */
@@ -496,8 +500,17 @@ static int gn_(void) {
   return 0;
 }
 
+/* helper: convert int64 to double, preserving null/inf */
+static double i64_to_f(int64_t x) {
+  if(x==INT_MIN) return NAN;
+  if(x==INT_MAX) return INFINITY;
+  if(x==INT_MIN+1) return -INFINITY;
+  return (double)x;
+}
+
 static int gn(pgs *pgs) {
-  int r,*iv=0,i;
+  int r,i;
+  int64_t *iv=0;  /* collect in 64-bit space */
   int ic=0,fc=0,im=1,fm=1;
   double *fv=0;
   char *q;
@@ -506,7 +519,7 @@ static int gn(pgs *pgs) {
     q=p;
     while(isblank(*p))++p;
     if(isdigit(*p)||((*p=='.'||*p=='-')&&isdigit(p[1]))) { /* convert to vector */
-      if(r==1) { im<<=1; iv=xrealloc(iv,im*sizeof(int)); iv[ic++]=ii; }
+      if(r==1) { im<<=1; iv=xrealloc(iv,im*sizeof(int64_t)); iv[ic++]=ii; }
       else if(r==2) { fm<<=1; fv=xrealloc(fv,fm*sizeof(double)); fv[fc++]=ff; }
     }
     p=q;
@@ -516,13 +529,13 @@ static int gn(pgs *pgs) {
         while(isblank(*p))++p;
         r=gn_();
         if(r==1) {
-          if(ic==im) { im<<=1; iv=xrealloc(iv,im*sizeof(int)); }
+          if(ic==im) { im<<=1; iv=xrealloc(iv,im*sizeof(int64_t)); }
           iv[ic++]=ii;
         }
         else if(r==2) {
           fm=im;
           fv=xrealloc(fv,fm*sizeof(double));
-          for(i=0;i<ic;i++) fv[fc++]=I2F(iv[i]);
+          for(i=0;i<ic;i++) fv[fc++]=i64_to_f(iv[i]);  /* preserve null/inf */
           xfree(iv); iv=0; ic=0;
           if(fc==fm) { fm<<=1; fv=xrealloc(fv,fm*sizeof(double)); }
           fv[fc++]=ff;
@@ -537,7 +550,7 @@ static int gn(pgs *pgs) {
         while(isblank(*p))++p;
         r=gn_();
         if(r==1) {
-          ff=I2F(ii);
+          ff=i64_to_f(ii);  /* preserve null/inf */
           if(fc==fm) { fm<<=1; fv=xrealloc(fv,fm*sizeof(double)); }
           fv[fc++]=ff;
         }
@@ -549,9 +562,26 @@ static int gn(pgs *pgs) {
       }
     }
   }
-  if(ic) push(pgs,T018,node_new(0,0,knew(-1,ic,iv,0,0,0)));
+  if(ic) {
+    /* clamp int64 to int32 for final int vector */
+    int *iv32=xmalloc(ic*sizeof(int));
+    for(i=0;i<ic;i++) {
+      if(iv[i]>INT_MAX) iv32[i]=INT_MAX;
+      else if(iv[i]<INT_MIN) iv32[i]=INT_MIN;
+      else iv32[i]=(int)iv[i];
+    }
+    push(pgs,T018,node_new(0,0,knew(-1,ic,iv32,0,0,0)));
+    xfree(iv32);
+  }
   else if(fc) push(pgs,T018,node_new(0,0,knew(-2,fc,fv,0,0,0)));
-  else if(r==1) push(pgs,T018,node_new(0,0,knew(1,0,0,ii,0,0)));
+  else if(r==1) {
+    /* scalar int - clamp here too */
+    int v;
+    if(ii>INT_MAX) v=INT_MAX;
+    else if(ii<INT_MIN) v=INT_MIN;
+    else v=(int)ii;
+    push(pgs,T018,node_new(0,0,knew(1,0,0,v,0,0)));
+  }
   else if(r==2) push(pgs,T018,node_new(0,0,knew(2,0,0,0,ff,0)));
   if(iv) xfree(iv);
   if(fv) xfree(fv);
