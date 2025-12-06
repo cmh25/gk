@@ -108,7 +108,7 @@ void msortg##N(int *g, T a, int l, int r, int down) { \
 }
 
 MS(1,int*,CMP)
-MS(2,double*,CMPFFT)
+MS(2,double*,CMPFF)
 MS(3,char*,CMP)
 MS(4,char**,strcmp)
 MS(0,K**,kcmpr)
