@@ -1,0 +1,20 @@
+a:!10
+`a 3
+`a @ 3
+`a 3 4
+`a @ 3 4
+`a nul
+`a @ nul
+`a ,nul
+`a @ ,nul
+`a ,,nul
+`a @ ,,nul
+`a ,,,nul
+`a @ ,,,nul
+`a . 3
+`a . ,3
+`a . nul
+`a . ,nul
+`a . ,,nul
+`a . ,,,nul
+\\

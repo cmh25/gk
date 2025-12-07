@@ -1,0 +1,9 @@
+/ i j should not be changed
+/ sub functions can read from, but not write to, lexical parent scope
+j:0
+f:{
+  i:0
+  r:{i:5;j:5;(i;j)}`
+  (r;i;j)}
+f`
+\\

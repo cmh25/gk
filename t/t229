@@ -1,0 +1,14 @@
+/ access to lexical parent scope
+f:{i:0;{i}`}
+f`
+
+/ access to lexical parent and global scope
+j:1
+g:{i:0;{(i;j)}`}
+g`
+
+/ k not in scope
+f:{i:0;{(i;j;k)}`}
+g:{k:5;f`}
+@[f;`;:]
+\\

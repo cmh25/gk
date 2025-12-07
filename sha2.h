@@ -3,6 +3,6 @@
 
 #include <stddef.h>
 
-void sha2(char *h, unsigned char *b, size_t n);
+void sha2(char *h, const unsigned char *b, size_t n);
 
 #endif /* SHA2_H */

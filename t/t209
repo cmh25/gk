@@ -1,0 +1,124 @@
+`v00 setenv `v00
+`v01 setenv "v01"
+"v02" setenv `v02
+"v03" setenv "v03"
+`v04`v05 setenv `v04`v05
+`v06`v07 setenv (`v06;"v07")
+`v08`v09 setenv ("v08";`v09)
+`v10`v11 setenv ("v10";"v11")
+(`v12;"v13") setenv `v12`v13
+(`v14;"v15") setenv (`v14;"v15")
+(`v16;"v17") setenv ("v16";`v17)
+(`v18;"v19") setenv ("v18";"v19")
+("v20";`v21) setenv `v20`v21
+("v22";`v23) setenv (`v22;"v23")
+("v24";`v25) setenv ("v24";`v25)
+("v26";`v27) setenv ("v26";"v27")
+("v28";"v29") setenv `v28`v29
+("v30";"v31") setenv (`v30;"v31")
+("v32";"v33") setenv ("v32";`v33)
+("v34";"v35") setenv ("v34";"v35")
+getenv`v00
+getenv`v01
+getenv`v02
+getenv`v03
+getenv`v04
+getenv`v05
+getenv`v06
+getenv`v07
+getenv`v08
+getenv`v09
+getenv`v10
+getenv`v11
+getenv`v12
+getenv`v13
+getenv`v14
+getenv`v15
+getenv`v16
+getenv`v17
+getenv`v18
+getenv`v19
+getenv`v20
+getenv`v21
+getenv`v22
+getenv`v23
+getenv`v24
+getenv`v25
+getenv`v26
+getenv`v27
+getenv`v28
+getenv`v29
+getenv`v30
+getenv`v31
+getenv`v32
+getenv`v33
+getenv`v34
+getenv`v35
+getenv`v00`v01
+getenv(`v00;"v01")
+getenv("v00";`v01)
+getenv("v00";"v01")
+
+setenv[`v00;`v00]
+setenv[`v01;"v01"]
+setenv["v02";`v02]
+setenv["v03";"v03"]
+setenv[`v04`v05;`v04`v05]
+setenv[`v06`v07;(`v06;"v07")]
+setenv[`v08`v09;("v08";`v09)]
+setenv[`v10`v11;("v10";"v11")]
+setenv[(`v12;"v13");`v12`v13]
+setenv[(`v14;"v15");(`v14;"v15")]
+setenv[(`v16;"v17");("v16";`v17)]
+setenv[(`v18;"v19");("v18";"v19")]
+setenv[("v20";`v21);`v20`v21]
+setenv[("v22";`v23);(`v22;"v23")]
+setenv[("v24";`v25);("v24";`v25)]
+setenv[("v26";`v27);("v26";"v27")]
+setenv[("v28";"v29");`v28`v29]
+setenv[("v30";"v31");(`v30;"v31")]
+setenv[("v32";"v33");("v32";`v33)]
+setenv[("v34";"v35");("v34";"v35")]
+
+getenv[`v00]
+getenv[`v01]
+getenv[`v02]
+getenv[`v03]
+getenv[`v04]
+getenv[`v05]
+getenv[`v06]
+getenv[`v07]
+getenv[`v08]
+getenv[`v09]
+getenv[`v10]
+getenv[`v11]
+getenv[`v12]
+getenv[`v13]
+getenv[`v14]
+getenv[`v15]
+getenv[`v16]
+getenv[`v17]
+getenv[`v18]
+getenv[`v19]
+getenv[`v20]
+getenv[`v21]
+getenv[`v22]
+getenv[`v23]
+getenv[`v24]
+getenv[`v25]
+getenv[`v26]
+getenv[`v27]
+getenv[`v28]
+getenv[`v29]
+getenv[`v30]
+getenv[`v31]
+getenv[`v32]
+getenv[`v33]
+getenv[`v34]
+getenv[`v35]
+getenv[`v00`v01]
+getenv[(`v00;"v01")]
+getenv[("v00";`v01)]
+getenv[("v00";"v01")]
+
+\\

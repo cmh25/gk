@@ -3,16 +3,15 @@
 
 #include "k.h"
 
-K* b0colon1_(K *a);
-K* zerocolon2_(K *a, K *b);
-K* zerocolon1_(K *a);
-K* onecolon2_(K *a, K *b);
-K* onecolon1_(K *a);
-K* twocolon1_(K *a);
-K* fivecolon2_(K *a, K *b);
-K* sixcolon2_(K *a, K *b);
-K* sixcolon1_(K *a);
-K* del1_(K *a);
-K* rename2_(K *a, K *b);
+K zerocolon(K a, K x);
+K onecolon(K a, K x);
+K twocolon(K a, K x);
+K threecolon(K a, K x);
+K fourcolon(K a, K x);
+K fivecolon(K a, K x);
+K sixcolon(K a, K x);
+K eightcolon(K a, K x);
+K del_(K a);
+K rename_(K a, K x);
 
 #endif /* IO_H */

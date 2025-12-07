@@ -1,0 +1,3 @@
+draw[10;10]+draw[10;10]+draw[10;10]+draw[10;10]
+sqr[c:b]+sqr[b:a]+sqr[a:2]
+\\

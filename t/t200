@@ -1,0 +1,12 @@
+"[0"sm"[0"
+"[0"sm"[1"
+"[0]"sm"[[]0[]]"
+(,"a") sm "s"
+(,"s") sm "s"
+`a sm "s"
+`s sm "s"
+`a`s`b sm "s"
+`s`a`s sm "s"
+kv[,`a] sm "s"
+kv[,`s] sm "s"
+\\

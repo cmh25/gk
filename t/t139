@@ -1,0 +1,9 @@
+/ this generates a stack error and doesn't print anything else out.
+/ however, it uncovered a couple of bugs:
+/ 1. valence was previously determined by number of variables in scope,
+/    which got incremented to 2 the first time this was called due to
+/    the t variable. so first call was valence 1, subsequent calls were valence 2.
+/ 2. memory handling was all messed between fne_(), avdo(), and scanm7().
+\e 0
+f\f:{t:x;f 2}
+\\

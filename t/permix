@@ -1,0 +1,32 @@
+/ Eusebio Rufian-Zilbermann
+
+\d permix
+
+id:{(!x)=\!x}        / identity matrix
+triup:{(!x)<\!x}     / upper triangle matrix
+trilow:{(!x)>\!x}    / lower triangle matrix
+triupd:{~(!x)>\!x}   / upper triangle matrix (include diagonal)
+trilowd:{~(!x)<\!x}  / lower triangle matrix (include diagonal)
+diagvec:{x*'id[#x]}  / diagonal from vector
+gi:{>'id x}          / graded identity matrix
+
+/ permutation indices
+permix:{$[2>x;x#,0;,/gi[x]@\0,'1+permix[x-1]]}
+
+\
+
+  permix 3
+(0 1 2
+ 0 2 1
+ 1 0 2
+ 1 2 0
+ 2 0 1
+ 2 1 0)
+
+  a permix[#a:"abc"]
+("abc"
+ "acb"
+ "bac"
+ "bca"
+ "cab"
+ "cba")

@@ -1,21 +1,36 @@
 #include "md5.h"
 #include <string.h>
+#include <stdint.h>
 
 #define ROL(n,m) ((n)<<(m)|(n)>>(32-(m)))
 
+#define LOAD32_LE(p) \
+  ((uint32_t)(p)[0]        | \
+   (uint32_t)(p)[1] << 8   | \
+   (uint32_t)(p)[2] << 16  | \
+   (uint32_t)(p)[3] << 24)
+
+#define STORE32_LE(p, v)       \
+  do {                         \
+    (p)[0] = (uint8_t)((v));   \
+    (p)[1] = (uint8_t)((v) >> 8);  \
+    (p)[2] = (uint8_t)((v) >> 16); \
+    (p)[3] = (uint8_t)((v) >> 24); \
+  } while (0)
+
 typedef struct {
-  unsigned int n;
-  unsigned int h[4];
+  uint32_t n;
+  uint32_t h[4];
 } md5s;
 
-static char S[64] = {
+static const uint8_t S[64] = {
   7, 12, 17, 22, 7, 12, 17, 22, 7, 12, 17, 22, 7, 12, 17, 22,
   5,  9, 14, 20, 5,  9, 14, 20, 5,  9, 14, 20, 5,  9, 14, 20,
   4, 11, 16, 23, 4, 11, 16, 23, 4, 11, 16, 23, 4, 11, 16, 23,
   6, 10, 15, 21, 6, 10, 15, 21, 6, 10, 15, 21, 6, 10, 15, 21,
 };
 
-static unsigned int K[64] = {
+static const uint32_t K[64] = {
   0xd76aa478, 0xe8c7b756, 0x242070db, 0xc1bdceee,
   0xf57c0faf, 0x4787c62a, 0xa8304613, 0xfd469501,
   0x698098d8, 0x8b44f7af, 0xffff5bb1, 0x895cd7be,
@@ -34,32 +49,23 @@ static unsigned int K[64] = {
   0xf7537e82, 0xbd3af235, 0x2ad7d2bb, 0xeb86d391,
 };
 
-static void md5block(md5s *s, unsigned char *p) {
-  int i,g;
-  unsigned int a=s->h[0],b=s->h[1],c=s->h[2],d=s->h[3],f,t,x,y;
-  unsigned char *q;
+static void md5block(md5s *s, const unsigned char *p) {
+  int32_t i,g;
+  uint32_t a=s->h[0],b=s->h[1],c=s->h[2],d=s->h[3],f,t,x,y;
+  const unsigned char *q;
 
   s->n++;
   for(i=0;i<64;i++) {
-    if(i<16) {
-      f = (b&c) | (~b&d);
-      g = i;
-    } else if(i<32) {
-      f = (d&b) | (~d&c);
-      g = 5*i + 1;
-    } else if(i<48) {
-      f = b ^ c ^ d;
-      g = 3*i + 5;
-    } else {
-      f = c ^ (b | ~d);
-      g = 7*i;
-    }
+    if(i<16) { f = (b&c) | (~b&d); g = i; }
+    else if(i<32) { f = (d&b) | (~d&c); g = 5*i + 1; }
+    else if(i<48) { f = b ^ c ^ d; g = 3*i + 5; }
+    else { f = c ^ (b | ~d); g = 7*i; }
     t = d;
     d = c;
     c = b;
-    q = p + sizeof(unsigned int)*(g&0xf);
-    x = a + f + K[i];
-    x += *q | *(q+1) << 8 | *(q+2) << 16 | *(q+3) << 24;
+    q = p + 4*(g & 0xf);
+    x = a + f + K[i] + LOAD32_LE(q);
+
     y = S[i];
     b += ROL(x, y);
     a = t;
@@ -71,15 +77,15 @@ static void md5block(md5s *s, unsigned char *p) {
 }
 
 static void md5final(md5s *s, unsigned char *p, size_t n, unsigned char *d) {
-  unsigned int i,hi,len=s->n*64+n,*h=s->h;
+  uint32_t i,hi,len=s->n*64+n,*h=s->h;
 
   p[n++]=0x80;
-  if(n<=56) memset(p+n,0,64-n-5);
-  else {
+  if(n>56) {
     memset(p+n,0,64-n);
     md5block(s,p);
     memset(p,0,56);
   }
+  else memset(p+n,0,56-n);
 
   hi = len >> 29; len <<= 3;
   p[56] = len;
@@ -90,26 +96,20 @@ static void md5final(md5s *s, unsigned char *p, size_t n, unsigned char *d) {
   p[61] = p[62] = p[63] = 0;
 
   md5block(s, p);
-
-  for(i=0;i<16>>2;i++) {
-    d[i*4] = h[i];
-    d[i*4+1] = h[i]>>8;
-    d[i*4+2] = h[i]>>16;
-    d[i*4+3] = h[i]>>24;
-  }
+  for(i=0;i<4;i++) STORE32_LE(d + i*4, h[i]);
 }
 
-static void hex(char *s, unsigned char *b, size_t n) {
-  char h[16]="0123456789abcdef";
+static void hex(char *s, const unsigned char *b, size_t n) {
+  const char h[]="0123456789abcdef";
   size_t i;
   for(i=0;i<n;i++) {
     s[2*i]=h[b[i]>>4];
     s[2*i+1]=h[b[i]&0xf];
   }
-  /* s[2*i]=0; */
+  s[2*i]=0;
 }
 
-void md5(char *h, unsigned char *b, size_t n) {
+void md5(char *h, const unsigned char *b, size_t n) {
   unsigned char block[64],d[16];
   md5s s={0,{0x67452301,0xefcdab89,0x98badcfe,0x10325476}};
   while(n>=64) {
@@ -117,7 +117,7 @@ void md5(char *h, unsigned char *b, size_t n) {
     b+=64;
     n-=64;
   }
-  strncpy((char*)block,(char*)b,n);
+  memcpy(block,b,n);
   md5final(&s,block,n,d);
   hex(h,d,16);
 }

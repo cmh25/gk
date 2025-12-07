@@ -1,0 +1,5 @@
+/ afl came up with this one and revealed some memory corruption
+\e 0
+f:{f .,x:{f .,x}'}'
+f 1 2
+\\

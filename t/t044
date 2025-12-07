@@ -1,0 +1,10 @@
+(!10)3
+a:!10
+f:{1+x}
+a 4
+f a 4
+f f a 4
+f f f a 4
+f f f f a 4
+f f f f f a 4
+\\

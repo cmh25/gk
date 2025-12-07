@@ -1,0 +1,74 @@
+/ irecur2 +-*%&|<>=~      ^ $
+/         +-*%&|<>=~.!@?#_^,$
+n:10000
+z:1;do[n;z:,z]     / deeply nested list
+v0:n#1,2.0         / flat list
+v1:n#1             / vector
+
+z+z                / 0 0
+v0+v1              / 0 v
+v1+v0              / v 0
+z+1                / 0 a
+1+z                / a 0
+
+z-z                / 0 0
+v0-v1              / 0 v
+v1-v0              / v 0
+z-1                / 0 a
+1-z                / a 0
+
+z*z                / 0 0
+v0*v1              / 0 v
+v1*v0              / v 0
+z*1                / 0 a
+1*z                / a 0
+
+z%z                / 0 0
+v0%v1              / 0 v
+v1%v0              / v 0
+z%1                / 0 a
+1%z                / a 0
+
+z&z                / 0 0
+v0&v1              / 0 v
+v1&v0              / v 0
+z&1                / 0 a
+1&z                / a 0
+
+z|z                / 0 0
+v0|v1              / 0 v
+v1|v0              / v 0
+z|1                / 0 a
+1|z                / a 0
+
+z<z                / 0 0
+v0<v1              / 0 v
+v1<v0              / v 0
+z<1                / 0 a
+1<z                / a 0
+
+z>z                / 0 0
+v0>v1              / 0 v
+v1>v0              / v 0
+z>1                / 0 a
+1>z                / a 0
+
+z=z                / 0 0
+v0=v1              / 0 v
+v1=v0              / v 0
+z=1                / 0 a
+1=z                / a 0
+
+z~z                / 0 0
+v0~v1              / 0 v
+v1~v0              / v 0
+z~1                / 0 a
+1~z                / a 0
+
+z^z                / 0 0
+v0^v1              / 0 v
+v1^v0              / v 0
+z^1                / 0 a
+1^z                / a 0
+
+\\

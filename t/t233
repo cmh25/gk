@@ -1,0 +1,10 @@
+f:{i:0;j:0;.+(`inci`incj;({i+:1;i};{j+:1;j}))}
+g:f`
+h:f`
+do[100;g.inci`]
+(`g;g.inci`)
+(`h;h.inci`)
+(`h;h.inci`)
+(`h;h.inci`)
+(`g;g.inci`)
+\\

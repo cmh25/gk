@@ -1,6 +1,0 @@
-`3:"echo hello>testfile"
-`4:"echo hello"
-`8:"echo hello"
-0:"testfile"
-del"testfile"
-\\

@@ -2,135 +2,315 @@
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
-#include "ht.h"
+#include <stdint.h>
 
-//#define MAX 1024
-//#define MAX 2048
-//#define MAX 4096
-//#define MAX 8192
-//#define MAX 16384
-#define MAX 32768
-//#define MAX 65536
-//#define MAX 131072
-//#define MAX 262144
-//#define MAX 524288
+#define MAX 4096
 
 static char *D[MAX];
 static int L[MAX],N=257;
+
+static void* xmalloc(size_t s) {
+  void *p=0;
+  if(!(p=malloc(s))) {
+    printf("error: xmalloc(): memory allocation failed\n");
+    exit(1);
+  }
+  return p;
+}
+
+static void xfree(void *p) {
+  if(p) free(p);
+}
+
+static void* xcalloc(size_t n, size_t s) {
+  void *p=0;
+  if(!(p=calloc(n,s))) {
+    printf("error: xcalloc(): memory allocation failed\n");
+    exit(1);
+  }
+  return p;
+}
+
+static void* xrealloc(void *p, size_t s) {
+  void *p2=0;
+  if(!(p2=realloc(p,s))) {
+    printf("error: xrealloc(): memory allocation failed\n");
+    exit(1);
+  }
+  return p2;
+}
 
 static void bfa(LZW *b, int n, int w) {
   size_t i=b->i;
   unsigned char *p;
   b->i+=w;
   if(b->n<b->i/8+(b->i%8?1:0)) {
-    p=calloc(b->n<<=1,1);
+    p=xcalloc(b->n<<=1,1);
     memcpy(p,b->b,b->n>>1);
-    free(b->b);
+    xfree(b->b);
     b->b=p;
   }
   for(;i<b->i;i++) {
-    if(n&1<<--w) b->b[i/8]|=(1<<(i%8));
-    else b->b[i/8]&=~(1<<(i%8));
+    if(n&1u<<--w) b->b[i/8]|=(1u<<(i%8));
+    else b->b[i/8]&=~(1u<<(i%8));
   }
   b->c++;
 }
 
-static int bfr(LZW *b, int i, int w) {
-  int r;
-  for(r=0;0<=--w;++i) if(b->b[i/8]&(1<<(i%8))) r |= 1<<w;
+static int bfr(LZW *z, size_t i, int w) {
+  int r=0;
+  size_t max_bits_from_n = z->n * 8;
+  size_t max_bits = (z->i && z->i <= max_bits_from_n) ? z->i : max_bits_from_n;
+
+  if (w <= 0 || i >= max_bits || max_bits - i < (size_t)w) return -1;
+
+  while (w--) {
+    size_t byte = i >> 3, bit = i & 7;
+    if (byte >= z->n) return -1;      // per-step guard
+    if (z->b[byte] & (1u << bit)) r |= 1 << w;
+    ++i;
+  }
   return r;
 }
 
 LZW* lzwnew(void) {
-  LZW *r=calloc(sizeof(LZW),1);
-  r->b=calloc(32,1);
+  LZW *r=xcalloc(sizeof(LZW),1);
+  r->b=xcalloc(32,1);
   r->n=32;
   r->v=0;
   return r;
 }
 
 void lzwfree(LZW *b) {
-  free(b->b);
-  free(b);
+  xfree(b->b);
+  xfree(b);
 }
 
-LZW* lzwc(char *s, size_t n) {
-  size_t i;
-  int j,k,w=9,p=0;
-  LZW *r=lzwnew();
-  HT *ht=htnew(MAX*2);
-  N=257;
-  while(n) {
-    j=(unsigned char)*s;
-    for(i=1;i+1<=n;++i) { if(-1==(k=htget(ht,s,i+1))) break; else j=k; }
-    if(i==1) ++p;
-    if(N>1<<w) ++w;
-    bfa(r,j,w);
-    n-=i;
-    if(n) {
-      htset(ht,s,1+i,N++);
-      s+=i;
-      if(N==MAX||p==512) {
-        bfa(r,256,w);
-        htfree(ht);
-        ht=htnew(MAX*2);
-        N=257;
-        w=9;
-        p=0;
-      }
-    }
+/* ---------- LZW-specific 5-byte hash (old_code[4] + char[1]) ---------- */
+
+typedef struct {
+  unsigned char *keys;   /* [m][5] */
+  int           *vals;   /* 0 = empty, otherwise code */
+  size_t         m;      /* power-of-two size */
+  size_t         used;
+} HT5;
+
+static inline uint32_t hs5(const unsigned char key[5]) {
+  uint32_t h = (uint32_t)key[0]
+             | ((uint32_t)key[1] << 8)
+             | ((uint32_t)key[2] << 16)
+             | ((uint32_t)key[3] << 24);
+  h ^= (uint32_t)key[4] * 2654435761u; // cheap mix
+  return h;
+}
+
+static HT5* ht5new(size_t m) {
+  HT5 *ht = xcalloc(1, sizeof(HT5));
+  size_t cap = 2;
+  while (cap < m) cap <<= 1;
+  ht->m = cap;
+  ht->keys = xcalloc(ht->m, 5);
+  ht->vals = xcalloc(ht->m, sizeof(int));
+  return ht;
+}
+
+static void ht5clear(HT5 *ht) {
+  /* just mark all slots empty; keys can stay */
+  memset(ht->vals, 0, ht->m * sizeof(int));
+  ht->used = 0;
+}
+
+static void ht5free(HT5 *ht) {
+  if (!ht) return;
+  xfree(ht->keys);
+  xfree(ht->vals);
+  xfree(ht);
+}
+
+static inline int eq5(const unsigned char *a, const unsigned char *b) {
+  return a[0]==b[0] &&
+         a[1]==b[1] &&
+         a[2]==b[2] &&
+         a[3]==b[3] &&
+         a[4]==b[4];
+}
+
+static int ht5get(HT5 *ht, const unsigned char key[5]) {
+  size_t mask = ht->m - 1;
+  size_t i = hs5(key) & mask;
+  while (ht->vals[i]) {
+    if (eq5(ht->keys + i*5, key))
+      return ht->vals[i];
+    i = (i + 1) & mask;
   }
-  htfree(ht);
+  return -1;
+}
+
+static void ht5set(HT5 *ht, const unsigned char key[5], int v) {
+  size_t mask = ht->m - 1;
+  size_t i = hs5(key) & mask;
+  while (ht->vals[i]) {
+    if (eq5(ht->keys + i*5, key)) {
+      ht->vals[i] = v;
+      return;
+    }
+    i = (i + 1) & mask;
+  }
+  memcpy(ht->keys + i*5, key, 5);
+  ht->vals[i] = v;
+  ht->used++;
+}
+
+/* ------------------------------- FAST lzwc ------------------------------ */
+
+LZW* lzwc(char *s, size_t n) {
+  if (!s) return 0;
+
+  LZW *r = lzwnew();
+  if (!r) return 0;
+  if(!n) return r;
+
+  /* table sized for low load factor; MAX should be 4096 for 12-bit */
+  HT5 *ht = ht5new(MAX * 2);
+
+  int w    = 9;
+  int next = 257;
+
+  /* initialize with first byte, but DO NOT emit it yet */
+  int old = (unsigned char)*s++;
+  size_t rem = n - 1;
+
+  while (rem--) {
+    unsigned char c = (unsigned char)*s++;
+
+    unsigned char key[5];
+    /* encode (old, c) as 5-byte key safely */
+    memcpy(key, &old, 4);
+    key[4] = c;
+
+    int code = ht5get(ht, key);
+    if (code != -1) {
+      /* extend match */
+      old = code;
+      continue;
+    }
+
+    /* no match: output old */
+    bfa(r, old, w);
+
+    /* add new entry if room */
+    if (next < (int)MAX) {
+      ht5set(ht, key, next);
+      ++next;
+      if (next > (1 << w) && w < 12) ++w;
+    } else {
+      /* dictionary full -> CLEAR and reset */
+      bfa(r, 256, w);
+      w = 9; next = 257;
+      ht5clear(ht);
+      old = (int)c;
+      /* continue to next iteration (do not fall through to set) */
+      continue;
+    }
+
+    /* start new sequence from the single byte c */
+    old = c;
+  }
+
+  /* flush the last code; DO NOT emit a trailing CLEAR */
+  bfa(r, old, w);
+
+  ht5free(ht);
   return r;
 }
 
 LZW* lzwd(LZW *z) {
-  int j,w=9;
-  size_t i,rn=0,k=0,pl=0;
+  int j, w=9;
+  size_t rn=0,k=0,pl=0;
   char *p=0;
-  LZW *r=lzwnew();
-  N=257;
-  if(!z) { fprintf(stderr,"corrupted input!\n"); exit(1); }
-  if(!z->b) { fprintf(stderr,"corrupted input!\n"); exit(1); }
-  if(z->v) { fprintf(stderr,"corrupted input!\n"); exit(1); }
-  for(i=0;i<z->c;++i) {
-    if(N==1<<w) ++w;
+  LZW *r=0;
+  N = 257;
+
+  if(!z || !z->b || z->v) goto corrupt;
+  if(!(r=lzwnew())) goto corrupt;
+
+  size_t max_bits_from_n = z->n * 8;
+  size_t total_bits = (z->i && z->i <= max_bits_from_n) ? z->i : max_bits_from_n;
+  
+  while(k+(size_t)w<=total_bits) {
     j=bfr(z,k,w);
+    if(j<0) goto corrupt;
     k+=w;
     if(j==256) {
-      while(N>257) free(D[--N]);
+      while(N>257) { xfree(D[--N]); D[N]=0; }
       w=9;
-      if(p) free(p);
-      p=0;
+      if(p) { xfree(p); p=0; }
     }
     else if(j<N) {
-      if(j<256 && !D[j]) { D[j]=malloc(1); D[j][0]=j; L[j]=1; }
-      if(r->n<rn+L[j]+1) r->b=realloc(r->b,r->n<<=1);
-      memcpy(r->b+rn,D[j],L[j]);
-      rn+=L[j];
-      if(p) {
-        p[pl]=D[j][0];
-        D[N]=p;
-        L[N++]=++pl;
+      const char *src;
+      size_t len;
+      char first;
+      if(j < 256) {
+        static unsigned char b;
+        b = (unsigned char)j;
+        src = (const char*)&b;
+        len = 1;
+        first = b;
       }
-      p=malloc(2+L[j]);
-      memcpy(p,D[j],L[j]);
-      pl=L[j];
+      else {
+        src = D[j];
+        len = L[j];
+        first = D[j][0];
+      }
+
+      while(r->n < rn + len + 1) {
+        size_t nn = r->n << 1;
+        unsigned char* nb = xrealloc(r->b, nn);
+        if(!nb) goto corrupt;
+        r->n = nn; r->b = nb;
+      }
+      memcpy(r->b + rn, src, len);
+      rn += len;
+
+      if(p) {
+        if(N >= MAX) goto corrupt;
+        p[pl] = first;
+        D[N] = p;
+        L[N++] = ++pl;
+        p = 0;
+      }
+      if(!(p = xmalloc(len + 2))) goto corrupt;
+      memcpy(p, src, len);
+      pl = len;
     }
     else {
-      if(!p) { fprintf(stderr,"corrupted input!\n"); exit(1); }
+      if(!p) goto corrupt;
       p[pl++]=p[0];
-      p=realloc(p,pl+2);
-      D[N]=malloc(pl);
+      char *np=xrealloc(p,pl+2);
+      if(!np) goto corrupt;
+      p=np;
+      if(N >= MAX) goto corrupt;
+      if(!(D[N]=xmalloc(pl))) goto corrupt;
       memcpy(D[N],p,pl);
       L[N++]=pl;
-      if(r->n<rn+pl) r->b=realloc(r->b,r->n<<=1);
+      while(r->n < rn + (size_t)pl) {
+        size_t nn=r->n<<1;
+        unsigned char* nb=xrealloc(r->b,nn);
+        if(!nb) goto corrupt;
+        r->n=nn; r->b=nb;
+      }
       memcpy(r->b+rn,p,pl);
       rn+=pl;
     }
+    if ((size_t)N == (1u<<w) && w < 12) ++w;
   }
-  while(N>257) free(D[--N]);
-  if(p) free(p);
+  while(N>257) { xfree(D[--N]); D[N]=0; };
+  if(p) xfree(p);
   r->n=rn;
   return r;
+corrupt:
+  while(N>257) { xfree(D[--N]); D[N]=0; }
+  if(p) { xfree(p); p=0; }
+  if(r) { lzwfree(r); r=0; }
+  return 0;
 }

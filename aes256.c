@@ -2,6 +2,7 @@
 #include <string.h>
 #include <stdlib.h>
 #include <stdio.h>
+#include <stdint.h>
 
 #define BLOCKLEN 16
 #define KEYLEN 32
@@ -17,7 +18,7 @@ typedef struct {
 
 typedef unsigned char state[4][4];
 
-static unsigned char sbox[256] = {
+static const unsigned char sbox[256] = {
   0x63,0x7c,0x77,0x7b,0xf2,0x6b,0x6f,0xc5,0x30,0x01,0x67,0x2b,0xfe,0xd7,0xab,0x76,
   0xca,0x82,0xc9,0x7d,0xfa,0x59,0x47,0xf0,0xad,0xd4,0xa2,0xaf,0x9c,0xa4,0x72,0xc0,
   0xb7,0xfd,0x93,0x26,0x36,0x3f,0xf7,0xcc,0x34,0xa5,0xe5,0xf1,0x71,0xd8,0x31,0x15,
@@ -35,7 +36,7 @@ static unsigned char sbox[256] = {
   0xe1,0xf8,0x98,0x11,0x69,0xd9,0x8e,0x94,0x9b,0x1e,0x87,0xe9,0xce,0x55,0x28,0xdf,
   0x8c,0xa1,0x89,0x0d,0xbf,0xe6,0x42,0x68,0x41,0x99,0x2d,0x0f,0xb0,0x54,0xbb,0x16 };
 
-static unsigned char rcon[11] = { 0x8d,0x01,0x02,0x04,0x08,0x10,0x20,0x40,0x80,0x1b,0x36 };
+static const unsigned char rcon[11] = { 0x8d,0x01,0x02,0x04,0x08,0x10,0x20,0x40,0x80,0x1b,0x36 };
 
 #define SBV(num) (sbox[(num)])
 
@@ -199,10 +200,10 @@ static void cipher(state *s, unsigned char* rk) {
   addrk(NR,s,rk);
 }
 
-static unsigned char* hex(unsigned char *b, size_t n) {
+static char* hex(const unsigned char *b, size_t n) {
   char h[16]="0123456789abcdef";
   size_t i;
-  unsigned char *r=malloc(1+n*2);
+  char *r=malloc(1+n*2);
   for(i=0;i<n;i++) {
     r[2*i]=h[b[i]>>4];
     r[2*i+1]=h[b[i]&0xf];
@@ -211,13 +212,14 @@ static unsigned char* hex(unsigned char *b, size_t n) {
   return r;
 }
 
-static unsigned char* unhex(unsigned char *h) {
-  size_t i,n = strlen((char*)h)/2;
-  unsigned char *r=malloc(n);
-  for(i=0;i<n;i++) {
-    sscanf((char*)h,"%2hhx",&r[i]);
-    h+=2;
+static unsigned char* unhex(const char *h, size_t n, size_t *m) {
+  if(n%2!=0) { *m=0; return 0; }
+  unsigned char *r=malloc(1+n/2);
+  for(size_t i=0;i<n/2;i++) {
+    char b[3]={ h[2*i], h[2*i+1], 0 };
+    r[i]=(unsigned char)strtol(b,0,16);
   }
+  *m=n/2;
   return r;
 }
 
@@ -229,55 +231,39 @@ static void aesinit(ctx *c, unsigned char *iv, unsigned char *key) {
 static void aescrypt(ctx *c, unsigned char *b, size_t n) {
   unsigned char buffer[BLOCKLEN];
   size_t i;
-  int j;
-  for(i=0,j=BLOCKLEN;i<n;++i,++j) {
+  int32_t j=BLOCKLEN;
+  for(i=0;i<n;++i,++j) {
     if(j==BLOCKLEN) {
-      /* regen xor compliment in buffer */
       memcpy(buffer, c->iv, BLOCKLEN);
       cipher((state*)buffer,c->rk);
-
-      /* Increment iv and handle overflow */
-      for(j=(BLOCKLEN-1);j>=0;--j) {
-        /* inc will overflow */
-        if(c->iv[j]==255) { c->iv[j]=0; continue; }
-        c->iv[j] += 1;
-        break;
-      }
+      for(int k=BLOCKLEN-1;k>=0;k--) if(++c->iv[k]) break;
       j=0;
     }
-    b[i] = (b[i] ^ buffer[j]);
+    b[i] ^= buffer[j];
   }
 }
 
 /*  echo -n "charles" | openssl enc --aes-256-ctr -iv "f0f1f2f3f4f5f6f7f8f9fafbfcfdfeff" -K "603deb1015ca71be2b73aef0857d77811f352c073b6108d72d9810a30914dff4" | xxd -p */
-char* aes256e(char *s, unsigned char *iv, unsigned char *key) {
+char* aes256e(const char *s, size_t n, unsigned char *iv, unsigned char *key, size_t *m) {
   ctx c;
-  size_t i,n=strlen(s);
-  int m=16-n%16;
-  unsigned char *b=malloc(n+m);
+  unsigned char *b=malloc(n);
   char *r;
   memcpy(b,s,n);
-  for(i=n;i<n+m;i++) b[i]=m;
   aesinit(&c,iv,key);
-  aescrypt(&c,b,n+m);
-  r=(char*)hex(b,n+m);
+  aescrypt(&c,b,n);
+  r=(char*)hex(b,n);
   free(b);
-  r[n*2]=0;
+  *m=strlen(r);
   return r;
 }
 
-char* aes256d(char *s, unsigned char *iv, unsigned char *key) {
+char* aes256d(const char *s, size_t n, unsigned char *iv, unsigned char *key, size_t *m) {
   ctx c;
-  size_t i,n=strlen(s);
-  int m=32-n%32;
-  unsigned char *b=malloc(1+n+m),*r;
-  memcpy(b,s,n);
-  for(i=n;i<n+m;i++) b[i]=48;
-  b[i]=0;
-  r=unhex(b);
-  free(b);
+  size_t u=0;
+  unsigned char *r=unhex(s,n,&u);
+  if(!r) { *m=0; return 0; }
   aesinit(&c,iv,key);
-  aescrypt(&c,r,(n+m)/2);
-  r[n/2]=0;
+  aescrypt(&c,r,u);
+  *m=u;
   return (char*)r;
 }

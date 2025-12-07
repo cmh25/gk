@@ -1,632 +1,482 @@
 #include "fn.h"
 #include <ctype.h>
 #include <string.h>
-#include "ops.h"
-#include "x.h"
-#include "sym.h"
-#include "sys.h"
-#include "av.h"
-#include "avopt.h"
+#include <stdio.h>
 #include "p.h"
-#include "io.h"
-#include "os.h"
+#include "av.h"
 
-int DEPTH;
-
-K* (*dt2[256])(K *a, K *b);
-K* (*dt1[256])(K *a);
-K* (*dt2avo[256])(K *a, char *av);
-K* (*dt2avo2[256])(K *a, K *b, char *av);
-
-fn* fnnew(char *s) {
-  fn *f=xcalloc(1,sizeof(fn));
-  f->d=xstrdup(s);
-  f->av=xstrdup("");
-  return f;
-}
-
-void fnfree(fn *f) {
-  xfree(f->d);
-  if(f->n) node_free(f->n);
-  if(f->av) xfree(f->av);
-  if(f->l) kfree(f->l);
-  if(f->a) kfree(f->a);
-  if(f->c) { DO(f->cn,kfree(f->c[i])); xfree(f->c); }
-  xfree(f);
-}
-
-fn* fncp(fn *f) {
-  fn *g=fnnew(f->d);
-  g->v=f->v;
-  xfree(g->av);
-  g->av=xstrdup(f->av);
-  g->q=f->q;
-  if(f->l) g->l = kcp(f->l);
-  if(f->a) g->a = kcp(f->a);
-  if(f->c) {
-    g->cn=f->cn;
-    g->c=xmalloc(sizeof(K*)*g->cn);
-    DO(g->cn,g->c[i]=kcp(f->c[i]));
-  }
-  g->i=f->i;
-  return g;
-}
+K fnestack[1024];
+int fnestacki=-1;
+static char* spf;
 
 void fninit(void) {
-  C=dnew();
-
-  dt1['+']=flip_;
-  dt1['-']=negate_;
-  dt1['*']=first_;
-  dt1['%']=reciprocal_;
-  dt1['&']=where_;
-  dt1['|']=reverse_;
-  dt1['<']=upgrade_;
-  dt1['>']=downgrade_;
-  dt1['=']=group_;
-  dt1['^']=shape_;
-  dt1['!']=enumerate_;
-  dt1['~']=not_;
-  dt1[',']=enlist_;
-  dt1['#']=count_;
-  dt1['_']=flr_;
-  dt1['$']=format_;
-  dt1['?']=unique_;
-  dt1['@']=atom_;
-  dt1['.']=value_;
-  dt1[':']=return_;
-  dt1['\'']=signal_;
-  dt1[128]=zerocolon1_;
-  dt1[129]=onecolon1_;
-  dt1[131]=twocolon1_;
-  dt1[133]=fourcolon1_;
-  dt1[134]=fivecolon1_;
-  dt1[135]=sixcolon1_;
-  dt1[136]=b0colon1_;
-  dt1[137]=b3colon1_;
-  dt1[138]=b4colon1_;
-  dt1[139]=b8colon1_;
-  dt1[141]=exit1_;
-  dt1[142]=precision1_;
-  dt1[143]=kdump1_;
-  dt1[144]=sleep1_;
-  dt1[145]=ci1_;
-  dt1[146]=ic1_;
-  dt1[147]=dj1_;
-  dt1[148]=jd1_;
-  dt1[149]=lt1_;
-  dt1[150]=log1_;
-  dt1[151]=exp1_;
-  dt1[152]=abs1_;
-  dt1[153]=sqr1_;
-  dt1[154]=sqrt1_;
-  dt1[155]=floor1_;
-  dt1[156]=ceil1_;
-  dt1[157]=sin1_;
-  dt1[158]=cos1_;
-  dt1[159]=tan1_;
-  dt1[160]=asin1_;
-  dt1[161]=acos1_;
-  dt1[162]=atan1_;
-  dt1[163]=sinh1_;
-  dt1[164]=cosh1_;
-  dt1[165]=tanh1_;
-  dt1[166]=erf1_;
-  dt1[167]=erfc1_;
-  dt1[168]=gamma1_;
-  dt1[169]=lgamma1_;
-  dt1[170]=rint1_;
-  dt1[171]=trunc1_;
-  dt1[172]=not1_;
-  dt1[173]=kv1_;
-  dt1[174]=timer1_;
-  dt1[175]=error1_;
-  dt1[176]=abort1_;
-  dt1[177]=dir1_;
-  dt1[178]=val1_;
-  dt1[179]=help1_;
-  dt1[180]=del1_;
-  dt1[181]=bd1_;
-  dt1[182]=db1_;
-  dt1[183]=vk1_;
-  dt1[184]=load1_;
-  dt1[185]=md5_;
-  dt1[186]=sha1_;
-  dt1[187]=sha2_;
-  dt1[188]=hb1_;
-  dt1[189]=bh1_;
-  dt1[190]=getenv1_;
-  dt1[191]=zb1_;
-  dt1[192]=bz1_;
-
-  dt2['+']=plus2_;
-  dt2['-']=minus2_;
-  dt2['*']=times2_;
-  dt2['%']=divide2_;
-  dt2['&']=minand2_;
-  dt2['|']=maxor2_;
-  dt2['<']=less2_;
-  dt2['>']=more2_;
-  dt2['=']=equal2_;
-  dt2['^']=power2_;
-  dt2['!']=modrot2_;
-  dt2['~']=match2_;
-  dt2[',']=join2_;
-  dt2['#']=take2_;
-  dt2['_']=drop2_;
-  dt2['$']=form2_;
-  dt2['?']=find2_;
-  dt2['@']=at2_;
-  dt2['.']=dot2_;
-  dt2[':']=assign2_;
-  dt2[128]=zerocolon2_;
-  dt2[129]=onecolon2_;
-  dt2[134]=fivecolon2_;
-  dt2[135]=sixcolon2_;
-  dt2[139]=draw2_;
-  dt2[140]=vs2_;
-  dt2[141]=sv2_;
-  dt2[142]=atan2_;
-  dt2[143]=div2_;
-  dt2[144]=and2_;
-  dt2[145]=or2_;
-  dt2[146]=xor2_;
-  dt2[147]=euclid2_;
-  dt2[148]=rot2_;
-  dt2[149]=shift2_;
-  dt2[150]=ddot2_;
-  dt2[151]=atn2_;
-  dt2[152]=sm2_;
-  dt2[153]=ss2_;
-  dt2[154]=lsq2_;
-  dt2[155]=encrypt_;
-  dt2[156]=decrypt_;
-  dt2[157]=rename2_;
-  dt2[158]=setenv2_;
-
-  /* these are needed because of over dyad */
-  dt2avo['+']=plus2_avopt;
-  dt2avo['-']=minus2_avopt;
-  dt2avo['*']=times2_avopt;
-  dt2avo['%']=divide2_avopt;
-  dt2avo['&']=minand2_avopt;
-  dt2avo['|']=maxor2_avopt;
-  dt2avo['<']=less2_avopt;
-  dt2avo['>']=more2_avopt;
-  dt2avo['=']=equal2_avopt;
-  dt2avo['^']=power2_avopt;
-  dt2avo['!']=modrot2_avopt;
-  dt2avo['~']=match2_avopt;
-  dt2avo[',']=join2_avopt;
-  dt2avo['#']=take2_avopt;
-  dt2avo['_']=drop2_avopt;
-  dt2avo['$']=form2_avopt;
-  dt2avo['?']=find2_avopt;
-  dt2avo['@']=at2_avopt;
-  dt2avo['.']=dot2_avopt;
-  dt2avo[':']=assign2_avopt;
-  dt2avo[133]=fourcolon1_avopt;
-  dt2avo[134]=fivecolon1_avopt;
-  dt2avo[145]=ci1_avopt;
-  dt2avo[146]=ic1_avopt;
-  dt2avo[147]=dj1_avopt;
-  dt2avo[148]=jd1_avopt;
-  dt2avo[149]=lt1_avopt;
-  dt2avo[150]=log1_avopt;
-  dt2avo[151]=exp1_avopt;
-  dt2avo[152]=abs1_avopt;
-  dt2avo[153]=sqr1_avopt;
-  dt2avo[154]=sqrt1_avopt;
-  dt2avo[155]=floor1_avopt;
-  dt2avo[156]=ceil1_avopt;
-  dt2avo[157]=sin1_avopt;
-  dt2avo[158]=cos1_avopt;
-  dt2avo[159]=tan1_avopt;
-  dt2avo[160]=asin1_avopt;
-  dt2avo[161]=acos1_avopt;
-  dt2avo[162]=atan1_avopt;
-  dt2avo[163]=sinh1_avopt;
-  dt2avo[164]=cosh1_avopt;
-  dt2avo[165]=tanh1_avopt;
-  dt2avo[166]=erf1_avopt;
-  dt2avo[167]=erfc1_avopt;
-  dt2avo[168]=gamma1_avopt;
-  dt2avo[169]=lgamma1_avopt;
-  dt2avo[170]=rint1_avopt;
-  dt2avo[171]=trunc1_avopt;
-  dt2avo[172]=not1_avopt;
-  dt2avo[173]=kv1_avopt;
-  dt2avo[183]=vk1_avopt;
-
-  dt2avo2['+']=plus2_avopt2;
-  dt2avo2['-']=minus2_avopt2;
-  dt2avo2['*']=times2_avopt2;
-  dt2avo2['%']=divide2_avopt2;
-  dt2avo2['&']=minand2_avopt2;
-  dt2avo2['|']=maxor2_avopt2;
-  dt2avo2['<']=less2_avopt2;
-  dt2avo2['>']=more2_avopt2;
-  dt2avo2['=']=equal2_avopt2;
-  dt2avo2['^']=power2_avopt2;
-  dt2avo2['!']=modrot2_avopt2;
-  dt2avo2['~']=match2_avopt2;
-  dt2avo2[',']=join2_avopt2;
-  dt2avo2['#']=take2_avopt2;
-  dt2avo2['_']=drop2_avopt2;
-  dt2avo2['$']=form2_avopt2;
-  dt2avo2['?']=find2_avopt2;
-  dt2avo2['@']=at2_avopt2;
-  dt2avo2['.']=dot2_avopt2;
-  dt2avo2[':']=assign2_avopt2;
-  dt2avo2[139]=draw2_avopt2;
-  dt2avo2[140]=vs2_avopt2;
-  dt2avo2[141]=sv2_avopt2;
-  dt2avo2[142]=atan2_avopt2;
-  dt2avo2[143]=div2_avopt2;
-  dt2avo2[144]=and2_avopt2;
-  dt2avo2[145]=or2_avopt2;
-  dt2avo2[146]=xor2_avopt2;
-  dt2avo2[147]=euclid2_avopt2;
-  dt2avo2[148]=rot2_avopt2;
-  dt2avo2[149]=shift2_avopt2;
-  dt2avo2[150]=ddot2_avopt2;
-  dt2avo2[151]=atn2_avopt2;
-  dt2avo2[152]=sm2_avopt2;
-  dt2avo2[153]=ss2_avopt2;
-  dt2avo2[154]=lsq2_avopt2;
-  dt2avo2[155]=encrypt_avopt2;
-  dt2avo2[156]=decrypt_avopt2;
-
-  /* builtins */
-  dset(C,"in",knew(37,0,fnnew("{(#y)>y?x}"),1,0,-1));
-  dset(C,"lin",knew(37,0,fnnew("{(#y)>y?/x}"),1,0,-1));
-  dset(C,"dvl",knew(37,0,fnnew("{x@&(#y)=y?/x}"),1,0,-1));
-  dset(C,"dv",knew(37,0,fnnew("{x dvl,y}"),1,0,-1));
-  dset(C,"di",knew(37,0,fnnew("{$[@x;. di[. x;(!x)?/y];x@&@[(#x)#1;y;:;0]]}"),1,0,-1));
-  dset(C,"gtime",knew(37,1,fnnew("{(dj _ x%86400;100 sv 24 60 60 vs x!86400)}"),1,0,-1));
-  dset(C,"ltime",knew(37,1,fnnew("{gtime lt x}"),1,0,-1));
-  dset(C,"tl",knew(37,1,fnnew("{t+x-lt t:x+x-lt x}"),1,0,-1));
-  dset(C,"mul",knew(37,0,fnnew("{x dot\\y}"),1,0,-1));
-  dset(C,"inv",knew(37,0,fnnew("{((2##*x)#1,&#*x) lsq x}"),1,0,-1));
-  dset(C,"choose",knew(37,0,fnnew("{rint exp lgamma[1+x]-lgamma[1+y]+lgamma[1+x-y]}"),1,0,-1));
-  dset(C,"round",knew(37,0,fnnew("{x*rint y%x}"),1,0,-1));
-  dset(C,"ssr",knew(37,0,fnnew("{if[nul~x;:nul];i:1+2*!_.5*#x:(0,,/(0,+/~+\\ep[<;0,\"[\"=y]-ep[<;(\"]\"=y$:)],0)+/x ss $[3=4:y;$y;y])_ x;,/$[7=4:z;@[x;i;z];4:z$:;@[x;i;:;(#i)#,z];@[x;i;:;z]]}"),1,0,-1));
-  dset(C,"ep",knew(37,0,fnnew("{_[-1;x;y]}"),1,0,-1));
-
-  /* monadic */
-  dset(C,"exit",knew(7,1,fnnew("exit"),141,0,-1));
-  dset(C,"sleep",knew(7,1,fnnew("sleep"),144,0,-1));
-  dset(C,"ci",knew(7,1,fnnew("ci"),145,0,-1));
-  dset(C,"ic",knew(7,1,fnnew("ic"),146,0,-1));
-  dset(C,"dj",knew(7,1,fnnew("dj"),147,0,-1));
-  dset(C,"jd",knew(7,1,fnnew("jd"),148,0,-1));
-  dset(C,"lt",knew(7,1,fnnew("lt"),149,0,-1));
-  dset(C,"log",knew(7,1,fnnew("log"),150,0,-1));
-  dset(C,"exp",knew(7,1,fnnew("exp"),151,0,-1));
-  dset(C,"abs",knew(7,1,fnnew("abs"),152,0,-1));
-  dset(C,"sqr",knew(7,1,fnnew("sqr"),153,0,-1));
-  dset(C,"sqrt",knew(7,1,fnnew("sqrt"),154,0,-1));
-  dset(C,"floor",knew(7,1,fnnew("floor"),155,0,-1));
-  dset(C,"ceil",knew(7,1,fnnew("ceil"),156,0,-1));
-  dset(C,"sin",knew(7,1,fnnew("sin"),157,0,-1));
-  dset(C,"cos",knew(7,1,fnnew("cos"),158,0,-1));
-  dset(C,"tan",knew(7,1,fnnew("tan"),159,0,-1));
-  dset(C,"asin",knew(7,1,fnnew("asin"),160,0,-1));
-  dset(C,"acos",knew(7,1,fnnew("acos"),161,0,-1));
-  dset(C,"atan",knew(7,1,fnnew("atan"),162,0,-1));
-  dset(C,"sinh",knew(7,1,fnnew("sinh"),163,0,-1));
-  dset(C,"cosh",knew(7,1,fnnew("cosh"),164,0,-1));
-  dset(C,"tanh",knew(7,1,fnnew("tanh"),165,0,-1));
-  dset(C,"erf",knew(7,1,fnnew("erf"),166,0,-1));
-  dset(C,"erfc",knew(7,1,fnnew("erfc"),167,0,-1));
-  dset(C,"gamma",knew(7,1,fnnew("gamma"),168,0,-1));
-  dset(C,"lgamma",knew(7,1,fnnew("lgamma"),169,0,-1));
-  dset(C,"rint",knew(7,1,fnnew("rint"),170,0,-1));
-  dset(C,"trunc",knew(7,1,fnnew("trunc"),171,0,-1));
-  dset(C,"not",knew(7,1,fnnew("not"),172,0,-1));
-  dset(C,"kv",knew(7,1,fnnew("kv"),173,0,-1));
-  dset(C,"time",knew(7,1,fnnew("time"),174,0,-1));
-  dset(C,"val",knew(7,1,fnnew("val"),178,0,-1));
-  dset(C,"del",knew(7,1,fnnew("del"),180,0,-1));
-  dset(C,"bd",knew(7,1,fnnew("bd"),181,0,-1));
-  dset(C,"db",knew(7,1,fnnew("db"),182,0,-1));
-  dset(C,"vk",knew(7,1,fnnew("vk"),183,0,-1));
-  dset(C,"md5",knew(7,1,fnnew("md5"),185,0,-1));
-  dset(C,"sha1",knew(7,1,fnnew("sha1"),186,0,-1));
-  dset(C,"sha2",knew(7,1,fnnew("sha2"),187,0,-1));
-  dset(C,"hb",knew(7,1,fnnew("hb"),188,0,-1));
-  dset(C,"bh",knew(7,1,fnnew("bh"),189,0,-1));
-  dset(C,"getenv",knew(7,1,fnnew("getenv"),190,0,-1));
-  dset(C,"zb",knew(7,1,fnnew("zb"),191,0,-1));
-  dset(C,"bz",knew(7,1,fnnew("bz"),192,0,-1));
-
-  /* dyadic */
-  dset(C,"draw",knew(7,2,fnnew("draw"),139,0,-1));
-  dset(C,"vs",knew(7,2,fnnew("vs"),140,0,-1));
-  dset(C,"sv",knew(7,2,fnnew("sv"),141,0,-1));
-  dset(C,"atan2",knew(7,2,fnnew("atan2"),142,0,-1));
-  dset(C,"div",knew(7,2,fnnew("div"),143,0,-1));
-  dset(C,"and",knew(7,2,fnnew("and"),144,0,-1));
-  dset(C,"or",knew(7,2,fnnew("or"),145,0,-1));
-  dset(C,"xor",knew(7,2,fnnew("xor"),146,0,-1));
-  dset(C,"euclid",knew(7,2,fnnew("euclid"),147,0,-1));
-  dset(C,"rot",knew(7,2,fnnew("rot"),148,0,-1));
-  dset(C,"shift",knew(7,2,fnnew("shift"),149,0,-1));
-  dset(C,"dot",knew(7,2,fnnew("dot"),150,0,-1));
-  dset(C,"at",knew(7,2,fnnew("at"),151,0,-1));
-  dset(C,"sm",knew(7,2,fnnew("sm"),152,0,-1));
-  dset(C,"ss",knew(7,2,fnnew("ss"),153,0,-1));
-  dset(C,"lsq",knew(7,2,fnnew("lsq"),154,0,-1));
-  dset(C,"encrypt",knew(7,2,fnnew("encrypt"),155,0,-1));
-  dset(C,"decrypt",knew(7,2,fnnew("decrypt"),156,0,-1));
-  dset(C,"rename",knew(7,2,fnnew("rename"),157,0,-1));
-  dset(C,"setenv",knew(7,2,fnnew("setenv"),158,0,-1));
+  K f;
+  f=fnnew("{x in\\y}"); dset(C,sp("lin"),f); fnfree(f);
+  f=fnnew("{x dvl,y}"); dset(C,sp("dv"),f); fnfree(f);
+  f=fnnew("{$[@x;. di[. x;&|/(!x)=/$[@y;,y;y]];x@&@[(#x)#1;y;:;0]]}"); dset(C,sp("di"),f); fnfree(f);
+  f=fnnew("{(dj _ x%86400;100 sv 24 60 60 vs x!86400)}"); dset(C,sp("gtime"),f); fnfree(f);
+  f=fnnew("{gtime lt x}"); dset(C,sp("ltime"),f); fnfree(f);
+  f=fnnew("{t+x-lt t:x+x-lt x}"); dset(C,sp("tl"),f); fnfree(f);
+  f=fnnew("{x dot\\y}"); dset(C,sp("mul"),f); fnfree(f);
+  f=fnnew("{((2##*x)#1,&#*x) lsq x}"); dset(C,sp("inv"),f); fnfree(f);
+  f=fnnew("{rint exp lgamma[1+x]-lgamma[1+y]+lgamma[1+x-y]}"); dset(C,sp("choose"),f); fnfree(f);
+  f=fnnew("{x*rint y%x}"); dset(C,sp("round"),f); fnfree(f);
+  f=fnnew("{if[nul~x;:nul];i:1+2*!_.5*#x:(0,,/(0,+/~+\\ep[<;0,\"[\"=y]-ep[<;(\"]\"=y$:)],0)+/x ss $[3=4:y;$y;y])_ x;,/$[7=4:z;@[x;i;z];4:z$:;@[x;i;:;(#i)#,z];@[x;i;:;z]]}"); dset(C,sp("ssr"),f); fnfree(f);
+  f=fnnew("{_[-1;x;y]}"); dset(C,sp("ep"),f); fnfree(f);
+  spf=sp("f");
 }
 
-K* fnd(K *a) {
-  K *r=a;
-  char *f=0,b[256],*v[256],*g,*h,c;
-  int i,j,u,s,n,q,vx,vy,vz;
-  fn *ff;
-  pgs *pgs;
-  SG2(a);
-  ff=a->v;
-  f=ff->d;
+K fnnew(char *s) {
+  K f,*pf;
+  char *pd;
+  if(!s||*s!='{') return null;
+  f=tn(0,5);
+  pf=px(f);
+  pf[0]=tn(3,strlen(s)); /* definition */
+  pf[1]=null;            /* parse result */
+  pf[2]=null;            /* scope */
+  pf[3]=null;            /* av */
+  pf[4]=t(1,0);          /* valence */
+  pd=px(pf[0]);
+  i(strlen(s),pd[i]=s[i])
+  K p=fnd(f);
+  if(p) { _k(f); return p; }
+  return st(0xc3,f);
+}
 
-  if(linei==linem) {
-    linem<<=1;
-    lines=xrealloc(lines,linem*sizeof(char*));
-    linef=xrealloc(linef,linem*sizeof(int*));
-    linefn=xrealloc(linefn,linem*sizeof(int*));
-  }
-  g=strchr(f,'\n');
-  if(g) { c=*g; *g=0; lines[linei++]=xstrdup(f); *g=c; }
-  else lines[linei++]=xstrdup(f);
+void fnfree(K f) {
+  _k(f);
+}
 
+static K fncp_(K x) {
+  K p,e;
+  K f=tn(0,5);
+  K *pf=px(f);
+  K *px=px(x);
+  pf[0]=kcp(px[0]); /* definition */
+  if(E(pf[0])) {  e=pf[0]; _k(f); return e; }
+  pf[1]=null;       /* parse result */
+  pf[2]=null;       /* scope */
+  pf[3]=kcp(px[3]); /* av */
+  pf[4]=t(1,0);     /* valence */
+  if((p=fnd(f))) { fnfree(f); return p; }
+  return st(0xc3,f);
+}
+static K fncpproj_(K x) {
+  K f=tn(0,3),e;
+  K *pf=px(f);
+  K *px=px(x);
+  pf[0]=kcp(px[0]); /* lambda */
+  if(E(pf[0])) {  e=pf[0]; _k(f); return e; }
+  pf[1]=kcp(px[1]); /* pargs */
+  if(E(pf[1])) {  e=pf[1]; _k(f); return e; }
+  pf[2]=kcp(px[2]); /* av */
+  if(E(pf[1])) {  e=pf[1]; _k(f); return e; }
+  return st(0xc4,f);
+}
+K fncp(K x) {
+  if(0xc3==s(x)) return fncp_(x);
+  if(0xc4==s(x)) return fncpproj_(x);
+  return KERR_TYPE;
+}
+
+#define SB(b,m,l,c) do { \
+  if((l)==(m)) { (m)<<=1; (b)=xrealloc((b),(m)*sizeof(*(b))); } \
+  (b)[(l)]=(c); \
+} while (0)
+
+K fnd(K f) {
+  K p,r=0,*pf;
+  char *ff=0,*b,**v,*g,*h;
+  int i,j,s,n,q,vx,vy,vz,ffq=0,first=1,params=1;
+  int bm=32,vm=32;
+  pf=px(f);
+  ff=px(pf[0]);
   s=j=n=q=vx=vy=vz=0;
-  if(*f!='{') return r;
-  for(;*f;++f) {
-    if(*f=='"') f=xeqs(f);
+  if(!*ff) return r;
+  if(*ff!='{') return r;
+  b=xcalloc(bm,1); v=xcalloc(vm*sizeof(char*),1);
+  for(;*ff;++ff) {
+
+    /* skip comments */
+    if(s!=2 && first && *ff=='/') { ++ff; while(*ff&&*ff!='\n') ++ff; --ff; continue; }
+    if(s!=2 && *ff== ' ' && ff[1] && ff[1]=='/') { ff+=2; while(*ff&&*ff!='\n') ++ff; --ff; continue; }
+    first=0; if(*ff=='\n') first=1;
+
+    if(*ff=='"') { params=0; while(*ff&&*ff=='"') ff=xeqs(ff); }
+    if(!*ff) { r=KERR_PARSE; goto cleanup; }
     switch(s) {
     case 0:
-      if(*f=='{') s=1;
-      else return kerror("parse");
+      if(*ff=='{') s=1;
+      else { r=KERR_PARSE; goto cleanup; }
       break;
     case 1:
-      while(isblank(*f))++f;
-      if(*f=='}') s=2;
-      else if(*f=='{') { n++; s=9; }
-      else if(*f=='[') s=3;
-      else if(*f=='.') s=11;
-      else if(*f=='`') s=101;
-      else if(isalpha(*f)) { s=7; b[j++]=*f; }
+      while(*ff&&isblank(*ff))++ff;
+      if(*ff=='"') while(*ff&&*ff=='"') ff=xeqs(ff);
+      if(!*ff) { r=KERR_PARSE; goto cleanup; }
+      if(*ff=='}') s=2;
+      else if(*ff=='{') { n++; s=9; }
+      else if(*ff=='['&&params) s=3;
+      else if(*ff=='.') s=11;
+      else if(*ff=='`') s=101;
+      else if(isalpha(*ff)) { s=7; SB(b,bm,j,*ff); j++; }
+      else if(*ff<0) { r=KERR_PARSE; goto cleanup; }
       else s=6;
+      params=0;
       break;
     case 101:
-      if(isalnum(*f)) s=101;
+      if(isalnum(*ff)) s=101;
       else s=1;
       break;
     case 2:
-      return kerror("parse");
+      if(*ff&&strchr(" '/\\",*ff)) {
+        char avb[256];
+        i=0;
+        while(*ff&&strchr("'/\\",*ff)) {
+          avb[i++]=*ff++;
+          if(i==256) { r=KERR_LENGTH; goto cleanup; }
+        }
+        avb[i]=0;
+        pf[3]=tnv(3,i,xmemdup(avb,1+strlen(avb)));
+        ff-=i; *ff=0; ff--;
+        break;
+      }
+      else { r=KERR_PARSE; goto cleanup; }
     case 3:
-      if(isalpha(*f)) { s=4; b[j++]=*f; ff->q=1; }
-      else if(*f==']') s=5;
-      else return kerror("parse");
+      if(isalpha(*ff)) { s=4; SB(b,bm,j,*ff); j++; ffq=1; }
+      else if(*ff==']') s=5;
+      else { r=KERR_PARSE; goto cleanup; }
       break;
     case 4:
-      if(isalnum(*f)) { s=4; b[j++]=*f; }
-      else if(*f==']') { s=5; b[j]=0; j=0; v[q++]=sp(b); }
-      else if(*f==';') { s=3; b[j]=0; j=0; v[q++]=sp(b); }
+      if(isalnum(*ff)) { s=4; SB(b,bm,j,*ff); j++; }
+      else if(*ff==']') {
+        s=5; SB(b,bm,j,0); j=0; SB(v,vm,q,sp(b)); q++;
+      }
+      else if(*ff==';') {
+        s=3; SB(b,bm,j,0); j=0; SB(v,vm,q,sp(b)); q++;
+      }
       break;
     case 5:
-      if(*f=='}') s=2;
-      else if(*f=='.') s=15;
-      else if(*f=='`') s=105;
-      else if(isalpha(*f)) { s=7; b[j++]=*f; }
+      if(*ff=='}') s=2;
+      else if(*ff=='{') { n++; s=8; }
+      else if(*ff=='.') s=15;
+      else if(*ff=='`') s=105;
+      else if(isalpha(*ff)) { s=7; SB(b,bm,j,*ff); j++; }
       else s=6;
       break;
     case 105:
-      if(isalnum(*f)) s=105;
+      if(isalnum(*ff)) s=105;
       else s=5;
       break;
     case 6:
-      if(*f=='}') s=2;
-      else if(*f=='.') s=16;
-      else if(*f=='`') s=106;
-      else if(isalpha(*f)) { s=7; b[j++]=*f; }
-      else if(*f=='{') { n++; s=8; }
+      if(*ff=='}') s=2;
+      else if(*ff=='.') s=16;
+      else if(*ff=='`') s=106;
+      else if(isalpha(*ff)) { s=7; SB(b,bm,j,*ff); j++; }
+      else if(*ff=='{') { n++; s=8; }
+      else if(*ff<0) { r=10; goto cleanup; }
       else s=6;
       break;
     case 106:
-      if(isalnum(*f)) s=106;
-      else if(*f=='`') s=106;
+      if(isalnum(*ff)) s=106;
+      else if(*ff=='`') s=106;
+      else if(*ff=='}') s=2;
       else s=6;
       break;
     case 7:
-      if(*f=='}') {
-        s=2; b[j]=0; j=0;
-        if(!ff->q) { /* no implicit xyz if there are formal parameters */
-          if(!vx && !strcmp(b,"x")) { vx=1; v[q++]=sp(b); }
-          if(!vy && !strcmp(b,"y")) { vy=1; v[q++]=sp(b); }
-          if(!vz && !strcmp(b,"z")) { vz=1; v[q++]=sp(b); }
+      if(*ff=='}') {
+        s=2; SB(b,bm,j,0); j=0;
+        if(!ffq) { /* no implicit xyz if there are formal parameters */
+          if(!vx && !strcmp(b,"x")) { vx=1; SB(v,vm,q,sp(b)); q++; }
+          if(!vy && !strcmp(b,"y")) { if(!vx) { vx=1; SB(v,vm,q,sp("x")); q++; } vy=1; SB(v,vm,q,sp("y")); q++; }
+          if(!vz && !strcmp(b,"z")) { if(!vx) { vx=1; SB(v,vm,q,sp("x")); q++; } if(!vy) { vy=1; SB(v,vm,q,sp("y")); q++; } vz=1; SB(v,vm,q,sp("z")); q++; }
         }
       }
-      else if(isalnum(*f)) b[j++]=*f;
-      else if(*f=='{') {
-        s=10; b[j]=0; j=0;
-        if(!ff->q) { /* no implicit xyz if there are formal parameters */
-          if(!vx && !strcmp(b,"x")) { vx=1; v[q++]=sp(b); }
-          if(!vy && !strcmp(b,"y")) { vy=1; v[q++]=sp(b); }
-          if(!vz && !strcmp(b,"z")) { vz=1; v[q++]=sp(b); }
+      else if(isalnum(*ff)) { SB(b,bm,j,*ff); j++; }
+      else if(*ff=='{') {
+        s=10; SB(b,bm,j,0); j=0;
+        if(!ffq) { /* no implicit xyz if there are formal parameters */
+          if(!vx && !strcmp(b,"x")) { vx=1; SB(v,vm,q,sp(b)); q++; }
+          if(!vy && !strcmp(b,"y")) { if(!vx) { vx=1; SB(v,vm,q,sp("x")); q++; } vy=1; SB(v,vm,q,sp("y")); q++; }
+          if(!vz && !strcmp(b,"z")) { if(!vx) { vx=1; SB(v,vm,q,sp("x")); q++; } if(!vy) { vy=1; SB(v,vm,q,sp("y")); q++; } vz=1; SB(v,vm,q,sp("z")); q++; }
         }
       }
       else { /* no implicit xyz if there are formal parameters */
-        s=6; b[j]=0; j=0;
-        if(!ff->q) { /* no implicit xyz if there are formal parameters */
-          if(!vx && !strcmp(b,"x")) { vx=1; v[q++]=sp(b); }
-          if(!vy && !strcmp(b,"y")) { vy=1; v[q++]=sp(b); }
-          if(!vz && !strcmp(b,"z")) { vz=1; v[q++]=sp(b); }
+        s=6; SB(b,bm,j,0); j=0;
+        if(!ffq) { /* no implicit xyz if there are formal parameters */
+          if(!vx && !strcmp(b,"x")) { vx=1; SB(v,vm,q,sp(b)); q++; }
+          if(!vy && !strcmp(b,"y")) { if(!vx) { vx=1; SB(v,vm,q,sp("x")); q++; } vy=1; SB(v,vm,q,sp("y")); q++; }
+          if(!vz && !strcmp(b,"z")) { if(!vx) { vx=1; SB(v,vm,q,sp("x")); q++; } if(!vy) { vy=1; SB(v,vm,q,sp("y")); q++; } vz=1; SB(v,vm,q,sp("z")); q++; }
         }
       }
       break;
     case 8:
-      if(*f=='}') { n--; if(!n) s=6; }
-      else if(*f=='{') n++; /* nested function */
+      if(*ff=='}') { n--; if(!n) s=6; }
+      else if(*ff=='{') n++; /* nested function */
       break;
     case 9:
-      if(*f=='}') { n--; if(!n) s=5; }
-      else if(*f=='{') n++; /* nested function */
+      if(*ff=='}') { n--; if(!n) s=5; }
+      else if(*ff=='{') n++; /* nested function */
       break;
     case 10:
-      if(*f=='}') { n--; if(!n) s=7; }
-      else if(*f=='{') n++; /* nested function */
+      if(*ff=='}') { n--; if(!n) s=7; }
+      else if(*ff=='{') n++; /* nested function */
       break;
     case 11: /* .z.s */
-      if(isalnum(*f)) s=11;
-      else if(*f=='.') s=11;
+      if(isalnum(*ff)) s=11;
+      else if(*ff=='.') s=11;
       else s=1;
       break;
     case 15: /* .z.s */
-      if(isalnum(*f)) s=15;
-      else if(*f=='.') s=15;
+      if(isalnum(*ff)) s=15;
+      else if(*ff=='.') s=15;
       else s=5;
       break;
     case 16: /* .z.s */
-      if(isalnum(*f)) s=16;
-      else if(*f=='.') s=16;
+      if(isalnum(*ff)) s=16;
+      else if(*ff=='.') s=16;
       else s=6;
       break;
-    default: return kerror("parse");
+    default: { r=KERR_PARSE; goto cleanup; }
     }
   }
 
-  ff->s_=scope_new(cs);
-  if(vz&&q<3) { v[q++] = sp("y"); }
-  if(vz&&q<3) { v[q++] = sp("x"); }
-  if(vy&&q<2) { v[q++] = sp("x"); }
-  if(!ff->l) ff->v=q;
-  for(i=0;i<q;i++) { if(kreserved(v[i])) return kerror("reserved"); else EC(scope_set(ff->s_,v[i],null)); }
+  pf[2]=scope_new(cs);
+  if(vz&&q<3) { SB(v,vm,q,sp("y")); q++; }
+  if(vz&&q<3) { SB(v,vm,q,sp("x")); q++; }
+  if(vy&&q<2) { SB(v,vm,q,sp("x")); q++; }
+  pf[4]=t(1,q);
+  for(i=0;i<q;i++) if((p=scope_set(pf[2],t(4,sp(v[i])),null))) { r=p; goto cleanup; }
+  K locals=tn(4,q); K *plocals=px(locals);
+  i(q,plocals[i]=(K)sp(v[i]))
 
-  /* build ast */
-  u=strlen(ff->d);
-  g=h=xmalloc(u);
-  strncpy(h,&ff->d[1],u-1);
-  h[u-2]='\n';
-  h[u-1]=0;
-  while(isblank(*h))++h;
-  if(*h=='[') while(*h++!=']');
-  pgs=pgnew();
-  pgs->ffli=linei-1;
-  pgs->fni=fnamesi-1;
-  pgs->p=xstrdup(h);
-  ++DEPTH;
-  ff->n=pgparse(pgs);
-  --DEPTH;
-  pgfree(pgs);
-  xfree(g);
-
-  kfree(a);
+  /* parse */
+  h=px(pf[0]);
+  ++h;
+  while(*h&&isblank(*h))++h;
+  if(*h&&*h=='[') while(*h&&*h++!=']');
+  g=xcalloc(1,5+strlen(h));
+  memcpy(g,h,1+strlen(h));
+  if(*g) g[strlen(g)-1]='\n';
+  int opencode0=opencode;
+  opencode=0;
+  K cs0=cs; cs=k_(pf[2]);
+  pf[1]=pgparse(g,1,locals);
+  _k(cs); cs=cs0;
+  opencode=opencode0;
+  _k(locals);
+  if(E(pf[1])) { r=pf[1]; pf[1]=null; }
+cleanup:
+  xfree(b); xfree(v);
   return r;
 }
 
-K* fnprj(K *f, K *a) {
-  K *aa,*p=0,*s;
-  fn *ff=f->v,*fp;
-  unsigned int e=0,n=0;
-  if(cs->k) n=1;
-  if(at==11) { DO(ac,if(v0(a)[i]->t==16)++e); n=ac; }
-  else if(at==10) DO(ac,s=v0(a)[i];DO2(s->c,++n;if(v0(s)[j]->t==16)++e))
-  if(ff->v>1&&(ff->v>n||e)) { /* make projection */
-    p=knew(7,0,fnnew(""),'p',0,0); p->t=77;
-    fp=p->v;
-    fp->l=kref(f);
-    if(at==11) aa=kref(a);
-    else { aa=kv0(1); v0(aa)[0]=kref(a); aa->t=11; }
-    fp->a=aa;
-    fp->v=ff->v-n+e;
-    fp->s_=scope_cp(ff->s_);
+// make a copy of r and parent scope
+// closure only if parent scope == s0
+// can't create a closure like this:
+// f:{i+x}
+// g:{i:0;f}
+static K closure(K x, K s0, K closurescope) {
+  K r=3,*px,s,*fs,*pr;
+  if(0xc3==s(x)) {
+    px=px(x);
+    s=px[2];
+    fs=px(s);
+    if(fs[0]!=s0) return x;
+    r=fncp(x);
+    if(E(r)) { _k(x); return r; }
+    _k(x);
+    pr=px(r);
+    s=pr[2];
+    fs=px(s);
+    _k(fs[0]);
+    fs[0]=k_(closurescope);
   }
-  return p;
+  // too complicated. may circle back later.
+  //else if(0xc4==s(x)) {
+  //  px=px(x);
+  //  f=px[0];
+  //  if(0xc3!=s(f)) return x; // TODO: support projection of projection in closures?
+  //  pf=px(f);
+  //  s=pf[2];
+  //  fs=px(s);
+  //  if(fs[0]!=s0) return x;
+  //  r=fncp(x);
+  //  if(E(r)) { _k(x); return r; }
+  //  closurescope=scope_cp(fs[0]);
+  //  pc=px(closurescope);
+  //  pc[3]=t(1,1);
+  //  _k(x);
+  //  pr=px(r);
+  //  f=pr[0];
+  //  pf=px(f);
+  //  s=pf[2];
+  //  fs=px(s);
+  //  _k(fs[0]);
+  //  fs[0]=closurescope;
+  //}
+  return r;
 }
 
-K* fne2(K *f, K *a, char *av) {
-  K *r=0,*p=0,*q=0,*self=0;
-  scope *os=0,*fs=0;
-  unsigned int i,j,fa=0,rv;
-  int k;
-  fn *ff=f->v;
-  (void)av;
+static char av2_[1024][256];
+K fne_(K f, K x, char *av) {
+  K r=0,e,*pd,*ps,*pf,cs0,*px,*pr,t,g,q,*pq,*pt,v;
+  u32 j=0,xi=0;
+  static int d=0;
+  char *av2=av2_[d],*fav;
+  u64 n,nn;
 
-  if(at==99){fa=1;SG(a);}
-  if(a&&!at) DO(ac,SG2(v0(a)[i]);if(v0(a)[i]->t==98)return v0(a)[i])
+  if(++d>maxr) { r=KERR_STACK; --d; goto cleanup; }
 
-  ff->s=scope_cp(ff->s_);
-  if(!cs->k) ff->s->p=cs; /* function in function */
+  if(0xc4==s(f)) {
+    pf=px(f);
+    g=k_(pf[0]);
+    q=pf[1]; pq=px(q);
+    px=px(x);
+    v=val(f);
+    if(nx<(u64)ik(v)) {
+      r=tn(0,3); pr=px(r);
+      pr[0]=fncp(f); /* lambda projection */
+      if(E(pr[0])) {  e=pr[0]; _k(r); _k(f); _k(x); _k(g); return e; }
+      pr[1]=kcp(x);  /* pargs */
+      if(E(pr[1])) {  e=pr[1]; _k(r); _k(f); _k(x); _k(g); return e; }
+      pr[2]=null;    /* av */
+      _k(f); _k(x); _k(g);
+      --d;
+      return st(0xc4,r);
+    }
 
-  if((p=fnprj(f,a))) return p;
+    u64 inc=0; i(n(q),if(pq[i]==inull)++inc)
+    nn=n(q)-inc; //  if there are inulls, number of inulls must less than or equal to nx
+    if(inc && inc>nx) { _k(f); _k(x); _k(g); return KERR_VALENCE; }
+    t=tn(0,nn+nx); pt=px(t);
+    i(n(q),pt[j++]=pq[i]==inull?k_(px[xi++]):k_(pq[i]))
+    // now, use up the rest of px
+    while(j<n(t)) pt[j++]=k_(px[xi++]);
 
-  if(at==11&&ac==1) {
-    a=v0(a)[0];
-    if(a&&!at) DO(ac,SG2(v0(a)[i]);if(v0(a)[i]->t==98)return v0(a)[i])
+    _k(x); x=t;
+    _k(f); f=g;
+
+    av2[0]=0;
+    pf=px(f);
+    if(0xc3==s(f)) g=pf[3];
+    else if(0xc4==s(f)) g=pf[2];
+    else { _k(f); _k(x); --d; return KERR_PARSE; }
+    if(6!=T(g)) {
+      fav=px(g);
+      snprintf(av2+strlen(av2),sizeof(av2)-strlen(av2),"%s",fav);
+    }
+    if(av&&strlen(av)) snprintf(av2+strlen(av2),sizeof(av2)-strlen(av2),"%s",av);
+    r=fne_(f,x,av2);
+    --d;
+    return r;
   }
 
-  if(at==11&&ff->v!=ac) return kerror("valence");
-  else if(at==11&&ff->v==1) return kerror("valence");
-  fs=ff->s;
+  pf=px(f);
+  px=px(x);
+  n=(u64)ik(pf[4]);
 
-  rv=ff->v; /* real valence */
-  q=kv0(rv); /* gather parameters */
-  i=j=0;
-  if(rv>1) {
-    if(ac) for(;i<rv;i++) v0(q)[i]=v0(a)[j++];
-    else v0(q)[i]=a;
+  u64 inc=0; i(nx,if(px[i]==inull)++inc)
+  nn=nx-inc; //  if there are inulls, number of inulls must less than or equal to nx
+  if((nx<n||nn<n) && (!av||!strlen(av))) { /* project */
+    t=fncp(f);
+    if(E(t)) { _k(f); _k(x); --d; return t; }
+    r=tn(0,3); pr=px(r);
+    pr[0]=t;       /* lambda */
+    pr[1]=kcp(x);  /* pargs */
+    if(E(pr[1])) {  e=pr[1]; _k(r); _k(f); _k(x); return e; }
+    pr[2]=null;    /* av */
+    _k(f); _k(x);
+    --d;
+    return st(0xc4,r);
   }
-  else if(rv==1) v0(q)[0]=a;
-
-  if(!ff->q) { /* no formal parameters */
-    if(rv==3) {
-      EC(scope_set(fs,sp("x"),v0(q)[rv-3]));
-      EC(scope_set(fs,sp("y"),v0(q)[rv-2]));
-      EC(scope_set(fs,sp("z"),v0(q)[rv-1]));
+  if(nx!=n && nx!=1 && n!=0 && (!av||!strlen(av))) { r=KERR_VALENCE; goto cleanup; }
+  if(av&&*av) {
+    if(inc) { r=KERR_VALENCE; goto cleanup; } /* TODO: {y}'[!5;] */
+    if(n==0) r=avdo(k_(f),0,null,av);
+    else if(n==1) r=avdo(k_(f),0,k_(px[0]),av);
+    else if(n==2) {
+      if(nx==2) r=avdo(k_(f),k_(px[0]),k_(px[1]),av);
+      else r=avdo(k_(f),0,k_(px[0]),av);
     }
-    else if(rv==2) {
-      EC(scope_set(fs,sp("x"),v0(q)[rv-2]));
-      EC(scope_set(fs,sp("y"),v0(q)[rv-1]));
-    }
-    else if(rv==1) {
-      EC(scope_set(fs,sp("x"),v0(q)[0]));
-    }
+    else if(0x81==s(x)) r=avdo(k_(f),0,k_(x),av);
+    else { r=KERR_VALENCE; --d; goto cleanup; }
   }
   else {
-    if(rv==1) { EC(scope_set(fs,fs->d->k[0],v0(q)[0])); }
-    else DO(rv,EC(scope_set(fs,fs->d->k[i],v0(q)[i])))
+    if(6==T(pf[2])) { K p=fnd(f); if(p) { _k(f); _k(x); return p; } }
+    ps=px(pf[2]);     // scope
+    pd=px(ps[1]);     // scope dict
+    cs0=cs; cs=k_(pf[2]);
+    K pd1save=pd[1];  // save scope dict values
+    u64 NX=nx;
+    pd[1]=x;
+    K ps5save=ps[5];
+    ps[5]=t(1,1);
+    n(pd[0])=n; n(pd[1])=n;
+    fnestack[++fnestacki]=f;
+    int opencode0=opencode;
+    opencode=0;
+    r=pgreduce(pf[1],0);
+    opencode=opencode0;
+    --fnestacki;
+    if(0xc3==s(r)) {
+      K closurescope=scope_cp(cs);
+      if(E(closurescope)) {
+        pd=px(ps[1]); pd[1]=pd1save; --localsi;
+        _k(cs); cs=cs0;
+        _k(r); r=closurescope;
+        goto cleanup;
+      }
+      K *pc=px(closurescope); pc[3]=t(1,1);
+      r=closure(r,cs,closurescope);
+      _k(closurescope);
+    }
+    else if(0x80==s(r)) {
+      K *pr=px(r);
+      K v=pr[1]; /* values */
+      K *pvv=px(v);
+      u32 c=0;
+      i(n(v),if(0xc3==s(pvv[i]))++c)
+      if(c&&c==n(v)) {
+        K closurescope=scope_cp(cs);
+        if(E(closurescope)) {
+          pd=px(ps[1]); pd[1]=pd1save; --localsi;
+          _k(cs); cs=cs0;
+          _k(r); r=closurescope;
+          goto cleanup;
+        }
+        K *pc=px(closurescope); pc[3]=t(1,1);
+        i(n(v),pvv[i]=closure(pvv[i],cs,closurescope))
+        _k(closurescope);
+      }
+    }
+
+    if(ik(ps[5])==0) _k(pd[1]);
+    pd[1]=pd1save;
+    ps[5]=ps5save;
+    nx=NX;
+    n(pd[0])=n(pd[1]); // locals could have been added, so sync key/val counts
+    _k(cs); cs=cs0;
   }
-  q->c=0;
-  kfree(q);
-
-  self=dget(Z,"f");
-  dset(Z,"f",f);
-
-  os=cs;cs=fs;
-  r=null;
-  for(k=ff->n->v-1;k>=0;k--) {
-    kfree(r);
-    quiet2=0;
-    r=node_reduce(ff->n->a[k],0);
-    if(r->t==98) { dset(Z,"f",self); kfree(self); return r; }
-    if(fret) { fret=0; break; }
-  }
-  kfree(p);
-
-  dset(Z,"f",self);
-  kfree(self);
-
-  SR(r);
-  if(!r) r=null;
-  cs=os;
-  if(quiet2) { kfree(r); r=null; quiet2=0; } /* assignment doesn't return a value */
-  scope_free(fs); ff->s=0;
-  if(a&&!at) DO(ac,kfree(v0(a)[i]))
-  if(fa) kfree(a);
+  --d;
+cleanup:
+  _k(f);
+  _k(x);
   return r;
+}
+K fne(K f, K x, char *av) {
+  K *pf,g;
+  char av2[256],*fav;
+
+  if(0xc4==s(f)) return fne_(f,x,av);
+
+  av2[0]=0;
+  pf=px(f);
+  g=pf[3];
+  if(6!=T(g)) {
+    fav=px(g);
+    snprintf(av2+strlen(av2),sizeof(av2)-strlen(av2),"%s",fav);
+  }
+  if(av&&strlen(av))  snprintf(av2+strlen(av2),sizeof(av2)-strlen(av2),"%s",av);
+  return fne_(f,x,av2);
 }

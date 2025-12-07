@@ -1,16 +1,14 @@
 # gk
 
+[v1 release notes](doc/v1.md)
+
+***note:*** v1 is a full rewrite of gk. It has breaking changes from v0. The [v0 branch](https://github.com/cmh25/gk/tree/v0) remains available.
+
 gk is an implementation of the k programming language, originally invented by [Arthur Whitney](https://en.wikipedia.org/wiki/Arthur_Whitney_(computer_scientist)).
 
 It's loosely based on k3, but with some changes suggested by [Stevan Apter](https://nsl.com/).
 
-Some other notable open source implementations of k:
-
-https://github.com/JohnEarnest/ok
-
-https://codeberg.org/ngn/k
-
-https://github.com/kevinlawler/kona
+Other notable open source implementations of k or k-like array [languages](doc/implementations.md).
 
 ## build instructions
 linux/mac:
@@ -42,26 +40,28 @@ The verbs are all like k3. However, there is no "force monadic" (ex: #:'). The v
 ### adverbs
 The adverbs are similar to k3, but `/: \: ':` are gone. The only adverbs are `/ \ '`. How they operate depends on the context and the valence of the modified verb. Here's a quick synopsis:
 ```
-      monad: each      f'x
- infix dyad: each      x f'y
-prefix dyad: each      f'[x;y]
-      other: each      f'[x;y;z]
+each       f'x
+each       x f'y
+each       f'[x;y]
+each       f'[x;y;z]
 
-      monad: scanm     f\x
-      monad: do        n f\x
-      monad: while     b f\x
- infix dyad: eachleft  x f\y
-prefix dyad: scand     f\x
-      other: scan      f\[x;y;z]
+scanm      f\x
+do         n f\x
+while      b f\x
+eachleft   x f\y
+eachleft   f\[x;y]
+scand      f\x
+scan       f\[x;y;z]
 
-      monad: overm     f/x
-      monad: do        n f/x
-      monad: while     b f/x
- infix dyad: eachright x f/y
-prefix dyad: overd     f/x
-      other: over      f/[x;y;z]
+overm      f/x
+do         n f/x
+while      b f/x
+eachright  x f/y
+eachright  f/[x;y]
+overd      f/x
+over       f/[x;y;z]
 
-eachprior is ep[f;x], ex: ep[-;3 2 1]
+eachprior  ep[f;x]
 ```
 
 ### slide

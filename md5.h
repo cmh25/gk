@@ -3,6 +3,6 @@
 
 #include <stddef.h>
 
-void md5(char *h, unsigned char *b, size_t n);
+void md5(char *h, const unsigned char *b, size_t n);
 
 #endif /* MD5_H */

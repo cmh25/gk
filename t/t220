@@ -1,0 +1,25 @@
+"1. Identity"
+I:(1 0 0;0 1 0;0 0 1)
+q:qr I
+q
+mul/q
+
+"2. Tall"
+A:(1 2;3 4;5 6)
+q:qr A
+q
+mul/q
+
+"3. Wide"
+B:(1 2 3;4 5 6)
+q:qr B
+q
+mul/q
+
+"4. Random-ish"
+C:(0.1 0.3 0.7;0.4 0.2 0.9;0.5 0.8 0.6)
+q:qr C
+q
+mul/q
+
+\\

@@ -1,0 +1,35 @@
+/ oop
+pet:{[name;species]
+  name0:name
+  species0:species
+  r.getname:{name0}
+  r.getspecies:{species0}
+  r}
+
+dog:{[name;breed]
+  r:pet[name;`dog]
+  breed0:breed
+  r.getbreed:{breed0}
+  r}
+
+cat:{[name;breed]
+  r:pet[name;`cat]
+  breed0:breed
+  r.getbreed:{breed0}
+  r}
+
+/ creating objects
+mypet:pet["BigT";"Dinosaur"]
+mydog:dog["Buddy";"Golden Retriever"]
+mycat:cat["Whiskers";"Tabby"]
+
+/ encapsulation
+@[{mydog.name0};`;:]  / error due to encapsulation
+mydog.getname`
+
+/ inheritance and polymorphism
+petinfo:{(x.getname`;x.getspecies`)}
+petinfo mydog
+petinfo mycat
+
+\\

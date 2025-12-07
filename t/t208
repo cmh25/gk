@@ -1,0 +1,15 @@
+/ --- width bump tests ---
+bz zb 600#"A"    / 600 A's → 9→10 bit bump
+bz zb 1200#"B"   / 1200 B's → 10→11 bit bump
+bz zb 2500#"C"   / 2500 C's → 11→12 bit bump
+
+/ --- reset/clear code test ---
+bz zb ,/600#,"AB"  / alternating AB, triggers reset
+
+/ --- truncation / corruption test ---
+e:zb "hello world"
+bz e                / should decode fine
+\e 0
+bz e[0 1 2 3 4]     / truncated, length error
+
+\\

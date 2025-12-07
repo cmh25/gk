@@ -1,0 +1,8 @@
+d:.+(`a`b`c;1 2 3)
+!d
+d nul
+d . nul
+d @ nul
+d[nul]
+d[]
+\\

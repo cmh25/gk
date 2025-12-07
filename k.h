@@ -1,144 +1,42 @@
-#ifndef K_H
-#define K_H
+#ifndef K__H
+#define K__H
 
-#include <stddef.h>
-#include <math.h>
-#include <stdint.h>
-#include <limits.h>
+#include "k.core/k.h"
 
-extern int precision;
+#define st(t,z) ((K)(t)<<48|((K)(z)&b(48)))
+#define set_sx(x,s) (((x) & ~ (b(56) & ~b(48))) | ((K)(s) << 48))
 
-/* 1=i, 2=f, 3=c, 4=s, 5=d, 6=n, 7=f, 0=kv, -1=iv, -2=fv, -3=cv, -4=sv */
-/* 16=inull */
-/* 20=qse, 21=se */
-/* 99=variable, 98=kerror */
-/* 10=plistlist, 11=plist, 12=elist, 13=rhs */
-/* 14=plist+av, 15=plist+o, 17=vo, 27=ov, 37=lambda, 47=av, 57=+: ,67=fc, 77 87=projection */
-typedef struct {
-  char t;          /* type */
-  unsigned int c;  /* count */
-  union {void *v;int i;double f;}; /* data */
-  int r;           /* reference count */
-} K;
+#define VST(x) (!s(x) || s(x) & 0x80)
+#define ISF(x) ((x)<256 || (VST(x) && s(x)&0x40))
 
-typedef struct {
-  char *s;
-  int i,j;
-} ERR;
-
-extern K *D,*one,*zero,*null,*inull;
-
-/* valid size for vector */
-#define VSIZE(x) do{if((x)==INT_MAX||(x)==INT_MIN||(x)==INT_MIN+1) return kerror("wsfull");}while(0);
-#define VSIZE2(x) do{if((x)>=INT_MAX) return (char*)-1;}while(0);
-
-/* creators */
-#define k1(v)  knew(1,0,0,(v),0,0)
-#define k2(v)  knew(2,0,0,0,(v),0)
-#define k3(v)  knew(3,0,0,(v),0,0)
-#define k4(v)  knew(4,0,(v),0,0,0)
-#define k5(v)  knew(5,0,(v),0,0,0)
-#define k7(v)  knew(7,0,(v),0,0,0)
-#define kv0(c) knew(0,(c),0,0,0,0)
-#define kv1(c) knew(-1,(c),0,0,0,0)
-#define kv2(c) knew(-2,(c),0,0,0,0)
-#define kv3(c) knew(-3,(c),0,0,0,0)
-#define kv4(c) knew(-4,(c),0,0,0,0)
-/* type-derivable accessors */
-#define a1 a->i
-#define a2 a->f
-#define a3 a->i
-#define a4 ((char*)a->v)
-#define a5 ((dict*)a->v)
-#define a7 ((fn*)(a)->v)
-#define b1 b->i
-#define b2 b->f
-#define b3 b->i
-#define b4 ((char*)b->v)
-#define b5 ((dict*)b->v)
-#define b7 ((fn*)(b)->v)
-#define v0(x) ((K**)((x)->v))
-#define v1(x) ((int*)((x)->v))
-#define v2(x) ((double*)((x)->v))
-#define v3(x) ((char*)((x)->v))
-#define v4(x) ((char**)((x)->v))
-/* count */
-#define ac a->c
-#define bc b->c
-#define cc c->c
-#define dc d->c
-#define rc r->c
-/* type */
-#define at a->t
-#define bt b->t
-#define ct c->t
-#define dt d->t
-#define rt r->t
-
-#define  DO(n,x) {int i,n_=(n);for(i=0;i<n_;i++){x;}}
-#define DO2(n,x) {int j,n_=(n);for(j=0;j<n_;j++){x;}}
-#define DO3(n,x) {int k,n_=(n);for(k=0;k<n_;k++){x;}}
-
-#define EC(x) if((x)->t==98)return (x);
-
-/* integer to double, 0I->0i, 0N->0n, -0I->-0i */
-#define I2F(a) \
-  ((a)==INT_MAX ? INFINITY \
-: (((a)==INT_MIN ? NAN \
-: (((a)==INT_MIN+1) ? -INFINITY \
-: (double)(a)))))
-
-/* floating point comparision */
-#define CMPFF(A,B) \
-  (isnan(A) && !isnan(B) ? -1 \
- : isnan(B) && !isnan(A) ?  1 \
- : isnan(A) && isnan(B)  ?  0 \
- : (A)<(B) ? -1 \
- : (A)>(B) ?  1 \
- : 0)
-/* floating point comparison with tolerance */
-#define EPSILON 0.0000000000001
-#define CMPFFE(A,B) \
-  ((A)-(B) > EPSILON*fabs((A)+(B)) ?  1 \
- : (B)-(A) > EPSILON*fabs((A)+(B)) ? -1 \
- : 0)
-#ifndef __linux__
-#define CMPFFT(A,B) \
-  (isnan(A) && !isnan(B) ? -1 \
- : isnan(B) && !isnan(A) ?  1 \
- : isnan(A) && isnan(B)  ?  0 \
- : isinf(A)&&isinf(B)&&A<0.0&&B>0.0 ? -1 \
- : isinf(B)&&isinf(A)&&B<0.0&&A>0.0 ?  1 \
- : isinf(A)&&!isinf(B)&&A<0.0 ? -1 \
- : isinf(B)&&!isinf(A)&&B<0.0 ?  1 \
- : isinf(A)&&!isinf(B)&&A>0.0 ?  1 \
- : isinf(B)&&!isinf(A)&&B>0.0 ? -1 \
- : CMPFFE(A,B))
-#else /* win32 and osx */
-#define CMPFFT(A,B) \
-  (isnan(A) && !isnan(B) ? -1 \
- : isnan(B) && !isnan(A) ?  1 \
- : isnan(A) &&  isnan(B) ?  0 \
- : isinf(A) <   isinf(B) ? -1 \
- : isinf(B) <   isinf(A) ?  1 \
- : CMPFFE(A,B))
+#ifdef _WIN32
+#define MAXR 100
+#else
+#define MAXR 1000
 #endif
+#define EMAX 15
 
-void kinit(int argc, char **argv);
-K* knew(char t, unsigned int c, void *v, int i, double f, int r);
-void kfree(K *k);
-void kdump(int l);
-static inline K* kref(K *k) { if(k->r>=0) k->r++; else if(k->r<=-2) k->r--; return k; }
-void kprint(K *p, char *s, char *s0, int nl);
-char* kprint_(K *p, char *s, char *s0, int nl);
-char* kprint5(K *p, char *s, char *s0, int nl);
-K* knorm(K *s);
-K* kerror(char *msg);
-K* kmix(K *s);
-K* kcp(K *s);
-int vname(char *s, int len);
-int kcmpr(K *a, K *b);
-uint64_t khash(K *a);
-int kreserved(char *s);
+extern i32 maxr;
+extern char *E[EMAX];
+extern i32 zeroclamp;
+extern char *R_NUL,*R_DRAW,*R_DOT,*R_VS,*R_SV,*R_ATAN2,*R_DIV,*R_AND,*R_OR,*R_SHIFT,*R_ROT,*R_XOR,*R_EUCLID,*R_ENCRYPT,*R_DECRYPT,*R_SETENV,*R_RENAME,*R_SQR,*R_ABS,*R_SLEEP,*R_IC,*R_CI,*R_DJ,*R_JD,*R_LT,*R_LOG,*R_EXP,*R_SQRT,*R_FLOOR,*R_CEIL,*R_SIN,*R_COS,*R_TAN,*R_ASIN,*R_ACOS,*R_ATAN,*R_AT,*R_SS,*R_SM,*R_LSQ,*R_SINH,*R_COSH,*R_TANH,*R_ERF,*R_ERFC,*R_GAMMA,*R_LGAMMA,*R_RINT,*R_TRUNC,*R_NOT,*R_KV,*R_VK,*R_VAL,*R_BD,*R_DB,*R_HB,*R_BH,*R_ZB,*R_BZ,*R_MD5,*R_SHA1,*R_SHA2,*R_GETENV,*R_SVD,*R_LU,*R_QR,*R_EXIT,*R_DEL,*R_DO,*R_WHILE,*R_IF,*R_IN,*R_DVL,*R_LIN,*R_DVL,*R_DV,*R_DI,*R_GTIME,*R_LTIME,*R_TL,*R_MUL,*R_INV,*R_CHOOSE,*R_ROUND,*R_SSR,*R_EP;
 
-#endif /* K_H */
+K kcpcb(K x);
+static inline K kcp2(K x) { return s(x)?kcpcb(x):k_(x); }
+static inline K kerror(char *e) { return t(4,st(0x84,sp(e))); }
+
+void kinit(void);
+const char* kprint_(K x, char *s, char *e, char *s0);
+void kprint(K x, char *s, char *e, char *s0);
+K kerror(char *e);
+i32 kreserved(char *p);
+K val(K x);
+K kamendi3(K d, K i, K f);
+K kamendi4(K d, K i, K f, K y);
+K kamend3(K d, K i, K f);
+K kamend4(K d, K i, K f, K y);
+K kslide(K f, K a, K x, char *av);
+void kdump(i32 l);
+void kdp(K x);
+
+#endif /* K__H */

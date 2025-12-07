@@ -1,7 +1,9 @@
 #ifndef AES256_H
 #define AES256_H
 
-char* aes256e(char *s, unsigned char *iv, unsigned char *key);
-char* aes256d(char *s, unsigned char *iv, unsigned char *key);
+#include <stddef.h>
+
+char* aes256e(const char *s, size_t n, unsigned char *iv, unsigned char *key, size_t *m);
+char* aes256d(const char *s, size_t n, unsigned char *iv, unsigned char *key, size_t *m);
 
 #endif /* AES256_H */

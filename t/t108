@@ -1,0 +1,23 @@
+a:!10
+a nul
+nul a
+b:a nul
+c:nul a
+a[0]:5
+b[0]:6
+c[0]:7
+a
+b
+c
+a[nul]
+b:a[nul]
+a[0]:100
+b[0]:101
+a
+b
+a:!10
+a@nul
+nul@a
+1@nul
+nul@1
+\\

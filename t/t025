@@ -1,0 +1,8 @@
+abs 0
+abs 1
+abs -1
+abs 0N
+abs 0I
+abs -0I
+abs 0 1 -1 0N 0I -0I
+\\

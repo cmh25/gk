@@ -1,0 +1,8 @@
+!10
+a:!5
+\
+backslash stops lexical analysis during loading
+when not in loading state, backslash is help
+nothing below here
+!10
+!100

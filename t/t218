@@ -1,0 +1,25 @@
+"1. Sanity & Identity Tests"
+I:(1 0 0;0 1 0;0 0 1)
+s:svd I
+s
+mul/s
+
+"2. Rectangular Tall Matrix"
+a:(1 2;3 4;5 6)
+s:svd a
+s
+mul/s
+
+"3. Wide Matrix"
+b:(1 2 3;4 5 6)
+s:svd b
+s
+mul/s
+
+"4. Rank-Deficient Matrix"
+c:(1 2 3;2 4 6;3 6 9)
+s:svd c
+s
+mul/s
+
+\\

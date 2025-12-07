@@ -1,14 +1,44 @@
 #include "sha2.h"
 #include <string.h>
+#include <stdint.h>
 
-#define ROR(n,m) ((n)>>(m)|(n)<<(32-(m)))
+#define ROR(x,n) (((x)>>(n))|((x)<<(32-(n))))
+#define SIG0(x) (ROR(x,7) ^ ROR(x,18) ^ ((x) >> 3))
+#define SIG1(x) (ROR(x,17) ^ ROR(x,19) ^ ((x) >> 10))
+#define EP0(x) (ROR(x,2) ^ ROR(x,13) ^ ROR(x,22))
+#define EP1(x) (ROR(x,6) ^ ROR(x,11) ^ ROR(x,25))
+#define CH(x,y,z)  (((x) & (y)) ^ (~(x) & (z)))
+#define MAJ(x,y,z) (((x) & (y)) ^ ((x) & (z)) ^ ((y) & (z)))
+#define LOAD32_BE(p) \
+  (((uint32_t)(p)[0] << 24) | \
+   ((uint32_t)(p)[1] << 16) | \
+   ((uint32_t)(p)[2] << 8)  | \
+   ((uint32_t)(p)[3]))
+#define STORE32_BE(p, v)       \
+  do {                         \
+    (p)[3] = (uint8_t)((v));   \
+    (p)[2] = (uint8_t)((v) >> 8);  \
+    (p)[1] = (uint8_t)((v) >> 16); \
+    (p)[0] = (uint8_t)((v) >> 24); \
+  } while (0)
+#define STORE64_BE(p, v)       \
+  do {                         \
+    (p)[0] = (uint8_t)((v) >> 56); \
+    (p)[1] = (uint8_t)((v) >> 48); \
+    (p)[2] = (uint8_t)((v) >> 40); \
+    (p)[3] = (uint8_t)((v) >> 32); \
+    (p)[4] = (uint8_t)((v) >> 24); \
+    (p)[5] = (uint8_t)((v) >> 16); \
+    (p)[6] = (uint8_t)((v) >> 8);  \
+    (p)[7] = (uint8_t)(v);         \
+  } while (0)
 
 typedef struct {
-  unsigned int n;
-  unsigned int h[8];
+  uint64_t n;
+  uint32_t h[8];
 } sha2s;
 
-static unsigned int K[64] = {
+static const uint32_t K[64] = {
   0x428a2f98, 0x71374491, 0xb5c0fbcf, 0xe9b5dba5,
   0x3956c25b, 0x59f111f1, 0x923f82a4, 0xab1c5ed5,
   0xd807aa98, 0x12835b01, 0x243185be, 0x550c7dc3,
@@ -27,28 +57,21 @@ static unsigned int K[64] = {
   0x90befffa, 0xa4506ceb, 0xbef9a3f7, 0xc67178f2,
 };
 
-static void sha2block(sha2s *s, unsigned char *p) {
+static void sha2block(sha2s *s, const unsigned char *p) {
   int i;
-  unsigned int w[64],v1,t1,v2,t2;
-  unsigned int a=s->h[0],b=s->h[1],c=s->h[2],d=s->h[3];
-  unsigned int e=s->h[4],f=s->h[5],g=s->h[6],h=s->h[7];
+  uint32_t w[64]={0};
+  uint32_t a=s->h[0],b=s->h[1],c=s->h[2],d=s->h[3];
+  uint32_t e=s->h[4],f=s->h[5],g=s->h[6],h=s->h[7];
 
   s->n++;
 
-  for (i = 0; i < 16; i++) w[i] = p[4*i]<<24 | p[4*i+1]<<16 | p[4*i+2]<<8 | p[4*i+3];
+  for(i=0;i<16;i++) w[i] = LOAD32_BE(p+4*i);
 
-  for (; i < 64; i++) {
-    v1 = w[i-2];
-    t1 = ROR(v1, 17) ^ ROR(v1, 19) ^ (v1 >> 10);
-    v2 = w[i-15];
-    t2 = ROR(v2, 7) ^ ROR(v2, 18) ^ (v2 >> 3);
-    w[i] = t1 + w[i-7] + t2 + w[i-16];
-  }
+  for(i=16;i<64;i++) w[i] = SIG1(w[i-2]) + w[i-7] + SIG0(w[i-15]) + w[i-16];
 
-  for (i = 0; i < 64; i++) {
-    t1 = h + (ROR(e, 6) ^ ROR(e, 11) ^ ROR(e, 25)) + ((e&f) ^ (~e&g)) + K[i] + w[i];
-    t2 = (ROR(a, 2) ^ ROR(a, 13) ^ ROR(a, 22)) + ((a&b) ^ (a&c) ^ (b&c));
-
+  for(i=0;i<64;i++) {
+    uint32_t t1 = h + EP1(e) + CH(e,f,g) + K[i] + w[i];
+    uint32_t t2 = EP0(a) + MAJ(a,b,c);
     h = g;
     g = f;
     f = e;
@@ -70,46 +93,34 @@ static void sha2block(sha2s *s, unsigned char *p) {
 }
 
 static void sha2final(sha2s *s, unsigned char *p, size_t n, unsigned char *d) {
-  unsigned int i,hi,len=s->n*64+n,*h=s->h;
+  uint32_t i,*h=s->h;
+  uint64_t len=(s->n*64ULL+n)*8ULL;
 
   p[n++] = 0x80;
-  if(n<=56) memset(p+n,0,64-n-5);
+  if(n<=56) memset(p+n,0,56-n);
   else {
     memset(p+n,0,64-n);
     sha2block(s,p);
     memset(p,0,56);
   }
 
-  hi = len >> 29; len <<= 3;
-  p[56] = p[57] = p[58] = 0;
-  p[59] = hi;
-  p[60] = len>>24;
-  p[61] = len>>16;
-  p[62] = len>>8;
-  p[63] = len;
-
-  sha2block(s, p);
-
-  for(i=0;i<32>>2;i++) {
-    d[i*4]   = h[i]>>24;
-    d[i*4+1] = h[i]>>16;
-    d[i*4+2] = h[i]>>8;
-    d[i*4+3] = h[i];
-  }
+  STORE64_BE(p+56,len);
+  sha2block(s,p);
+  for(i=0;i<8;i++) STORE32_BE(d+4*i,h[i]);
 }
 
-static void hex(char *s, unsigned char *b, size_t n) {
-  char h[16]="0123456789abcdef";
+static void hex(char *s, const unsigned char *b, size_t n) {
+  const char h[]="0123456789abcdef";
   size_t i;
   for(i=0;i<n;i++) {
     s[2*i]=h[b[i]>>4];
     s[2*i+1]=h[b[i]&0xf];
   }
-  /* s[2*i]=0; */
+  s[2*i]=0;
 }
 
-void sha2(char *h, unsigned char *b, size_t n) {
-  unsigned char block[64],d[32];
+void sha2(char *h, const unsigned char *b, size_t n) {
+  unsigned char block[64]={0},d[32];
   sha2s s={0,{0x6a09e667,0xbb67ae85,0x3c6ef372,0xa54ff53a,
               0x510e527f,0x9b05688c,0x1f83d9ab,0x5be0cd19}};
   while(n>=64) {
@@ -117,7 +128,7 @@ void sha2(char *h, unsigned char *b, size_t n) {
     b+=64;
     n-=64;
   }
-  strncpy((char*)block,(char*)b,n);
+  memcpy((char*)block,(char*)b,n);
   sha2final(&s,block,n,d);
   hex(h,d,32);
 }

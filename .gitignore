@@ -1,8 +1,14 @@
 gk
 *.o
-*.obj
-*.exe
 *~
 *.swp
 *.swo
+k.a
+kd.a
+*.obj
+*.exe
+*.lib
+*.exp
+*.pdb
+.DS_Store
 gk.dSYM

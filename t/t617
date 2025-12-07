@@ -1,0 +1,43 @@
+\e 0
+p:{I::0;t J::"(",x:x dv" "}
+c:{$[~4:x;"n";&/x lin "";"v";"osn"(&/'x lin/(,"[";",)] "))?1]}
+j:{i -1+I+:1}
+i:{$[x<#J;J x;" "]}
+g:{x(1;)(~3>#x)|"v"=c x 1}
+l:{("("~*x)&~x~"()"}
+E:{|/",(["=*j`}{e t`}\
+t:{$["s"=c i I;"";{"o"=c i I}{$["["=*i I;E x;(j`;x)]}/g E i I]
+e:{$["s"=c i I;x;v[f:t`]>v`;(f;x;e t`);(x;e f)]}                           }
+p""
+\\
+
+\
+
+/ above distilled down to this still generated the same crash
+p:{I::0;t J::"(",x:x dv" "}
+j:{i -1+I+:1}
+i:{$[x<#J;J x;" "]}
+E:{|/",(["=*j`}{e t`}\
+t:{{"o"=i I}{j`}/E i I
+   e:{}}
+p""
+
+
+afl found this test case that caused a crash
+
+this resulted in a language change to make results of assignments more consistent
+
+it's always been true that an assigment doesn't print a value, but it does yield one.
+
+  a:1
+  q:a:1
+  q
+1
+
+now it's true for functions as well.
+
+  f:{a:1}
+  f`
+  q:f`
+  q
+1

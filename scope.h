@@ -4,25 +4,21 @@
 #include "dict.h"
 #include "k.h"
 
-#define  SG(x) do{if((x)->t==99){(x)=scope_get(cs,(x)->v);}}while(0)
-#define SG2(x) do{if((x)->t==99){(x)=scope_get(cs,(x)->v);}else kref((x));}while(0)
-#define  SR(x) do{K*x_;if((x)->t==99){x_=(x);(x)=scope_get(cs,(x)->v);kfree(x_);}}while(0)
+extern K ks,gs,cs;
+extern K ktree,C,Z,D;
+#define LOCALSMAX 2048
+extern K locals[LOCALSMAX];
+extern int localsi;
 
-typedef struct scope {
-  struct scope *p; /* parent */
-  dict *d;         /* function local vars */
-  char *k;         /* ktree path */
-} scope;
-
-extern scope *ks,*gs,*cs;
-extern dict *ktree,*C,*Z;
-
-scope* scope_new(scope *p);
-scope* scope_newk(scope *p, char *k);
-void scope_free(scope *s);
-K* scope_get(scope *s, char *n);
-K* scope_set(scope *s, char *n, K *v);
-scope* scope_cp(scope *s);
-scope* scope_find(dict *d);
+void scope_init(int argc, char **argv);
+K scope_new(K p);
+K scope_newk(K p, K k);
+void scope_free(K s);
+void scope_free_all(void);
+K scope_get(K s, K n);
+K scope_set(K s, K n, K v);
+K scope_cp(K s);
+K scope_find(char *x);
+int scope_vktp(char *x);
 
 #endif /* SCOPE_H */

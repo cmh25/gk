@@ -1,9 +1,0 @@
-a:draw[_1e8;10]
-b:draw[_1e8;10]
-\t c:a+b
-\t +/c
-a:draw[_1e8;0]
-b:draw[_1e8;0]
-\t c:a+b
-\t +/c
-\\

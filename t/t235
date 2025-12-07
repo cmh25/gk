@@ -1,0 +1,13 @@
+/ closure
+j:0
+f:{i:0;{i:i+x;j:5;i}}
+g:f`
+h:f`
+g 2
+g 2
+g 2
+h 2
+h 2
+h 2
+j
+\\

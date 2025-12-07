@@ -1,0 +1,7235 @@
+/ http://web.archive.org/web/20010501133610/http:/www.kx.com/technical/contribs/eugene/kidioms.html
+
+"1. ascending ordinals (ranking, shareable)"
+x:11 17 12 13 13 13 13 18
+r:x[<x]?/x
+r2:r~0 6 1 2 2 2 2 7
+if[~r2;`0:,"failed";exit 1]
+
+"2. max scan x partition y"
+x:1 1 0 0 0 1 0 0 1 1
+y:3 4 8 2 5 6 9 4 5 4
+r:,/|\'(&x)_ y
+r2:r~3 4 8 8 8 6 9 9 5 4
+if[~r2;`0:,"failed";exit 1]
+
+"3. min scan x partitions y"
+x:1 1 0 0 0 1 0 0 1 1
+y:3 4 8 2 5 6 9 4 5 4
+r:,/&\'(&x)_ y
+r2:r~3 4 4 2 2 6 6 4 5 4
+if[~r2;`0:,"failed";exit 1]
+
+"4. are x and y permutations of each other"
+x:15 16 13 18 14 11 12
+y:15 16 13 19 14 11 12
+r:x[<x]~y[<y]
+r2:r~0
+if[~r2;`0:,"failed";exit 1]
+y:15 16 13 14 18 12 11
+r:x[<x]~y[<y]
+r2:r~1
+if[~r2;`0:,"failed";exit 1]
+
+"5. sort subvectors ascending"
+"5a. sort ascending"
+sa:{x[<x]}
+r:sa 30 10 40 20
+r2:r~10 20 30 40
+if[~r2;`0:,"failed";exit 1]
+r:sa"popfly"
+r2:r~"floppy"
+if[~r2;`0:,"failed";exit 1]
+
+"5b. indices from lengths"
+il:{(#x)#+\0,x}
+r:il 4 3
+r2:r~0 4
+if[~r2;`0:,"failed";exit 1]
+x:10 30 20 50 60 40 5
+y:4 3
+r:,/sa'(il y)_ x
+r2:r~10 20 30 50 5 40 60
+if[~r2;`0:,"failed";exit 1]
+
+"6. subvector minima"
+x:1 1 0 0 0 1 1 0 0 1
+y:3 4 8 2 5 6 9 4 5 4
+r:&/'(&x)_ y
+r2:r~3 2 6 4 4
+if[~r2;`0:,"failed";exit 1]
+
+"7. subvector grade up (see 15 for down)"
+x:1 0 0 1 0 0 1 0
+y:14 12 18 16 13 15 11 17
+r:{,/x+'<'x _ y}[&x;y]
+/r~1 0 2 4 3 5 6 7 / not sure where this comes from, but it seems wrong
+r2:r~1 0 2 4 5 3 6 7
+if[~r2;`0:,"failed";exit 1]
+
+"8. sort rows ascending"
+/x: 3 5 draw 10
+x:(6 3 3 9 7
+   9 4 4 7 9
+   9 4 7 8 9)
+r:sa'x
+r2:r~(3 3 6 7 9
+      4 4 7 9 9
+      4 7 8 9 9)
+if[~r2;`0:,"failed";exit 1]
+
+/ 9. see 8
+
+/ TODO projection
+/"10. Replicate at depth; add new dimension y-fold after dimension x of array z"
+/"10a. depth (n is depth at which to apply f)"
+/d:{[n;f]$[n;.z.f[n-1;f]';f]}
+/h:{d[x;y#,]z}
+/z:2 5#"abcdefghij"
+/z
+/("abcde"
+/ "fghij")
+/q:h[0;3;z]
+/^q
+/3 2 5
+/q
+/(("abcde"
+/  "fghij")
+/ ("abcde"
+/  "fghij")
+/ ("abcde"
+/  "fghij"))
+/r:h[1;3;z]
+/^r
+/2 3 5
+/r
+/(("abcde"
+/  "abcde"
+/  "abcde")
+/ ("fghij"
+/  "fghij"
+/  "fghij"))
+/s:h[2;3;z]
+/^s
+/2 5 3
+/s
+/(("aaa"
+/  "bbb"
+/  "ccc"
+/  "ddd"
+/  "eee")
+/ ("fff"
+/  "ggg"
+/  "hhh"
+/  "iii"
+/  "jjj"))
+
+"11. merge x, y, z, … under control of g (mesh)"
+x:"abcd"
+y:"123456789"
+z:"zz"
+g:1 0 1 1 2 1 2 1 1 0 1 0 1 0 0
+r:(x,y,z)[<<g]
+r2:r~"2a34z5z67b8c9d1"
+/r2:r~"3a45z6z78b9cd12" / result on site differs from e
+if[~r2;`0:,"failed";exit 1]
+
+/ 12. see 11
+
+"13. ascending ordinals (ranking, all different)"
+x:15 16 13 18 15 12 13
+r:<<x
+r2:r~3 5 1 6 4 0 2
+if[~r2;`0:,"failed";exit 1]
+
+"14. subvector maxima"
+x:1 1 0 0 0 1 1 0 0 1
+y:3 4 8 2 5 6 9 4 5 4
+r:|/'(&x)_ y
+r2:r~3 8 6 9 4
+if[~r2;`0:,"failed";exit 1]
+
+"15. subvector grade down (see 7 for up)"
+x:1 0 0 1 0 0 1 0
+y:14 12 18 15 13 16 11 17
+r:{,/x+'>'x _ y}[&x;y]
+r2:r~2 0 1 5 3 4 7 6
+if[~r2;`0:,"failed";exit 1]
+
+"16. merge x and y by g"
+x:5 9 8 7 4 3
+y:10 20 30 40
+g:1 0 1 1 0 0 1 0 1 1
+r:(x,y)[<>g]
+r2:r~5 10 9 8 20 30 7 40 4 3
+if[~r2;`0:,"failed";exit 1]
+
+"17. descending ordinals (ranking, all different)"
+x:15 16 13 18 14 11 12
+r:<>x
+r2:r~2 1 4 0 3 6 5
+if[~r2;`0:,"failed";exit 1]
+
+"18. sort ascending by internal alphabet"
+w:("once";"more";"into")
+r:w[<`$w]
+r2:r~("into";"more";"once")
+if[~r2;`0:,"failed";exit 1]
+
+"19. sort character matrix ascending"
+m:("scion";"icons";"coins")
+r:m[<m]
+r2:r~("coins";"icons";"scion")
+if[~r2;`0:,"failed";exit 1]
+
+"20. is x a permutation"
+/x:7 draw -7
+x:0 5 1 6 4 3 2
+r:x~<<x
+r2:r~1
+if[~r2;`0:,"failed";exit 1]
+
+/x:7 draw 7
+x:4 3 3 6 0 5 4
+r:x~<<x
+r2:r~0
+if[~r2;`0:,"failed";exit 1]
+
+"21. rotate infixes of y determined by boolean x to the left one place"
+y:"abcdefghij"
+x:1 0 1 0 0 1 1 0 0 0
+r:y[<x++\x]
+r2:r~"badecfhijg"
+if[~r2;`0:,"failed";exit 1]
+
+"22. index of first occurrence of minimum of x"
+/x:5+13 draw 10
+x:14 12 10 9 6 12 6 11 8 12 6 13 6
+r:*<x
+r2:r~4
+if[~r2;`0:,"failed";exit 1]
+r:x?&/x
+r2:r~4
+if[~r2;`0:,"failed";exit 1]
+
+"23. index of first occurrence of maximum of x"
+/x:5+13 draw 10
+x:11 10 8 8 8 7 5 9 12 12 10 12 8
+r:x?|/x
+r2:r~8
+if[~r2;`0:,"failed";exit 1]
+r:*>x
+r2:r~8
+if[~r2;`0:,"failed";exit 1]
+
+"24. median"
+/x:11 draw 100
+x:61 20 51 12 34 31 51 29 35 17 89
+r:x[<x]
+r2:r~12 17 20 29 31 34 35 51 51 61 89
+if[~r2;`0:,"failed";exit 1]
+r:x[(<x)[_.5*#x]]
+r2:r~34
+if[~r2;`0:,"failed";exit 1]
+
+/ TODO ssr
+/"25. Doubling quotes"
+/f:{ssr[x;"\"";"\"\""]}
+/a:"Did he say, \"Hello\"?"
+/f a
+/"Did he say, \"\"Hello\"\"?"
+
+"26. insert y '*' after '=' in x"
+x:"abc=,d=,fgh="
+g:&x="="
+/g
+/3 6 11
+y:5
+r:(x,"*")[(#x)&<(!#x),(y*#g)#g]
+r2:r~"abc=*****,d=*****,fgh=*****"
+if[~r2;`0:,"failed";exit 1]
+
+"27. insert 0 after indices y of x"
+x:"abc,def,gh"
+y:(&x=","),#x
+/y
+/3 7 10
+r:<(!#x),y
+r2:r~0 1 2 3 10 4 5 6 7 11 8 9 12
+if[~r2;`0:,"failed";exit 1]
+/#x
+/10
+r:(#x)><(!#x),y
+r2:r~1 1 1 1 0 1 1 1 1 0 1 1 0
+if[~r2;`0:,"failed";exit 1]
+
+"28. insert g elements h after indices y of x"
+x:"abcd=,def=,gh="
+y:&x="="
+/y
+/4 9 13
+g:4
+h:"x"
+a:g*#y
+/a
+/12
+r:a#y
+r2:r~4 9 13 4 9 13 4 9 13 4 9 13
+if[~r2;`0:,"failed";exit 1]
+r:(x,a#h)[<(!#x),a#y]
+r2:r~"abcd=xxxx,def=xxxx,gh=xxxx"
+if[~r2;`0:,"failed";exit 1]
+
+"29. insert g elements h before indices y of x"
+x:"1234,234,34"
+y:0 5 9
+g:5
+h:"*"
+a:g*#y
+r:((a#h),x)[<(a#y),!#x]
+r2:r~"*****1234,*****234,*****34"
+if[~r2;`0:,"failed";exit 1]
+
+"30. grade up x according to key y"
+x:"fig lime"
+y:" abcdefghijklmn"
+r:y?/x
+r2:r~6 9 7 0 12 9 13 5
+if[~r2;`0:,"failed";exit 1]
+r:<y?/x
+r2:r~3 7 0 2 1 5 4 6
+if[~r2;`0:,"failed";exit 1]
+r:x[3 7 0 2 1 5 4 6]
+r2:r~" efgiilm"
+if[~r2;`0:,"failed";exit 1]
+
+"31. merge"
+x:"egg"
+y:"mrin"
+g:1 0 1 0 1 1 0
+r:(x,y)[<<g]
+r2:r~"merging"
+if[~r2;`0:,"failed";exit 1]
+
+"32. sort ascending indices x according to data y"
+x:2 3 4 5 0 1 8 7 6
+y:79 74 78 76 77 75 73 72 71
+r:x[<y[x]]
+r2:r~8 7 6 1 5 3 4 2 0
+if[~r2;`0:,"failed";exit 1]
+
+"33. sort matrix x on column y"
+/x:5 6 draw 100
+x:(37 41 41 72 60 0
+   91 59 5 19 17 26
+   24 90 28 63 42 56
+   75 67 45 14 38 49
+   85 11 23 61 64 44)
+y:2
+r:x[;y]
+r2:r~41 5 28 45 23
+if[~r2;`0:,"failed";exit 1]
+r:<x[;y]
+r2:r~1 4 2 0 3
+if[~r2;`0:,"failed";exit 1]
+r:x[<x[;y];]
+r2:r~(91 59 5 19 17 26
+     85 11 23 61 64 44
+     24 90 28 63 42 56
+     37 41 41 72 60 0
+     75 67 45 14 38 49)
+if[~r2;`0:,"failed";exit 1]
+
+"34. choose grading direction"
+/x:10 draw 100
+x:30 45 97 77 35 49 87 82 79 8
+y:1
+r:<x*1 -1[y]
+r2:r~2 6 7 8 3 5 1 4 0 9
+if[~r2;`0:,"failed";exit 1]
+y:0
+r:<x*1 -1[y]
+r2:r~9 0 4 1 5 3 8 7 6 2
+if[~r2;`0:,"failed";exit 1]
+
+"35. sort ascending"
+/x:10 draw 100
+x:84 63 31 42 95 58 9 37 84 39
+r:<x
+r2:r~6 2 7 9 3 5 1 0 8 4
+if[~r2;`0:,"failed";exit 1]
+r:x[<x]
+r2:r~9 31 37 39 42 58 63 84 84 95
+if[~r2;`0:,"failed";exit 1]
+
+"36. sort y on x"
+/x:6 draw 10
+/y:6 draw 20
+x:9 2 3 1 9 3
+y:7 8 17 11 16 6
+r:y[<x]
+r2:r~11 8 17 6 7 16
+if[~r2;`0:,"failed";exit 1]
+
+"37. invert permutation (the inverse puts y in ascending order)"
+/x: 7 draw -7
+x:5 3 2 0 6 4 1
+r:<x
+r2:r~3 6 2 1 5 0 4
+if[~r2;`0:,"failed";exit 1]
+/check:
+r:x[<x]
+r2:r~0 1 2 3 4 5 6
+if[~r2;`0:,"failed";exit 1]
+
+"38. sort matrix descending"
+/x:5 6 draw 3
+x:(0 0 0 1 0 1
+   1 0 2 2 0 1
+   0 2 1 1 1 1
+   0 0 0 1 1 2
+   1 2 2 0 2 1)
+r:x[<x]
+r2:r~(0 0 0 1 0 1
+     0 0 0 1 1 2
+     0 2 1 1 1 1
+     1 0 2 2 0 1
+     1 2 2 0 2 1)
+if[~r2;`0:,"failed";exit 1]
+/y:"abcde"[5 6 draw 5]
+y:("dcdbed"
+   "aaaaab"
+   "dcdbdc"
+   "baaace"
+   "eedbec")
+r:y[<y]
+r2:r~("aaaaab"
+     "baaace"
+     "dcdbdc"
+     "dcdbed"
+     "eedbec")
+if[~r2;`0:,"failed";exit 1]
+
+"39. reverse infixes in x of lengths y"
+/x:11+!8
+x:11 12 13 14 15 16 17 18
+y:3 3 2
+r:x[|>+\(!#x)lin il y]
+r2:r~13 12 11 16 15 14 18 17
+if[~r2;`0:,"failed";exit 1]
+
+"40. reverse infixes in x starting at indices y"
+x:1 0 1 0 0 1 0 0 0 1
+y:1 2 3 4 5 6 7 8 9 10
+r:+\x
+r2:r~1 1 2 2 2 3 3 3 3 4
+if[~r2;`0:,"failed";exit 1]
+r:>+\x
+r2:r~9 5 6 7 8 2 3 4 0 1
+if[~r2;`0:,"failed";exit 1]
+r:|>+\x
+r2:r~1 0 4 3 2 8 7 6 5 9
+if[~r2;`0:,"failed";exit 1]
+r:y[|>+\x]
+r2:r~2 1 5 4 3 9 8 7 6 10
+if[~r2;`0:,"failed";exit 1]
+
+"41. indices of ones in boolean vector x"
+x:0 0 1 0 1 0 0 0 1 0
+r:&x
+r2:r~2 4 8
+if[~r2;`0:,"failed";exit 1]
+
+"42. move all blanks to end of text"
+x:" sign if i cant "
+r:x[<" "=x]
+r2:r~"significant     "
+if[~r2;`0:,"failed";exit 1]
+
+"43. move elements of x with characteristic y to beginning"
+x:"mjinase"
+y:0 1 0 0 1 1 0
+r:x[>y]
+r2:r~"jasmine"
+if[~r2;`0:,"failed";exit 1]
+
+"44. sort descending"
+/x:8 draw 10
+x:3 5 0 4 5 2 4 5
+r:x[>x]
+r2:r~5 5 5 4 4 3 2 0
+if[~r2;`0:,"failed";exit 1]
+
+"45. binary representation of positive integer"
+x:16
+r:2 vs x
+r2:r~1 0 0 0 0
+if[~r2;`0:,"failed";exit 1]
+x:20
+r:2 vs x
+r2:r~1 0 1 0 0
+if[~r2;`0:,"failed";exit 1]
+
+"46. transposed formatted integers 1 through x"
+x:15
+r:q:10 vs 1+!x
+r2:r~(0 0 0 0 0 0 0 0 0 1 1 1 1 1 1
+      1 2 3 4 5 6 7 8 9 0 1 2 3 4 5)
+if[~r2;`0:,"failed";exit 1]
+r:"0123456789"[q]
+r2:r~("000000000111111"
+      "123456789012345")
+if[~r2;`0:,"failed";exit 1]
+
+"47. polynomial with roots x"
+x:1 -6 8
+r:{(x,0)-y*0,x}/1,x
+r2:r~1 -3 -46 48
+if[~r2;`0:,"failed";exit 1]
+x:2 4
+r:{(x,0)-y*0,x}/1,x
+r2:r~1 -6 8
+if[~r2;`0:,"failed";exit 1]
+x:1 2
+r:{(x,0)-y*0,x}/1,x
+r2:r~1 -3 2
+if[~r2;`0:,"failed";exit 1]
+x:1 2 3
+r:{(x,0)-y*0,x}/1,x
+r2:r~1 -6 11 -6
+if[~r2;`0:,"failed";exit 1]
+
+"48. saddle point indices"
+x:(4 2 4 4 2 4
+   5 3 5 5 3 5
+   4 2 4 4 2 4
+   1 2 4 4 2 4
+   5 3 5 5 3 5
+   4 2 4 4 2 4)
+"48a. row minimum"
+rn:{x='&/'x}
+r:rn x
+r2:r~(0 1 0 0 1 0
+      0 1 0 0 1 0
+      0 1 0 0 1 0
+      1 0 0 0 0 0
+      0 1 0 0 1 0
+      0 1 0 0 1 0)
+if[~r2;`0:,"failed";exit 1]
+"48b. column maximum"
+cx:{x=\|/x}
+r:cx x
+r2:r~(0 0 0 0 0 0
+      1 1 1 1 1 1
+      0 0 0 0 0 0
+      0 0 0 0 0 0
+      1 1 1 1 1 1
+      0 0 0 0 0 0)
+if[~r2;`0:,"failed";exit 1]
+"48c. minmax of rows and columns"
+minmax:{(rn x)&(cx x)}
+r:minmax x
+r2:r~(0 0 0 0 0 0
+      0 1 0 0 1 0
+      0 0 0 0 0 0
+      0 0 0 0 0 0
+      0 1 0 0 1 0
+      0 0 0 0 0 0)
+if[~r2;`0:,"failed";exit 1]
+"48d. locate 1s in ravel of Boolean matrix"
+ones:{&,/minmax x}
+r:ones x
+r2:r~7 10 25 28
+if[~r2;`0:,"failed";exit 1]
+"48e. saddle point indices"
+sp:{(^x) vs ones x}
+r:sp x
+r2:r~(1 1 4 4
+      1 4 1 4)
+if[~r2;`0:,"failed";exit 1]
+
+"49. hexadecimal from decimal"
+hex:"0123456789abcdef"
+hd:{+hex[16 vs x]}
+x:10 12 19 1 28 100
+r:hd x
+r2:r~("0a"
+      "0c"
+      "13"
+      "01"
+      "1c"
+      "64")
+if[~r2;`0:,"failed";exit 1]
+y:10 12 19 1 28 300
+r:hd y
+r2:r~("00a"
+      "00c"
+      "013"
+      "001"
+      "01c"
+      "12c")
+if[~r2;`0:,"failed";exit 1]
+
+"50. connectivity list from connectivity matrix"
+m:(1 0 1;1 0 1)
+/m
+/(1 0 1
+/ 1 0 1)
+r:,/m
+r2:r~1 0 1 1 0 1
+if[~r2;`0:,"failed";exit 1]
+r:&,/m
+r2:r~0 2 3 5
+if[~r2;`0:,"failed";exit 1]
+r:(^m)vs &,/m
+r2:r~(0 0 1 1
+      0 2 0 2)
+if[~r2;`0:,"failed";exit 1]
+lm:{(^x)vs &,/x}
+r:lm m
+r2:r~(0 0 1 1
+      0 2 0 2)
+if[~r2;`0:,"failed";exit 1]
+
+"51. indices"
+ix:{(^x)vs!*/^x}
+r:ix[!6]
+r2:r~,0 1 2 3 4 5
+if[~r2;`0:,"failed";exit 1]
+r:ix[2 3#!6]
+r2:r~(0 0 0 1 1 1
+      0 1 2 0 1 2)
+if[~r2;`0:,"failed";exit 1]
+r:ix[2 3 2#!12]
+r2:r~(0 0 0 0 0 0 1 1 1 1 1 1
+      0 0 1 1 2 2 0 0 1 1 2 2
+      0 1 0 1 0 1 0 1 0 1 0 1)
+if[~r2;`0:,"failed";exit 1]
+
+"52. truth table of order x"
+tt:{2 vs !_2^x}
+r:tt 1
+r2:r~,0 1
+if[~r2;`0:,"failed";exit 1]
+r:tt 2
+r2:r~(0 0 1 1
+      0 1 0 1)
+if[~r2;`0:,"failed";exit 1]
+r:tt 3
+r2:r~(0 0 0 0 1 1 1 1
+      0 0 1 1 0 0 1 1
+      0 1 0 1 0 1 0 1)
+if[~r2;`0:,"failed";exit 1]
+
+"53. decimal digits from integer"
+dd:{10 vs x}
+r:dd 2001
+r2:r~2 0 0 1
+if[~r2;`0:,"failed";exit 1]
+r:dd 123456789
+r2:r~1 2 3 4 5 6 7 8 9
+if[~r2;`0:,"failed";exit 1]
+
+"54. represent x in base y"
+x:256
+y:16
+r:y vs x
+r2:r~1 0 0
+if[~r2;`0:,"failed";exit 1]
+x:36
+y:2
+r:y vs x
+r2:r~1 0 0 1 0 0
+if[~r2;`0:,"failed";exit 1]
+x:123
+y:10
+r:y vs x
+r2:r~1 2 3
+if[~r2;`0:,"failed";exit 1]
+
+"55. indices in x containing elements in y"
+x:(3 7 8;2 5 9)
+y:(3 1 6;8 9 2)
+r:(^x)vs &(,/x) lin\ ,/y
+r2:r~(0 0 1 1
+      0 2 0 2)
+if[~r2;`0:,"failed";exit 1]
+
+"56. hexadecimal from decimal characters"
+hex:"0123456789abcdef"
+x:" abcdef"
+r:ic x
+r2:r~32 97 98 99 100 101 102
+if[~r2;`0:,"failed";exit 1]
+r:16 vs ic x
+r2:r~(2 6 6 6 6 6 6
+      0 1 2 3 4 5 6)
+if[~r2;`0:,"failed";exit 1]
+r:hex[16 vs ic x]
+r2:r~("2666666"
+      "0123456")
+if[~r2;`0:,"failed";exit 1]
+r:+hex[16 vs ic x]
+r2:r~("20"
+      "61"
+      "62"
+      "63"
+      "64"
+      "65"
+      "66")
+if[~r2;`0:,"failed";exit 1]
+r:" ",'+hex[16 vs ic x]
+r2:r~(" 20"
+      " 61"
+      " 62"
+      " 63"
+      " 64"
+      " 65"
+      " 66")
+if[~r2;`0:,"failed";exit 1]
+r:,/" ",'+hex[16 vs ic x]
+r2:r~" 20 61 62 63 64 65 66"
+if[~r2;`0:,"failed";exit 1]
+x:"GOLDEN"
+r:,/" ",'+hex[16 vs ic x]
+r2:r~" 47 4f 4c 44 45 4e"
+if[~r2;`0:,"failed";exit 1]
+
+"57. vector from date"
+/_t
+/_gtime _t
+a:-388787045
+r:_gtime a
+r2:r~20220906 33555
+if[~r2;`0:,"failed";exit 1]
+r:*_gtime a
+r2:r~20220906
+if[~r2;`0:,"failed";exit 1]
+r:100000 100 100 vs *_gtime a
+r2:r~2022 9 6
+if[~r2;`0:,"failed";exit 1]
+
+"58. pair each element of !x with each element of !y"
+x:3
+y:4
+r:(x,y)vs !x*y
+r2:r~(0 0 0 0 1 1 1 1 2 2 2 2
+      0 1 2 3 0 1 2 3 0 1 2 3)
+if[~r2;`0:,"failed";exit 1]
+
+/59. truth table of order x (see 52)
+
+/60. truth table of order x (see 52)
+
+"61. cyclic counter, repeating 1 through n"
+x:1+!10
+y:8
+r:1+x!y
+r2:r~2 3 4 5 6 7 8 1 2 3
+if[~r2;`0:,"failed";exit 1]
+
+"62. integer and fractional parts of positive x"
+x:12.3 23.4 5.33 8.999
+if0:{(_ x),'x-_ x}
+r:if0 x
+r2:r~((12;0.3)
+      (23;0.4)
+      (5;0.33)
+      (8;0.999))
+if[~r2;`0:,"failed";exit 1]
+
+"63. represent x in radix 10 100 1000"
+x:123456
+r:10 100 1000 vs x
+r2:r~1 23 456
+if[~r2;`0:,"failed";exit 1]
+x:123456789
+r:10 100 1000 vs x
+r2:r~4 56 789
+if[~r2;`0:,"failed";exit 1]
+
+"64. represent integer time hhmmss as character time, items separated by colons"
+"64a. local time as integer of form hhmmss"
+x:*|_gtime -388787045
+r:x
+r2:r~33555
+if[~r2;`0:,"failed";exit 1]
+q:2 _ $ 1000 sv 100 vs 1000000 + x
+r:q
+r2:r~"03035055"
+if[~r2;`0:,"failed";exit 1]
+r:@[q;2 5;:;":"]
+r2:r~"03:35:55"
+if[~r2;`0:,"failed";exit 1]
+
+"65. represent integer date in form yyyymmdd as character date, parts separated by /"
+x:*_ltime -388787045
+r:x
+r2:r~20220905
+if[~r2;`0:,"failed";exit 1]
+r:1000 sv 10000 100 100 vs x
+r2:r~2022009005
+if[~r2;`0:,"failed";exit 1]
+q:$1000 sv 10000 100 100 vs x
+r:q
+r2:r~"2022009005"
+if[~r2;`0:,"failed";exit 1]
+r:@[q;4 7;:;"/"]
+r2:r~"2022/09/05"
+if[~r2;`0:,"failed";exit 1]
+
+"66. selection by encoded list"
+x:1 0 1
+r:"abcdefgh"[2 sv x]
+r2:r~"f"
+if[~r2;`0:,"failed";exit 1]
+x:0 0 0
+r:"abcdefgh"[2 sv x]
+r2:r~"a"
+if[~r2;`0:,"failed";exit 1]
+x:1 1 1
+r:"abcdefgh"[2 sv x]
+r2:r~"h"
+if[~r2;`0:,"failed";exit 1]
+
+"67. Extrapolated value of abscissa x and ordinate y at g"
+x:-1 0 1
+y:1 0 1.0 / y ~ x^2
+g:10
+r:|!#x
+r2:r~2 1 0
+if[~r2;`0:,"failed";exit 1]
+r:x^/|!#x
+r2:r~(1 0 1.0
+      -1 0 1.0
+      1 1 1.0)
+if[~r2;`0:,"failed";exit 1]
+r:$y lsq x^/|!#x
+/r2:r~1 0 4.440892e-016 / different values near zero that e
+r2:r~$1 0 0 
+if[~r2;`0:,"failed";exit 1]
+r:g sv y lsq x^/|!#x
+r2:r~100.0
+if[~r2;`0:,"failed";exit 1]
+g:5
+r:g sv y lsq x^/|!#x
+r2:r~25.0
+if[~r2;`0:,"failed";exit 1]
+
+/68. not relevant
+
+"69. value of ascending polynomial coefficients y at points x"
+x:-1 0 2
+y: 4 0 5 1
+r:x sv\ y
+r2:r~-8 1 43
+if[~r2;`0:,"failed";exit 1]
+
+"70. remove duplicate rows"
+x:("to"
+   "be"
+   "or"
+   "not"
+   "to"
+   "be")
+r:?x
+r2:r~("to"
+      "be"
+      "or"
+      "not")
+if[~r2;`0:,"failed";exit 1]
+
+"71. connectivity matrix from connectivity list"
+y:(0 1
+   0 2
+   1 0
+   1 2
+   2 2)
+x:3
+r:x sv/y
+r2:r~1 2 3 5 8
+if[~r2;`0:,"failed";exit 1]
+r:(!9)lin x sv/y
+r2:r~0 1 1 1 0 1 0 0 1
+if[~r2;`0:,"failed";exit 1]
+r:(x,x)#(!x*x)lin x sv/y
+r2:r~(0 1 1
+      1 0 1
+      0 0 1)
+if[~r2;`0:,"failed";exit 1]
+
+"72. encode date as integer"
+r:*_ltime -388787045 
+r2:r~20220905
+if[~r2;`0:,"failed";exit 1]
+
+"73. remove trailing blanks"
+x:"trailing blanks    "
+
+"73a. negative count of trailing blanks"
+nctb:{-+/&\|" "=x}
+r:nctb x
+r2:r~-4
+if[~r2;`0:,"failed";exit 1]
+rtb:{(nctb x)_ x}
+r:rtb x
+r2:r~"trailing blanks"
+if[~r2;`0:,"failed";exit 1]
+
+"74. number of days in month x of Gregorian year y (ly from 463)"
+x:1
+y:1901
+ly:{(+/0=x!/4 100 400)!2}
+r:$[2=x;28+ly y;(0,12#7#31 30)[x]]
+r2:r~31
+if[~r2;`0:,"failed";exit 1]
+x:2
+y:1904
+r:$[2=x;28+ly y;(0,12#7#31 30)[x]]
+r2:r~29
+if[~r2;`0:,"failed";exit 1]
+
+"75. decimal from hexadecimal"
+x:("ff";"a9";"8ac";"ffff")
+/x
+/("ff"
+/ "a9"
+/ "8ac"
+/ "ffff")
+r:"0123456789abcdef"?/"ff"
+r2:r~15 15
+if[~r2;`0:,"failed";exit 1]
+r:"0123456789abcdef"?//x
+r2:r~(15 15
+      10 9
+      8 10 12
+      15 15 15 15)
+if[~r2;`0:,"failed";exit 1]
+r:16 sv/ "0123456789abcdef"?//x
+r2:r~255 169 2220 65535
+if[~r2;`0:,"failed";exit 1]
+
+"76. justify right"
+x:"trailing blanks    "
+"76a. negative count of trailing blanks"
+nctb:{-+/&\|" "=x}
+r:nctb x
+r2:r~-4
+if[~r2;`0:,"failed";exit 1]
+rj:{(nctb x)!x}
+r:rj x
+r2:r~"    trailing blanks"
+if[~r2;`0:,"failed";exit 1]
+x:("a ";"bc ";"d e ";"fg h ";"ij kl ";"mnopqr")
+/x
+/("a "
+/ "bc "
+/ "d e "
+/ "fg h "
+/ "ij kl "
+/ "mnopqr")
+r:rj'x
+r2:r~(" a"
+      " bc"
+      " d e"
+      " fg h"
+      " ij kl"
+      "mnopqr")
+if[~r2;`0:,"failed";exit 1]
+
+"77. present value of cash flows c at times t and discount rate d"
+/Example: a 3-year bond with an annual 10% coupon and discount rate of 0.9
+pv:{[c;t;d]+/c*d^t}
+c:0.1 0.1 1.1
+t:1 2 3
+d:0.9
+r:pv[c;t;d]
+r2:r~0.9729
+if[~r2;`0:,"failed";exit 1]
+/It is better to use current prices to derive a discount function
+pv:{[c;t;d]+/c*d[t]}
+r:pv[c;t;{[t] 0.9^t}]
+r2:r~0.9729
+if[~r2;`0:,"failed";exit 1]
+/It is even more efficient to use the discount values directly
+d: 0.9^0 1 2 3
+/d
+/1 0.9 0.81 0.729
+r:pv[c;t;d]
+r2:r~0.9729
+if[~r2;`0:,"failed";exit 1]
+
+"78. number from alphanumeric"
+x:"1998 51"
+r:. x
+r2:r~1998 51
+if[~r2;`0:,"failed";exit 1]
+r:3 + . x
+r2:r~2001 54
+if[~r2;`0:,"failed";exit 1]
+
+"79. index (1-origin) of first non-blank, counting from rear"
+x:"blanks at end   "
+r:(" "=x)
+r2:r~0 0 0 0 0 0 1 0 0 1 0 0 0 1 1 1
+if[~r2;`0:,"failed";exit 1]
+r:(" "=x) sv 1
+r2:r~4
+if[~r2;`0:,"failed";exit 1]
+
+"80. scattered indexing"
+x:2 3 4# ci 97+!24
+r:x
+r2:r~(("abcd"
+       "efgh"
+       "ijkl")
+      ("mnop"
+       "qrst"
+       "uvwx"))
+if[~r2;`0:,"failed";exit 1]
+r:x ./(0 0 0;1 1 3;1 2 2)
+r2:r~"atw"
+if[~r2;`0:,"failed";exit 1]
+
+"81. raveled index from general index"
+x:2 3 4# ci 97+!24
+r:x[1;1;3]
+r2:r~"t"
+if[~r2;`0:,"failed";exit 1]
+r:^x
+r2:r~2 3 4
+if[~r2;`0:,"failed";exit 1]
+r:2 3 4 sv 1 1 3
+r2:r~19
+if[~r2;`0:,"failed";exit 1]
+r:,//x
+r2:r~"abcdefghijklmnopqrstuvwx"
+if[~r2;`0:,"failed";exit 1]
+r:(,//x)[19]
+r2:r~"t"
+if[~r2;`0:,"failed";exit 1]
+
+"82. future value of cash flows x at interest rate y"
+x:10 15 20 25
+y:5
+r:+/x*(1+y%100)^|!#x
+r2:r~74.11375
+if[~r2;`0:,"failed";exit 1]
+fv:{+/x*(1+y%100)^|!#x}
+r:fv[x;y]
+r2:r~74.11375
+if[~r2;`0:,"failed";exit 1]
+
+/83. see 69
+
+"84. scalar from boolean vector"
+x:1 0 0 1 1 1 0 1
+r:2 sv x
+r2:r~157
+if[~r2;`0:,"failed";exit 1]
+
+"85. is matrix x antisymmetric"
+x:(0 -7 1
+   7 0 -4
+   -1 4 0)
+r:x~-+x
+r2:r~1
+if[~r2;`0:,"failed";exit 1]
+
+"86. is matrix x symmetric"
+x:(0 4 7 1
+   4 8 6 4
+   7 6 2 0
+   1 4 0 6)
+r:x~+x
+r2:r~1
+if[~r2;`0:,"failed";exit 1]
+/x:4 4 draw 10
+x:(6 6 3 3
+   9 7 9 4
+   4 7 9 9
+   4 7 8 9)
+r:x~+x
+r2:r~0
+if[~r2;`0:,"failed";exit 1]
+
+"87. number of decimals (maximum 7)"
+nd:{$[1=#x;0;-2+#x]}
+ff:{$x-_ x}
+r:ff 6.567
+r2:r~"0.567"
+if[~r2;`0:,"failed";exit 1]
+r:nd ff 1.234
+r2:r~3
+if[~r2;`0:,"failed";exit 1]
+r:nd ff 1234
+r2:r~0
+if[~r2;`0:,"failed";exit 1]
+r:nd ff 78.1234567
+r2:r~7
+if[~r2;`0:,"failed";exit 1]
+r:nd ff 78.12345678
+r2:r~7
+if[~r2;`0:,"failed";exit 1]
+/"0.1234568"
+
+"88. name variable according to x"
+x:"test"
+y:2 3#!6
+. "var",($x),":y"
+r:vartest
+r2:r~(0 1 2
+      3 4 5)
+x:123
+. "var",($x),":y"
+r:var123
+r2:r~(0 1 2
+      3 4 5)
+if[~r2;`0:,"failed";exit 1]
+
+"93. numbers from alphanumeric matrix"
+x:4 3#"  1 12   0.5"
+r:x=" "
+r2:r~(1 1 0
+      1 0 0
+      1 1 1
+      0 0 0)
+if[~r2;`0:,"failed";exit 1]
+r:&/'x=" "
+r2:r~0 0 1 0
+if[~r2;`0:,"failed";exit 1]
+r:&&/'x=" "
+r2:r~,2
+if[~r2;`0:,"failed";exit 1]
+z:.'x
+r:z
+r2:r~(1;12;;0.5)
+if[~r2;`0:,"failed";exit 1]
+r:@[z;,2;:;0]
+r2:r~(1;12;0;0.5)
+if[~r2;`0:,"failed";exit 1]
+/Putting it all together
+r:@[.'x;&&/'x=" ";:;0]
+r2:r~(1;12;0;0.5)
+if[~r2;`0:,"failed";exit 1]
+/But there may be no all-blank rows
+y:4 3#"  1 123450.5"
+/y
+/("  1"
+/ " 12"
+/ "345"
+/ "0.5")
+r:@[.'y;&&/'y=" ";:;0]
+r2:r~(1;12;345;0.5)
+if[~r2;`0:,"failed";exit 1]
+/na:{@[.'x;&&/'x=" ";:;0]}
+
+"94. number from alphanumeric x, default y"
+x:""
+y:"-1"
+r:.((x~"")#"y"),x
+r2:r~"-1"
+if[~r2;`0:,"failed";exit 1]
+x:"234.5"
+r:.((x~"")#"y"),x
+r2:r~234.5
+if[~r2;`0:,"failed";exit 1]
+
+"95. numeric from proper alphanumeric nonnegative integer"
+x:"123 438"
+d:"0123456789 "
+r:1 _ . "0 ",((#x)*&/x lin d)#x
+r2:r~123 438
+if[~r2;`0:,"failed";exit 1]
+x:"123 45a 789"
+r:1 _ . "0 ",((#x)*&/x lin d)#x
+r2:r~0
+if[~r2;`0:,"failed";exit 1]
+
+/ TODO error trap
+/96. conditional execution
+/@[+/;!6;:]
+/0 15
+/@[+/;"abc";:]
+/(1;"type")
+
+"98. execute rows of character matrix"
+x1:4
+x2:9
+x:2 5#"y1:x1y2:x2"
+/x
+/("y1:x1"
+/ "y2:x2")
+r:.'x
+r2:r~(;)
+if[~r2;`0:,"failed";exit 1]
+r:y1
+r2:r~4
+if[~r2;`0:,"failed";exit 1]
+r:y2
+r2:r~9
+if[~r2;`0:,"failed";exit 1]
+
+"99. numeric vector from evaluating rows of character matrix"
+x:2 5#"1+2 41+3 6"
+/x
+/("1+2 4"
+/ "1+3 6")
+r:.'x
+r2:r~(3 5
+      4 7)
+if[~r2;`0:,"failed";exit 1]
+r:,/.'x
+r2:r~3 5 4 7
+if[~r2;`0:,"failed";exit 1]
+
+"100. indexing arbitrary rank array"
+x:2 3 4 5#!120
+r:x[1]
+r2:r~((60 61 62 63 64
+       65 66 67 68 69
+       70 71 72 73 74
+       75 76 77 78 79)
+      (80 81 82 83 84
+       85 86 87 88 89
+       90 91 92 93 94
+       95 96 97 98 99)
+      (100 101 102 103 104
+       105 106 107 108 109
+       110 111 112 113 114
+       115 116 117 118 119))
+if[~r2;`0:,"failed";exit 1]
+r:x[0;0]
+r2:r~(0 1 2 3 4
+      5 6 7 8 9
+      10 11 12 13 14
+      15 16 17 18 19)
+if[~r2;`0:,"failed";exit 1]
+r:x[0;0;0]
+r2:r~0 1 2 3 4
+if[~r2;`0:,"failed";exit 1]
+r:x[0;0;0;0]
+r2:r~0
+if[~r2;`0:,"failed";exit 1]
+
+"101. sum numbers in character matrix"
+x:$!5
+r:x
+r2:r~(,"0"
+      ,"1"
+      ,"2"
+      ,"3"
+      ,"4")
+if[~r2;`0:,"failed";exit 1]
+r:+/ .' x
+r2:r~10
+if[~r2;`0:,"failed";exit 1]
+
+"104. date ascending format"
+r:1 _ ,/".",/$|.'0 4 6 _ $* _gtime -387660363
+r2:r~"19.9.2022"
+if[~r2;`0:,"failed";exit 1]
+
+"105. current time of 12-hour clock (AM & PM)"
+/y:_t
+y:-387609270
+/y
+/-1155069892
+x:*|_gtime y
+/x
+/201508
+hms:{1 _,/":",/1 _'$100+100 vs x!120000}
+r:hms x
+r2:r~"06:45:30"
+if[~r2;`0:,"failed";exit 1]
+ap:{"AP"[115959<x],"M"}
+r:ap x
+r2:r~"PM"
+if[~r2;`0:,"failed";exit 1]
+hm:{{(hms x)," ",ap x}[*|_ltime x]}
+/Ordinarily one would use _t as the argument to hm
+r:hm x
+r2:r~"05:15:30 PM"
+if[~r2;`0:,"failed";exit 1]
+
+"106. leading zeros for positive integers x in field width y"
+/x:10 draw 40
+x:37 36 17 38 29 4 31 12 35 25
+/y:4 / wrong for the documented answers below
+y:3
+z:$'x+(y-1){x*10}/10
+r:z
+r2:r~("1037"
+      "1036"
+      "1017"
+      "1038"
+      "1029"
+      "1004"
+      "1031"
+      "1012"
+      "1035"
+      "1025")
+if[~r2;`0:,"failed";exit 1]
+u:1 _/ z
+r:u
+r2:r~("037"
+      "036"
+      "017"
+      "038"
+      "029"
+      "004"
+      "031"
+      "012"
+      "035"
+      "025")
+if[~r2;`0:,"failed";exit 1]
+
+"107. current date, American"
+/x:*_ltime _t
+x:*_ltime -387608282
+/x
+/20220919
+r:10000 100 100 vs x
+r2:r~:2022 9 19
+r:1!10000 100 100 vs x
+r2:r~9 19 2022
+r:$1!10000 100 100 vs x
+r2:r~(,"9"
+      "19"
+      "2022")
+r:" ",/$1!10000 100 100 vs x
+r2:r~(" 9"
+      " 19"
+      " 2022")
+if[~r2;`0:,"failed";exit 1]
+r:,/" ",/$1!10000 100 100 vs x
+r2:r~" 9 19 2022"
+if[~r2;`0:,"failed";exit 1]
+r:1 _ ,/" ",/$1!10000 100 100 vs x
+r2:r~"9 19 2022"
+if[~r2;`0:,"failed";exit 1]
+r:"0123456789 "?/1 _ ,/" ",/$1!10000 100 100 vs x
+r2:r~9 10 1 9 10 2 0 2 2
+if[~r2;`0:,"failed";exit 1]
+d:"0123456789"
+e:d,"/"
+b:10000 100 100
+k:{1 _ x}
+s:" "
+/ TODO: infinite loop
+//r:e[d?/k ,/s,/$1!b vs x]
+r:e[d?/k[,/s,/$1!b vs x]]
+r2:r~"9/19/2022"
+if[~r2;`0:,"failed";exit 1]
+/da:{e[d?/k,/s,/$1!b vs x]}
+da:{e[d?/k[,/s,/$1!b vs x]]}
+r:da[*_ltime -387608282]
+r2:r~"9/19/2022"
+if[~r2;`0:,"failed";exit 1]
+
+"111. count of format of x"
+cf:{#$x}
+r:cf 12.345
+r2:r~6
+if[~r2;`0:,"failed";exit 1]
+r:cf -1
+r2:r~2
+if[~r2;`0:,"failed";exit 1]
+r:cf 1e-12
+r2:r~5
+if[~r2;`0:,"failed";exit 1]
+r:$1e-12
+/r2:r~"1e-012"  / different than e
+r2:r~"1e-12"
+if[~r2;`0:,"failed";exit 1]
+
+"115, 116, 117. case structure"
+f:25
+t0:10
+t1:11
+t2:12
+t3:13
+c0:0
+r:$[c0;t0;f]
+r2:r~25
+if[~r2;`0:,"failed";exit 1]
+c0:1
+r:$[c0;t0;f]
+r2:r~10
+if[~r2;`0:,"failed";exit 1]
+c0:0
+c1:1
+r:$[c0;t0;c1;t1;f]
+r2:r~11
+if[~r2;`0:,"failed";exit 1]
+c1:0
+c2:1
+r:$[c0;t0;c1;t1;c2;t2;f]
+r2:r~12
+if[~r2;`0:,"failed";exit 1]
+c2:0
+c3:1
+r:$[c0;t0;c1;t1;c2;t2;c3;t3;f]
+r2:r~13
+if[~r2;`0:,"failed";exit 1]
+/et cetera
+/In the first case, if c0 is nonzero, the result is t0; otherwise f.
+/In all cases, the result is the tn corresponding to the first nonzero cn.
+/If none of the cn are nonzero the result is f.
+
+"121. y-shaped array of numbers from x[0] to x[1]-1"
+x:4 9
+y:3 4
+r:(*x)+y draw --/x
+r2:r~(6 6 6 5
+      5 7 5 6
+      4 7 6 5)
+if[~r2;`0:,"failed";exit 1]
+
+"122. y objects selected with replacement from !x (roll)"
+y:3 5
+x:7
+r:y draw x
+r2:r~(1 3 1 1 1
+      4 4 0 0 0
+      0 6 6 0 6)
+if[~r2;`0:,"failed";exit 1]
+
+"123. y objects selected without replacement from !x (deal)"
+y:2 3
+x:7
+r:y draw -x
+r2:r~(6 2 0
+      3 1 4)
+if[~r2;`0:,"failed";exit 1]
+r:6 draw -6
+r2:r~1 0 2 4 5 3
+if[~r2;`0:,"failed";exit 1]
+
+"123.1 normal deviates (from interval (0,1))"
+\p 4
+x:4
+r:$x draw 0
+r2:r~$0.8769 0.06218 0.8123 0.7133
+if[~r2;`0:,"failed";exit 1]
+\p 7
+
+"124. predicted values of exponential fit"
+x:64 70 77 82 92
+y:56 60 66 70 78
+a:x^/0 1
+r:$a
+r2:r~$(1 1 1 1 1.0
+       64 70 77 82 92.0)
+if[~r2;`0:,"failed";exit 1]
+\p 2
+r:$log[y]
+r2:r~$4 4.1 4.2 4.2 4.4
+if[~r2;`0:,"failed";exit 1]
+r:$lsq[log[y];a]
+r2:r~$3.3 0.012
+if[~r2;`0:,"failed";exit 1]
+r:$exp[mul[+a;lsq[log[y];a]]]
+r2:r~$56 60 66 70 78.0
+if[~r2;`0:,"failed";exit 1]
+\p 7
+
+"125. predicted values of best linear fit (least squares)"
+x:64 70 77 82 92 107 125 143 165 189
+y:56 60 66 70 78 88 102 118 136 155
+a:x^/0 1
+r:a
+r2:r~(1 1 1 1 1 1 1 1 1 1.0
+      64 70 77 82 92 107 125 143 165 189.0)
+if[~r2;`0:,"failed";exit 1]
+r:$mul[+a;lsq[y;a]]
+r2:r~$55.32371 60.08021 65.62945 69.59319 77.52068 89.41191 103.6814 117.9509 135.3913 154.4173
+if[~r2;`0:,"failed";exit 1]
+/This can also be written in infix form
+r:$(+a) mul (y lsq a)
+r2:r~$55.32371 60.08021 65.62945 69.59319 77.52068 89.41191 103.6814 117.9509 135.3913 154.4173
+if[~r2;`0:,"failed";exit 1]
+
+/"126. g-degree polynomial fit of points (x,y)"
+/x:64 70 77 82 92 107 125 143 165 189
+/y:(5*x^3)+(-1*x^2)+(4*x)+182
+/r:$y
+// different than e
+//r2:r~$1307062 1710562 2277226 2750626 3885526 6114376 9750682 1.460134e+007 2.243424e+007 3.372156e+007
+/r2:r~$1307062 1710562 2277226 2750626 3885526 6114376 9750682 1.460134e07 2.243424e07 3.372156e07
+/if[~r2;`0:,"failed3";exit 1]
+/g:3 / had to guess this
+/r:$| lsq[y;x^/!g+1]
+/r2:r~$5 -1 4 182.0
+/if[~r2;`0:,"failed";exit 1]
+/r:$|(y lsq x^/!g+1)
+/r2:r~$5 -1 4 182.0
+/if[~r2;`0:,"failed";exit 1]
+
+"127. coefficients of exponential fit of points (x,y)"
+x:64 70 77 82 92 107 125 143 165 189
+y:56 60 66 70 78 88 102 118 136 155
+a: lsq[log[y];x^/0 1]
+r:$a
+r2:r~$3.563398 0.00817742
+if[~r2;`0:,"failed";exit 1]
+a[0]: exp[a[0]]
+r:$a
+r2:r~$35.2829 0.00817742
+if[~r2;`0:,"failed";exit 1]
+r:$a[0]*exp[x*a[1]]
+r2:r~$59.54624 62.54071 66.22511 68.98898 74.86758 84.63791 98.05964 113.6098 136.0024 165.4933
+if[~r2;`0:,"failed";exit 1]
+//y
+//56 60 66 70 78 88 102 118 136 155.0
+
+"128. coefficients of best linear fit of points (x,y) (least squares)"
+x:64 70 77 82 92 107 125 143 165 189
+y:56 60 66 70 78 88 102 118 136 155
+z:lsq[y;x^/0 1]
+r:$z
+r2:r~$4.587803 0.7927486
+if[~r2;`0:,"failed";exit 1]
+r:$z[0]+z[1]*x / should be y, approximately
+r2:r~$55.32371 60.08021 65.62945 69.59319 77.52068 89.41191 103.6814 117.9509 135.3913 154.4173
+if[~r2;`0:,"failed";exit 1]
+
+"129. arctangent y%x"
+x:sqrt[3]
+y:1
+r:$atan[y%x]
+r2:r~$0.5235988
+if[~r2;`0:,"failed";exit 1]
+
+"131. complementary angle (arccos sin x)"
+x:0.25
+r:$acos[sin x]
+r2:r~$1.320796
+if[~r2;`0:,"failed";exit 1]
+r:$x+acos[sin x] / should be 0.5*pi, approximately
+r2:r~$1.570796
+if[~r2;`0:,"failed";exit 1]
+r:$2*x+acos[sin x]
+r2:r~$3.141593
+if[~r2;`0:,"failed";exit 1]
+
+"132. rotation matrix for angle x (in radians) counter-clockwise"
+r:$((cos[x];-sin[x]);(sin[x];cos[x]))
+r2:r~$(0.9689124 -0.247404
+       0.247404 0.9689124)
+if[~r2;`0:,"failed";exit 1]
+
+"133. degrees from radians"
+x:0.5
+r:$57.295779513082323*x
+r2:r~$28.64789
+if[~r2;`0:,"failed";exit 1]
+
+"134. radians from degrees"
+x:0.5
+z:57.295779513082323*x
+r:$z
+r2:r~$28.64789
+if[~r2;`0:,"failed";exit 1]
+r:0.017453292519943295*z
+r2:r~0.5
+if[~r2;`0:,"failed";exit 1]
+
+"135. number of permutations of n objects taken k at a time"
+fac:{[n]$[n>1; n * .z.f[n-1];1]}
+bin:{[n;k]fac[n]%fac[n-k]*fac[k]}
+pn:{[n;k]fac[k]*bin[n;k]}
+r:pn[5;3]
+r2:r~60.0
+if[~r2;`0:,"failed";exit 1]
+
+/136. Pascal's triangle of order x (binomial coefficients) [see 1007]
+
+"137. Taylor series with coefficients y at point x"
+x:3
+y:1 1 1
+a:!#y
+r:+/y*(x^a)%fac'a
+r2:r~8.5
+if[~r2;`0:,"failed";exit 1]
+y:30#1
+x:1
+a:!#y
+r:+/y*(x^a)%fac'a
+r2:r~2.7182818308537429
+if[~r2;`0:,"failed";exit 1]
+
+/139. Beta function
+/See gamma in appendix
+/Beta:{((gamma x)*gamma y)%gamma[x+y]}
+
+"142. number of combinations of n objects taken k at a time"
+fac:{[n]$[n>1; n * .z.f[n-1];1]}
+bin:{[n;k]fac[n]%fac[n-k]*fac[k]}
+r:bin[12;7]
+r2:r~792.0
+if[~r2;`0:,"failed";exit 1]
+r:bin[10;4]
+r2:r~210.0
+if[~r2;`0:,"failed";exit 1]
+
+"143. indices of distinct items"
+x:"ajhajhja"
+r:=x
+r2:r~(0 3 7
+      1 4 6
+      2 5)
+if[~r2;`0:,"failed";exit 1]
+
+"144. histogram"
+/x:13 draw 12
+/x
+x:4 10 4 2 10 4 10 8 2 7 2 9 7
+h:{@[&1+|/x;x;+;1]}
+b:h[x]
+r:b
+r2:r~0 0 3 0 3 0 0 2 1 1 3
+if[~r2;`0:,"failed";exit 1]
+c:(1+|/b)-b
+r:c
+r2:r~4 4 1 4 1 4 4 2 3 3 1
+if[~r2;`0:,"failed";exit 1]
+d:|+(b#\1),'(c#\0)
+r:d
+r2:r~(0 0 0 0 0 0 0 0 0 0 0
+      0 0 1 0 1 0 0 0 0 0 1
+      0 0 1 0 1 0 0 1 0 0 1
+      0 0 1 0 1 0 0 1 1 1 1)
+if[~r2;`0:,"failed";exit 1]
+r:" *"[d]
+r2:r~("           "
+      "  * *     *"
+      "  * *  *  *"
+      "  * *  ****")
+if[~r2;`0:,"failed";exit 1]
+
+"145. count of x between endpoints (l,h)"
+/x:5 5 draw 100
+x:(6 6 73 4 94
+   97 13 12 38 47
+   16 46 35 64 45
+   32 98 46 96 60
+   17 11 72 68 94)
+l:10
+h:80
+r:x
+r2:r~(6 6 73 4 94
+      97 13 12 38 47
+      16 46 35 64 45
+      32 98 46 96 60
+      17 11 72 68 94)
+if[~r2;`0:,"failed";exit 1]
+xl:x>l
+r:xl
+r2:r~(0 0 1 0 1
+      1 1 1 1 1
+      1 1 1 1 1
+      1 1 1 1 1
+      1 1 1 1 1)
+if[~r2;`0:,"failed";exit 1]
+xh:x<h
+r:xh
+r2:r~(1 1 1 1 0
+      0 1 1 1 1
+      1 1 1 1 1
+      1 0 1 0 1
+      1 1 1 1 0)
+if[~r2;`0:,"failed";exit 1]
+xbetween:xl&xh
+r:xbetween
+r2:r~(0 0 1 0 0
+      0 1 1 1 1
+      1 1 1 1 1
+      1 0 1 0 1
+      1 1 1 1 0)
+if[~r2;`0:,"failed";exit 1]
+r:+/'xbetween
+r2:r~1 4 5 3 4
+if[~r2;`0:,"failed";exit 1]
+
+"146. compound interest for principals y at percentages g for periods x"
+x:1 2 3 4
+y:1 2 3 4
+g:0.5 1 1.5 2
+z:y*\(1+g%100)^\x
+\p 5
+r:$z
+r2:r~$((1.005 1.01 1.0151 1.0202
+        1.01 1.0201 1.0303 1.0406
+        1.015 1.0302 1.0457 1.0614
+        1.02 1.0404 1.0612 1.0824)
+       (2.01 2.02 2.0302 2.0403
+        2.02 2.0402 2.0606 2.0812
+        2.03 2.0604 2.0914 2.1227
+        2.04 2.0808 2.1224 2.1649)
+       (3.015 3.0301 3.0452 3.0605
+        3.03 3.0603 3.0909 3.1218
+        3.045 3.0907 3.137 3.1841
+        3.06 3.1212 3.1836 3.2473)
+       (4.02 4.0401 4.0603 4.0806
+        4.04 4.0804 4.1212 4.1624
+        4.06 4.1209 4.1827 4.2455
+        4.08 4.1616 4.2448 4.3297))
+if[~r2;`0:,"failed";exit 1]
+\p 7
+
+"147. locations of string x in string y (including overlaps)"
+x:"**"
+y:"*abcugj**jy***kmhix**12"
+ss0:{z[&y[z+\!#x]~\x]}
+r:ss0[x;y;&((1-#x)_ y)=*x]
+r2:r~7 11 12 19
+if[~r2;`0:,"failed";exit 1]
+r:y[7 11 12 19+\0 1]
+r2:r~("**"
+      "**"
+      "**"
+      "**")
+if[~r2;`0:,"failed";exit 1]
+
+"148. node matrix from connection matrix (inverse to 157)"
+x:(1 1 0 0 0
+   0 -1 0 1 1
+   -1 0 1 -1 0
+   0 0 -1 0 -1)
+/Each column in matrix x represents a path between 2 nodes:
+/From node 0 to node 2
+/From node 0 to node 1
+/From node 2 to node 3
+/From node 1 to node 2
+/From node 1 to node 3
+a:1 -1=\x
+r:a
+r2:r~((1 1 0 0 0
+       0 0 0 1 1
+       0 0 1 0 0
+       0 0 0 0 0)
+      (0 0 0 0 0
+       0 1 0 0 0
+       1 0 0 1 0
+       0 0 1 0 1))
+if[~r2;`0:,"failed";exit 1]
+b:mul[a;!#x]
+r:b
+r2:r~(0 0 2 1 1
+      2 1 3 2 3)
+if[~r2;`0:,"failed";exit 1]
+nc:{mul[1 -1=\x;!#x]}
+r:nc x
+r2:r~(0 0 2 1 1
+      2 1 3 2 3)
+if[~r2;`0:,"failed";exit 1]
+
+"149. number of decimals in x, maximum y"
+nd:{+/~0=(-_-x*10^y)!/-_-(10^y)*10^-!y+1}
+x:1.4321 1.21 10
+y:3
+r:nd[x;y]
+r2:r~3 2 0
+if[~r2;`0:,"failed";exit 1]
+r:10^-!y+1
+r2:r~1 0.1 0.01 0.001
+if[~r2;`0:,"failed";exit 1]
+r:-_-(10^y)*10^-!y+1
+r2:r~1000 100 10 1
+if[~r2;`0:,"failed";exit 1]
+r:-_-x*10^y
+r2:r~1433 1210 10000
+if[~r2;`0:,"failed";exit 1]
+r:(-_-x*10^y)!/-_-(10^y)*10^-!y+1
+r2:r~(433 210 0
+      33 10 0
+      3 0 0
+      0 0 0)
+if[~r2;`0:,"failed";exit 1]
+r:~0=(-_-x*10^y)!/-_-(10^y)*10^-!y+1
+r2:r~(1 1 0
+      1 1 0
+      1 0 0
+      0 0 0)
+if[~r2;`0:,"failed";exit 1]
+r:+/~0=(-_-x*10^y)!/-_-(10^y)*10^-!y+1
+r2:r~3 2 0
+if[~r2;`0:,"failed";exit 1]
+
+"150. sum items of x given by y"
+x:log[1+!5]
+r:$x
+r2:r~$0 0.6931472 1.098612 1.386294 1.609438
+if[~r2;`0:,"failed";exit 1]
+y:1 4 1 4 1
+a:=y
+r:a
+r2:r~(0 2 4
+      1 3)
+if[~r2;`0:,"failed";exit 1]
+r:$+/'x[a]
+r2:r~$2.70805 2.079442
+if[~r2;`0:,"failed";exit 1]
+r:$+/x[0 2 4]
+r2:r~$2.70805
+if[~r2;`0:,"failed";exit 1]
+r:$+/x[1 3]
+r2:r~$2.079442
+if[~r2;`0:,"failed";exit 1]
+r:$+/'x[=y]
+r2:r~$2.70805 2.079442
+if[~r2;`0:,"failed";exit 1]
+
+"151. efficient execution of f x where x has repeated values"
+fx:{[f;x](f'x)(x?:)?/x}
+/The phrase (x?:) is the same as (x:?x), which means x is assigned the unique elements of x. The phrase a?/b means find each item of b in a. So (x?:)?/x says find each item of x in the list of unique items of x (and while you're at it, reassign x to that list of unique items of x). The result is the list of indices of the original list x into the unique items of x.
+x:1 2 3 2 3 2 1
+r:?x
+r2:r~1 2 3
+if[~r2;`0:,"failed";exit 1]
+r:(?x)?/x
+r2:r~0 1 2 1 2 1 0
+if[~r2;`0:,"failed";exit 1]
+r:(x?:)?/x
+r2:r~0 1 2 1 2 1 0
+if[~r2;`0:,"failed";exit 1]
+/This works because K's order of execution is right to left. the original value of x is "captured" before the (x?:) reassigns it.
+r:x
+r2:r~1 2 3
+if[~r2;`0:,"failed";exit 1]
+if[~r2;`0:,"failed";exit 1]
+f:{10*x}
+r:f'x
+r2:r~10 20 30
+if[~r2;`0:,"failed";exit 1]
+/The last bit is simply indexing:
+r:(f'x)[0 1 2 1 2 1 0]
+r2:r~10 20 30 20 30 20 10
+if[~r2;`0:,"failed";exit 1]
+/But K allows you to leave out the brackets:
+r:(f'x)0 1 2 1 2 1 0
+r2:r~10 20 30 20 30 20 10
+if[~r2;`0:,"failed";exit 1]
+/So the whole thing is
+r:(f'x)(x?:)?/x
+r2:r~10 20 30
+if[~r2;`0:,"failed";exit 1]
+
+"152. sum items of y according by ordered codes g in x"
+y:1+!20
+r:y
+r2:r~1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20
+if[~r2;`0:,"failed";exit 1]
+z:"abcde"
+/x:z[20 draw #z]
+/r:x
+/r2:r~"acaeedddcbcddccdaaed"
+if[~r2;`0:,"failed";exit 1]
+x:"acaeedddcbcddccdaaed"
+xz:z,x
+yz:(&#z),y
+r:xz
+r2:r~"abcdeacaeedddcbcddccdaaed"
+if[~r2;`0:,"failed";exit 1]
+r:yz
+r2:r~0 0 0 0 0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20
+if[~r2;`0:,"failed";exit 1]
+r:+/'yz[=xz]
+r2:r~39 10 51 82 28
+if[~r2;`0:,"failed";exit 1]
+sc:{+/'((&#z),y)[=z,x]}
+r:sc[x;y;z]
+r2:r~39 10 51 82 28
+if[~r2;`0:,"failed";exit 1]
+
+"153. index of rows of y in corresponding rows of x"
+x:1+3 4#!12
+r:x
+r2:r~(1 2 3 4
+      5 6 7 8
+      9 10 11 12)
+if[~r2;`0:,"failed";exit 1]
+y:(1 0 3 0
+   0 6 0 8
+   9 0 0 12)
+r:x ?/'y
+r2:r~(0 4 2 4
+      4 1 4 3
+      0 4 4 3)
+if[~r2;`0:,"failed";exit 1]
+
+"154. range (nub; remove duplicate items)"
+x:"wirlsisl"
+r:?x
+r2:r~"wirls"
+if[~r2;`0:,"failed";exit 1]
+r:?(1 2 3;4 5;1 2 3;4 5;1 2 3)
+r2:r~(1 2 3
+      4 5)
+if[~r2;`0:,"failed";exit 1]
+
+"155. greatest common divisor of list x"
+gcd:{*|1+&&/'0=x!/1+!&/x}
+x:6 9 12
+r:gcd x
+r2:r~3
+if[~r2;`0:,"failed";exit 1]
+r:&/x
+r2:r~6
+if[~r2;`0:,"failed";exit 1]
+r:!&/x
+r2:r~0 1 2 3 4 5
+if[~r2;`0:,"failed";exit 1]
+r:1+!&/x
+r2:r~1 2 3 4 5 6
+if[~r2;`0:,"failed";exit 1]
+r:x!/1+!&/x
+r2:r~(0 0 0
+      0 1 0
+      0 0 0
+      2 1 0
+      1 4 2
+      0 3 0)
+if[~r2;`0:,"failed";exit 1]
+r:0=x!/1+!&/x
+r2:r~(1 1 1
+      1 0 1
+      1 1 1
+      0 0 1
+      0 0 0
+      1 0 1)
+if[~r2;`0:,"failed";exit 1]
+r:&/'0=x!/1+!&/x
+r2:r~1 0 1 0 0 0
+if[~r2;`0:,"failed";exit 1]
+r:&&/'0=x!/1+!&/x
+r2:r~0 2
+if[~r2;`0:,"failed";exit 1]
+r:*|1+&&/'0=x!/1+!&/x
+r2:r~3
+if[~r2;`0:,"failed";exit 1]
+
+"156. classify y into x classes between min and max y"
+x:10
+y:260 416 18 27 265 336 4
+/normalize y so minimum value is 0
+sm0:{x-&/x}
+r:sm0[y]
+r2:r~256 412 14 23 261 332 0
+if[~r2;`0:,"failed";exit 1]
+/normalize again so values are in range 0 le y and y lt x
+nr:{y*x%|/y}
+r:$nr[x;sm0[y]]
+r2:r~$6.213592 10 0.3398058 0.5582524 6.334951 8.058252 0
+if[~r2;`0:,"failed";exit 1]
+/compare against interior range boundaries, 1+!x-1
+r:~nr[x;sm0[y]]</1+!x-1
+r2:r~(1 1 0 0 1 1 0
+      1 1 0 0 1 1 0
+      1 1 0 0 1 1 0
+      1 1 0 0 1 1 0
+      1 1 0 0 1 1 0
+      1 1 0 0 1 1 0
+      0 1 0 0 0 1 0
+      0 1 0 0 0 1 0
+      0 1 0 0 0 0 0)
+if[~r2;`0:,"failed";exit 1]
+/count the number of boundaries passed by each
+r:+/~nr[x;sm0[y]]</1+!x-1
+r2:r~6 9 0 0 6 8 0
+if[~r2;`0:,"failed";exit 1]
+
+"157. connection matrix from node matrix (inverse to 148)"
+/node matrix top and bottom rows give from and to nodes
+x: (0 0 2 1 1
+    2 1 3 2 3)
+/enumerate count of range
+r:!#?,/x
+r2:r~0 1 2 3
+if[~r2;`0:,"failed";exit 1]
+/where is x equal to each of it
+r:x=/!#?,/x
+r2:r~((1 1 0 0 0
+       0 0 0 0 0)
+      (0 0 0 1 1
+       0 1 0 0 0)
+      (0 0 1 0 0
+       1 0 0 1 0)
+      (0 0 0 0 0
+       0 0 1 0 1))
+if[~r2;`0:,"failed";exit 1]
+/subtract "to" matrix from "from" matrix
+r:-/'x=/!#?,/x
+r2:r~(1 1 0 0 0
+      0 -1 0 1 1
+      -1 0 1 -1 0
+      0 0 -1 0 -1)
+if[~r2;`0:,"failed";exit 1]
+
+/158. see 20
+
+"159. is range of x 1 (are all items of x equal)"
+x:1 1 1 1 1
+r:1=#?x
+r2:r~1
+if[~r2;`0:,"failed";exit 1]
+y:1 1 0 1 1
+r:1=#?y
+r2:r~0
+if[~r2;`0:,"failed";exit 1]
+
+"160. move blanks in x to end of list"
+x:"sign if i cant"
+r:x[<x=" "]
+r2:r~"significant   "
+if[~r2;`0:,"failed";exit 1]
+be:{x[<x=" "]}
+y:("yo ho ho"
+   "and a bottle"
+   "of rum")
+r:be'[y]
+r2:r~("yohoho  "
+      "andabottle  "
+      "ofrum ")
+if[~r2;`0:,"failed";exit 1]
+
+"161. is y upper triangular"
+x:(1 0 0 1
+   0 2 1 0
+   0 0 1 2
+   0 0 0 0)
+slt:{(!x)>\!x}
+r:slt[#x]
+r2:r~(0 0 0 0
+      1 0 0 0
+      1 1 0 0
+      1 1 1 0)
+if[~r2;`0:,"failed";exit 1]
+r:x*slt[#x]
+r2:r~(0 0 0 0
+      0 0 0 0
+      0 0 0 0
+      0 0 0 0)
+if[~r2;`0:,"failed";exit 1]
+zm:{(x,x)#0}
+r:zm[#x]
+r2:r~(0 0 0 0
+      0 0 0 0
+      0 0 0 0
+      0 0 0 0)
+if[~r2;`0:,"failed";exit 1]
+iut:{zm[#x]~x*slt[#x]}
+r:iut x
+r2:r~1
+if[~r2;`0:,"failed";exit 1]
+r:+x
+r2:r~(1 0 0 0
+      0 2 0 0
+      0 1 1 0
+      1 0 2 0)
+if[~r2;`0:,"failed";exit 1]
+r:iut[+x]
+r2:r~0
+if[~r2;`0:,"failed";exit 1]
+
+"162. is x lower triangular"
+x:(1 0 0 0
+   0 2 0 0
+   0 1 1 0
+   1 0 2 0)
+sut:{(!x)<\!x}
+r:sut[#x]
+r2:r~(0 1 1 1
+      0 0 1 1
+      0 0 0 1
+      0 0 0 0)
+if[~r2;`0:,"failed";exit 1]
+ilt:{zm[#x]~x*sut[#x]}
+r:ilt[x]
+r2:r~1
+if[~r2;`0:,"failed";exit 1]
+r:ilt[+x]
+r2:r~0
+if[~r2;`0:,"failed";exit 1]
+
+"163. polynomial product"
+x:1 2 1
+y:1 3 3 1
+r:y*/x
+r2:r~(1 3 3 1
+      2 6 6 2
+      1 3 3 1)
+if[~r2;`0:,"failed";exit 1]
+r:1 _'zm[#x]
+r2:r~(0 0
+      0 0
+      0 0)
+if[~r2;`0:,"failed";exit 1]
+r:(1 _'zm[#x]),'y*/x
+r2:r~(0 0 1 3 3 1
+      0 0 2 6 6 2
+      0 0 1 3 3 1)
+if[~r2;`0:,"failed";exit 1]
+r:(!#x)!'(1 _'zm[#x]),'y*/x
+r2:r~(0 0 1 3 3 1
+      0 2 6 6 2 0
+      1 3 3 1 0 0)
+if[~r2;`0:,"failed";exit 1]
+r:+/(!#x)!'(1 _'zm[#x]),'y*/x
+r2:r~1 5 10 10 5 1
+if[~r2;`0:,"failed";exit 1]
+pm:{+/(!#x)!'(1 _'zm[#x]),'y*/x}
+r:pm[x;y]
+r2:r~1 5 10 10 5 1
+if[~r2;`0:,"failed";exit 1]
+
+"164. divisors"
+x:363
+dv0:{&0=x!/!1+x}
+r:dv0[x]
+r2:r~1 3 11 33 121 363
+if[~r2;`0:,"failed";exit 1]
+r:dv0 365
+r2:r~1 5 73 365
+if[~r2;`0:,"failed";exit 1]
+r:dv0 367
+r2:r~1 367
+if[~r2;`0:,"failed";exit 1]
+r:dv0'[1 2 3 4 5 6 7 8 9 10]
+r2:r~(,1
+      1 2
+      1 3
+      1 2 4
+      1 5
+      1 2 3 6
+      1 7
+      1 2 4 8
+      1 3 9
+      1 2 5 10)
+if[~r2;`0:,"failed";exit 1]
+
+"165. list of x zeros preceded by (y-x) ones"
+x:5
+y:9
+zo:{((y-x)#1),&x}
+r:zo[x;y]
+r2:r~1 1 1 1 0 0 0 0 0
+if[~r2;`0:,"failed";exit 1]
+
+"166. barchart of integer list x, down the page"
+x:2 5 7 4 9 3 6
+xl:{(x#1),&y-x}
+r:" X"[|+xl\[x;|/x]]
+r2:r~("    X  "
+      "    X  "
+      "  X X  "
+      "  X X X"
+      " XX X X"
+      " XXXX X"
+      " XXXXXX"
+      "XXXXXXX"
+      "XXXXXXX")
+if[~r2;`0:,"failed";exit 1]
+bd0:{" X"[|+xl\[x;|/x]]}
+r:bd0[x]
+r2:r~("    X  "
+      "    X  "
+      "  X X  "
+      "  X X X"
+      " XX X X"
+      " XXXX X"
+      " XXXXXX"
+      "XXXXXXX"
+      "XXXXXXX")
+if[~r2;`0:,"failed";exit 1]
+
+"167. list of x ones preceded by (y-x) xeros"
+x:3
+y:9
+xr:{(&y-x),x#1}
+r:xr[x;y]
+r2:r~0 0 0 0 0 0 1 1 1
+if[~r2;`0:,"failed";exit 1]
+x:2 5 7 4 9 3 6
+r:xr\[x;y]
+r2:r~(0 0 0 0 0 0 0 1 1
+      0 0 0 0 1 1 1 1 1
+      0 0 1 1 1 1 1 1 1
+      0 0 0 0 0 1 1 1 1
+      1 1 1 1 1 1 1 1 1
+      0 0 0 0 0 0 1 1 1
+      0 0 0 1 1 1 1 1 1)
+if[~r2;`0:,"failed";exit 1]
+
+"168. list of x zeros followed by (y-x) ones"
+x:3
+y:9
+r:(&x),(y-x)#1
+r2:r~0 0 0 1 1 1 1 1 1
+if[~r2;`0:,"failed";exit 1]
+zl:{(&x),(y-x)#1}
+r:zl[x;y]
+r2:r~0 0 0 1 1 1 1 1 1
+if[~r2;`0:,"failed";exit 1]
+x:2 5 7 4 9 3 6
+r:zl\[x;y]
+r2:r~(0 0 1 1 1 1 1 1 1
+      0 0 0 0 0 1 1 1 1
+      0 0 0 0 0 0 0 1 1
+      0 0 0 0 1 1 1 1 1
+      0 0 0 0 0 0 0 0 0
+      0 0 0 1 1 1 1 1 1
+      0 0 0 0 0 0 1 1 1)
+if[~r2;`0:,"failed";exit 1]
+
+/169. see 172
+
+"170. horizontal barchart of x with maximum z, normalized to length y"
+x:4
+y:5
+z:10
+ad:{_ x*y%z}
+r:ad[2;5;10]
+r2:r~1
+if[~r2;`0:,"failed";exit 1]
+r:ad[23;50;80]
+r2:r~14
+if[~r2;`0:,"failed";exit 1]
+x:2 8 5 6 3 1 7 7 10 4
+xl:{(x#1),&y-x}
+r:xl\[ad[x;y;z];y]
+r2:r~(1 0 0 0 0
+      1 1 1 1 0
+      1 1 0 0 0
+      1 1 1 0 0
+      1 0 0 0 0
+      0 0 0 0 0
+      1 1 1 0 0
+      1 1 1 0 0
+      1 1 1 1 1
+      1 1 0 0 0)
+if[~r2;`0:,"failed";exit 1]
+r:" X"[xl\[ad[x;y;z];y]]
+r2:r~("X    "
+      "XXXX "
+      "XX   "
+      "XXX  "
+      "X    "
+      "     "
+      "XXX  "
+      "XXX  "
+      "XXXXX"
+      "XX   ")
+if[~r2;`0:,"failed";exit 1]
+
+"171. horizontal barchart of integer values x"
+/(compare bh here with xl in 172)
+bh0:{@[&y;!x;:;1]}
+r:" X"[bh0\[x;|/x]]
+r2:r~("XX        "
+      "XXXXXXXX  "
+      "XXXXX     "
+      "XXXXXX    "
+      "XXX       "
+      "X         "
+      "XXXXXXX   "
+      "XXXXXXX   "
+      "XXXXXXXXXX"
+      "XXXX      ")
+if[~r2;`0:,"failed";exit 1]
+
+"172. list of x ones followed by (y-x) zeros"
+x:5
+y:9
+r:(x#1),&(y-x)
+r2:r~1 1 1 1 1 0 0 0 0
+if[~r2;`0:,"failed";exit 1]
+xl:{(x#1),&y-x}
+r:xl[x;y]
+r2:r~1 1 1 1 1 0 0 0 0
+if[~r2;`0:,"failed";exit 1]
+x:2 5 7 4 9 3 6
+r:xl\[x;y]
+r2:r~(1 1 0 0 0 0 0 0 0
+      1 1 1 1 1 0 0 0 0
+      1 1 1 1 1 1 1 0 0
+      1 1 1 1 0 0 0 0 0
+      1 1 1 1 1 1 1 1 1
+      1 1 1 0 0 0 0 0 0
+      1 1 1 1 1 1 0 0 0)
+if[~r2;`0:,"failed";exit 1]
+
+"173. assign x to one of y classes of width h, starting with g"
+f:{[x;y;g;h] -1+ -1 _ #'=(1+!y),-_-(x-g)%h}
+x:32 56 36 48 36 24 28 44 52 32
+y:4
+h:10
+g:10
+r:f[x;y;g;h]
+r2:r~0 2 4 2
+if[~r2;`0:,"failed";exit 1]
+
+"174. move x into first quadrant"
+sm0:{x-&/x}
+x:(1 6 4;3 4 7;7 8 6)
+r:sm0'[x]
+r2:r~(0 5 3
+      0 1 4
+      1 2 0)
+if[~r2;`0:,"failed";exit 1]
+
+"175. primes to n"
+n:10
+x:1+!n
+/x
+/1 2 3 4 5 6 7 8 9 10
+r:x!/x:1+!n
+r2:r~(0 0 0 0 0 0 0 0 0 0
+      1 0 1 0 1 0 1 0 1 0
+      1 2 0 1 2 0 1 2 0 1
+      1 2 3 0 1 2 3 0 1 2
+      1 2 3 4 0 1 2 3 4 0
+      1 2 3 4 5 0 1 2 3 4
+      1 2 3 4 5 6 0 1 2 3
+      1 2 3 4 5 6 7 0 1 2
+      1 2 3 4 5 6 7 8 0 1
+      1 2 3 4 5 6 7 8 9 0)
+if[~r2;`0:,"failed";exit 1]
+r:+/0=x!/x:1+!n
+r2:r~1 2 2 3 2 4 2 4 3 4
+if[~r2;`0:,"failed";exit 1]
+r:2=+/0=x!/x:1+!n
+r2:r~0 1 1 0 1 0 1 0 0 0
+if[~r2;`0:,"failed";exit 1]
+r:&0,2=+/0=x!/x:1+!n
+r2:r~2 3 5 7
+if[~r2;`0:,"failed";exit 1]
+pn:{[n]&0,2=+/0={x!/x}1+!n}
+r:pn 30
+r2:r~2 3 5 7 11 13 17 19 23 29
+if[~r2;`0:,"failed";exit 1]
+
+"177. ordinal of word in x pointed at by y"
+ow:{+/~y<1+&x=" "}
+x:"ordinal of word in x pointed at by y"
+r:ow[x;5]
+r2:r~0
+if[~r2;`0:,"failed";exit 1]
+r:ow[x;6]
+r2:r~0
+if[~r2;`0:,"failed";exit 1]
+r:ow[x;7]
+r2:r~0
+if[~r2;`0:,"failed";exit 1]
+r:ow[x;8]
+r2:r~1
+if[~r2;`0:,"failed";exit 1]
+r:ow[x;26]
+r2:r~5
+if[~r2;`0:,"failed";exit 1]
+
+"177. indices of start of string x in string y"
+x:"st"
+y:"indices of start of string x in string y"
+r:y ss x
+r2:r~11 20 32
+if[~r2;`0:,"failed";exit 1]
+
+"178. index of first occurrence of string x in string y"
+x:"st"
+y:"index of first occurrence of string x in string y"
+r:*y ss x
+r2:r~12
+if[~r2;`0:,"failed";exit 1]
+
+"179. contour levels y at points with altitude x"
+cl:{y[-1++/~y>x]}
+y:-100 0 10 100 1000 10000
+r:cl[-5;y]
+r2:r~-100
+if[~r2;`0:,"failed";exit 1]
+r:cl[0;y]
+r2:r~0
+if[~r2;`0:,"failed";exit 1]
+r:cl[99;y]
+r2:r~10
+if[~r2;`0:,"failed";exit 1]
+r:cl[9;y]
+r2:r~0
+if[~r2;`0:,"failed";exit 1]
+r:cl[10;y]
+r2:r~10
+if[~r2;`0:,"failed";exit 1]
+
+"180. is x in range [y)"
+hc:{1 0~/~x<\y}
+x:19 20 21 39 40 41
+y:20 40
+r:~x<\y
+r2:r~(0 0
+      1 0
+      1 0
+      1 0
+      1 1
+      1 1)
+if[~r2;`0:,"failed";exit 1]
+r:hc[x;y]
+r2:r~0 1 1 1 0 0
+if[~r2;`0:,"failed";exit 1]
+
+"181. which class of y x belongs to"
+cl:{-1++/x>/y}
+x:87 9 931 7 27 92 654 1416 7 911
+y:0 50 100 1000
+r:+/x>/y
+r2:r~2 1 3 1 1 2 3 4 1 3
+if[~r2;`0:,"failed";exit 1]
+r:-1++/x>/y
+r2:r~1 0 2 0 0 1 2 3 0 2
+if[~r2;`0:,"failed";exit 1]
+r:cl[x;y]
+r2:r~1 0 2 0 0 1 2 3 0 2
+if[~r2;`0:,"failed";exit 1]
+
+"182. indices of consecutive repeated elements"
+x:"aaabccccdeee"
+r:=x
+r2:r~(0 1 2
+      ,3
+      4 5 6 7
+      ,8
+      9 10 11)
+if[~r2;`0:,"failed";exit 1]
+r:#'=x
+r2:r~3 1 4 1 3
+if[~r2;`0:,"failed";exit 1]
+r:&1<#'=x
+r2:r~0 2 4
+if[~r2;`0:,"failed";exit 1]
+/ TODO parser reduces assignment first
+/r:{x[&1<#'x]}=x
+/r2:r~(0 1 2
+/      4 5 6 7
+/      9 10 11)
+/if[~r2;`0:,"failed";exit 1]
+re:{{x[&1<#'x]}[=x]}
+r:re x
+r2:r~(0 1 2
+      4 5 6 7
+      9 10 11)
+if[~r2;`0:,"failed";exit 1]
+
+"183. maximum table"
+x:!10
+r:x&\x
+r2:r~(0 0 0 0 0 0 0 0 0 0
+      0 1 1 1 1 1 1 1 1 1
+      0 1 2 2 2 2 2 2 2 2
+      0 1 2 3 3 3 3 3 3 3
+      0 1 2 3 4 4 4 4 4 4
+      0 1 2 3 4 5 5 5 5 5
+      0 1 2 3 4 5 6 6 6 6
+      0 1 2 3 4 5 6 7 7 7
+      0 1 2 3 4 5 6 7 8 8
+      0 1 2 3 4 5 6 7 8 9)
+if[~r2;`0:,"failed";exit 1]
+
+"184. right justify fields x of length y to length g"
+x:"abcdefghij"
+y:2 3 4 1
+g:5
+a:+\0,-1_ y
+r:a
+r2:r~0 2 5 9
+if[~r2;`0:,"failed";exit 1]
+r:a _ x
+r2:r~("ab"
+      "cde"
+      "fghi"
+      ,"j")
+if[~r2;`0:,"failed";exit 1]
+r:(g#" "),/a _ x
+r2:r~("     ab"
+      "     cde"
+      "     fghi"
+      "     j")
+if[~r2;`0:,"failed";exit 1]
+b:(-g)#/(g#" "),/a _ x
+r:b
+r2:r~("   ab"
+      "  cde"
+      " fghi"
+      "    j")
+if[~r2;`0:,"failed";exit 1]
+/,/b
+rj:{[x;y;g],/(-g)#/(g#" "),/(+\0,-1 _ y) _ x}
+r:rj[x;y;g]
+r2:r~"   ab  cde fghi    j"
+if[~r2;`0:,"failed";exit 1]
+
+"185. left justify fields x of length y to length g"
+x:"abcdefghij"
+y:2 3 4 1
+g:5
+a:+\0,-1_ y
+r:a
+r2:r~0 2 5 9
+if[~r2;`0:,"failed";exit 1]
+r:a _ x
+r2:r~("ab"
+      "cde"
+      "fghi"
+      ,"j")
+if[~r2;`0:,"failed";exit 1]
+/r:((:+\0,-1_ y) _ x),\g#" "    / ??? what is the :+ ?
+r:((+\0,-1_ y) _ x),\g#" "
+r2:r~("ab     "
+      "cde     "
+      "fghi     "
+      "j     ")
+if[~r2;`0:,"failed";exit 1]
+/r:g#/((:+\0,-1_ y) _ x),\g#" "    / ??? what is the :+ ?
+r:g#/((+\0,-1_ y) _ x),\g#" "
+r2:r~("ab   "
+      "cde  "
+      "fghi "
+      "j    ")
+if[~r2;`0:,"failed";exit 1]
+/lj:{[x;y;g],/g#/L :+\0,-1_ y ),\g#" " }  / ??? funny symbol showed up as a stray "L"
+lj:{[x;y;g],/g#/(+\0,-1_ y ),\g#" " }
+r:rj[x;y;g]
+r2:r~"   ab  cde fghi    j"
+if[~r2;`0:,"failed";exit 1]
+lj:{[x;y;g],/g#/((+\0,-1 _ y)_ x),\g#" "}
+r:lj[x;y;g]
+r2:r~"ab   cde  fghi j    "
+if[~r2;`0:,"failed";exit 1]
+
+"186. annuity coefficient for x periods at interest rate y%"
+\p 3
+x:10 15 20 25
+y:8 9 10 15
+r:$+1-(1+y%100)^\-x
+r2:r~$(0.537 0.578 0.614 0.753
+       0.685 0.725 0.761 0.877
+       0.785 0.822 0.851 0.939
+       0.854 0.884 0.908 0.97)
+if[~r2;`0:,"failed";exit 1]
+ac:{(y%100)%/+1-(1+y%100)^\-x}
+r:$ac[x;y]
+r2:r~$(0.149 0.156 0.163 0.199
+       0.117 0.124 0.131 0.171
+       0.102 0.11 0.117 0.16
+       0.0937 0.102 0.11 0.155)
+if[~r2;`0:,"failed";exit 1]
+\p 7
+
+"187. direct matrix product"
+x:1+3 2#!6
+y:1+2 4#!8
+r:+'x*\\y
+r2:r~(((1 2 3 4
+        2 4 6 8)
+       (5 6 7 8
+        10 12 14 16))
+      ((3 6 9 12
+        4 8 12 16)
+       (15 18 21 24
+        20 24 28 32))
+      ((5 10 15 20
+        6 12 18 24)
+       (25 30 35 40
+        30 36 42 48)))
+if[~r2;`0:,"failed";exit 1]
+dp:{+'x*\\y}
+
+"188. Shur product"
+x:(1 2
+   3 4
+   5 6)
+y:(1 2 3 4
+   5 6 7 8)
+r:((*|^x)#x)*(*^y)#'y
+r2:r~(1 4
+      15 24)
+if[~r2;`0:,"failed";exit 1]
+
+"189. add x to each row of y"
+x:1+!4
+y:3 4#2+!12
+r:y
+r2:r~(2 3 4 5
+      6 7 8 9
+      10 11 12 13)
+if[~r2;`0:,"failed";exit 1]
+r:x+/y
+r2:r~(3 5 7 9
+      7 9 11 13
+      11 13 15 17)
+if[~r2;`0:,"failed";exit 1]
+
+/190. see 189
+
+"191. Shur sum"
+x:(1 2
+   3 4
+   5 6)
+y:(1 2 3 4
+   5 6 7 8)
+r:((*|^x)#x)+(*^y)#'y
+r2:r~(2 4
+      8 10)
+if[~r2;`0:,"failed";exit 1]
+
+"192. add x to each column of y"
+x:1+!2
+/x
+/1 2
+y:2 5#3+!10
+/y
+/(3 4 5 6 7
+/ 8 9 10 11 12)
+r:x+'y
+r2:r~(4 5 6 7 8
+      10 11 12 13 14)
+if[~r2;`0:,"failed";exit 1]
+
+/193. see 192
+
+/ TODO parse reduction order
+/"195. upper triangular matrix of order x"
+/x:5
+/r:{~x>\x}!x
+/r2:r~(1 1 1 1 1
+/      0 1 1 1 1
+/      0 0 1 1 1
+/      0 0 0 1 1
+/      0 0 0 0 1)
+/if[~r2;`0:,"failed";exit 1]
+/ut:{{~x>\x}[!x]}
+/r:ut 5
+/r2:r~(1 1 1 1 1
+/      0 1 1 1 1
+/      0 0 1 1 1
+/      0 0 0 1 1
+/      0 0 0 0 1)
+/if[~r2;`0:,"failed";exit 1]
+
+"196. lower triangular matrix of order x"
+lt0:{{~x<\x}[!x]}
+r:lt0 5
+r2:r~(1 0 0 0 0
+      1 1 0 0 0
+      1 1 1 0 0
+      1 1 1 1 0
+      1 1 1 1 1)
+if[~r2;`0:,"failed";exit 1]
+
+"197. identity matrix of order x"
+id:{(x,x)#1,x#0}
+r:id 5
+r2:r~(1 0 0 0 0
+      0 1 0 0 0
+      0 0 1 0 0
+      0 0 0 1 0
+      0 0 0 0 1)
+if[~r2;`0:,"failed";exit 1]
+
+"198. Hilbert matrix of order x"
+\p 3
+hm:{%1+(!x)+/!x}
+r:$hm 5
+r2:r~$(1 0.5 0.333 0.25 0.2
+       0.5 0.333 0.25 0.2 0.167
+       0.333 0.25 0.2 0.167 0.143
+       0.25 0.2 0.167 0.143 0.125
+       0.2 0.167 0.143 0.125 0.111)
+if[~r2;`0:,"failed";exit 1]
+\p 7
+
+"199. multiplication table of order x"
+mt:{{x*\x}[1+!x]}
+r:mt 5
+r2:r~(1 2 3 4 5
+      2 4 6 8 10
+      3 6 9 12 15
+      4 8 12 16 20
+      5 10 15 20 25)
+if[~r2;`0:,"failed";exit 1]
+
+"200. replicating a dimension of rank-3 array x y-fold"
+x:2 3 3#1+!18
+y:3
+r:x[;,/(y#1)*\!(^x)[1];]
+r2:r~((1 2 3
+       4 5 6
+       7 8 9
+       1 2 3
+       4 5 6
+       7 8 9
+       1 2 3
+       4 5 6
+       7 8 9)
+      (10 11 12
+       13 14 15
+       16 17 18
+       10 11 12
+       13 14 15
+       16 17 18
+       10 11 12
+       13 14 15
+       16 17 18))
+if[~r2;`0:,"failed";exit 1]
+
+"201. moving index y-wide for x"
+x:"abcdef"
+y:3
+r:(!(#x)-y-1)+\y
+r2:r~3 4 5 6
+if[~r2;`0:,"failed";exit 1]
+
+"202. indices of infixes of length y"
+x:4+!5
+/x
+/4 5 6 7 8
+y:3
+r:x+\!y
+r2:r~(4 5 6
+      5 6 7
+      6 7 8
+      7 8 9
+      8 9 10)
+if[~r2;`0:,"failed";exit 1]
+
+"203. one-column matrix from numeric list"
+/x:7 draw 100
+x:34 31 51 29 35 17 89
+r:+,x
+r2:r~(,34
+      ,31
+      ,51
+      ,29
+      ,35
+      ,17
+      ,89)
+if[~r2;`0:,"failed";exit 1]
+
+"204. numeric array and its negative"
+x:3+3 4#!12
+/x
+/(3 4 5 6
+/ 7 8 9 10
+/ 11 12 13 14)
+r:x,''-x
+r2:r~((3 -3
+       4 -4
+       5 -5
+       6 -6)
+      (7 -7
+       8 -8
+       9 -9
+       10 -10)
+      (11 -11
+       12 -12
+       13 -13
+       14 -14))
+if[~r2;`0:,"failed";exit 1]
+
+"205. remove trailing blank rows"
+x:+5 9#"abc de   "
+r:x
+r2:r~("aaaaa"
+      "bbbbb"
+      "ccccc"
+      "     "
+      "ddddd"
+      "eeeee"
+      "     "
+      "     "
+      "     ")
+if[~r2;`0:,"failed";exit 1]
+r:x~\(#+x)#" "
+r2:r~0 0 0 1 0 0 1 1 1
+if[~r2;`0:,"failed";exit 1]
+r:~x~\(#+x)#" "
+r2:r~1 1 1 0 1 1 0 0 0
+if[~r2;`0:,"failed";exit 1]
+r:||\|~x~\(#+x)#" "
+r2:r~1 1 1 1 1 1 0 0 0
+if[~r2;`0:,"failed";exit 1]
+r:&||\|~x~\(#+x)#" "
+r2:r~0 1 2 3 4 5
+if[~r2;`0:,"failed";exit 1]
+rtr:{x[&||\|~x~\(#+x)#" "]}
+r:rtr[x]
+r2:r~("aaaaa"
+      "bbbbb"
+      "ccccc"
+      "     "
+      "ddddd"
+      "eeeee")
+if[~r2;`0:,"failed";exit 1]
+
+"206. remove duplicate rows"
+x:("abc"
+   "def"
+   "abc"
+   "ghi"
+   "jkl"
+   "abc"
+   "ghi"
+   "abc")
+r:?x
+r2:r~("abc"
+      "def"
+      "ghi"
+      "jkl")
+if[~r2;`0:,"failed";exit 1]
+
+"207. indices in matrix x of rows of matrix y"
+x:+3 8#"abcdefgh"
+r:x
+r2:r~("aaa"
+      "bbb"
+      "ccc"
+      "ddd"
+      "eee"
+      "fff"
+      "ggg"
+      "hhh")
+if[~r2;`0:,"failed";exit 1]
+y:+3 4#"afmc"
+r:y
+r2:r~("aaa"
+      "fff"
+      "mmm"
+      "ccc")
+if[~r2;`0:,"failed";exit 1]
+r:x?/y
+r2:r~0 5 8 2
+if[~r2;`0:,"failed";exit 1]
+
+/208. see 206
+
+"209. remove trailing blank columns"
+x:3 9#"abc de   "
+r:x
+r2:r~("abc de   "
+      "abc de   "
+      "abc de   ")
+if[~r2;`0:,"failed";exit 1]
+r:+rtr[+x]
+r2:r~("abc de"
+      "abc de"
+      "abc de")
+if[~r2;`0:,"failed";exit 1]
+
+"210. remove leading blank columns"
+x:3 9#"   ed cba"
+r:x
+r2:r~("   ed cba"
+      "   ed cba"
+      "   ed cba")
+if[~r2;`0:,"failed";exit 1]
+r:+|rtr[|+x]
+r2:r~("ed cba"
+      "ed cba"
+      "ed cba")
+if[~r2;`0:,"failed";exit 1]
+
+"211. remove leading blank rows"
+x:|+3 9#"abc de   "
+r:x
+r2:r~("   "
+      "   "
+      "   "
+      "eee"
+      "ddd"
+      "   "
+      "ccc"
+      "bbb"
+      "aaa")
+if[~r2;`0:,"failed";exit 1]
+r:|rtr[|x]
+r2:r~("eee"
+      "ddd"
+      "   "
+      "ccc"
+      "bbb"
+      "aaa")
+if[~r2;`0:,"failed";exit 1]
+
+"213. maxima of infixes of x specified by boolean list y"
+x:-17 7 30 12 5 2 -5 6 -3 -19
+y:10#1 1 0
+r:y
+r2:r~1 1 0 1 1 0 1 1 0 1
+if[~r2;`0:,"failed";exit 1]
+r:|/x[&y]
+r2:r~12
+if[~r2;`0:,"failed";exit 1]
+
+/214. see 159
+
+/215. see 159
+
+"216. rows of matrix x starting with y"
+x:("sit";"sat";"sin";"tin")
+r:x
+r2:r~("sit"
+      "sat"
+      "sin"
+      "tin")
+if[~r2;`0:,"failed";exit 1]
+y:"si"
+r:y lin/x
+r2:r~(1 1
+      1 0
+      1 1
+      0 1)
+if[~r2;`0:,"failed";exit 1]
+r:&/'y lin/x
+r2:r~1 0 1 0
+if[~r2;`0:,"failed";exit 1]
+r:&&/'y lin/x
+r2:r~0 2
+if[~r2;`0:,"failed";exit 1]
+rb:{x[&&/'y lin/x]}
+r:rb[x;y]
+r2:r~("sit"
+      "sin")
+if[~r2;`0:,"failed";exit 1]
+
+"217. index of last nonblank in string"
+x:("love's not "
+   "time's fool "
+   "though rosy ")
+ln:{*|&~" "=x}
+r:ln'x
+r2:r~9 10 10
+if[~r2;`0:,"failed";exit 1]
+
+"218. single blank row from multiple"
+s:"  a bc  def    g"
+a:~s=" "
+r:a
+r2:r~0 0 1 0 1 1 0 0 1 1 1 0 0 0 0 1
+if[~r2;`0:,"failed";exit 1]
+b:~a
+r:b
+r2:r~1 1 0 1 0 0 1 1 0 0 0 1 1 1 1 0
+if[~r2;`0:,"failed";exit 1]
+c:ep[>]0,b
+r:c
+r2:r~1 0 0 1 0 0 1 0 0 0 0 1 0 0 0 0
+if[~r2;`0:,"failed";exit 1]
+d:a|c
+r:d
+r2:r~1 0 1 1 1 1 1 0 1 1 1 1 0 0 0 1
+if[~r2;`0:,"failed";exit 1]
+e:&d
+r:e
+r2:r~0 2 3 4 5 6 8 9 10 11 15
+if[~r2;`0:,"failed";exit 1]
+r:s[e]
+r2:r~" a bc def g"
+if[~r2;`0:,"failed";exit 1]
+x:+3 10#"a  b c   d"
+r:x
+r2:r~("aaa"
+      "   "
+      "   "
+      "bbb"
+      "   "
+      "ccc"
+      "   "
+      "   "
+      "   "
+      "ddd")
+if[~r2;`0:,"failed";exit 1]
+a:x~\(#+x)#" "
+r:a
+r2:r~0 1 1 0 1 0 1 1 1 0
+if[~r2;`0:,"failed";exit 1]
+b:~a
+c:ep[>]0,a
+r:c
+r2:r~0 1 0 0 1 0 1 0 0 0
+if[~r2;`0:,"failed";exit 1]
+d:b|c
+r:d
+r2:r~1 1 0 1 1 1 1 0 0 1
+if[~r2;`0:,"failed";exit 1]
+e:&d
+r:e
+r2:r~0 1 3 4 5 6 9
+if[~r2;`0:,"failed";exit 1]
+r:x[e]
+r2:r~("aaa"
+      "   "
+      "bbb"
+      "   "
+      "ccc"
+      "   "
+      "ddd")
+if[~r2;`0:,"failed";exit 1]
+/ TODO what is xf?
+/rs:{x[{&(~x)|xf[x]}x~\(#+x)#" "]}
+/r:rs x
+/r2:r~("aaa"
+/      "   "
+/      "bbb"
+/      "   "
+/      "ccc"
+/      "   "
+/      "ddd")
+/if[~r2;`0:,"failed";exit 1]
+
+/219. see 147
+
+"220. remove duplicate blank columns"
+x:3 9#"a  b  c d"
+r:x
+r2:r~("a  b  c d"
+      "a  b  c d"
+      "a  b  c d")
+if[~r2;`0:,"failed";exit 1]
+/ TODO valgrind errors
+/r:+rs[+x]
+/r2:r~("a  b  c d"
+/      "a  b  c d"
+/      "a  b  c d")
+/if[~r2;`0:,"failed";exit 1]
+
+"221. is x an integer in interval [ g,h )"
+g:6
+h:12
+x:18
+r:(x=_ x)&(~x<g)&(x<h)
+r2:r~0
+if[~r2;`0:,"failed";exit 1]
+x:7
+r:(x=_ x)&(~x<g)&(x<h)
+r2:r~1
+if[~r2;`0:,"failed";exit 1]
+x:7.1
+r:(x=_ x)&(~x<g)&(x<h)
+r2:r~0
+if[~r2;`0:,"failed";exit 1]
+
+"222. maximum of x with weights y"
+x:1 2 3 4 5
+y:5 4 3 2 1
+r:|/x*y
+r2:r~9
+if[~r2;`0:,"failed";exit 1]
+
+"223. minimum of x with weights y"
+x:1 2 3 4 5
+y:5 4 3 2 1
+r:&/x*y
+r2:r~5
+if[~r2;`0:,"failed";exit 1]
+
+"224. extend distance table to next leg"
+x:(0 50 80 20 999
+   50 0 20 40 30
+   80 20 0 999 30
+   20 40 999 0 10
+   999 30 30 10 0)
+/notice x[0;2] is 80 while x[0;1]+x[1;2] is 70
+r:x(&/+)\x
+r2:r~(0 50 70 20 30
+      50 0 20 40 30
+      70 20 0 40 30
+      20 40 40 0 10
+      30 30 30 10 0)
+if[~r2;`0:,"failed";exit 1]
+
+"225. remove blank rows"
+x:("aaa"
+   "bbb"
+   "   "
+   "ccc"
+   "   ")
+r:x dv "   "
+r2:r~("aaa"
+      "bbb"
+      "ccc")
+if[~r2;`0:,"failed";exit 1]
+
+"226. remove blank columns"
+x:+4 4#"xxxx    hhhh  ii"
+r:x
+r2:r~("x h "
+      "x h "
+      "x hi"
+      "x hi")
+if[~r2;`0:,"failed";exit 1]
+r:+(+x)dv "    "
+r2:r~("xh "
+      "xh "
+      "xhi"
+      "xhi")
+if[~r2;`0:,"failed";exit 1]
+
+/227. see 69
+
+"228. is y a row of x"
+x:("xxx";"yyy";"zzz";"yyy")
+r:x?"yyy"
+r2:r~1
+if[~r2;`0:,"failed";exit 1]
+
+/229. see 228
+
+"230. extend a transitive binary relation"
+x:(0 1 0 0
+   0 0 1 1
+   1 0 0 0
+   0 0 1 0)
+r:x(|/&)\x
+r2:r~(0 0 1 1
+      1 0 1 0
+      0 1 0 0
+      1 0 0 0)
+if[~r2;`0:,"failed";exit 1]
+
+"231. which rows of x contain elements different from y"
+x:("aaa";"bbb";"ooo";"pop")
+y:"o"
+r:~x=y
+r2:r~(1 1 1
+      1 1 1
+      0 0 0
+      1 0 1)
+if[~r2;`0:,"failed";exit 1]
+r:|/'~x=y
+r2:r~1 1 0 1
+if[~r2;`0:,"failed";exit 1]
+
+"232. is y a row of x"
+x:("aaa"
+   "bbb"
+   "ooo"
+   "ppp"
+   "kkk")
+y:"ooo"
+r:y in x
+r2:r~1
+if[~r2;`0:,"failed";exit 1]
+
+"233. is x within range [ y )"
+x:9
+y:(1 9
+   9 16
+   5 7
+   8 20
+   6 10)
+r:x<'y
+r2:r~(0 0
+      0 1
+      0 0
+      0 1
+      0 1)
+if[~r2;`0:,"failed";exit 1]
+r:</'x<y
+r2:r~0 1 0 1 1
+if[~r2;`0:,"failed";exit 1]
+r:x(</<)/y
+r2:r~0 1 0 1 1
+if[~r2;`0:,"failed";exit 1]
+
+"234. is x within the range ( y ]"
+r:~x>'y
+r2:r~(0 1
+      1 1
+      0 0
+      0 1
+      0 1)
+if[~r2;`0:,"failed";exit 1]
+r:</'~x>'y
+r2:r~1 0 0 1 1
+if[~r2;`0:,"failed";exit 1]
+
+/235. see 234
+
+"236. number of occurrences of x in y"
+/y:3+7 draw 6
+y:6 4 7 7 6 6 4
+x:7
+r:+/x=y
+r2:r~2
+if[~r2;`0:,"failed";exit 1]
+r:x(+/=)/y
+r2:r~0 0 1 1 0 0 0
+if[~r2;`0:,"failed";exit 1]
+
+"237. average (mean) of x weighted by y"
+y:78 80 90 88 72
+x:20 15 20 22 19
+r:x*y
+r2:r~1560 1200 1800 1936 1368
+if[~r2;`0:,"failed";exit 1]
+r:+/x*y
+r2:r~7864
+if[~r2;`0:,"failed";exit 1]
+r:(+/x*y)%#x
+r2:r~1572.8
+if[~r2;`0:,"failed";exit 1]
+
+"239. sum reciprocal series"
+x:10 9 10 7 8
+y:80 63 70 63 64
+r:+/y%x
+r2:r~39.0
+
+"240. matrix product"
+x:(1 2 3
+   4 5 6)
+y:(1 2
+   3 4
+   5 6)
+r:x mul y
+r2:r~(22 28
+      49 64)
+if[~r2;`0:,"failed";exit 1]
+r:x(+/*)\y
+r2:r~(22 28
+      49 64)
+if[~r2;`0:,"failed";exit 1]
+
+"241. sum over subsets of x specified by y"
+x:1+3 4#!12
+r:x
+r2:r~(1 2 3 4
+      5 6 7 8
+      9 10 11 12)
+if[~r2;`0:,"failed";exit 1]
+y:4 3#1 0
+r:y
+r2:r~(1 0 1
+      0 1 0
+      1 0 1
+      0 1 0)
+if[~r2;`0:,"failed";exit 1]
+r:x mul y
+r2:r~(4 6 4
+      12 14 12
+      20 22 20)
+if[~r2;`0:,"failed";exit 1]
+
+"242. sum squares of x"
+x:1 2 3 4 5
+r:+/x*x
+r2:r~55
+if[~r2;`0:,"failed";exit 1]
+
+"243. dot product of vectors"
+x:1 2 3 4 5
+y:10 20 30 40 50
+r:+/x*y
+r2:r~550
+if[~r2;`0:,"failed";exit 1]
+
+"244. product over subsets of x specified by y"
+x:1+3 4#!12
+r:x
+r2:r~(1 2 3 4
+      5 6 7 8
+      9 10 11 12)
+if[~r2;`0:,"failed";exit 1]
+y:4 3#1 0
+r:y
+r2:r~(1 0 1
+      0 1 0
+      1 0 1
+      0 1 0)
+if[~r2;`0:,"failed";exit 1]
+r:x (*/^)\y
+r2:r~(3 8 3.0
+      35 48 35.0
+      99 120 99.0)
+if[~r2;`0:,"failed";exit 1]
+
+/"245. randomize the random seed"
+/_t
+/-1154371779
+/\r -1154371779
+/\r
+/-1154371779
+
+/246. see 242
+
+"247. interlace x[i]#1 and y[i]#0"
+x:1 3
+y:2 4
+a:,/+(x;y)
+r:a
+r2:r~1 2 3 4
+if[~r2;`0:,"failed";exit 1]
+b:(#x,y)#1 0
+r:b
+r2:r~1 0 1 0
+if[~r2;`0:,"failed";exit 1]
+c:a#'b
+r:c
+r2:r~(,1
+      0 0
+      1 1 1
+      0 0 0 0)
+if[~r2;`0:,"failed";exit 1]
+d:,/c
+r:d
+r2:r~1 0 0 1 1 1 0 0 0 0
+if[~r2;`0:,"failed";exit 1]
+r:,/(,/+(x;y))#'(#x,y)#1 0
+r2:r~1 0 0 1 1 1 0 0 0 0
+if[~r2;`0:,"failed";exit 1]
+
+"248. center text x in line of width y"
+x:"1234567890"
+y:16
+a:y#x,y#" "
+r:a
+r2:r~"1234567890      "
+if[~r2;`0:,"failed";exit 1]
+b:_ -0.5*y-#x
+r:b
+/r2:r~3  / seems to be wrong
+r2:r~-3
+if[~r2;`0:,"failed";exit 1]
+c:b!a
+r:c
+r2:r~"   1234567890   "
+if[~r2;`0:,"failed";exit 1]
+ct:{(_ -0.5*y-#x)!y#x,y#" "}
+r:ct[x;y]
+r2:r~"   1234567890   "
+if[~r2;`0:,"failed";exit 1]
+p:("1234567890";"1234";"123456";"1234567890123456")
+r:p
+r2:r~("1234567890"
+      "1234"
+      "123456"
+      "1234567890123456")
+if[~r2;`0:,"failed";exit 1]
+r:ct\[p;y]
+r2:r~("   1234567890   "
+      "      1234      "
+      "     123456     "
+      "1234567890123456")
+if[~r2;`0:,"failed";exit 1]
+
+"249. offset enumeration"
+x:10
+y:3
+r:x+!y
+r2:r~10 11 12
+if[~r2;`0:,"failed";exit 1]
+oi:{x+!y}
+r:oi[x;y]
+r2:r~10 11 12
+if[~r2;`0:,"failed";exit 1]
+x:10 20 30
+y:3 4 2
+r:oi'[x;y]
+r2:r~(10 11 12
+      20 21 22 23
+      30 31)
+if[~r2;`0:,"failed";exit 1]
+r:,/oi'[x;y]
+r2:r~10 11 12 20 21 22 23 30 31
+if[~r2;`0:,"failed";exit 1]
+
+"250. replicate y x times"
+x:3
+y:10
+r:x#y
+r2:r~10 10 10
+if[~r2;`0:,"failed";exit 1]
+rp:{x#y}
+r:rp[x;y]
+r2:r~10 10 10
+if[~r2;`0:,"failed";exit 1]
+x:3 4 2
+y:10 20 30
+r:rp'[x;y]
+r2:r~(10 10 10
+      20 20 20 20
+      30 30)
+if[~r2;`0:,"failed";exit 1]
+r:,/rp'[x;y]
+r2:r~10 10 10 20 20 20 20 30 30
+if[~r2;`0:,"failed";exit 1]
+
+/251. see 250
+
+"252. x alternate takes of 1s and 0s"
+x:1 2 3 4 5
+b:(#x)#1 0
+r:b
+r2:r~1 0 1 0 1
+if[~r2;`0:,"failed";exit 1]
+c:x#'b
+r:c
+r2:r~(,1
+      0 0
+      1 1 1
+      0 0 0 0
+      1 1 1 1 1)
+if[~r2;`0:,"failed";exit 1]
+d:,/c
+r:d
+r2:r~1 0 0 1 1 1 0 0 0 0 1 1 1 1 1
+if[~r2;`0:,"failed";exit 1]
+r:,/x#'(#x)#1 0
+r2:r~1 0 0 1 1 1 0 0 0 0 1 1 1 1 1
+if[~r2;`0:,"failed";exit 1]
+
+/253. see 250
+
+"254. running parity of infixes of y indicated by x"
+x:1 0 0 0 0 1 0 0 0 0 1 0 0 0
+y:1 0 0 1 1 1 0 0 1 0 1 1 0 0
+a:&x
+r:a
+r2:r~0 5 10
+if[~r2;`0:,"failed";exit 1]
+b:a _ y
+r:b
+r2:r~(1 0 0 1 1
+      1 0 0 1 0
+      1 1 0 0)
+if[~r2;`0:,"failed";exit 1]
+c:(+\'b)!\2
+r:c
+r2:r~(1 1 1 0 1
+      1 1 1 0 0
+      1 0 0 0)
+if[~r2;`0:,"failed";exit 1]
+d:,/c
+r:d
+r2:r~1 1 1 0 1 1 1 1 0 0 1 0 0 0
+if[~r2;`0:,"failed";exit 1]
+
+"255. running sum of infixes of y indicated by x"
+x:1 0 0 0 1 0 0 0 1
+y:1 2 3 4 5 6 7 8 9
+a:&x
+r:a
+r2:r~0 4 8
+if[~r2;`0:,"failed";exit 1]
+b:a _ y
+r:b
+r2:r~(1 2 3 4
+      5 6 7 8
+      ,9)
+if[~r2;`0:,"failed";exit 1]
+c:+\'b
+r:c
+r2:r~(1 3 6 10
+      5 11 18 26
+      ,9)
+if[~r2;`0:,"failed";exit 1]
+d:,/c
+r:d
+r2:r~1 3 6 10 5 11 18 26 9
+if[~r2;`0:,"failed";exit 1]
+rs:{,/+\'(&x)_ y}
+r:rs[x;y]
+r2:r~1 3 6 10 5 11 18 26 9
+if[~r2;`0:,"failed";exit 1]
+
+"256. groups of 1s in y pointed at by x"
+y:0 0 0 1 1 1 1 1 1 0 0 1 1 1 1 1
+x:0 0 0 1 0 0 0 0 1 0 0 1 0 0 0 1
+a:+\ep[>]0,y
+r:a
+r2:r~0 0 0 1 1 1 1 1 1 1 1 2 2 2 2 2
+if[~r2;`0:,"failed";exit 1]
+r:y&a=|\x*a
+r2:r~0 0 0 1 1 1 1 1 1 0 0 1 1 1 1 1
+if[~r2;`0:,"failed";exit 1]
+
+"257. sums of infixes of x determined by lengths y"
+x:1+!10
+/x
+/1 2 3 4 5 6 7 8 9 10
+y:2 3 2 3
+a:+\0,-1 _ y
+r:a
+r2:r~0 2 5 7
+if[~r2;`0:,"failed";exit 1]
+r:a _ x
+r2:r~(1 2
+      3 4 5
+      6 7
+      8 9 10)
+if[~r2;`0:,"failed";exit 1]
+r:+/'a _ x
+r2:r~3 12 13 27
+if[~r2;`0:,"failed";exit 1]
+
+"259. removing leading and trailing blanks"
+x:"   abcd e  fg   "
+a:~x=" "
+r:a
+r2:r~0 0 0 1 1 1 1 0 1 0 0 1 1 0 0 0
+if[~r2;`0:,"failed";exit 1]
+r:(|\a)&(||\|a)
+r2:r~0 0 0 1 1 1 1 1 1 1 1 1 1 0 0 0
+if[~r2;`0:,"failed";exit 1]
+r:&(|\a)&(||\|a)
+r2:r~3 4 5 6 7 8 9 10 11 12
+if[~r2;`0:,"failed";exit 1]
+r:x[&(|\a)&(||\|a)]
+r2:r~"abcd e  fg"
+if[~r2;`0:,"failed";exit 1]
+lt0:{x[&(|\a)&||\|a:~x=" "]}
+r:lt0 x
+r2:r~"abcd e  fg"
+if[~r2;`0:,"failed";exit 1]
+
+"260. first 10 figurate numbers of order x"
+fg:{x+\/10#1}
+r:fg 0
+r2:r~1 1 1 1 1 1 1 1 1 1
+if[~r2;`0:,"failed";exit 1]
+r:fg 1
+r2:r~1 2 3 4 5 6 7 8 9 10
+if[~r2;`0:,"failed";exit 1]
+r:fg 2
+r2:r~1 3 6 10 15 21 28 36 45 55
+if[~r2;`0:,"failed";exit 1]
+r:fg 3
+r2:r~1 4 10 20 35 56 84 120 165 220
+if[~r2;`0:,"failed";exit 1]
+r:fg 4
+r2:r~1 5 15 35 70 126 210 330 495 715
+if[~r2;`0:,"failed";exit 1]
+
+"261. first group of 1s"
+x:1 1 1 0 1 0 1
+r:x&&\x=|\x
+r2:r~1 1 1 0 0 0 0
+if[~r2;`0:,"failed";exit 1]
+x:0 0 0 1 1 0 1
+r:x&&\x=|\x
+r2:r~0 0 0 1 1 0 0
+if[~r2;`0:,"failed";exit 1]
+x:0 1 0 1 0 1 0
+r:x&&\x=|\x
+r2:r~0 1 0 0 0 0 0
+if[~r2;`0:,"failed";exit 1]
+
+"262. value of saddle point (see 48)"
+x:(5 4 6 4 12 5
+   16 2 4 5 16 18
+   8 18 7 12 16 11
+   20 17 16 14 16 20
+   16 8 12 9 17 13)
+rn:{x='&/'x}
+cx:{x=\|/x}
+minmax:{(rn x)&(cx x)}
+r:minmax x
+r2:r~(0 0 0 0 0 0
+      0 0 0 0 0 0
+      0 0 0 0 0 0
+      0 0 0 1 0 0
+      0 0 0 0 0 0)
+if[~r2;`0:,"failed";exit 1]
+ones:{&,/minmax x}
+r:ones x
+r2:r~,21
+if[~r2;`0:,"failed";exit 1]
+r:(,/x)[ones[x]]
+r2:r~,14
+if[~r2;`0:,"failed";exit 1]
+
+"264. insert x[i] blanks after y[g[i]]"
+g:2 4 6     / had to derive this
+y:"abcdefg" / had to derive this
+x:6 4 2     / had to guess this
+b:(0,g)_ y
+r:b
+r2:r~("ab"
+      "cd"
+      "ef"
+      ,"g")
+if[~r2;`0:,"failed";exit 1]
+c:b,'(x,0)#\" "
+r:c
+r2:r~("ab      "
+      "cd    "
+      "ef  "
+      ,"g")
+if[~r2;`0:,"failed";exit 1]
+r:,/c
+r2:r~"ab      cd    ef  g"
+if[~r2;`0:,"failed";exit 1]
+ib:{[x;y;g],/((0,g)_ y),'(x,0)#\" "}
+r:ib[x;y;g]
+r2:r~"ab      cd    ef  g"
+if[~r2;`0:,"failed";exit 1]
+
+"265. insert x[i] zeroes after i-th infix of y"
+y:0 0 1 0 1 0 1 1
+x:1 2 2 1
+r:&y
+r2:r~2 4 6 7
+if[~r2;`0:,"failed";exit 1]
+a:@[&#y;&y;:;x]
+r:a
+r2:r~0 0 1 0 2 0 2 1
+if[~r2;`0:,"failed";exit 1]
+b:1+a
+r:b
+r2:r~1 1 2 1 3 1 3 2
+if[~r2;`0:,"failed";exit 1]
+d:(!(#y)++/x)
+r:d
+r2:r~0 1 2 3 4 5 6 7 8 9 10 11 12 13
+if[~r2;`0:,"failed";exit 1]
+d:(1_!(#y)++/x)
+r:d
+/r2:r~1 2 3 4 5 6 7 8 9 10 11 12 13 14  /answer was wrong
+r2:r~1 2 3 4 5 6 7 8 9 10 11 12 13
+if[~r2;`0:,"failed";exit 1]
+/r:d lin c  / what is c???
+/r2:r~1 1 0 1 1 0 0 1 1 0 0 1 0 1
+/if[~r2;`0:,"failed";exit 1]
+
+"266. remove trailing blanks"
+x:"  phrase 266   "
+a:~x=" "
+r:a
+r2:r~0 0 1 1 1 1 1 1 0 1 1 1 0 0 0
+if[~r2;`0:,"failed";exit 1]
+b:||\|a
+r:b
+r2:r~1 1 1 1 1 1 1 1 1 1 1 1 0 0 0
+if[~r2;`0:,"failed";exit 1]
+r:x[&b]
+r2:r~"  phrase 266"
+if[~r2;`0:,"failed";exit 1]
+
+"267. remove leading blanks"
+x:"  phrase 267  "
+a:~x=" "
+r:a
+r2:r~0 0 1 1 1 1 1 1 0 1 1 1 0 0
+if[~r2;`0:,"failed";exit 1]
+b:|\a
+r:b
+r2:r~0 0 1 1 1 1 1 1 1 1 1 1 1 1
+if[~r2;`0:,"failed";exit 1]
+r:x[&b]
+r2:r~"phrase 267  "
+if[~r2;`0:,"failed";exit 1]
+
+"268. is x in ascending order"
+x:2 5 7 9 6 8 3
+r:x~x[<x]
+r2:r~0
+if[~r2;`0:,"failed";exit 1]
+x:0 1 1 1 7 8 9
+r:x~x[<x]
+r2:r~1
+if[~r2;`0:,"failed";exit 1]
+
+/269. see 248
+
+/270. see 268
+
+/271. slight variation of 264
+
+/272. see 266
+
+"273. join scalar to each list item"
+x:"a"
+y:"01234"
+r:x,/y
+r2:r~("a0"
+      "a1"
+      "a2"
+      "a3"
+      "a4")
+if[~r2;`0:,"failed";exit 1]
+x:("01234";"56789")
+y:("abcde";"fghij")
+r:x,y
+r2:r~("01234"
+      "56789"
+      "abcde"
+      "fghij")
+if[~r2;`0:,"failed";exit 1]
+r:x,'y
+r2:r~("01234abcde"
+      "56789fghij")
+if[~r2;`0:,"failed";exit 1]
+
+/274. see 273
+
+/275. see 76
+
+/276. see 185
+
+"277. end indicators from lengths"
+x:1 2 3 4 5
+r:+\x
+r2:r~1 3 6 10 15
+if[~r2;`0:,"failed";exit 1]
+r:-1++\x
+r2:r~0 2 5 9 14
+if[~r2;`0:,"failed";exit 1]
+r:+/x
+r2:r~15
+if[~r2;`0:,"failed";exit 1]
+r:@[&+/x;-1++\x;:;1]
+r2:r~1 0 1 0 0 1 0 0 0 1 0 0 0 0 1
+if[~r2;`0:,"failed";exit 1]
+
+"278. start indicators from lengths"
+x:1 2 3 4 5
+r:(!+/x) lin\ +\0,x
+r2:r~1 1 0 1 0 0 1 0 0 0 1 0 0 0 0
+if[~r2;`0:,"failed";exit 1]
+
+/279. variation of 265
+
+/280. see 41
+
+"281. value of Taylor series with coefficients y at x"
+x:12
+y:7 5 6 6
+r:1+!-1+#y
+r2:r~1 2 3
+if[~r2;`0:,"failed";exit 1]
+r:1.0,x%1+!-1+#y
+r2:r~1 12 6 4.0
+if[~r2;`0:,"failed";exit 1]
+r:*\1.0,x%1+!-1+#y
+r2:r~1 12 72 288.0
+if[~r2;`0:,"failed";exit 1]
+r:y**\1.0,x%1+!-1+#y
+r2:r~7 60 432 1728.0
+if[~r2;`0:,"failed";exit 1]
+r:+/y**\1.0,x%1+!-1+#y
+r2:r~2227.0
+if[~r2;`0:,"failed";exit 1]
+
+"282. index of first blank"
+x:"ab c d"
+r:x?" "
+r2:r~2
+if[~r2;`0:,"failed";exit 1]
+x:("ab c d";" a bc";"abcd ")
+r:x
+r2:r~("ab c d"
+      " a bc"
+      "abcd ")
+if[~r2;`0:,"failed";exit 1]
+r:x?\" "
+r2:r~2 0 4
+if[~r2;`0:,"failed";exit 1]
+
+"283. locate field y of fields beginning with first of x"
+x:"abcabbbaccccaddd"
+y:2
+r:y=+\x=*x
+r2:r~0 0 0 1 1 1 1 0 0 0 0 0 0 0 0 0
+if[~r2;`0:,"failed";exit 1]
+r:x[&y=+\x=*x]
+r2:r~"abbb"
+if[~r2;`0:,"failed";exit 1]
+y:4
+r:x[&y=+\x=*x]
+r2:r~"addd"
+if[~r2;`0:,"failed";exit 1]
+
+"284. sum items of x marked by y"
+x:1 2 3 4 5 6 7
+y:1 1 1 2 2 3 3
+r:=y
+r2:r~(0 1 2
+      3 4
+      5 6)
+if[~r2;`0:,"failed";exit 1]
+r:x[=y]
+r2:r~(1 2 3
+      4 5
+      6 7)
+if[~r2;`0:,"failed";exit 1]
+r:+/'x[=y]
+r2:r~6 9 13
+if[~r2;`0:,"failed";exit 1]
+y:1 2 1 3 3 2 1
+r:+/'x[=y]
+r2:r~11 8 9
+if[~r2;`0:,"failed";exit 1]
+
+"285. moving sum"
+y:3
+x:1 2 3 4 5
+r:+\x
+r2:r~1 3 6 10 15
+if[~r2;`0:,"failed";exit 1]
+r:(-y)
+r2:r~-3
+if[~r2;`0:,"failed";exit 1]
+r:(-y)_ a:+\x
+r2:r~1 3
+if[~r2;`0:,"failed";exit 1]
+r:0,(-y)_ a
+r2:r~0 1 3
+if[~r2;`0:,"failed";exit 1]
+r:(y-1)_ a
+r2:r~6 10 15
+if[~r2;`0:,"failed";exit 1]
+r:((y-1)_ a)-0,(-y)_ a
+r2:r~6 9 12
+if[~r2;`0:,"failed";exit 1]
+ms:{((y-1)_ a)-0,(-y)_ a:+\x}
+r:ms[x;y]
+r2:r~6 9 12
+if[~r2;`0:,"failed";exit 1]
+
+"286. FIFO stock y decremented with x units"
+x:5
+y:1 2 3 4 5
+r:(+\y)-x
+r2:r~-4 -2 1 5 10
+if[~r2;`0:,"failed";exit 1]
+g:0|(+\y)-x
+r:g
+r2:r~0 0 1 5 10
+if[~r2;`0:,"failed";exit 1]
+r:ep[-]0,g
+r2:r~0 0 1 4 5
+if[~r2;`0:,"failed";exit 1]
+ff:{ep[-]0,0|(+\y)-x}
+r:ff[x;y]
+r2:r~0 0 1 4 5
+if[~r2;`0:,"failed";exit 1]
+
+"289. or-scan of infixes of y indicated by x"
+y:1 0 0 1 0 1 0 0
+x:1 0 1 0 0 0 1 0
+a:&x
+b:a _ y
+r:b
+r2:r~(1 0
+      0 1 0 1
+      0 0)
+if[~r2;`0:,"failed";exit 1]
+c:|\'b
+r:c
+r2:r~(1 1
+      0 1 1 1
+      0 0)
+if[~r2;`0:,"failed";exit 1]
+r:,/c
+r2:r~1 1 0 1 1 1 0 0
+if[~r2;`0:,"failed";exit 1]
+
+"290. and-scan of infixes of y indicated by x"
+y:1 0 0 1 0 1 0 0
+x:1 0 1 0 0 0 1 0
+a:&x
+b:a _ y
+r:b
+r2:r~(1 0
+      0 1 0 1
+      0 0)
+if[~r2;`0:,"failed";exit 1]
+c:&\'b
+r:c
+r2:r~(1 0
+      0 0 0 0
+      0 0)
+if[~r2;`0:,"failed";exit 1]
+r:,/c
+r2:r~1 0 0 0 0 0 0 0
+if[~r2;`0:,"failed";exit 1]
+
+"291. sums of infixes of y indicated by x"
+y:1 2 3 4 5
+x:1 0 1 0 1
+a:&x
+b:a _ y
+r:b
+r2:r~(1 2
+      3 4
+      ,5)
+if[~r2;`0:,"failed";exit 1]
+c:+/'b
+r:c
+r2:r~3 7 5
+if[~r2;`0:,"failed";exit 1]
+
+"292. groups of 1s in y pointed to by x"
+y:1 1 1 0 0 1 1
+x:0 1 0 1 0 0 0
+r:-1 _ 0,y
+r2:r~0 1 1 1 0 0 1
+if[~r2;`0:,"failed";exit 1]
+r:+\y>-1 _ 0,y
+r2:r~1 1 1 1 1 2 2
+if[~r2;`0:,"failed";exit 1]
+r:x&y
+r2:r~0 1 0 0 0 0 0
+if[~r2;`0:,"failed";exit 1]
+a:+\y>-1 _ 0,y
+r:a
+r2:r~1 1 1 1 1 2 2
+if[~r2;`0:,"failed";exit 1]
+r:a[&x&y]
+r2:r~,1
+if[~r2;`0:,"failed";exit 1]
+r:a lin ,1
+r2:r~1 1 1 1 1 0 0
+if[~r2;`0:,"failed";exit 1]
+r:y&a lin ,1
+r2:r~1 1 1 0 0 0 0
+if[~r2;`0:,"failed";exit 1]
+go:{y&a lin(a:+\y>-1 _ 0,y)[&x&y]}
+r:go[x;y]
+r2:r~1 1 1 0 0 0 0
+if[~r2;`0:,"failed";exit 1]
+
+"293. locate quotes and text between them"
+x:"abc\"de\"f"
+r:#x
+r2:r~8
+if[~r2;`0:,"failed";exit 1]
+a:x="\""
+r:a
+r2:r~0 0 0 1 0 0 1 0
+if[~r2;`0:,"failed";exit 1]
+b:&a
+r:b
+r2:r~3 6
+if[~r2;`0:,"failed";exit 1]
+c:(*b)+!1+--/b
+r:c
+r2:r~3 4 5 6
+if[~r2;`0:,"failed";exit 1]
+r:@[&#x;c;:;1]
+r2:r~0 0 0 1 1 1 1 0
+if[~r2;`0:,"failed";exit 1]
+
+"294. locate text between quotes"
+x:"abc\"de\"f"
+r:#x
+r2:r~8
+if[~r2;`0:,"failed";exit 1]
+a:x="\""
+r:a
+r2:r~0 0 0 1 0 0 1 0
+if[~r2;`0:,"failed";exit 1]
+b:&a
+r:b
+r2:r~3 6
+if[~r2;`0:,"failed";exit 1]
+c:b+1 -1
+r:c
+r2:r~4 5
+if[~r2;`0:,"failed";exit 1]
+d:(*c)+!1+--/c
+r:d
+r2:r~4 5
+if[~r2;`0:,"failed";exit 1]
+r:@[&#x;d;:;1]
+r2:r~0 0 0 0 1 1 0 0
+if[~r2;`0:,"failed";exit 1]
+
+"295. depth of parentheses"
+x:"a(b((c)de)f)g(h)"
+dp:{+\("("=x)--1 _ 0,")"=x}
+r:dp x
+r2:r~0 1 1 2 3 3 3 2 2 2 1 1 0 1 1 1
+if[~r2;`0:,"failed";exit 1]
+x:"a(b((cde)f)g(ki)"
+r:dp x
+r2:r~0 1 1 2 3 3 3 3 3 2 2 1 2 2 2 2
+if[~r2;`0:,"failed";exit 1]
+x:"ab((c)de)f)g(ki)"
+r:dp x
+r2:r~0 0 1 2 2 2 1 1 1 0 0 -1 0 0 0 0
+if[~r2;`0:,"failed";exit 1]
+x:"a(b((c)de)f)g(h)"
+r:dp x
+r2:r~0 1 1 2 3 3 3 2 2 2 1 1 0 1 1 1
+if[~r2;`0:,"failed";exit 1]
+
+"296. starting positions of infixes from lengths x"
+x:2 3 1 5
+r:+\-1 _ 0,x
+r2:r~0 2 5 6
+if[~r2;`0:,"failed";exit 1]
+sl:{+\-1 _ 0,x}
+r:sl[x]
+r2:r~0 2 5 6
+if[~r2;`0:,"failed";exit 1]
+
+"297. spread marked field heads right"
+x:"abcdef"
+y:1 1 0 0 1 0
+a:&y
+r:a
+r2:r~0 1 4
+if[~r2;`0:,"failed";exit 1]
+b:#'a _ x
+r:b
+r2:r~1 3 2
+if[~r2;`0:,"failed";exit 1]
+c:b#'a
+r:c
+r2:r~(,0
+      1 1 1
+      4 4)
+if[~r2;`0:,"failed";exit 1]
+d:,/c
+r:d
+r2:r~0 1 1 1 4 4
+if[~r2;`0:,"failed";exit 1]
+r:x[d]
+r2:r~"abbbee"
+if[~r2;`0:,"failed";exit 1]
+r:x[,/(#'a _ x)#'a:&y]
+r2:r~"abbbee"
+if[~r2;`0:,"failed";exit 1]
+sh:{x[,/(#'a _ x)#'a:&y]}
+r:sh[x;y]
+r2:r~"abbbee"
+if[~r2;`0:,"failed";exit 1]
+
+/298. see 266
+
+/299. see 267
+
+"300. gth infix of y marked by x"
+x:1 0 0 1 0 1 0 0 0 1 0
+y:"abcdefghijk"
+g:2
+a:&x
+r:a
+r2:r~0 3 5 9
+if[~r2;`0:,"failed";exit 1]
+/b:a _ x / seems to be wrong on the website
+b:a _ y
+r:b
+r2:r~("abc"
+      "de"
+      "fghi"
+      "jk")
+if[~r2;`0:,"failed";exit 1]
+r:b[g]
+r2:r~"fghi"
+if[~r2;`0:,"failed";exit 1]
+r:((&x)_ y)[g]
+r2:r~"fghi"
+if[~r2;`0:,"failed";exit 1]
+
+"301. alternating sum series"
+x:1+!10
+/x
+/1 2 3 4 5 6 7 8 9 10
+a:((#x)#1 -1)
+r:a
+r2:r~1 -1 1 -1 1 -1 1 -1 1 -1
+if[~r2;`0:,"failed";exit 1]
+b:x*a
+r:+\b
+r2:r~1 -1 2 -2 3 -3 4 -4 5 -5
+if[~r2;`0:,"failed";exit 1]
+as:{+\x*(#x)#1 -1}
+r:as[x]
+r2:r~1 -1 2 -2 3 -3 4 -4 5 -5
+if[~r2;`0:,"failed";exit 1]
+
+"302. x first triangular numbers"
+x:6
+r:+\!x
+r2:r~0 1 3 6 10 15
+if[~r2;`0:,"failed";exit 1]
+
+"303. smearing 1s between pairs of 1s"
+x:0 1 0 0 1 0 1 0 1 0 1 1 0
+a:(+\x)!2
+r:a
+/r2:r~1 1 1 0 0 0 0 1 1 0 0 / wrong answer on site
+r2:r~0 1 1 1 0 0 1 1 0 0 1 0 0
+if[~r2;`0:,"failed";exit 1]
+r:x|a
+/r2:r~1 1 1 1 0 0 0 1 1 1 0 / wrong answer on site
+r2:r~0 1 1 1 1 0 1 1 1 0 1 1 0
+if[~r2;`0:,"failed";exit 1]
+r:x|(+\x)!2
+/r2:r~1 1 1 1 0 0 0 1 1 1 0 / wrong answer on site
+r2:r~0 1 1 1 1 0 1 1 1 0 1 1 0
+if[~r2;`0:,"failed";exit 1]
+
+"304. invert 0s following 1st 1"
+x:0 0 1 0 0 1 1
+r:|\x
+r2:r~0 0 1 1 1 1 1
+if[~r2;`0:,"failed";exit 1]
+
+"305. invert fields marked by pairs of 1s"
+x:1 0 1 0 0 1 0 0 1
+a:(+\x)!2
+r:a
+r2:r~1 1 0 0 0 1 1 1 0
+if[~r2;`0:,"failed";exit 1]
+r:~x
+r2:r~0 1 0 1 1 0 1 1 0
+if[~r2;`0:,"failed";exit 1]
+r:(~x)&a
+r2:r~0 1 0 0 0 0 1 1 0
+if[~r2;`0:,"failed";exit 1]
+r:(~x)&(+\x)!2
+r2:r~0 1 0 0 0 0 1 1 0
+if[~r2;`0:,"failed";exit 1]
+
+"306. invert all 1s after 1st 0"
+x:1 1 0 1 0 1 0
+r:&\x
+r2:r~1 1 0 0 0 0 0
+if[~r2;`0:,"failed";exit 1]
+
+"307. invert all 1s after 1st 1"
+x:0 0 1 1 0 1
+r:&#x
+r2:r~0 0 0 0 0 0
+r:x?1
+r2:r~2
+r:@[&#x;x?1;:;1]
+r2:r~0 0 1 0 0 0
+if[~r2;`0:,"failed";exit 1]
+
+"308. invert all 0s after 1st 0"
+x:1 0 0 1 1 0
+a:x?0
+/a
+/1
+r:!#x
+r2:r~0 1 2 3 4 5
+if[~r2;`0:,"failed";exit 1]
+b:(a+1)_!#x
+r:b
+r2:r~2 3 4 5
+if[~r2;`0:,"failed";exit 1]
+r:@[x;b;:;1]
+r2:r~1 0 1 1 1 1
+if[~r2;`0:,"failed";exit 1]
+r:@[x;(1+x?0)_!#x;:;1]
+r2:r~1 0 1 1 1 1
+if[~r2;`0:,"failed";exit 1]
+
+"309. running parity"
+x:0 1 1 1 1 0 1 0 0
+r:(+\x)!2
+r2:r~0 1 0 1 0 0 1 1 1
+if[~r2;`0:,"failed";exit 1]
+
+"310. running sum"
+x:1 20 300 4000
+r:+\x
+r2:r~1 21 321 4321
+if[~r2;`0:,"failed";exit 1]
+
+/311. see 159
+
+"312. maximum separation of items of x"
+/x:10+7 draw 9
+x:17 14 14 17 14 17 18
+r:(|/x)-(&/x)
+r2:r~4
+if[~r2;`0:,"failed";exit 1]
+
+"313. value of two-by-two determinant"
+det: {-/y*|x}
+x:(13 21;34 55)
+r:x
+r2:r~(13 21
+      34 55)
+if[~r2;`0:,"failed";exit 1]
+r:(13 * 55) - (34 * 21)
+r2:r~1
+if[~r2;`0:,"failed";exit 1]
+r:13 21 * 55 34
+r2:r~715 714
+if[~r2;`0:,"failed";exit 1]
+r:-/13 21 * 55 34
+r2:r~1
+if[~r2;`0:,"failed";exit 1]
+/ TODO wrong answer? doesn't even work in e.
+/r:det x
+/r2:r~,1
+/if[~r2;`0:,"failed";exit 1]
+
+/314. see 313
+
+/315. see 159
+
+/316. see 159
+
+/317. see 159
+
+"318. area of triangle with sides x (Heron's rule)"
+x:3 4 5
+hr:{(*/(+/x%2)-0,x)^0.5}
+r:hr[x]
+r2:r~6.0
+if[~r2;`0:,"failed";exit 1]
+
+"319. standard deviation"
+x:44 77 48 24 28 36 17 49 90 91
+std:{((+/(x-(+/x)%#x)^2)%#x)^0.5}
+r:$std[x]
+r2:r~$25.48411
+if[~r2;`0:,"failed";exit 1]
+
+"320. variance (dispersion)"
+x:44 77 48 24 28 36 17 49 90 91.0
+var:{(+/(x-(+/x)%#x)^2)%#x}
+r:$var[x]
+r2:r~$649.44
+if[~r2;`0:,"failed";exit 1]
+r:$(var[x])^0.5
+r2:r~$25.48411
+if[~r2;`0:,"failed";exit 1]
+
+"321. y-th moment of x"
+x:44 77 48 24 28 36 17 49
+ym:{(+/(x-(+/x)%#x)^y)%#x}
+\p 5
+r:$ym[x;2]
+r2:r~$309.23
+if[~r2;`0:,"failed";exit 1]
+r:ym[x;0]
+r2:r~1.0
+if[~r2;`0:,"failed";exit 1]
+r:ym[x;1]
+/r2:r~$4.4409e-016  / e is a little different here, x^1 changes values
+r2:r~0.0
+if[~r2;`0:,"failed";exit 1]
+r:$ym[x;3]
+r2:r~$3889.9
+if[~r2;`0:,"failed";exit 1]
+\p 7
+
+/322.
+
+/323. see 248
+
+/324. see 159
+
+"325. average (mean)"
+av:{(+/x)%#x}
+r:av[1 10 100]
+r2:r~37.0
+if[~r2;`0:,"failed";exit 1]
+
+/326. see 325
+
+/327. see 70
+
+"328. number of items"
+r:#"abcd"
+r2:r~4
+if[~r2;`0:,"failed";exit 1]
+r:#(1;2 3;4 5 6)
+r2:r~3
+if[~r2;`0:,"failed";exit 1]
+r:#2 3 4#!24
+r2:r~2
+if[~r2;`0:,"failed";exit 1]
+
+"329. mask from positive integers in x"
+/x:-5+7 draw 10
+x:2 3 3 -2 4 4 -1
+r:(!1+|/x) lin x
+r2:r~0 0 1 1 1
+if[~r2;`0:,"failed";exit 1]
+
+"330. index of 1st occurrence of maximum item of x"
+x:5 3 7 0 5 7 2
+r:x?|/x
+r2:r~2
+if[~r2;`0:,"failed";exit 1]
+
+"331. identity for floating point maximum, negative infinity -0i"
+r:-1e100|-0i
+r2:r~-1e100
+if[~r2;`0:,"failed";exit 1]
+/identity for integer maximum, negative infinity -0I
+r:-123456789|-0I
+r2:r~-123456789
+if[~r2;`0:,"failed";exit 1]
+
+/332. see 326
+
+"333. quick membership for nonnegative integers"
+x:5 3 7 2
+y:8 5 2 6 1 9
+r:&1+|/x,y
+r2:r~0 0 0 0 0 0 0 0 0 0
+if[~r2;`0:,"failed";exit 1]
+a:&1+|/x,y
+r:@[a;y;:;1]
+r2:r~0 1 1 0 0 1 1 0 1 1
+if[~r2;`0:,"failed";exit 1]
+r:(@[a;y;:;1])[x]
+r2:r~1 0 0 1
+if[~r2;`0:,"failed";exit 1]
+r:@[&1+|/x,y;y;:;1][x]
+r2:r~1 0 0 1
+if[~r2;`0:,"failed";exit 1]
+
+"334. nonnegative maximum"
+x:1 2 3 4 5
+r:|/x,0
+r2:r~5
+if[~r2;`0:,"failed";exit 1]
+x:-1 -2 -3 -4 -5
+r:|/x,0
+r2:r~0
+if[~r2;`0:,"failed";exit 1]
+x:!0
+r:x
+r2:r~!0
+if[~r2;`0:,"failed";exit 1]
+r:|/x,0
+r2:r~0
+if[~r2;`0:,"failed";exit 1]
+
+"335. maximum"
+x:5 3 7 2
+r:|/x
+r2:r~7
+if[~r2;`0:,"failed";exit 1]
+
+"336. index of first occurrence of minimum"
+x:5 3 7 2 5 3
+r:x?&/x
+r2:r~3
+if[~r2;`0:,"failed";exit 1]
+
+"337. identity for floating point minimum, positive infinity 0i"
+r:1e100&0i
+r2:r~1e100
+if[~r2;`0:,"failed";exit 1]
+/identity for integer minimum, positive infinity 0I
+r:123456789&0I
+r2:r~123456789
+
+"338. locate first occurrence in x of an item of y"
+x:"abcdef"
+y:"dbf"
+r:&/x?/y
+r2:r~1
+if[~r2;`0:,"failed";exit 1]
+r:x[1]
+r2:r~"b"
+if[~r2;`0:,"failed";exit 1]
+
+"339. minimum"
+x:5 3 7 2
+r:&/x
+r2:r~2
+if[~r2;`0:,"failed";exit 1]
+
+/340. see 159
+
+/341. see 159
+
+"342. arabic from roman number"
+x:"MCMIX"
+r:"MDCLXVI"?/x
+r2:r~0 2 0 6 4
+if[~r2;`0:,"failed";exit 1]
+a:0,1000 500 100 50 10 5 1["MDCLXVI"?/x]
+r:a
+r2:r~0 1000 100 1000 1 10
+if[~r2;`0:,"failed";exit 1]
+r:a<1!a
+r2:r~1 0 1 0 1 0
+if[~r2;`0:,"failed";exit 1]
+r:_ a*-1^a<1!a
+r2:r~0 1000 -100 1000 -1 10
+if[~r2;`0:,"failed";exit 1]
+r:+/_ a*-1^a<1!a
+r2:r~1909
+if[~r2;`0:,"failed";exit 1]
+ar:{+/_ a*-1^a<1!a:0,1000 500 100 50 10 5 1["MDCLXVI"?/x]}
+r:ar[x]
+r2:r~1909
+if[~r2;`0:,"failed";exit 1]
+
+/343. see 159
+
+"344. pairwise match"
+x:("123";"123";"45";"45")
+/x
+/("123"
+/ "123"
+/ "45"
+/ "45")
+r:ep[~]x
+r2:r~1 0 1
+if[~r2;`0:,"failed";exit 1]
+r:(ep[~]x),0
+r2:r~1 0 1 0
+if[~r2;`0:,"failed";exit 1]
+pm:{(ep[~]x),0}
+r:pm 1 1 1 1 2 2 3 4 4 4
+r2:r~1 1 1 0 1 0 0 1 1 0
+if[~r2;`0:,"failed";exit 1]
+
+"345. do ranges of x and y match"
+x:1 2 3
+y:3 2 1 1
+a:?x
+r:x
+r2:r~1 2 3
+if[~r2;`0:,"failed";exit 1]
+r:a
+r2:r~1 2 3
+if[~r2;`0:,"failed";exit 1]
+b:?y
+r:b
+r2:r~3 2 1
+if[~r2;`0:,"failed";exit 1]
+r:a[<a]~b[<b]
+r2:r~1
+if[~r2;`0:,"failed";exit 1]
+om:{x[<x]~y[<y]}
+r:om[?x;?y]
+r2:r~1
+if[~r2;`0:,"failed";exit 1]
+r:om[?"bca";?"cabba"]
+r2:r~1
+if[~r2;`0:,"failed";exit 1]
+
+/346. see 20
+
+/347. see 159
+
+"348. do x and y have items in common"
+x:"aba"
+y:"cdeac"
+r:x lin\ y
+r2:r~1 0 1
+if[~r2;`0:,"failed";exit 1]
+r:|/x lin\ y
+r2:r~1
+if[~r2;`0:,"failed";exit 1]
+y:"edge"
+r:|/x lin\ y
+r2:r~0
+if[~r2;`0:,"failed";exit 1]
+
+/349. see 159'
+
+"350. is x 1s and 0s only (Boolean)"
+x:0 1 0 1
+r:&/x lin\0 1
+r2:r~1
+if[~r2;`0:,"failed";exit 1]
+x:1 1 1 1
+r:&/x lin\0 1
+r2:r~1
+if[~r2;`0:,"failed";exit 1]
+x:1 0 1 2
+r:&/x lin\0 1
+r2:r~0
+if[~r2;`0:,"failed";exit 1]
+
+"351. is x a subset of y"
+x:"abgk"
+y:"abcdefghijkl"
+r:&/x lin\y
+r2:r~1
+if[~r2;`0:,"failed";exit 1]
+x:"abgx"
+r:&/x lin\y
+r2:r~0
+if[~r2;`0:,"failed";exit 1]
+
+/352. see 159
+
+"353. are items unique"
+x:"abcdefg"
+r:(#x)=(#?x)
+r2:r~1
+if[~r2;`0:,"failed";exit 1]
+x:"abcdefa"
+r:(#x)=(#?x)
+r2:r~0
+if[~r2;`0:,"failed";exit 1]
+
+/354. see 159
+
+"355. none"
+x:&7
+r:x
+r2:r~0 0 0 0 0 0 0
+if[~r2;`0:,"failed";exit 1]
+r:~|/x
+r2:r~1
+if[~r2;`0:,"failed";exit 1]
+x:7#0 1
+r:x
+r2:r~0 1 0 1 0 1 0
+if[~r2;`0:,"failed";exit 1]
+r:~|/x
+r2:r~0
+if[~r2;`0:,"failed";exit 1]
+
+"356. any"
+x:&7
+r:|/x
+r2:r~0
+if[~r2;`0:,"failed";exit 1]
+x:7#0 1
+r:|/x
+r2:r~1
+if[~r2;`0:,"failed";exit 1]
+
+"357. does x match y"
+x:("abc";`sy;1 3 -7)
+y:("abc";`sy;1 3 -7)
+r:x~y
+r2:r~1
+if[~r2;`0:,"failed";exit 1]
+x:1 2 3
+y:1 4 3
+r:x~y
+r2:r~0
+if[~r2;`0:,"failed";exit 1]
+
+/358. see 159
+
+"359. locate blank rows"
+x:+5 6#"a bc d"
+r:x
+r2:r~("aaaaa"
+      "     "
+      "bbbbb"
+      "ccccc"
+      "     "
+      "ddddd")
+if[~r2;`0:,"failed";exit 1]
+r:x~\(#+x)#" "
+r2:r~0 1 0 0 1 0
+if[~r2;`0:,"failed";exit 1]
+
+"360. all"
+x:1 1 0 1
+r:&/x
+r2:r~0
+if[~r2;`0:,"failed";exit 1]
+x:1 1 1 1
+r:&/x
+r2:r~1
+if[~r2;`0:,"failed";exit 1]
+x:0 0 0 0
+r:&/x
+r2:r~0
+if[~r2;`0:,"failed";exit 1]
+
+"361. parity"
+x:2 vs !8
+r:x
+r2:r~(0 0 0 0 1 1 1 1
+      0 0 1 1 0 0 1 1
+      0 1 0 1 0 1 0 1)
+if[~r2;`0:,"failed";exit 1]
+r:(+/x)!2
+r2:r~0 1 1 0 1 0 0 1
+if[~r2;`0:,"failed";exit 1]
+
+"362. count of occurrences of x in y"
+x:"q"
+y:"quaquaqua"
+r:+/x=y
+r2:r~3
+if[~r2;`0:,"failed";exit 1]
+
+"363. solve quadratic"
+qu:{(q%x),(z%q:qq[x;y;z])}
+qq:{-0.5*y+sg[y]*ds[x;y;z]}
+ds:{sqrt[(y*y)-(4*x*z)]}
+sg:{(x>0)-(x<0)}
+a:1
+b:-1e30
+c:1
+r:sg[b]
+r2:r~-1
+if[~r2;`0:,"failed";exit 1]
+r:ds[a;b;c]
+r2:r~1e030
+if[~r2;`0:,"failed";exit 1]
+r:qq[a;b;c]
+r2:r~1e030
+if[~r2;`0:,"failed";exit 1]
+r:qu[a;b;c]
+r2:r~1e030 1e-030
+if[~r2;`0:,"failed";exit 1]
+r:qu[1;-8;15]
+r2:r~5 3.0
+if[~r2;`0:,"failed";exit 1]
+
+/364. see 325
+
+/365. see 325
+
+"366. count of scalars"
+cs:{#,//x}
+r:cs[1]
+r2:r~1
+if[~r2;`0:,"failed";exit 1]
+r:cs[1 2]
+r2:r~2
+if[~r2;`0:,"failed";exit 1]
+r:cs[(1 2;3 4 5)]
+r2:r~5
+if[~r2;`0:,"failed";exit 1]
+r:cs[(1 2;(3 4;5))]
+r2:r~5
+if[~r2;`0:,"failed";exit 1]
+r:cs[("ab";("cd";"efg"))]
+r2:r~7
+if[~r2;`0:,"failed";exit 1]
+r:cs[!0]
+r2:r~0
+if[~r2;`0:,"failed";exit 1]
+
+"367. alternating product"
+x:1 2 3 4 5
+a:(#x)#1 -1
+r:a
+r2:r~1 -1 1 -1 1
+if[~r2;`0:,"failed";exit 1]
+r:*/x^a
+r2:r~1.875
+if[~r2;`0:,"failed";exit 1]
+
+"368. product"
+x:1 2 3 4 5
+r:*/x
+r2:r~120
+if[~r2;`0:,"failed";exit 1]
+
+"369. alternating sum"
+x:1+!10
+r:x
+r2:r~1 2 3 4 5 6 7 8 9 10
+if[~r2;`0:,"failed";exit 1]
+a:((#x)#1 -1)
+r:a
+r2:r~1 -1 1 -1 1 -1 1 -1 1 -1
+if[~r2;`0:,"failed";exit 1]
+b:x*a
+r:+/b
+r2:r~-5
+if[~r2;`0:,"failed";exit 1]
+r:+/x*(#x)#1 -1
+r2:r~-5
+if[~r2;`0:,"failed";exit 1]
+
+"370. count of 1s in Boolean list"
+x:1 0 0 1 0 1 1
+r:+/x
+r2:r~4
+if[~r2;`0:,"failed";exit 1]
+
+"371. scalar from 1-item list"
+x:,5
+/x
+/,5
+r:+/x
+r2:r~5
+a:,"a"
+/a
+/,"a"
+/+/a
+/type error
+/+/a
+/^
+/> \
+r:a[0]
+r2:r~"a"
+if[~r2;`0:,"failed";exit 1]
+
+"372. sum columns of matrix"
+x:1+3 4#!12
+r:x
+r2:r~(1 2 3 4
+      5 6 7 8
+      9 10 11 12)
+r:+/x
+r2:r~15 18 21 24
+if[~r2;`0:,"failed";exit 1]
+
+"373. sum rows of matrix"
+x:1+3 4#!12
+r:x
+r2:r~(1 2 3 4
+      5 6 7 8
+      9 10 11 12)
+if[~r2;`0:,"failed";exit 1]
+r:+/'x
+r2:r~10 26 42
+if[~r2;`0:,"failed";exit 1]
+
+"374. sum"
+x:1 2 3 4 5
+r:+/x
+r2:r~15
+if[~r2;`0:,"failed";exit 1]
+
+"375. insert row x in matrix y after row g"
+y:4 3#1+!12
+r:y
+r2:r~(1 2 3
+      4 5 6
+      7 8 9
+      10 11 12)
+if[~r2;`0:,"failed";exit 1]
+x:13 14 15
+g:2
+a:y,,x
+r:a
+r2:r~(1 2 3
+      4 5 6
+      7 8 9
+      10 11 12
+      13 14 15)
+if[~r2;`0:,"failed";exit 1]
+b:<(!#y),g
+r:b
+r2:r~0 1 2 4 3
+if[~r2;`0:,"failed";exit 1]
+r:a[b]
+r2:r~(1 2 3
+      4 5 6
+      7 8 9
+      13 14 15
+      10 11 12)
+if[~r2;`0:,"failed";exit 1]
+r:(y,,x)[<(!#y),g]
+r2:r~(1 2 3
+      4 5 6
+      7 8 9
+      13 14 15
+      10 11 12)
+if[~r2;`0:,"failed";exit 1]
+
+"376. append y at the bottom of matrix x"
+x:4 3#1+!12
+r:x
+r2:r~(1 2 3
+      4 5 6
+      7 8 9
+      10 11 12)
+if[~r2;`0:,"failed";exit 1]
+y:13 14 15
+r:x,,y
+r2:r~(1 2 3
+      4 5 6
+      7 8 9
+      10 11 12
+      13 14 15)
+if[~r2;`0:,"failed";exit 1]
+
+"377. fill x to length y with x's last item"
+x:"quiz"
+y:9
+a:(!y)&-1+#x
+r:a
+r2:r~0 1 2 3 3 3 3 3 3
+if[~r2;`0:,"failed";exit 1]
+r:x[a]
+r2:r~"quizzzzzz"
+if[~r2;`0:,"failed";exit 1]
+r:x[(!y)&-1+#x]
+r2:r~"quizzzzzz"
+if[~r2;`0:,"failed";exit 1]
+/or, an alternative way:
+r:y#x,y#*|x
+r2:r~"quizzzzzz"
+if[~r2;`0:,"failed";exit 1]
+
+/378. [omitted]
+
+"379. remove leading, multiple and trailing y's from x"
+x:0 0 1 2 0 0 3 4 0 5 0 0 0
+y:0
+a:x=y
+b:~a&1!a
+r:a
+r2:r~1 1 0 0 1 1 0 0 1 0 1 1 1
+if[~r2;`0:,"failed";exit 1]
+r:b
+r2:r~0 1 1 1 0 1 1 1 1 1 0 0 0
+if[~r2;`0:,"failed";exit 1]
+r:x[&b]
+r2:r~0 1 2 0 3 4 0 5
+if[~r2;`0:,"failed";exit 1]
+r:a[0]_ x[&b]
+r2:r~1 2 0 3 4 0 5
+if[~r2;`0:,"failed";exit 1]
+
+"380. change items of x with value y[0] to y[1]"
+/x:"abcde"[15 draw 5]
+x:"dbcdbbdcbbebbbc"
+y:"d "
+r:@[x;&x=*y;:;*|y]
+r2:r~" bc bb cbbebbbc"
+if[~r2;`0:,"failed";exit 1]
+
+"381. invert all but 1st 1 in group of 1s"
+x:0 0 1 1 1 0 1 1 0 1
+r:x>-1 _ 0,x
+r2:r~0 0 1 0 0 0 1 0 0 1
+if[~r2;`0:,"failed";exit 1]
+m381:{x>-1 _ 0,x}
+r:m381[x]
+r2:r~0 0 1 0 0 0 1 0 0 1
+if[~r2;`0:,"failed";exit 1]
+
+"382. insert y in x after index g"
+x:1 2 3
+y:10*1+!7
+r:y
+r2:r~10 20 30 40 50 60 70
+if[~r2;`0:,"failed";exit 1]
+g:3
+r:((g+1)#y),x,(g+1)_ y
+r2:r~10 20 30 40 1 2 3 50 60 70
+if[~r2;`0:,"failed";exit 1]
+
+"383. pairwise difference"
+x:9 3 5 2 0
+r:-ep[-]x
+r2:r~6 -2 3 2
+if[~r2;`0:,"failed";exit 1]
+
+"384. drop 1st, postpend 0"
+x:3 4 5 6
+r:1 _ x,0
+r2:r~4 5 6 0
+if[~r2;`0:,"failed";exit 1]
+
+"385. drop last, prepend 0"
+x:3 4 5 6
+r:-1 _ 0,x
+r2:r~0 3 4 5
+if[~r2;`0:,"failed";exit 1]
+
+"386. shift x right y, fill 0"
+x:1+!12
+/x
+/1 2 3 4 5 6 7 8 9 10 11 12
+y:3
+r:@[(-y)!x;!y;:;0]
+r2:r~0 0 0 1 2 3 4 5 6 7 8 9
+if[~r2;`0:,"failed";exit 1]
+
+"387. shift x left y, fill 0"
+x:1+!12
+/x
+/1 2 3 4 5 6 7 8 9 10 11 12
+y:3
+r:@[y!x;((#x)-y)+!y;:;0]
+r2:r~4 5 6 7 8 9 10 11 12 0 0 0
+if[~r2;`0:,"failed";exit 1]
+
+"388. drop y rows from top of matrix x"
+x:6 3#!18
+r:x
+r2:r~(0 1 2
+      3 4 5
+      6 7 8
+      9 10 11
+      12 13 14
+      15 16 17)
+if[~r2;`0:,"failed";exit 1]
+y:2
+r:y _ x
+r2:r~(6 7 8
+      9 10 11
+      12 13 14
+      15 16 17)
+if[~r2;`0:,"failed";exit 1]
+
+/"389. Playing order of x ranked players"
+log2:{(log x)%log 2}
+i:{1+2 sv'+|tt[-_-log2[x]]}
+j:{@[x;&x>y;:;0]}
+k:{j[i[x];x]}
+x:6
+r:i[x]
+r2:r~1 5 3 7 2 6 4 8
+if[~r2;`0:,"failed";exit 1]
+r:j[i[x];x]
+r2:r~1 5 3 0 2 6 4 0
+if[~r2;`0:,"failed";exit 1]
+r:k[x]
+r2:r~1 5 3 0 2 6 4 0
+if[~r2;`0:,"failed";exit 1]
+
+"390. Conform table x rows to list y"
+f390:{@[((1 0*+/^y)|^x)#0;!#x;:;x]}
+x:3 3#1+!9
+y:1 2 3 4
+r:f390[x;y]
+r2:r~(1 2 3
+      4 5 6
+      7 8 9
+      0 0 0)
+if[~r2;`0:,"failed";exit 1]
+
+"391. Conform table y columns to list y"
+x:4 2 # 9
+y:5#8
+a:((0 1*+/^y)|^x)#0
+r:a
+r2:r~(0 0 0 0 0
+      0 0 0 0 0
+      0 0 0 0 0
+      0 0 0 0 0)
+if[~r2;`0:,"failed";exit 1]
+/ TODO cross section assignment
+/a[;!(^x)[1]]:x
+/r:a
+/r2:r~(9 9 0 0 0
+/      9 9 0 0 0
+/      9 9 0 0 0
+/      9 9 0 0 0)
+/if[~r2;`0:,"failed";exit 1]
+
+"392. matrix from scalar or vector"
+x:4
+r:^x
+r2:r~!0
+if[~r2;`0:,"failed";exit 1]
+r:(1+~#^x){,x}/x
+r2:r~,,4
+if[~r2;`0:,"failed";exit 1]
+r:^(1+~#^x){,x}/x
+r2:r~1 1
+if[~r2;`0:,"failed";exit 1]
+x:7 8
+r:^(1+~#^x){,x}/x:7 8
+r2:r~1 2
+if[~r2;`0:,"failed";exit 1]
+
+/393. see 248
+
+/394. [deferred]
+
+/395. [deferred]
+
+"396. remove columns y from x"
+y:((1 2 3 4
+    5 6 7 8
+    9 10 11 12)
+   (13 14 15 16
+    17 18 19 20
+    21 22 23 24))
+r:y di\\ 0 2
+r2:r~((2 4
+       6 8
+       10 12)
+      (14 16
+       18 20
+       22 24))
+if[~r2;`0:,"failed";exit 1]
+
+/397. see 73
+
+"398. diagonals from columns"
+x:(1 2 3 4 5
+   6 7 8 9 10
+   11 12 13 14 15
+   16 17 18 19 20
+   21 22 23 24 25)
+r:(-!5)!'x
+r2:r~(1 2 3 4 5
+      10 6 7 8 9
+      14 15 11 12 13
+      18 19 20 16 17
+      22 23 24 25 21)
+if[~r2;`0:,"failed";exit 1]
+
+"399. columns from diagonals"
+x:(1 2 3 4 5
+   10 6 7 8 9
+   14 15 11 12 13
+   18 19 20 16 17
+   22 23 24 25 21)
+r:(!5)!'x
+r2:r~(1 2 3 4 5
+      6 7 8 9 10
+      11 12 13 14 15
+      16 17 18 19 20
+      21 22 23 24 25)
+if[~r2;`0:,"failed";exit 1]
+
+/400. [deferred]
+
+"401. first word in string x"
+x:"twas brillig and the slith"
+r:x?" "
+r2:r~4
+if[~r2;`0:,"failed";exit 1]
+r:(x?" ")#x
+r2:r~"twas"
+if[~r2;`0:,"failed";exit 1]
+fw:{(x?" ")#x}
+r:fw x
+r2:r~"twas"
+if[~r2;`0:,"failed";exit 1]
+
+/402. see 392
+
+/403. [omitted]
+
+"404. end points for x fields of length y"
+x:5
+y:3
+r:@[&x*y;(y-1)+y*!x;:;1]
+r2:r~0 0 1 0 0 1 0 0 1 0 0 1 0 0 1
+if[~r2;`0:,"failed";exit 1]
+
+"405. start points for x fields of length y"
+x:5
+y:3
+r:@[&x*y;y*!x;:;1]
+r2:r~1 0 0 1 0 0 1 0 0 1 0 0 1 0 0
+if[~r2;`0:,"failed";exit 1]
+
+"406. add y to last item of x"
+x:1 2 3 4 5
+y:100
+r:@[x;-1+#x;+;y]
+r2:r~1 2 3 4 105
+if[~r2;`0:,"failed";exit 1]
+
+"407. vector length y of x 1s, the rest 0s"
+x:5
+y:12
+r:@[&12;!x;:;1]
+r2:r~1 1 1 1 1 0 0 0 0 0 0 0
+if[~r2;`0:,"failed";exit 1]
+
+"408. initial empty row to start matrix of x columns"
+x:15
+r:,&x
+r2:r~,0 0 0 0 0 0 0 0 0 0 0 0 0 0 0
+if[~r2;`0:,"failed";exit 1]
+r:,1.0*&x
+r2:r~,0 0 0 0 0 0 0 0 0 0 0 0 0 0 0.0
+if[~r2;`0:,"failed";exit 1]
+r:,x#" "
+r2:r~,"               "
+if[~r2;`0:,"failed";exit 1]
+
+/409. [omitted]
+
+"410. number of columns in matrix x"
+x:2 7#" "
+r:^x
+r2:r~2 7
+if[~r2;`0:,"failed";exit 1]
+r:*|^x
+r2:r~7
+if[~r2;`0:,"failed";exit 1]
+
+"411. number of rows in matrix x"
+x:2 7#" "
+r:^x
+r2:r~2 7
+if[~r2;`0:,"failed";exit 1]
+r:#x
+r2:r~2
+if[~r2;`0:,"failed";exit 1]
+
+/412. see 184
+
+/413. omitted
+
+"414. ending indices from field lengths"
+x:4 7 13 15 20
+r:(1+*x),ep[-]x
+r2:r~5 3 6 2 5
+if[~r2;`0:,"failed";exit 1]
+
+"415. lengths of infixes of 1 in x"
+x:0 0 1 1 1 0 0 1 1 1 1 0 1
+a:ep[<]0,x,0
+b:ep[>]0,x,0
+r:a
+r2:r~0 0 0 0 0 1 0 0 0 0 0 1 0 1
+if[~r2;`0:,"failed";exit 1]
+r:b
+r2:r~0 0 1 0 0 0 0 1 0 0 0 0 1 0
+if[~r2;`0:,"failed";exit 1]
+r:&a
+r2:r~5 11 13
+if[~r2;`0:,"failed";exit 1]
+r:&b
+r2:r~2 7 12
+if[~r2;`0:,"failed";exit 1]
+r:(&a)-(&b)
+r2:r~3 4 1
+if[~r2;`0:,"failed";exit 1]
+r:(&ep[<]0,x,0)-&ep[>]0,x,0
+r2:r~3 4 1
+if[~r2;`0:,"failed";exit 1]
+m415:{(&ep[<]0,x,0)-&ep[>]0,x,0}
+ 
+/416. omitted
+
+"417. end points of equal infixes"
+x:"baackkkegtt"
+r:(~(1 _ x)=-1 _ x),1
+r2:r~1 0 1 1 0 0 1 1 1 0 1
+if[~r2;`0:,"failed";exit 1]
+
+"418. starting indices of equal item infix"
+x:"baackkkegtt"
+r:1,~(1 _ x)=-1 _ x
+r2:r~1 1 0 1 1 0 0 1 1 1 0
+if[~r2;`0:,"failed";exit 1]
+
+"419. pairwise ratios"
+x:2 10 50 100
+r:ep[%]x
+r2:r~5 5 2.0
+if[~r2;`0:,"failed";exit 1]
+
+/420. see 383
+
+/421. deferred
+
+/422. see 154
+
+"423. lengths from start indicator"
+x:1 0 1 0 0 1 0 0 0 1 0
+r:&x,1
+r2:r~0 2 5 9 11
+if[~r2;`0:,"failed";exit 1]
+r:ep[-]@&x,1
+r2:r~2 3 4 2
+if[~r2;`0:,"failed";exit 1]
+
+"424. single blank from multiples"
+x:"a b c d"
+r:x[&a|1 _ 1!1,a:~" "=x]
+r2:r~"a b c d"
+if[~r2;`0:,"failed";exit 1]
+
+/425. see 380
+
+"426. change all multiple infixes of y in x to single"
+x:"bccbceekl"
+y:"c"
+r:x[&a|-1 _ 1,a:~x=y]
+r2:r~"bcbceekl"
+if[~r2;`0:,"failed";exit 1]
+
+/427. deferred
+
+/428. see 73
+
+"429. matrix with diagonal x"
+x:5 9 6 7 2
+r:(2##x)#,/x,'(2##x)#0
+r2:r~(5 0 0 0 0
+      0 9 0 0 0
+      0 0 6 0 0
+      0 0 0 7 0
+      0 0 0 0 2)
+if[~r2;`0:,"failed";exit 1]
+
+"430. polynomial derivative"
+x:1 2 3 4 5
+r:-1 _ x*|!#x
+r2:r~4 6 6 4
+if[~r2;`0:,"failed";exit 1]
+
+"431. does item differ from next one"
+x:"ceefffmeksc"
+r:(~ep[=]x),1
+r2:r~1 0 1 0 0 1 1 1 1 1 1
+if[~r2;`0:,"failed";exit 1]
+
+"432. does item differ from previous one"
+x:"ceefffmeksc"
+r:1,~ep[=]x
+r2:r~1 1 0 1 0 0 1 1 1 1 1
+if[~r2;`0:,"failed";exit 1]
+
+"433. replace last item of x with y"
+x:"abbccdefcdab"
+y:"t"
+r:@[x;-1+#x;:;y]
+r2:r~"abbccdefcdat"
+if[~r2;`0:,"failed";exit 1]
+
+"434. replace first item of x with y"
+x:"abbccdefcdab"
+y:"t"
+r:@[x;0;:;y]
+r2:r~"tbbccdefcdab"
+if[~r2;`0:,"failed";exit 1]
+
+/435. [deferred]
+
+/436. [deferred]
+
+"437. remove leading zeros"
+x:"00002345600345000"
+r:((x="0")?0)_ x
+r2:r~"2345600345000"
+if[~r2;`0:,"failed";exit 1]
+
+"438. index of 1st 1 following index y in x"
+x:1 0 0 1 1 0 1 1 0
+y:3
+r:y+(y _ x)?1
+r2:r~3
+if[~r2;`0:,"failed";exit 1]
+r:y+((y+1)_ x)?1
+r2:r~3
+if[~r2;`0:,"failed";exit 1]
+r:(y+1)+((y+1)_ x)?1
+r2:r~4
+if[~r2;`0:,"failed";exit 1]
+/a more K-like alternative
+r:&x
+r2:r~0 3 4 6 7
+if[~r2;`0:,"failed";exit 1]
+r:y<&x
+r2:r~0 0 1 1 1
+if[~r2;`0:,"failed";exit 1]
+r:(&x)[*&y<&x]
+r2:r~4
+if[~r2;`0:,"failed";exit 1]
+
+"439. last 1s in groups of 1s"
+x:0 1 1 0 1 1 1 0 0 1
+r:x>1 _ x,0
+r2:r~0 0 1 0 0 0 1 0 0 1
+if[~r2;`0:,"failed";exit 1]
+
+"440. 1st 1 in groups of 1s"
+x:0 1 1 0 1 1 1 0 0 1
+r:x>1 _ x,0
+r2:r~0 0 1 0 0 0 1 0 0 1
+if[~r2;`0:,"failed";exit 1]
+
+"441. comma separated list from table"
+x:("Swift";"Austen";"Dickens")
+/x
+/("Swift"
+/ "Austen"
+/ "Dickens")
+r:",",'x
+r2:r~(",Swift"
+      ",Austen"
+      ",Dickens")
+if[~r2;`0:,"failed";exit 1]
+r:,/",",'x
+r2:r~",Swift,Austen,Dickens"
+if[~r2;`0:,"failed";exit 1]
+r:1 _ ,/",",'x
+r2:r~"Swift,Austen,Dickens"
+if[~r2;`0:,"failed";exit 1]
+
+"442. 1st difference"
+x:+\1 2 3 4 5
+/x
+/1 3 6 10 15
+r:ep[-]x
+r2:r~2 3 4 5
+if[~r2;`0:,"failed";exit 1]
+r:(*x),(ep[-]x)
+r2:r~1 2 3 4 5
+if[~r2;`0:,"failed";exit 1]
+
+"443. drop first y columns from matrix x"
+x:4 3#!12
+r:x
+r2:r~(0 1 2
+      3 4 5
+      6 7 8
+      9 10 11)
+if[~r2;`0:,"failed";exit 1]
+y:2
+r:y _ x
+r2:r~(6 7 8
+      9 10 11)
+if[~r2;`0:,"failed";exit 1]
+
+"444. drop first y rows from matrix x"
+x:4 3#!12
+r:x
+r2:r~(0 1 2
+      3 4 5
+      6 7 8
+      9 10 11)
+if[~r2;`0:,"failed";exit 1]
+y:2
+r:y _' x
+r2:r~(,2
+      ,5
+      ,8
+      ,11)
+if[~r2;`0:,"failed";exit 1]
+
+"445. number of columns in matrix x"
+x:4 3#!12
+r:x
+r2:r~(0 1 2
+      3 4 5
+      6 7 8
+      9 10 11)
+if[~r2;`0:,"failed";exit 1]
+r:*|^x
+r2:r~3
+if[~r2;`0:,"failed";exit 1]
+
+"446. number of rows in matrix x"
+x:4 3#!12
+r:x
+r2:r~(0 1 2
+      3 4 5
+      6 7 8
+      9 10 11)
+r:#x
+r2:r~4
+if[~r2;`0:,"failed";exit 1]
+
+"447. conditional drop of y items from array x"
+x:4 3#!12
+r:x
+r2:r~(0 1 2
+      3 4 5
+      6 7 8
+      9 10 11)
+if[~r2;`0:,"failed";exit 1]
+g:0
+r:(y*g) _ x
+r2:r~(0 1 2
+      3 4 5
+      6 7 8
+      9 10 11)
+if[~r2;`0:,"failed";exit 1]
+g:1
+r:(y*g) _ x
+r2:r~(6 7 8
+      9 10 11)
+if[~r2;`0:,"failed";exit 1]
+
+"448. conditional drop of last item of array x"
+x:4 3#!12
+r:x
+r2:r~(0 1 2
+      3 4 5
+      6 7 8
+      9 10 11)
+if[~r2;`0:,"failed";exit 1]
+y:0
+r:(-y) _ x
+r2:r~(0 1 2
+      3 4 5
+      6 7 8
+      9 10 11)
+if[~r2;`0:,"failed";exit 1]
+y:1
+r:(-y) _ x
+r2:r~(0 1 2
+      3 4 5
+      6 7 8)
+if[~r2;`0:,"failed";exit 1]
+
+"449. limiting x between l and h, inclusive"
+/x: 5 6 draw 100
+x:(58 9 37 84 39 99
+   60 30 45 97 77 35
+   49 87 82 79 8 30
+   46 61 20 51 12 34
+   31 51 29 35 17 89)
+l:30
+h:70
+r:l|h&x
+r2:r~(58 30 37 70 39 70
+      60 30 45 70 70 35
+      49 70 70 70 30 30
+      46 61 30 51 30 34
+      31 51 30 35 30 70)
+if[~r2;`0:,"failed";exit 1]
+
+"450. arithmetic precision of system in decimals"
+log10:{(log x)%log 10}
+r:$log10 3
+r2:r~$0.47712125471966244
+if[~r2;`0:,"failed";exit 1]
+r:_ abs log10 abs 1-3*%3
+r2:r~0I
+/This indicates that the precision is infinite (which isn't true)
+/and is a consequence of
+r:3*%3
+r2:r~1.0
+if[~r2;`0:,"failed";exit 1]
+
+"451. arithmetic progression from x to y with step g"
+ap:{[x;y;g]x+g*!1+_(y-x)%g}
+r:ap[3;20;5]
+r2:r~3 8 13 18
+if[~r2;`0:,"failed";exit 1]
+r:ap[3;-20;-5]
+r2:r~3 -2 -7 -12 -17
+if[~r2;`0:,"failed";exit 1]
+
+"452. number of positions in integer x"
+dp:{1+(x<0)+_ log10[abs[x+0=x]]}
+r:dp 1234
+r2:r~4
+if[~r2;`0:,"failed";exit 1]
+r:dp -1234
+r2:r~5
+if[~r2;`0:,"failed";exit 1]
+r:dp 0
+r2:r~1
+if[~r2;`0:,"failed";exit 1]
+r:dp 1
+r2:r~1
+if[~r2;`0:,"failed";exit 1]
+r:dp 7
+r2:r~1
+if[~r2;`0:,"failed";exit 1]
+r:dp 12345678
+r2:r~8
+if[~r2;`0:,"failed";exit 1]
+
+"453. round to nearest even integer"
+re:{_ x+~1>x!2}
+x:0.9 1 2.5 3.1 -0.2 -1.9
+r:re x
+r2:r~0 2 2 4 0 -2
+if[~r2;`0:,"failed";exit 1]
+
+"454. rounding, but to nearest even integer if fractional part is 0.5"
+rn:{_ x+0.5*~0.5=x!2}
+x:23.6 40.5 3.2 -14.02 3.5 4.5
+r:rn x
+r2:r~24 40 3 -14 4 4
+if[~r2;`0:,"failed";exit 1]
+
+"455. number of digit positions in x"
+nd:{1+_ log10(x=0)+x*1 -10[x<0]}
+x:4 678 -21 -10854
+r:nd x
+r2:r~1 3 3 6
+if[~r2;`0:,"failed";exit 1]
+
+"456. number of digits in nonnegative integer x"
+np:{1+_ log10 x+0=x}
+x:0 13 523 16008
+r:np x
+r2:r~1 2 3 5
+if[~r2;`0:,"failed";exit 1]
+
+"457. is x integral"
+ii:{x=_ x}
+x:67 -120 3.83 -5.5
+r:ii x
+r2:r~1 1 0 0
+if[~r2;`0:,"failed";exit 1]
+
+/458. [omitted]
+
+"459. leading digit of numeric code abbb"
+ld:{_ x%1000}
+/x:6 draw 10000
+x:1319 8629 6581 6988 790 9045
+r:ld x
+r2:r~1 8 6 6 0 9
+if[~r2;`0:,"failed";exit 1]
+
+"460. round y to x decimals"
+rn:{(10^-x)*_ 0.5+y*10^x}
+y:3.3256789
+x:3
+r:rn[x;y]
+r2:r~3.326
+if[~r2;`0:,"failed";exit 1]
+
+"461. round to nearest hundredth"
+rh:{0.01*_0.5+x*100}
+x:3.1414 2.71828 -12.66666
+r:rh x
+r2:r~3.14 2.72 -12.67
+if[~r2;`0:,"failed";exit 1]
+
+"462. round to nearest integer"
+ri:{_0.5+x}
+x:4.5 3.21 80.9 -2.4 -9.6
+r:ri x
+r2:r~5 3 81 -2 -10
+if[~r2;`0:,"failed";exit 1]
+
+"463. is x a leap year"
+ly:{(+/0=x!/4 100 400)!2}
+x:1900 1901 1904 2000
+r:ly x
+r2:r~0 0 1 1
+if[~r2;`0:,"failed";exit 1]
+
+"464. framing character matrix x"
+x:4 4#"abcdefghijklmnop"
+r:x
+r2:r~("abcd"
+      "efgh"
+      "ijkl"
+      "mnop")
+if[~r2;`0:,"failed";exit 1]
+r:+"-",'(+"|",'x,'"|"),'"-"
+r2:r~("------"
+      "|abcd|"
+      "|efgh|"
+      "|ijkl|"
+      "|mnop|"
+      "------")
+if[~r2;`0:,"failed";exit 1]
+
+"465. magnitude of fractional part"
+x:6.13 -6.13
+r:abs[x]!1
+r2:r~0.13 0.13
+if[~r2;`0:,"failed";exit 1]
+
+"466. remove every y-th item of x"
+x:4+!10
+/x
+/4 5 6 7 8 9 10 11 12 13
+y:3
+r:!#x
+r2:r~0 1 2 3 4 5 6 7 8 9
+if[~r2;`0:,"failed";exit 1]
+r:(!#x)!y
+r2:r~0 1 2 0 1 2 0 1 2 0
+if[~r2;`0:,"failed";exit 1]
+r:~0=(!#x)!y
+r2:r~0 1 1 0 1 1 0 1 1 0
+if[~r2;`0:,"failed";exit 1]
+r:&~0=(!#x)!y
+r2:r~1 2 4 5 7 8
+if[~r2;`0:,"failed";exit 1]
+r:x[&~0=(!#x)!y]
+r2:r~5 6 8 9 11 12
+if[~r2;`0:,"failed";exit 1]
+
+"467. select every y-th item of y"
+x:4+!10
+/x
+/4 5 6 7 8 9 10 11 12 13
+y:3
+r:!#x
+r2:r~0 1 2 3 4 5 6 7 8 9
+if[~r2;`0:,"failed";exit 1]
+r:(!#x)!y
+r2:r~0 1 2 0 1 2 0 1 2 0
+if[~r2;`0:,"failed";exit 1]
+r:0=(!#x)!y
+r2:r~1 0 0 1 0 0 1 0 0 1
+if[~r2;`0:,"failed";exit 1]
+r:&0=(!#x)!y
+r2:r~0 3 6 9
+if[~r2;`0:,"failed";exit 1]
+r:x[&0=(!#x)!y]
+r2:r~4 7 10 13
+if[~r2;`0:,"failed";exit 1]
+
+/468. see dv in 164
+
+"469. remove every second item"
+x:"abcdefghijklmn"
+r:(!#x)!2
+r2:r~0 1 0 1 0 1 0 1 0 1 0 1 0 1
+if[~r2;`0:,"failed";exit 1]
+r:&(!#x)!2
+r2:r~1 3 5 7 9 11 13
+if[~r2;`0:,"failed";exit 1]
+r:x[&(!#x)!2]
+r2:r~"bdfhjln"
+if[~r2;`0:,"failed";exit 1]
+
+"470. items of x divisible by y"
+/x:10 draw 100
+x:95 33 64 10 78 1 47 20 92 95
+y:4
+r:x!y
+r2:r~3 1 0 2 2 1 3 0 0 3
+if[~r2;`0:,"failed";exit 1]
+r:0=x!y
+r2:r~0 0 1 0 0 0 0 1 1 0
+if[~r2;`0:,"failed";exit 1]
+r:&0=x!y
+r2:r~2 7 8
+if[~r2;`0:,"failed";exit 1]
+r:x[&0=x!y]
+r2:r~64 20 92
+if[~r2;`0:,"failed";exit 1]
+
+"471. index of first occurrence of g in x (circularly) after y"
+/x: 15 draw 10
+x:6 6 0 0 8 9 8 1 0 2 9 4 6 3 5
+g:0 6 5
+y:9
+r:(y+(y!x)?g)!#x
+r2:r~9
+if[~r2;`0:,"failed";exit 1]
+r:(y+(y!x)?/g)!#x
+r2:r~2 12 14
+if[~r2;`0:,"failed";exit 1]
+
+/472. omitted
+
+"473. is x even"
+x:1 2 3 4 5
+r:~x!2
+r2:r~0 1 0 1 0
+if[~r2;`0:,"failed";exit 1]
+
+"474. round x to zero if magnitude less than y"
+x:1e-4 -1e-8 -1e-12 1e-16
+y:1e-10  /had to guess y
+r:x*~y>abs x
+/r2:r~0.0001 -1e-008 0 0  /answer is different than e
+r2:r~0.0001 -1e-08 -0 0
+if[~r2;`0:,"failed";exit 1]
+
+"475. increase absolute value without sign change"
+x:0 -1 2 -3 4 -5
+sg:{(x>0)-(x<0)}
+y:10
+r:(sg x)*y+abs x /problem with x=0
+/r2:r~0 -11 12 -13 14 -15.0  / e doesn't give a -2 result
+r2:r~0 -11 12 -13 14 -15
+if[~r2;`0:,"failed";exit 1]
+
+"476. fractional part with sign"
+x:0.2 2.3 -0.2 -1.8 0 5 -7
+r:(sg x)*(abs x)!1
+r2:r~0.2 0.3 -0.2 -0.8 0 0 0
+if[~r2;`0:,"failed";exit 1]
+
+"477. square x retaining sign"
+x:0 -1 2 -3 4
+r:x*abs x
+/r2:r~0 -1 4 -9 16.0  / e doesn't give a -2 result
+r2:r~0 -1 4 -9 16
+if[~r2;`0:,"failed";exit 1]
+
+"478. fractional part"
+x:0 1 -2 3.4 -5.6 -6.1
+r:x!1
+r2:r~0 0 0 0.4 0.4 0.9
+if[~r2;`0:,"failed";exit 1]
+
+"479. last part of abbb"
+x:1234 5678 9012 345 6789
+r:x!1000
+r2:r~234 678 12 345 789
+if[~r2;`0:,"failed";exit 1]
+
+"480. replace items of x in y by 0"
+x:1 2 3 4 5
+y:2 4
+r:x lin y
+r2:r~0 1 0 1 0
+r:x*~x lin y
+r2:r~1 0 3 0 5
+if[~r2;`0:,"failed";exit 1]
+
+"481.replace items of x not in y by 0"
+x:1 2 3 4 5
+y:2 4
+r:x lin y
+r2:r~0 1 0 1 0
+r:x*x lin y
+r2:r~0 2 0 4 0
+if[~r2;`0:,"failed";exit 1]
+
+"482. merge x any under control of g"
+x:1 2 3 4 5
+y:100 200 300 400 500
+g:1 0 0 1 1 0 1 0 0 1
+r:(x,y)[<<g]
+r2:r~100 1 2 200 300 3 400 4 5 500
+if[~r2;`0:,"failed";exit 1]
+
+/483. see 481
+
+"484. right to left scan"
+x:1 2 3 4 5
+r:|+\|x
+r2:r~15 14 12 9 5
+if[~r2;`0:,"failed";exit 1]
+
+"485. append empty row on matrix"
+x:("ab";"cd";"ef")
+/x
+/("ab"
+/ "cd"
+/ "ef")
+r:x,,(*|^x)#" "
+r2:r~("ab"
+      "cd"
+      "ef"
+      "  ")
+if[~r2;`0:,"failed";exit 1]
+
+/486. [omitted]
+
+"487. insert empty row in x after row y"
+x:("ab";"cd";"ef")
+/x
+/("ab"
+/ "cd"
+/ "ef")
+y:1
+a:x,,(*|^x)#" "
+r:a
+r2:r~("ab"
+      "cd"
+      "ef"
+      "  ")
+if[~r2;`0:,"failed";exit 1]
+b:<(!#x),y
+r:b
+r2:r~0 1 3 2
+if[~r2;`0:,"failed";exit 1]
+r:a[b]
+r2:r~("ab"
+      "cd"
+      "  "
+      "ef")
+if[~r2;`0:,"failed";exit 1]
+r:(x,,(*|^x)#" ")[<(!#x),y]
+r2:r~("ab"
+      "cd"
+      "  "
+      "ef")
+if[~r2;`0:,"failed";exit 1]
+
+/488. omitted
+
+"489. make string y into table guided by marker x"
+y:"eachwordinarow"
+x:1 0 0 0 1 0 0 0 1 0 1 1 0 0
+a:&x
+r:a
+r2:r~0 4 8 10 11
+if[~r2;`0:,"failed";exit 1]
+b:a _ y
+r:b
+r2:r~("each"
+      "word"
+      "in"
+      ,"a"
+      "row")
+if[~r2;`0:,"failed";exit 1]
+r:(&x)_ y
+r2:r~("each"
+      "word"
+      "in"
+      ,"a"
+      "row")
+if[~r2;`0:,"failed";exit 1]
+
+"490. insert spaces in text"
+x:"wider"
+a:+,x
+r:a
+r2:r~(,"w"
+      ,"i"
+      ,"d"
+      ,"e"
+      ,"r")
+if[~r2;`0:,"failed";exit 1]
+b:a,'" "
+r:b
+r2:r~("w "
+      "i "
+      "d "
+      "e "
+      "r ")
+if[~r2;`0:,"failed";exit 1]
+r:,/b
+r2:r~"w i d e r "
+if[~r2;`0:,"failed";exit 1]
+if[~r2;`0:,"failed";exit 1]
+r:,/(+,x),'" "
+r2:r~"w i d e r "
+if[~r2;`0:,"failed";exit 1]
+
+"491. or-reduce infixes of y marked by x"
+x:1 0 0 1 0 0 0 1 0 0 0 0
+y:0 0 0 0 1 0 0 0 0 0 1 0
+a:(&x)_ y
+r:a
+r2:r~(0 0 0
+      0 1 0 0
+      0 0 0 1 0)
+if[~r2;`0:,"failed";exit 1]
+r:|/'a
+r2:r~0 1 1
+if[~r2;`0:,"failed";exit 1]
+
+"492. and-reduce infixes of y marked by x"
+x:1 0 0 1 0 0 0 1 0 0 0 0
+y:0 1 1 1 1 1 1 1 1 1 1 0
+r:(&x)_ y
+r2:r~(0 1 1
+      1 1 1 1
+      1 1 1 1 0)
+if[~r2;`0:,"failed";exit 1]
+r:&/'(&x)_ y
+r2:r~0 1 0
+if[~r2;`0:,"failed";exit 1]
+
+"493. choose x or y depending on boolean g"
+x:"abcdef"
+y:"xyz"
+g:0
+r:$[g;x;y]
+r2:r~"xyz"
+if[~r2;`0:,"failed";exit 1]
+g:1
+r:$[g;x;y]
+r2:r~"abcdef"
+if[~r2;`0:,"failed";exit 1]
+
+/494. see 424
+
+"495. indices of all occurrences of y in x"
+x:"abcdefgab"
+y:"afc*"
+r:x lin y
+r2:r~1 0 1 0 0 1 0 1 0
+if[~r2;`0:,"failed";exit 1]
+r:&x lin y
+r2:r~0 2 5 7
+if[~r2;`0:,"failed";exit 1]
+
+"496. remove punctuation characters"
+x:"oh! no, stop it. you will?"
+y:",;:.!?"
+r:x dvl y
+r2:r~"oh no stop it you will"
+if[~r2;`0:,"failed";exit 1]
+
+"497. set union"
+x:"12345"
+y:"4567890"
+r:y,x[&~x lin y]
+r2:r~"4567890123"
+if[~r2;`0:,"failed";exit 1]
+
+"498. set difference"
+x:"12345"
+y:"4567890"
+r:x dvl y
+r2:r~"123"
+if[~r2;`0:,"failed";exit 1]
+
+"499. rows of y starting with item of x"
+x:("abcd";"efgh";"ijkl";"mnop")
+/x
+/("abcd"
+/ "efgh"
+/ "ijkl"
+/ "mnop")
+y:"ai"
+r:x[;0] lin y
+r2:r~1 0 1 0
+if[~r2;`0:,"failed";exit 1]
+r:&x[;0] lin y
+r2:r~0 2
+if[~r2;`0:,"failed";exit 1]
+r:x[&x[;0] lin y]
+r2:r~("abcd"
+      "ijkl")
+if[~r2;`0:,"failed";exit 1]
+
+"500. set intersection"
+x:"abcdefghijxyz"
+y:"yacqwopzbx"
+r:x[&x lin y]
+r2:r~"abcxyz"
+if[~r2;`0:,"failed";exit 1]
+
+/501.see 154
+
+/502. deferred
+
+"503. indices of all occurrences of y in x"
+x:"abcdeabc"
+y:"a"
+r:&x=y
+r2:r~0 5
+if[~r2;`0:,"failed";exit 1]
+
+"504. replace items of y satisfying x with g"
+x:1 0 0 0 1 0 1 1 0 1
+y:"abcdefghij"
+g:" "
+r:@[y;&x;:;g]
+r2:r~" bcd f  i "
+if[~r2;`0:,"failed";exit 1]
+
+/505. see 154
+
+/506. see 41
+
+"507. insert blank in y after mark in x"
+x:1 0 0 0 0 1 0 0
+y:"abcdefgh"
+r:x#\" "
+r2:r~(," "
+       ""
+       ""
+       ""
+       ""
+       ," "
+       ""
+       "")
+if[~r2;`0:,"failed";exit 1]
+r:y,' x#\" "
+r2:r~("a "
+      ,"b"
+      ,"c"
+      ,"d"
+      ,"e"
+      "f "
+      ,"g"
+      ,"h")
+if[~r2;`0:,"failed";exit 1]
+r:,/ y,' x#\" "
+r2:r~"a bcdef gh"
+if[~r2;`0:,"failed";exit 1]
+
+"508. conditional text"
+x:0
+r:,/((~x)#'"in"),"correct"
+r2:r~"incorrect"
+if[~r2;`0:,"failed";exit 1]
+x:1
+r:,/((~x)#'"in"),"correct"
+r2:r~"correct"
+if[~r2;`0:,"failed";exit 1]
+
+"509. remove y from x"
+x:"abcdeabc"
+y:"a"
+r:x dv y
+r2:r~"bcdebc"
+if[~r2;`0:,"failed";exit 1]
+
+"510. remove blanks"
+x:" bcde bc"
+r:x dv " "
+r2:r~"bcdebc"
+if[~r2;`0:,"failed";exit 1]
+
+"511. apply f over all of x"
+x:2 3 4#1+!24
+r:x
+r2:r~((1 2 3 4
+       5 6 7 8
+       9 10 11 12)
+      (13 14 15 16
+       17 18 19 20
+       21 22 23 24))
+if[~r2;`0:,"failed";exit 1]
+r:+//x
+r2:r~300
+if[~r2;`0:,"failed";exit 1]
+/ TODO segv - function as parameter
+/ao:{[f;x]f//x}
+/r:ao[+;x]
+/r2:r~300
+/if[~r2;`0:,"failed";exit 1]
+/r:ao[*;1.0*x]
+/r2:r~6.204484e+023
+/if[~r2;`0:,"failed";exit 1]
+/r:ao[+;-x]
+/r2:r~-300
+/if[~r2;`0:,"failed";exit 1]
+
+"512. select items of x according to markers in y"
+x:2 3 4#1+!24
+r:x
+r2:r~((1 2 3 4
+       5 6 7 8
+       9 10 11 12)
+      (13 14 15 16
+       17 18 19 20
+       21 22 23 24))
+if[~r2;`0:,"failed";exit 1]
+y:1 0 0 1
+r:x[;;&y]
+r2:r~((1 4
+       5 8
+       9 12)
+      (13 16
+       17 20
+       21 24))
+if[~r2;`0:,"failed";exit 1]
+
+"513. empty matrix"
+x:,!0
+r:x
+r2:r~,!0
+if[~r2;`0:,"failed";exit 1]
+r:^x
+r2:r~1 0
+if[~r2;`0:,"failed";exit 1]
+
+"514. apply to dimension 1 function defined on dimension 0"
+x:3 4#1+!12
+r:x
+r2:r~(1 2 3 4
+      5 6 7 8
+      9 10 11 12)
+if[~r2;`0:,"failed";exit 1]
+r:+/x
+r2:r~15 18 21 24
+if[~r2;`0:,"failed";exit 1]
+r:+/'x
+r2:r~10 26 42
+if[~r2;`0:,"failed";exit 1]
+
+/515. deferred
+
+"516. multiply each column of x by y"
+x:(1 2 3 4 5 6
+   7 8 9 10 11 12)
+y:10 100
+r:x*y
+r2:r~(10 20 30 40 50 60
+      700 800 900 1000 1100 1200)
+if[~r2;`0:,"failed";exit 1]
+r:y*x
+r2:r~(10 20 30 40 50 60
+      700 800 900 1000 1100 1200)
+if[~r2;`0:,"failed";exit 1]
+
+/517. deferred
+
+"518. transpose matrix x on condition y"
+x:2 3#!6
+r:x
+r2:r~(0 1 2
+      3 4 5)
+if[~r2;`0:,"failed";exit 1]
+y:1
+/r:y +:/x  / primitive do
+r:y {+x}/x
+r2:r~(0 3
+      1 4
+      2 5)
+if[~r2;`0:,"failed";exit 1]
+y:0
+r:y {+x}/x
+r2:r~(0 1 2
+      3 4 5)
+if[~r2;`0:,"failed";exit 1]
+
+/519. see 85
+
+/520. see 86
+
+"521. matrix with x columns y"
+x:4
+y:"abc"
+r:x#'y
+r2:r~("aaaa"
+      "bbbb"
+      "cccc")
+if[~r2;`0:,"failed";exit 1]
+
+/522. see 80
+
+/523. deferred
+
+/524. deferred
+
+"525. main diagonal"
+x:(1 2 3 4
+   5 6 7 8
+   9 10 11 12)
+y:2#'!#x
+r:y
+r2:r~(0 0
+      1 1
+      2 2)
+if[~r2;`0:,"failed";exit 1]
+r:x ./ y
+r2:r~1 6 11
+if[~r2;`0:,"failed";exit 1]
+
+/526. see 525
+
+"527. transpose planes of three-dimensional x"
+x:2 2 2#!8
+r:x
+r2:r~((0 1
+       2 3)
+      (4 5
+       6 7))
+if[~r2;`0:,"failed";exit 1]
+r:+'x
+r2:r~((0 2
+       1 3)
+      (4 6
+       5 7))
+if[~r2;`0:,"failed";exit 1]
+
+"528. vector (cross) product"
+x:2 8 5 6 3 1 7 7 10 4
+y:6 9 1 1 6 7 1 4 1 5
+r:((1!x)*-1!y)-(-1!x)*1!y
+r2:r~4 28 46 -27 -41 39 45 3 -19 -58
+if[~r2;`0:,"failed";exit 1]
+
+"529. markers for x at y"
+x:"abcdefghijklmn"
+y:3 7 9
+r:@[&#x;y;:;1]
+r2:r~0 0 0 1 0 0 0 1 0 1 0 0 0 0
+if[~r2;`0:,"failed";exit 1]
+
+"530. index of last occurrence of y in x"
+/x:10 draw 5
+x:3 0 4 3 1 4 4 3 3 1
+y:4
+r:*|&x=y
+r2:r~6
+if[~r2;`0:,"failed";exit 1]
+y:3
+r:*|&x=y
+r2:r~8
+if[~r2;`0:,"failed";exit 1]
+
+"531. replace each item of y with index of its last occurrence"
+x:"aabbbcccc"
+y:x,"ddd"
+r:x
+r2:r~"aabbbcccc"
+if[~r2;`0:,"failed";exit 1]
+r:y
+r2:r~"aabbbccccddd"
+if[~r2;`0:,"failed";exit 1]
+r:(|x)?/y
+r2:r~7 7 4 4 4 0 0 0 0 9 9 9
+if[~r2;`0:,"failed";exit 1]
+r:#x
+r2:r~9
+if[~r2;`0:,"failed";exit 1]
+r:(#x)-(|x)?/y
+r2:r~2 2 5 5 5 9 9 9 9 0 0 0
+if[~r2;`0:,"failed";exit 1]
+r:0|-1+(#x)-(|x)?/y
+r2:r~1 1 4 4 4 8 8 8 8 0 0 0
+if[~r2;`0:,"failed";exit 1]
+
+"532. index of last occurrence of y in x, counted from the rear"
+x:8 4 9 1 5 7
+y:8 2 3 4 9 5 7 1 10 6 8 2
+r:(|x)?/y
+r2:r~5 6 6 4 3 1 0 2 6 6 5 6
+if[~r2;`0:,"failed";exit 1]
+
+"533. reverse x on condition y"
+x:1 2 3 4 5
+y:0
+r:y {|x}/x
+r2:r~1 2 3 4 5
+if[~r2;`0:,"failed";exit 1]
+y:1
+r:y {|x}/x
+r2:r~5 4 3 2 1
+if[~r2;`0:,"failed";exit 1]
+
+/534. see 203
+
+"535. avoiding parentheses using reverse"
+x:1 2 3 4 5
+r:(#x),1
+r2:r~5 1
+if[~r2;`0:,"failed";exit 1]
+r:|1,#x
+r2:r~5 1
+if[~r2;`0:,"failed";exit 1]
+
+"536. rotate rows left"
+x:3 4#1+!12
+r:x
+r2:r~(1 2 3 4
+      5 6 7 8
+      9 10 11 12)
+r:1!'x
+r2:r~(2 3 4 1
+      6 7 8 5
+      10 11 12 9)
+if[~r2;`0:,"failed";exit 1]
+
+"537. rotate rows right"
+x:3 4#1+!12
+r:x
+r2:r~(1 2 3 4
+      5 6 7 8
+      9 10 11 12)
+if[~r2;`0:,"failed";exit 1]
+r:-1!'x
+r2:r~(4 1 2 3
+      8 5 6 7
+      12 9 10 11)
+if[~r2;`0:,"failed";exit 1]
+
+"538. insert 0 in list of ones x after indices y"
+x:1 1 1 1 1 1 1 1 1 1
+y:1 3 7
+r:+,x
+r2:r~(,1
+      ,1
+      ,1
+      ,1
+      ,1
+      ,1
+      ,1
+      ,1
+      ,1
+      ,1)
+if[~r2;`0:,"failed";exit 1]
+r:@[+,x;y;{x,0}]
+r2:r~(,1
+      1 0
+      ,1
+      1 0
+      ,1
+      ,1
+      ,1
+      1 0
+      ,1
+      ,1)
+if[~r2;`0:,"failed";exit 1]
+r:,/@[+,x;y;{x,0}]
+r2:r~1 1 0 1 1 0 1 1 1 1 0 1 1
+if[~r2;`0:,"failed";exit 1]
+
+"539. Boolean vector of length y with zeros in locations x"
+x:2 3 4 8
+y:10
+/method A
+r:~(!y) lin x
+r2:r~1 1 0 0 0 1 1 1 0 1
+if[~r2;`0:,"failed";exit 1]
+/method B
+r:~@[&y;x;:;1]
+r2:r~1 1 0 0 0 1 1 1 0 1
+if[~r2;`0:,"failed";exit 1]
+
+"540. markers in Boolean vector of length x at indices y"
+x:10
+y:1 3 7
+/method A
+r:(!x) lin y
+r2:r~0 1 0 1 0 0 0 1 0 0
+if[~r2;`0:,"failed";exit 1]
+/method B
+r:@[&x;y;:;1]
+r2:r~0 1 0 1 0 0 0 1 0 0
+if[~r2;`0:,"failed";exit 1]
+
+/541. omitted
+
+/542. omitted
+
+/543. see 540
+
+"544. do x and y match"
+x:(1;2.0;"a";`a;.();_n;{};1 2;1 2.0;"ab";`a`b)
+y:(1;2.0;"a";`a;.();_n;{};1 2;1 2.0;"ab";`a`b)
+r:x~y
+r2:r~1
+if[~r2;`0:,"failed";exit 1]
+y:(1;2.0;"a";`a;.();_n;{};1 2;1 2.0;"ab";`a`c)
+r:x~y
+r2:r~0
+if[~r2;`0:,"failed";exit 1]
+
+"545. zero items of y not in x"
+y: 2 3 4 5 6 7 8 9 10 11
+x:2 3 5 7 11
+r:y lin x
+r2:r~1 1 0 1 0 1 0 0 0 1
+if[~r2;`0:,"failed";exit 1]
+r:y*y lin x
+r2:r~2 3 0 5 0 7 0 0 0 11
+if[~r2;`0:,"failed";exit 1]
+
+"546. is count of atoms 1 (uses cs from 366)"
+cs:{#,//x}
+co:{1=cs[x]}
+r:co[35]
+r2:r~1
+if[~r2;`0:,"failed";exit 1]
+r:co[,35]
+r2:r~1
+if[~r2;`0:,"failed";exit 1]
+r:co[1 1#35]
+r2:r~1
+r:co[1 1 1#35]
+r2:r~1
+if[~r2;`0:,"failed";exit 1]
+r:co[1 2]
+r2:r~0
+if[~r2;`0:,"failed";exit 1]
+r:co[!0]
+r2:r~0
+if[~r2;`0:,"failed";exit 1]
+
+"547. is x vector"
+iv:{1=#^x}
+r:iv[0]
+r2:r~0
+if[~r2;`0:,"failed";exit 1]
+r:iv[1 2]
+r2:r~1
+if[~r2;`0:,"failed";exit 1]
+r:iv[(1;2)]
+r2:r~1
+if[~r2;`0:,"failed";exit 1]
+r:iv[(1 2;3 4)]
+r2:r~0
+if[~r2;`0:,"failed";exit 1]
+r:iv[2 3#!6]
+r2:r~0
+if[~r2;`0:,"failed";exit 1]
+r:iv[!0]
+r2:r~1
+if[~r2;`0:,"failed";exit 1]
+
+"548. test if empty"
+ie:{0 in ^x}
+r:ie 7
+r2:r~0
+if[~r2;`0:,"failed";exit 1]
+r:ie 8 9
+r2:r~0
+if[~r2;`0:,"failed";exit 1]
+r:ie 2 3#6
+r2:r~0
+if[~r2;`0:,"failed";exit 1]
+r:ie (1 0#5)
+r2:r~1
+if[~r2;`0:,"failed";exit 1]
+
+"549. alphabetic comparison (depends on storage values)"
+r:"a"<"b"
+r2:r~1
+if[~r2;`0:,"failed";exit 1]
+r:"a">"b"
+r2:r~0
+if[~r2;`0:,"failed";exit 1]
+r:ic";"
+r2:r~59
+if[~r2;`0:,"failed";exit 1]
+r:ic"/"
+r2:r~47
+if[~r2;`0:,"failed";exit 1]
+r:";"<"/"
+r2:r~0
+if[~r2;`0:,"failed";exit 1]
+
+/550. see 37
+
+"551. index of first differing item of x and y"
+x:3 1 4 1 6 0
+y:3 1 4 1 5 9
+r:(~x=y)?1
+r2:r~4
+if[~r2;`0:,"failed";exit 1]
+
+"552. which items of x are not in y"
+x:2 3 4 5 6 7 8 9 10 11
+y:2 3 5 7 11
+r:~x lin y
+r2:r~0 0 1 0 1 0 1 1 1 0
+if[~r2;`0:,"failed";exit 1]
+
+/553. see 37
+
+"554. select from g based on index of x in y"
+g:("William Shakespeare"
+   "John Milton"
+   "Jonathan Swift"
+   "Jane Austen"
+   "John Keats"
+   "Charles Dickens")
+y:1564 1608 1667 1775 1795 1812
+x:1775
+r:g[y?x]
+r2:r~"Jane Austen"
+if[~r2;`0:,"failed";exit 1]
+
+"555. all axes of rectangular array x"
+x:2 2 2 2#!16
+r:!#^x
+r2:r~0 1 2 3
+if[~r2;`0:,"failed";exit 1]
+
+"556. all indices of vector x"
+x:2 2 2 2#!16
+r:!#^x
+r2:r~0 1 2 3
+if[~r2;`0:,"failed";exit 1]
+
+"557. arithmetic progression of y numbers from x with step g"
+x:5
+y:8
+g:100
+r:x+g*!y
+r2:r~5 105 205 305 405 505 605 705
+if[~r2;`0:,"failed";exit 1]
+ap:{[x;g;y]x+g*!y}
+r:ap[x;g;y]
+r2:r~5 105 205 305 405 505 605 705
+if[~r2;`0:,"failed";exit 1]
+
+"558. consecutive integers from x to y"
+ci0:{x+!1+y-x}
+r:ci0[5;10]
+r2:r~5 6 7 8 9 10
+if[~r2;`0:,"failed";exit 1]
+
+"559. index of first marker in Boolean x"
+x:0 0 1 0 1 0 0 1 1 0
+r:x?1
+r2:r~2
+if[~r2;`0:,"failed";exit 1]
+
+/560. omitted
+
+"561. numeric code from character"
+x:" aA0"
+r:ic[x]
+r2:r~32 97 65 48
+if[~r2;`0:,"failed";exit 1]
+
+"562. index of y in x"
+x:" abcdefgh"
+y:"faded head"
+r:x?/y
+r2:r~6 1 4 5 4 0 8 5 1 4
+if[~r2;`0:,"failed";exit 1]
+y:"deaf adder"
+r:x?/y
+r2:r~4 5 1 6 0 1 4 4 5 9
+if[~r2;`0:,"failed";exit 1]
+
+"563. empty vector"
+r:!0
+r2:r~!0
+if[~r2;`0:,"failed";exit 1]
+r:^!0
+r2:r~,0
+if[~r2;`0:,"failed";exit 1]
+r:""
+r2:r~""
+if[~r2;`0:,"failed";exit 1]
+r:^""
+r2:r~,0
+if[~r2;`0:,"failed";exit 1]
+
+"564. is x within range ( y[0],y[1] )"
+ci0:{(y[0]<x)&(x<y[1])}
+y:3 8
+x:5
+r:ci0[x;y]
+r2:r~1
+if[~r2;`0:,"failed";exit 1]
+x:3
+r:ci0[x;y]
+r2:r~0
+if[~r2;`0:,"failed";exit 1]
+x:2
+r:ci0[x;y]
+r2:r~0
+if[~r2;`0:,"failed";exit 1]
+x:8
+r:ci0[x;y]
+r2:r~0
+if[~r2;`0:,"failed";exit 1]
+x:9
+r:ci0[x;y]
+r2:r~0
+if[~r2;`0:,"failed";exit 1]
+
+"565. is x within range [ y[0],y[1] ]"
+oi:{(~y[0]>x)&(~x>y[1])}
+y:3 8
+x:5
+r:oi[x;y]
+r2:r~1
+if[~r2;`0:,"failed";exit 1]
+x:3
+r:oi[x;y]
+r2:r~1
+if[~r2;`0:,"failed";exit 1]
+x:2
+r:oi[x;y]
+r2:r~0
+if[~r2;`0:,"failed";exit 1]
+x:8
+r:oi[x;y]
+r2:r~1
+if[~r2;`0:,"failed";exit 1]
+x:9
+r:oi[x;y]
+r2:r~0
+if[~r2;`0:,"failed";exit 1]
+
+"566. zero all items of Boolean x"
+x:0 1 0 1 1 0 0 1 1 1 0
+r:0&x
+r2:r~0 0 0 0 0 0 0 0 0 0 0
+if[~r2;`0:,"failed";exit 1]
+
+"567. select x or y depending on g"
+x:`hot `white `short `old
+y:`cold `black `tall `young
+g:1 0 0 1
+r:x,'y
+r2:r~(`hot `cold
+      `white `black
+      `short `tall
+      `old `young)
+if[~r2;`0:,"failed";exit 1]
+r:(!#g),'g
+r2:r~(0 1
+      1 0
+      2 0
+      3 1)
+if[~r2;`0:,"failed";exit 1]
+r:(x,'y) ./ (!#g),'g
+r2:r~`cold `white `short `young
+if[~r2;`0:,"failed";exit 1]
+
+/568. omitted
+
+"569. change y to one if x"
+y:10 5 7 12 20.0
+x:0 1 0 1 1
+r:y^~x
+r2:r~10 1 7 1 1.0
+if[~r2;`0:,"failed";exit 1]
+/alternatively
+r:@[y;&x;:;1]
+/r2:r~10 1 7 1 1  /not the same as e
+r2:r~(10.0;1;7.0;1;1)
+if[~r2;`0:,"failed";exit 1]
+
+"570. x implies y"
+x:0 1 0 1
+y:0 0 1 1
+r:~x>y
+r2:r~1 0 1 1
+if[~r2;`0:,"failed";exit 1]
+
+"571. x but not y"
+x:0 1 0 1
+y:0 0 1 1
+r:x>y
+r2:r~0 1 0 0
+if[~r2;`0:,"failed";exit 1]
+
+"572. division by 0"
+dz:{(~0=x)*y%x+x=0}
+y:10 15 -20
+x:2 0 0
+r:y%x
+r2:r~5 0i -0i
+if[~r2;`0:,"failed";exit 1]
+r:dz[x;y]
+r2:r~5 0 0.0
+if[~r2;`0:,"failed";exit 1]
+
+"573. exclusive or"
+x:0 0 1 1
+y:0 1 0 1
+r:~x=y
+r2:r~0 1 1 0
+if[~r2;`0:,"failed";exit 1]
+
+"574. y where x is 0"
+x:0 7 8 0 2
+y:10 4 6 7 3
+r:x+y*x=0
+r2:r~10 7 8 7 2
+if[~r2;`0:,"failed";exit 1]
+
+"575. Kronecker delta of x and y"
+x:0 0 1 1
+y:0 1 0 1
+r:x=y
+r2:r~1 0 0 1
+if[~r2;`0:,"failed";exit 1]
+
+"576. append y items g before each item of x"
+x:1 3 5
+y:2
+g:10
+r:y#g
+r2:r~10 10
+if[~r2;`0:,"failed";exit 1]
+r:(y#g),/x
+r2:r~(10 10 1
+      10 10 3
+      10 10 5)
+if[~r2;`0:,"failed";exit 1]
+r:,/(y#g),/x
+r2:r~10 10 1 10 10 3 10 10 5
+if[~r2;`0:,"failed";exit 1]
+
+"577. append y items g after each item of x"
+x:1 3 5
+y:2
+g:10
+r:,/x,\y#g
+r2:r~1 10 10 3 10 10 5 10 10
+if[~r2;`0:,"failed";exit 1]
+
+"578. merge items from x and y alternately"
+x:1 3 5 7
+y:2 4 6 8
+r:,/x,'y
+r2:r~1 2 3 4 5 6 7 8
+if[~r2;`0:,"failed";exit 1]
+
+"579. variable length lines"
+x:"by and by"
+y:"God caught his eye"
+r:,(x;y)
+r2:r~,("by and by"
+       "God caught his eye")
+if[~r2;`0:,"failed";exit 1]
+
+/580. see 490
+
+"581. insert y after each item of x"
+x:"abc"
+y:"d"
+r:,/x,'y
+r2:r~"adbdcd"
+if[~r2;`0:,"failed";exit 1]
+
+/582. see 197
+
+"583. array and its negative"
+x:1 -3 5
+r:x,'-x
+r2:r~(1 -1
+      -3 3
+      5 -5)
+if[~r2;`0:,"failed";exit 1]
+
+/584. omitted
+
+/585. omitted
+
+/586. omitted
+
+"587. first column as a matrix"
+x:(0 1 2 3
+   4 5 6 7
+   8 9 10 11)
+r:x[;,0]
+r2:r~(,0
+      ,4
+      ,8)
+if[~r2;`0:,"failed";exit 1]
+
+"588. 2-row matrix from two vectors"
+x:"abcd"
+y:"efgh"
+r:(,x),(,y)
+r2:r~("abcd"
+      "efgh")
+if[~r2;`0:,"failed";exit 1]
+
+"589. 2-column matrix from two vectors"
+x:"abcd"
+y:"efgh"
+r:x,'y
+r2:r~("ae"
+      "bf"
+      "cg"
+      "dh")
+if[~r2;`0:,"failed";exit 1]
+
+"590. increasing rank of y to rank of x"
+x:("abcd"
+   "efgh")
+y:"ijkl"
+r:#^x
+r2:r~2
+if[~r2;`0:,"failed";exit 1]
+r:#^y
+r2:r~1
+if[~r2;`0:,"failed";exit 1]
+r:#^,y
+r2:r~2
+if[~r2;`0:,"failed";exit 1]
+r:((#^x)-#^y){,x}/y
+r2:r~,"ijkl"
+if[~r2;`0:,"failed";exit 1]
+
+"591. reshape vector x into 2-column matrix"
+x:"abcdefgh"
+r:((_ 0.5*#x),2)#x
+r2:r~("ab"
+      "cd"
+      "ef"
+      "gh")
+if[~r2;`0:,"failed";exit 1]
+
+"592. vector from array"
+x:2 1 2 1 2 1#!8
+r:^x
+r2:r~2 1 2 1 2 1
+if[~r2;`0:,"failed";exit 1]
+r:,//x
+r2:r~0 1 2 3 4 5 6 7
+if[~r2;`0:,"failed";exit 1]
+r:^,//x
+r2:r~,8
+if[~r2;`0:,"failed";exit 1]
+
+"593. matrix of y rows, each x"
+x:"abcd"
+y:3
+r:y#,x
+r2:r~("abcd"
+      "abcd"
+      "abcd")
+if[~r2;`0:,"failed";exit 1]
+
+/594. see 203
+
+"595. one-row matrix from vector"
+x:2 3 5 7 11
+/x
+/2 3 5 7 11
+r:^x
+r2:r~,5
+if[~r2;`0:,"failed";exit 1]
+r:,x
+r2:r~,2 3 5 7 11
+if[~r2;`0:,"failed";exit 1]
+r:^,x
+r2:r~1 5
+if[~r2;`0:,"failed";exit 1]
+
+/596. see 366
+
+/597. omitted
+
+/598. omitted
+
+"599. number of columns in array x"
+x:1 1 1 1 1 678#0
+r:^x
+r2:r~1 1 1 1 1 678
+if[~r2;`0:,"failed";exit 1]
+r:*|^x
+r2:r~678
+if[~r2;`0:,"failed";exit 1]
+
+"600. number of columns in matrix x"
+x:3 19#0
+r:^x
+r2:r~3 19
+if[~r2;`0:,"failed";exit 1]
+r:(^x)[1]
+r2:r~19
+if[~r2;`0:,"failed";exit 1]
+
+"601. number of rows in matrix x"
+x:17 2#0
+r:#x
+r2:r~17
+if[~r2;`0:,"failed";exit 1]
+
+"602. choosing according to sign"
+sg:{(x>0)-(x<0)}
+r:sg -4.5 0 6.78
+r2:r~-1 0 1
+if[~r2;`0:,"failed";exit 1]
+y:"-0+"
+x:-54
+r:y[1+sg[x]]
+r2:r~"-"
+if[~r2;`0:,"failed";exit 1]
+x:0
+r:y[1+sg[x]]
+r2:r~"0"
+if[~r2;`0:,"failed";exit 1]
+x:1234.5
+r:y[1+sg[x]]
+r2:r~"+"
+if[~r2;`0:,"failed";exit 1]
+
+"603. conditional change of sign"
+y:1+!6
+/y
+/1 2 3 4 5 6
+x:0 1 0 1 1 0
+r:y*1 -1[x]
+r2:r~1 -2 3 -4 -5 6
+if[~r2;`0:,"failed";exit 1]
+
+/604. omitted
+
+"605. indexing plotting characters with Boolean index"
+x:~3 6 5 7 2<\1+!7
+r:x
+r2:r~(1 1 1 0 0 0 0
+      1 1 1 1 1 1 0
+      1 1 1 1 1 0 0
+      1 1 1 1 1 1 1
+      1 1 0 0 0 0 0)
+if[~r2;`0:,"failed";exit 1]
+r:" *"[x]
+r2:r~("***    "
+      "****** "
+      "*****  "
+      "*******"
+      "**     ")
+if[~r2;`0:,"failed";exit 1]
+
+/606. omitted
+
+"607. vector from column of matrix"
+x:3 4#!12
+r:x
+r2:r~(0 1 2 3
+      4 5 6 7
+      8 9 10 11)
+if[~r2;`0:,"failed";exit 1]
+r:x[;0]
+r2:r~0 4 8
+if[~r2;`0:,"failed";exit 1]
+
+/ TODO cross section assignment
+/"608. zeroing an array"
+/x:1 2 3 4
+//x
+//1 2 3 4
+/x[]:0
+/r:x
+/r2:r~0 0 0 0
+/if[~r2;`0:,"failed";exit 1]
+/x:2 3#!6
+/r:x
+/r2:r~(0 1 2
+/      3 4 5)
+/x[;]:0
+/r:x
+/r2:r~(0 0 0
+/      0 0 0)
+/x:9
+/r:x
+/r2:r~9
+/if[~r2;`0:,"failed";exit 1]
+/x:0
+/r:x
+/r2:r~0
+/if[~r2;`0:,"failed";exit 1]
+
+/609. omitted
+
+"610. y cyclic repetitions of vector x"
+x:"abcd"
+y:3
+r:(y*#x)#x
+r2:r~"abcdabcdabcd"
+if[~r2;`0:,"failed";exit 1]
+
+"611. multiply each row of x by vector y"
+x:3 4#1+!12
+r:x
+r2:r~(1 2 3 4
+      5 6 7 8
+      9 10 11 12)
+if[~r2;`0:,"failed";exit 1]
+y:1 10 100 10000
+r:x*\y
+r2:r~(1 20 300 40000
+      5 60 700 80000
+      9 100 1100 120000)
+if[~r2;`0:,"failed";exit 1]
+
+"612. rank of array y (number of dimensions)"
+x:2 1 2 1 3 1 4#0
+r:#^x
+r2:r~7
+if[~r2;`0:,"failed";exit 1]
+r:#^9
+r2:r~0
+if[~r2;`0:,"failed";exit 1]
+r:#^7 8 9
+r2:r~1
+if[~r2;`0:,"failed";exit 1]
+r:#^(1 2 3;4 5 6)
+r2:r~2
+if[~r2;`0:,"failed";exit 1]
+
+/613. see 441
+
+"614. array with shape of y and x as its rows"
+y:3 4#!12
+r:y
+r2:r~(0 1 2 3
+      4 5 6 7
+      8 9 10 11)
+if[~r2;`0:,"failed";exit 1]
+x:"abcd"
+r:(^y)#x
+r2:r~("abcd"
+      "abcd"
+      "abcd")
+if[~r2;`0:,"failed";exit 1]
+
+"615. first atom in x"
+x:2 2 2 2#!8
+r:x
+r2:r~(((0 1
+        2 3)
+       (4 5
+        6 7))
+      ((0 1
+        2 3)
+       (4 5
+        6 7)))
+r:*//x
+r2:r~0
+if[~r2;`0:,"failed";exit 1]
+
+"616. scalar from one-item vector"
+x:,8
+r:x
+r2:r~,8
+if[~r2;`0:,"failed";exit 1]
+r:""#x
+r2:r~8
+if[~r2;`0:,"failed";exit 1]
+r:x[0]
+r2:r~8
+if[~r2;`0:,"failed";exit 1]
+r:*x
+r2:r~8
+if[~r2;`0:,"failed";exit 1]
+
+/617. omitted
+
+/618. deferred
+
+/619. deferred
+
+/620. omitted
+
+/621. see 583
+
+"622. retain value of items marked by y, zero others"
+x:3 7 15 1 292
+y:1 0 1 1 0
+r:x*y
+r2:r~3 0 15 1 0
+if[~r2;`0:,"failed";exit 1]
+
+"623. conditional change of sign"
+x:-9
+y:0
+r:x*-1^y
+r2:r~-9.0
+if[~r2;`0:,"failed";exit 1]
+y:1
+r:x*-1^y
+r2:r~9.0
+if[~r2;`0:,"failed";exit 1]
+
+"624. zero numerical array"
+x:2 3#99
+r:x
+r2:r~(99 99 99
+      99 99 99)
+if[~r2;`0:,"failed";exit 1]
+r:x*0
+r2:r~(0 0 0
+      0 0 0)
+if[~r2;`0:,"failed";exit 1]
+
+/625. omitted
+
+/626. omitted
+
+/627. omitted
+
+/628. omitted
+
+/ TODO suspension
+/629. error to stop execution
+/&`
+
+/630. omitted
+
+/631. omitted
+ 
+"1001. payback"
+/cumulative accumulation factors
+/(see Zark APL Tutor News 1998 Quarter 2)
+caf:{[W;R]*\(#W)#1+R}
+pay:{[B;T;R;W]C*B-+\W%(#W)#T _ 1,C:caf[W;R]}
+/The version pay2 replaces T by END, and permits END to be any value between 0 and 1.
+pay2:{[B;END;R;W]CPA:*\A:1+R
+      CPA*B-+\W%CPA%A*1-END}
+/B initial balance
+/T time of withdrawal: 0 start of period, 1 end
+/R interest rate per period
+/W withdrawal amount
+B:1000
+T:0
+R:0.05
+W:200 300 400 200
+/r:pay[B;T;.R;W]  / what is the .R ???
+r:pay[B;T;R;W]
+r2:r~840 567 175.35 -25.8825
+if[~r2;`0:,"failed";exit 1]
+T:1
+/r:pay[B;T;.R;W]  / what is the .R ???
+r:pay[B;T;R;W]
+r2:r~850 592.5 222.125 33.23125
+if[~r2;`0:,"failed";exit 1]
+R:0.05 0.04 0.06 0.05
+r:pay[B;T;R;W]
+/r2:r~840 561.6 171.296 -30.1392 / doesn't match e
+r2:r~850 584 219.04 29.992
+if[~r2;`0:,"failed";exit 1]
+T:1
+r:pay[B;T;R;W]
+r2:r~850 584 219.04 29.992
+if[~r2;`0:,"failed";exit 1]
+
+"1002. round summands"
+/ensure sum of rounded summands matches round of sum
+f:{y%:x
+   i:_y
+   x*@[i;{(_+/.5,x)#>x}[y-i];+;1]}
+y:42.35 38.45 19.20
+r:_.5++/y
+r2:r~100
+if[~r2;`0:,"failed";exit 1]
+r:_.5+y
+r2:r~42 38 19
+if[~r2;`0:,"failed";exit 1]
+r:+/_.5+y
+r2:r~99
+if[~r2;`0:,"failed";exit 1]
+x:1
+z:f[x;y]
+r:z
+r2:r~42 39 19
+if[~r2;`0:,"failed";exit 1]
+r:+/z
+r2:r~100
+y:42.65 37.60 19.75
+r:_.5++/y
+r2:r~100
+if[~r2;`0:,"failed";exit 1]
+r:_.5+y
+r2:r~43 38 20
+if[~r2;`0:,"failed";exit 1]
+r:+/_.5+y
+r2:r~101
+if[~r2;`0:,"failed";exit 1]
+z:f[x;y]
+r:z
+r2:r~43 37 20
+if[~r2;`0:,"failed";exit 1]
+r:+/z
+r2:r~100
+if[~r2;`0:,"failed";exit 1]
+
+/ TODO (0|+) - fixed left arg of dyadic |
+/"1003. maximum sum of infixes"
+/f:{|/0(0|+)\x}
+/x:-100 2 3 4 -100 6 7 8 9 -100
+/r:f x
+/r2:r~30
+/if[~r2;`0:,"failed";exit 1]
+
+"1004. range union"
+i:(1 3;8 10;11 12;2 4)
+/ given ordered (lefts;rights)
+/ interval 0 and where left is greater than 1+ max previous right
+f:{(x i:0,&x>1+y:-1!|\y;1!y i)}
+r:+f .+{x@<x}i /flip f apply flip sort i
+r2:r~(1 4;8 12)
+if[~r2;`0:,"failed";exit 1]
+
+"1005. pointer chasing"
+/For r a primitive root of prime p, the additive list formed by (r*!p)!p has an interesting property, first discussed by August Crelle in the early 19th century. For example, if we take such a list for the primitive root 3 of 7:
+a:(3*!7)!7
+/ list of successive sums of 3, starting from 0, mod 7:
+r:a
+r2:r~0 3 6 2 5 1 4
+if[~r2;`0:,"failed";exit 1]
+//then if we treat the items of this list as pointers, and write
+r:a\1
+r2:r~1 3 2 6 4 5
+if[~r2;`0:,"failed";exit 1]
+/we find that the new list is the successive powers of 3, mod 7.
+
+"1006. partitions of y with no part less than x"
+part:{t:x _!1+_ y%2
+      (,/t,''t .z.f'y-t),y}
+r:part[3;10]
+r2:r~(3 3 4
+      3 7
+      4 6
+      5 5
+      10)
+if[~r2;`0:,"failed";exit 1]
+r:part[1;6]
+r2:r~(1 1 1 1 1 1
+      1 1 1 1 2
+      1 1 1 3
+      1 1 2 2
+      1 1 4
+      1 2 3
+      1 5
+      2 2 2
+      2 4
+      3 3
+      6)
+if[~r2;`0:,"failed";exit 1]
+/ TODO projection
+/r:#'part[1]'1+!10
+/r2:r~1 2 3 5 7 11 15 22 30 42
+/if[~r2;`0:,"failed";exit 1]
+
+"1007. Pascal's triangle"
+pt:{ep[+]0,x,0}
+r:4 pt\1
+r2:r~(1
+      1 1
+      1 2 1
+      1 3 3 1
+      1 4 6 4 1)
+if[~r2;`0:,"failed";exit 1]
+r:pt pt pt pt 1
+r2:r~1 4 6 4 1
+if[~r2;`0:,"failed";exit 1]
+r:4 pt/1
+r2:r~1 4 6 4 1
+if[~r2;`0:,"failed";exit 1]
+
+/ TODO adverb attached to lambda
+/"1008. Polygon area"
+/area: 0.5*+/{-/y*|x}':
+//The dyad {-/y*|x} yields the determinant of a 2-by-2 matrix. The dyad area yields the area of a polygon whose x-y coordinates are, in order, the rows of a 2-column matrix, where the last row is the same as the first row.
+/x:(7 2;10 5;6 8;3 6;4 3;7 2)
+/r:area x
+/r2:r~24.5
+/if[~r2;`0:,"failed";exit 1]
+
+"1009. Great circle distance"
+/gcd:{cos?(*/sin x)+(*/cos x)*cos[-/y]}  / e doesn't like the ?2 (?atom), rank error
+gcd:{cos (*/sin x)+(*/cos x)*cos[-/y]}   / this works
+/The great circle distance in radians between two points on a sphere whose latitudes in radians are in x and longitudes in radians are in y.
+r:$gcd[2;5]
+r2:r~$0.7029552
+if[~r2;`0:,"failed";exit 1]
+
+"1010. Nautical miles from radians"
+nmr:{x*180*60%3.141592653589798238}
+r:$nmr 5
+r2:r~$17188.73
+if[~r2;`0:,"failed";exit 1]
+
+"1011. Degrees from degrees and minutes"
+dfdm:{+/x%1 60}
+
+"1012. Fibonacci numbers"
+fn:{x{x,+/-2#x}/0 1}
+r:fn 5
+r2:r~0 1 1 2 3 5 8
+if[~r2;`0:,"failed";exit 1]
+fn:{x{(|+\)x}\1 1.0}
+r:fn 5
+r2:r~(1 1.0
+      2 1.0
+      3 2.0
+      5 3.0
+      8 5.0
+      13 8.0)
+if[~r2;`0:,"failed";exit 1]
+
+"1013. Tree from depth;value"
+tdv:{[d;v](1#v),(c _ d-1).z.f'(c:&1=d)_ v}
+r:tdv[1 0 1;2 3 4]
+r2:r~(2
+      ,2
+      ,4)
+if[~r2;`0:,"failed";exit 1]
+
+"1014. Depth from tree"
+/dt:{0,/0,1+.z.f'1_ x}
+dt:{,/0,1+.z.f'1_ x}
+
+"1015. Value from tree"
+/vt:{(1#x),/.z.f'1_ x}
+vt:{,/(1#x),.z.f'1_ x}
+d:0 1 2 2 1 1
+v:0 1 2 3 4 5
+t:tdv[d;v]
+r:t
+r2:r~(0
+      (1
+       ,2
+       ,3)
+      ,4
+      ,5)
+if[~r2;`0:,"failed";exit 1]
+r:dt t
+r2:r~0 1 2 2 1 1
+if[~r2;`0:,"failed";exit 1]
+r:vt t
+r2:r~0 1 2 3 4 5
+if[~r2;`0:,"failed";exit 1]
+
+\\

@@ -1,129 +1,99 @@
 #include "dict.h"
 #include <stdio.h>
 #include <string.h>
-#include "k.h"
-#include "x.h"
-#include "sym.h"
-#include "fn.h"
+#include "scope.h"
 
-dict* dnew(void) {
-  return xcalloc(1,sizeof(dict));
+K dnew(void) {
+  K d,k,v,m,*pdu;
+  d=tn(0,3); pdu=px(d);
+  k=tn(4,DMAX);
+  v=tn(0,DMAX);
+  m=t(1,DMAX);
+  pdu[0]=k; pdu[1]=v; pdu[2]=m;
+  nk=0; nv=0;
+  return st(0x80,d);
 }
 
-void dfree(dict *d) {
-  if(!d) return;
-  if(d->r) { d->r--; return; }
-  DO(d->c,kfree(d->v[i]))
-  xfree(d->k);
-  xfree(d->v);
-  xfree(d);
+void dfree(K d) {
+  _k(d);
 }
 
-dict* l2d(K *l) {
-  int i;
-  K *p;
-  dict *d = xmalloc(sizeof(dict));
-  d->c = l->c;
-  d->k = xmalloc(sizeof(char*)*d->c);
-  d->v = xmalloc(sizeof(K*)*d->c);
-  d->r = 0;
-  for(i=0;i<d->c;i++) {
-    p = v0(l)[i];
-    if(p->t == 0) {
-      d->k[i] = v3(v0(p)[0]);
-      d->v[i] = kref(v0(p)[1]);
-    } else if(p->t == -4) {
-      d->k[i] = v4(p)[0];
-      d->v[i] = k4(v4(p)[1]);
-    } else {
-      fprintf(stderr, "l2d\n");
-      exit(1);
+K dget(K d, char *key) {
+  K *pd=px(d),*pv;
+  char **pk;
+  pk=px(pd[0]); pv=px(pd[1]);
+  i(n(pd[0]),if(key==*pk++) return k_(pv[i]))
+  return 0;
+}
+
+K dset(K d, char *key, K val) {
+  K k,v,m,*pd,*pv;
+  char **pk;
+  u32 i;
+  u64 n;
+  if(d==ktree && strlen(key)==1 && (*key!='k'||0x80!=s(val))) return kerror("reserved");
+  pd=px(d);
+  k=pd[0]; v=pd[1]; m=ik(pd[2]);
+  pk=px(k); pv=px(v);
+  for(i=0;i<nk;i++) if(key==pk[i]) { _k(pv[i]); pv[i]=k_(val); break; }
+  if(i==nk) {
+    if(nk==m) {
+      n=nk;
+      m<<=1;
+      k=kresize(pd[0],m);
+      v=kresize(pd[1],m);
+      pd[2]=t(1,(u32)m);
+      pk=px(k);
+      pv=px(v);
+      nk=n; nv=n;
     }
+    pk[nk++]=key;
+    pv[nv++]=k_(val);
   }
-  return d;
+  return null;
 }
 
-K* d2l(dict *d) {
-  unsigned int i;
-  K *r = kv0(d->c);
-  K *q = 0;
-  for(i=0;i<r->c;i++) {
-    v0(r)[i] = kv0(3);
-    v0(v0(r)[i])[0] = k4(d->k[i]);
-    q = kref(d->v[i]);
-    v0(v0(r)[i])[1] = q;
-    v0(v0(r)[i])[2] = null;
-  }
+K dvals(K d) {
+  K *pd=px(d);
+  return kcp(pd[1]);
+}
+
+K dkeys(K d) {
+  K *pd=px(d);
+  return k_(pd[0]);
+}
+
+K dcp(K d) {
+  K *pd=px(d);
+  if(T(pd[2])!=1) return kerror("type");
+  int m=ik(pd[2]);
+  K t=pd[2];
+  K d2=kcp(b(48)&d); if(E(d2)) return d2;
+  K r=st(0x80,d2);
+  K *pr=px(r);
+  pd[2]=pr[2]=t;
+  K k=pr[0]; K v=pr[1];
+  u64 n=nk;
+  k=kresize(k,m); v=kresize(v,m);
+  nk=n; nv=n;
   return r;
 }
 
-dict *dcp(dict *d) {
-  dict *d2 = xmalloc(sizeof(dict));
-  d2->c = d->c;
-  d2->k = xmalloc(sizeof(char*)*d2->c);
-  d2->v = xmalloc(sizeof(K*)*d2->c);
-  d2->r = 0;
-  DO(d->c, d2->k[i]=d->k[i]; d2->v[i]=kref(d->v[i]))
-  return d2;
-}
-
-K* dget(dict *d, char *key) {
-  K *r = 0;
-  char *kk=sp(key);
-  DO(d->c,if(kk == d->k[i]) { r=kref(d->v[i]); break; })
-  return r;
-}
-
-void dset(dict *d, char *key, K *v) {
-  K *r = 0;
-  char *kk=sp(key);
-  kref(v);
-  DO(d->c,if(kk == d->k[i]) { r=d->v[i]; kfree(r); d->v[i]=v; break; })
-  if(!r) {
-    d->k = xrealloc(d->k, sizeof(char*)*(d->c+1));
-    d->v = xrealloc(d->v, sizeof(K*)*(d->c+1));
-    d->k[d->c]=kk;
-    d->v[d->c]=v;
-    d->c++;
-  }
-}
-
-K* dvals(dict *d) {
-  K *r = kv0(d->c);
-  DO(d->c, v0(r)[i]=kref(d->v[i]))
-  return knorm(r);
-}
-
-K* dkeys(dict *d) {
-  K *r = 0;
-  r = kv4(d->c);
-  DO(d->c,v4(r)[i] = d->k[i])
-  return r;
-}
-
-int dcmp(dict *d0, dict *d1) {
-  int i=0,r=0;
+int dcmp(K d0, K d1) {
+  int r=0;
+  K i=0,*pd0,k0,v0,*pv0,*pd1,k1,v1,*pv1;
+  char **pk0,**pk1;
+  pd0=px(d0); k0=pd0[0]; v0=pd0[1]; pk0=px(k0); pv0=px(v0);
+  pd1=px(d1); k1=pd1[0]; v1=pd1[1]; pk1=px(k1); pv1=px(v1);
   for(;;) {
-    if(i==d0->c && i==d1->c) break;
-    else if(i==d0->c && i<d1->c) {r=r?r:-1;break;}    /* count */
-    else if(i<d0->c && i==d1->c) {r=r?r:1;break;}     /* count */
-    else if(strcmp(d0->k[i],d1->k[i])<0) r=-1;        /* key */
-    else if(strcmp(d0->k[i],d1->k[i])>0) r=1;         /* key */
-    else if(kcmpr(d0->v[i],d1->v[i])<0) r=-1;
-    else if(kcmpr(d0->v[i],d1->v[i])>0) r=1;
-    i++;
+    if(i==n(k0) && i==n(k1)) break;
+    else if(i==n(k0) && i<n(k1)) {r=r?r:-1;break;}    /* count */
+    else if(i<n(k0) && i==n(k1)) {r=r?r:1;break;}     /* count */
+    else if(strcmp(pk0[i],pk1[i])<0) {r=-1;break;}    /* key */
+    else if(strcmp(pk0[i],pk1[i])>0) {r=1;break;}     /* key */
+    else if(kcmpr(pv0[i],pv1[i])<0) {r=-1;break;}     /* value */
+    else if(kcmpr(pv0[i],pv1[i])>0) {r=1;break;}      /* value */
+    ++i;
   }
   return r;
-}
-
-uint64_t dhash(dict *d) {
-  uint64_t r=0;
-  DO(d->c,r^=xfnv1a(d->k[i],strlen(d->k[i])))
-  DO(d->c,r^=khash(d->v[i]))
-  return r;
-}
-
-void dreplace(dict *d, K *keys, K *v) {
-  if(keys->t==4) dset(d,keys->v,v);
-  else DO(keys->c,dset(d,v4(keys)[i],v->c?v0(v)[i]:v))
 }
