@@ -219,9 +219,18 @@ K scope_get(K s, K n) {
   else return scope_get_local(s,ik(n));
 }
 static K scope_set_local(K s, int n, K v) {
-  K *ps=px(s);
-  K *pd=px(ps[1]);
-  K *pv=px(pd[1]);
+  K *ps,*pd,*pv;
+  char **pk;
+  if(s==gs) {
+    /* handle a situation like {x::1} */
+    ps=px(cs);
+    pd=px(ps[1]);
+    pk=px(pd[0]);
+    return scope_set(s,t(4,pk[n]),v);
+  }
+  ps=px(s);
+  pd=px(ps[1]);
+  pv=px(pd[1]);
   _k(pv[n]);
   pv[n]=k_(v);
   return 0;
