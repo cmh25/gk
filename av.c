@@ -229,18 +229,20 @@ static K scanm7(K f, K x, char *av) {
   xx=tn(0,1); pxx=px(xx); pxx[0]=x;
   prk[zi++]=k_(x); /* first */
   q=fne_(k_(f),k_(xx),av); EC(q); /* previous */
+  if(EXIT) { e=null; goto cleanup; }
   if(!ik(k(10,k_(x),k_(q)))) {
     prk[zi++]=k_(q);
     pxx[0]=q;
     t=fne_(k_(f),k_(xx),av); EC(t);
+    if(EXIT) { e=null; goto cleanup; }
     while(!ik(k(10,k_(t),k_(x)))&&!ik(k(10,k_(t),k_(q)))) {
       if(zi==zm) { zm<<=1; r=kresize(r,zm); prk=px(r); }
       prk[zi++]=k_(t);
       _k(q); q=t;
       pxx[0]=q;
       t=fne_(k_(f),k_(xx),av); EC(t);
-      if(STOP) { STOP=0; e=kerror("stop"); goto cleanup; }
       if(EXIT) break;
+      if(STOP) { STOP=0; e=kerror("stop"); goto cleanup; }
     }
   }
   _k(q);
