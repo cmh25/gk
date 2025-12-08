@@ -1897,6 +1897,7 @@ static K kamend4_(K d, K i, K f, K y) {
       case  0:
         if(n(i_)!=1) { e=KERR_RANK; goto cleanup; }
         i0=k(3,0,k_(i_)); EC(i0);
+        if(i0==inull)i0=null;
         r=kamendi4v(k_(d_),i0,k_(f),k_(y_)); EC(r);
         PROPAGATE_RESULT(r);
         break;
