@@ -329,6 +329,20 @@ K fne_(K f, K x, char *av) {
   if(++d>maxr) { r=KERR_STACK; --d; goto cleanup; }
 
   if(0xc4==s(f)) {
+    if(av&&*av) {
+      px=px(x);
+      n=ik(val(f));
+      if(n==0) r=avdo(f,0,null,av);
+      else if(n==1) r=avdo(f,0,k_(px[0]),av);
+      else if(n==2) {
+        if(nx==2) r=avdo(f,k_(px[0]),k_(px[1]),av);
+        else r=avdo(f,0,k_(px[0]),av);
+      }
+      else if(0x81==s(x)) r=avdo(f,0,k_(x),av);
+      else { --d; _k(x); return KERR_VALENCE; }
+      _k(x);
+      return r;
+    }
     pf=px(f);
     g=k_(pf[0]);
     q=pf[1]; pq=px(q);
