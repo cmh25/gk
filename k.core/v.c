@@ -578,6 +578,7 @@ static K take_(K a, K x) {
 
   switch(Ta) {
   case 1:
+    if(ik(a)==INT32_MIN) return k_(x); /* 0N # x -> return x */
     c=ik(a)<0?-a:a;
     VSIZE(c);
     switch(Tx) {
@@ -624,6 +625,26 @@ static K take_(K a, K x) {
       case -4: case 4: return tn(4,0);
       default: return tn(0,0);
       }
+    }
+    /* 0N # x -> return x as-is */
+    if(na==1 && pa[0]==INT32_MIN) return k_(x);
+    /* 0N k # x -> chunk into k-tuples with remainder */
+    if(na==2 && pa[0]==INT32_MIN) {
+      i32 kk=pa[1],ln; i64 st,rows;
+      if(kk<=0 || kk==INT32_MIN || kk==INT32_MAX) return KERR_DOMAIN;
+      if(ax || s(x)) return k_(x);
+      if(!nx) return tn(0,0);
+      rows=((i64)nx+kk-1)/kk;
+      if(rows>INT32_MAX) return KERR_WSFULL;
+      PRK((i32)rows);
+      switch(tx) {
+      case -1: PXI; i(rows, st=i*kk; ln=(i==(u64)rows-1)?(i32)(nx-st):kk; prk[i]=tn(1,ln); pri=px(prk[i]); j(ln,pri[j]=pxi[st+j])) break;
+      case -2: PXF; i(rows, st=i*kk; ln=(i==(u64)rows-1)?(i32)(nx-st):kk; prk[i]=tn(2,ln); prf=px(prk[i]); j(ln,prf[j]=pxf[st+j])) break;
+      case -3: PXC; i(rows, st=i*kk; ln=(i==(u64)rows-1)?(i32)(nx-st):kk; prk[i]=tn(3,ln); prc=px(prk[i]); j(ln,prc[j]=pxc[st+j])) break;
+      case -4: PXS; i(rows, st=i*kk; ln=(i==(u64)rows-1)?(i32)(nx-st):kk; prk[i]=tn(4,ln); prs=px(prk[i]); j(ln,prs[j]=pxs[st+j])) break;
+      case  0: PXK; i(rows, st=i*kk; ln=(i==(u64)rows-1)?(i32)(nx-st):kk; prk[i]=tn(0,ln); K*pc=px(prk[i]); j(ln,pc[j]=k_(pxk[st+j]))) break;
+      }
+      return knorm(r);
     }
     VSIZE(pa[0]);
     for(u64 i=0;i<na;i++) {
@@ -728,10 +749,10 @@ cleanup:
 K take(K a, K x) { TJ=0; return take_(a,x); }
 
 K drop(K a, K x) {
-  K r=0,e,*prk,*pxk,r2;
-  char *prc,*pxc,**prs,**pxs,*s,*pr2c,b[2];
+  K r=0,e,*prk,*pxk,r2,*pr2k;
+  char *prc,*pxc,**prs,**pxs,*s,*pr2c,b[2],**pr2s;
   i32 *pri,*pai,*pxi,i,j,*pr2i,m,p,q;
-  double *prf,*pxf,f;
+  double *prf,*pxf,f,*pr2f;
   if(s(a)) return KERR_TYPE;
   switch(ta) {
   case -1:
@@ -742,13 +763,36 @@ K drop(K a, K x) {
       j=-1;
       i(na,if(pai[i]<j)return KERR_DOMAIN;j=pai[i])
       PRK(na);
-      i(na,p=pai[i]; j=i==na-1?(i32)nx:pai[i+1]; prk[i]=r2=tn(1,j-p); pr2i=px(r2); for(q=0,m=p;m<j;m++) pr2i[q++]=pxi[m]) break;
+      i(na,p=pai[i]; j=i==na-1?(i32)nx:pai[i+1]; prk[i]=r2=tn(1,j-p); pr2i=px(r2); for(q=0,m=p;m<j;m++) pr2i[q++]=pxi[m])
+      break;
+    case -2: PXF;
+      i(na,if(pai[i]<0)return KERR_DOMAIN; if((u64)pai[i]>nx)return KERR_LENGTH)
+      j=-1;
+      i(na,if(pai[i]<j)return KERR_DOMAIN;j=pai[i])
+      PRK(na);
+      i(na,p=pai[i]; j=i==na-1?(i32)nx:pai[i+1]; prk[i]=r2=tn(2,j-p); pr2f=px(r2); for(q=0,m=p;m<j;m++) pr2f[q++]=pxf[m])
+      break;
     case -3: PXC;
       i(na,if(pai[i]<0)return KERR_DOMAIN; if((u64)pai[i]>nx)return KERR_LENGTH)
       j=-1;
       i(na,if(pai[i]<j)return KERR_DOMAIN;j=pai[i])
       PRK(na);
-      i(na,p=pai[i]; j=i==na-1?(i32)nx:pai[i+1]; prk[i]=r2=tn(3,j-p); pr2c=px(r2); for(q=0,m=p;m<j;m++) pr2c[q++]=pxc[m];) break;
+      i(na,p=pai[i]; j=i==na-1?(i32)nx:pai[i+1]; prk[i]=r2=tn(3,j-p); pr2c=px(r2); for(q=0,m=p;m<j;m++) pr2c[q++]=pxc[m];)
+      break;
+    case -4: PXS;
+      i(na,if(pai[i]<0)return KERR_DOMAIN; if((u64)pai[i]>nx)return KERR_LENGTH)
+      j=-1;
+      i(na,if(pai[i]<j)return KERR_DOMAIN;j=pai[i])
+      PRK(na);
+      i(na,p=pai[i]; j=i==na-1?(i32)nx:pai[i+1]; prk[i]=r2=tn(4,j-p); pr2s=px(r2); for(q=0,m=p;m<j;m++) pr2s[q++]=pxs[m])
+      break;
+    case  0: PXK;
+      i(na,if(pai[i]<0)return KERR_DOMAIN; if((u64)pai[i]>nx)return KERR_LENGTH)
+      j=-1;
+      i(na,if(pai[i]<j)return KERR_DOMAIN;j=pai[i])
+      PRK(na);
+      i(na,p=pai[i]; j=i==na-1?(i32)nx:pai[i+1]; prk[i]=r2=tn(0,j-p); pr2k=px(r2); for(q=0,m=p;m<j;m++) pr2k[q++]=k_(pxk[m]); r2=knorm(r2); prk[i]=r2)
+      break;
     default: return KERR_TYPE;
     } break;
   case 1:
