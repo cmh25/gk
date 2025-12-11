@@ -694,7 +694,7 @@ K pgreduce_(K x0, int *quiet) {
       case 0xc6: /* builtin monad */
         if(pA<=A+1) { k_(v); break; } // no argument available
         if(pA<=A+2&&i<nx-1&&ik(px[i+1])==0xff) { k_(v); break; } // {x} abs 2
-        if(pA>A+2&&strpbrk(sk(v),"'/\\")) { k_(v); break; }  // 5 sin/2
+        if(pA>A+2&&strpbrk(sk(v),"/\\")) { k_(v); break; }  // 5 sin/2; 5 sin\2
         --pA;
         a=*--pA;
         if(0x40==s(a)&&i+1<nx&&64==ik(px[i+1])&&pA==A) { /* f:+ */
