@@ -786,10 +786,7 @@ K lex(pgs *pgs, int load) {
 #endif
         }
         else { /* trace */
-          push(pgs,T014,t(4,sp("")));
-          push(pgs,T015,t(4,st(0xcd,sp("0:"))));
-          push(pgs,T015,',');
-          push(pgs,T015,t(4,st(0xcc,sp("5:"))));
+          push(pgs,T015,t(4,st(0xd8,sp("\\"))));
           ++p;
           continue;
         }

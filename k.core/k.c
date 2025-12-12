@@ -414,7 +414,13 @@ u64 khash(K x) {
   i32 *pxi;
   double *pxf;
   char *pxc,**pxs;
-  if(s(x)) return khashcb(x);
+  static i32 d=0;
+#ifdef ASAN_ENABLED
+  if(++d>40) { --d; return KERR_STACK; }
+#else
+  if(++d>100) { --d; return KERR_STACK; }
+#endif
+  if(s(x)) { --d; return khashcb(x); }
   switch(tx) {
   case  1: r=r+(u64)ik(x)*2654435761; break;
   case  2: r=r+(u64)fk(x)*2654435761; break;
@@ -422,7 +428,7 @@ u64 khash(K x) {
   case  4: r=r+xfnv1a(sk(x),strlen(sk(x))); break;
   case  6: case 16: break;
   case  0: {
-    if(s(x)) return khashcb(x);
+    if(s(x)) { --d; return khashcb(x); }
     typedef struct { K x; u64 h; size_t i; } sf;
     i32 sm=32,sp=0;
     sf *stack=xmalloc(sizeof(sf)*sm);
@@ -461,6 +467,7 @@ u64 khash(K x) {
     fprintf(stderr,"error: unsupported type in khash()\n");
     exit(1);
   }
+  --d;
   return r;
 }
 

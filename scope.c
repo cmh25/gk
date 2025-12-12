@@ -238,7 +238,7 @@ static K scope_set_local(K s, int n, K v) {
 static K scope_set_(K s, char *n, K v) {
   K d,e=0,m,*psu,w;
   char *rp,nn[256],*t,*ss,*u;
-  K es=cs,*pes;
+  K es=s,*pes;
   ko *kd;
   int copy=0, gcopy=0;
   if(strlen(n)>255) return KERR_LENGTH;
@@ -246,6 +246,7 @@ static K scope_set_(K s, char *n, K v) {
   if(0x80==s(v)&&(s==gs||s==ks)) { // d.c:.k
     kd=(ko*)(b(48)&v); if(kd->r>0) gcopy=1;
   }
+  if(v==ktree) gcopy=1; // d.c:.`
   if(s==ks && strlen(n)==1 && *n!='k') { // top level, single letters reserved, except k
     fprintf(stderr,"reserved: %s\n",n);
     return KERR_RESERVED;

@@ -296,7 +296,7 @@ K valuecb(K x) {
   case  4:
     pxc=sk(x);
     n=strlen(pxc);
-    if(!n) { r=scope_get(ks,t(4,sp(""))); break; }
+    if(!n) { r=k_(ktree); break; }
     h=xmalloc(n+2);
     i(n,h[i]=pxc[i]) h[n]='\n'; h[n+1]=0;
     q=pgparse(h,0,0);

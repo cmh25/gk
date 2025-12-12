@@ -906,6 +906,7 @@ K pgreduce_(K x0, int *quiet) {
           else if(0x43==s(b)) { /* a[]'x */
             pb=px(b);
             K b0=k_(pb[0]); K b1=pb[1]; K b2=pb[2];
+            if(!VST(b2)) { _k(f); _k(b); *pA++=KERR_TYPE; break; }
             if(0x41==s(b0)) { b0=r41(b0); if(E(b0)||EXIT) { *pA++=b0; _k(f); _k(b); break; } }
             if(0==n(b0)) { t=tn(0,1); pt=px(t); pt[0]=null; p=fne(f,t,0); }
             else p=fne(f,b0,0);
@@ -956,6 +957,15 @@ K pgreduce_(K x0, int *quiet) {
           }
         }
         else *pA++=f;
+        break;
+      case 0xd8:  /* trace */
+        if(pA>A+1) {
+          --pA;
+          b=*--pA;
+          if(s(b)) { b=reduce(b); if(E(b)||EXIT) { *pA++=b; break; } }
+          kprint(k_(b),"","\n","");
+          *pA++=b;
+        }
         break;
       default: k_(v);
       }
@@ -1106,6 +1116,7 @@ K pgreduce_(K x0, int *quiet) {
         if(0x44==s(a)) { a=r44(a); if(E(a)||EXIT) { _k(b); *pA++=a; break; } }
         if(0xd0==s(a)) { a=rd0(a); if(E(a)||EXIT) { _k(b); *pA++=a; break; } }
         if(0xc5==s(a)) { a=rc5(a); if(E(a)||EXIT) { _k(b); *pA++=a; break; } }
+        if(!VST(a)) { _k(b); _k(a); *pA++=KERR_TYPE; break; }
       }
 
       if(0xc6==s(b)) { /* 5 sin\2 */
@@ -1278,6 +1289,7 @@ K pgreduce_(K x0, int *quiet) {
         else if(0x45==s(b)) { // (,)'("012";"345";"678";"901")
           pb=px(b);
           mv=px(pb[1]);
+          if(!VST(pb[2])) { _k(a); _k(b); *pA++=KERR_TYPE; break; }
           if(pA>A&&i<nx-1&&0xc0==s(px[i+1])&&ik(px[i+1])==0xff) {  /* dyadic juxtaposition */
             ++i;
             t=*--pA;
@@ -1296,6 +1308,7 @@ K pgreduce_(K x0, int *quiet) {
         if(0x45==s(b)) {
           pb=px(b);
           mv=px(pb[1]);
+          if(!VST(pb[2])) { _k(a); _k(b); *pA++=KERR_TYPE; break; }
           *pA++=fe(a,0,k_(pb[2]),mv);
           _k(b);
         }
@@ -1401,6 +1414,7 @@ K pgreduce_(K x0, int *quiet) {
               if(E(p)) { _k(a); _k(b); _k(t); *pA++=p; break; }
               mv=px(p);
               ++mv;
+              if(!VST(pb[2])) { _k(a); _k(b); _k(t); *pA++=KERR_TYPE; break; }
               *pA++=avdo(s-P,t,k_(pb[2]),mv);
               _k(p);
             }
@@ -1410,6 +1424,7 @@ K pgreduce_(K x0, int *quiet) {
               if(E(p)) { _k(a); _k(b); *pA++=p; break; }
               mv=px(p);
               ++mv;
+              if(!VST(pb[2])) { _k(a); _k(b); _k(p); *pA++=KERR_TYPE; break; }
               *pA++=avdo(s-P,0,k_(pb[2]),mv);
               _k(p);
             }
@@ -1499,6 +1514,7 @@ K pgreduce_(K x0, int *quiet) {
         if(0x45==s(b)) {
           pb=px(b);
           mv=px(pb[1]);
+          if(!VST(pb[2])) { _k(a); _k(b); *pA++=KERR_TYPE; break; }
           *pA++=avdo(a,0,k_(pb[2]),mv);
           _k(b);
         }
@@ -1794,7 +1810,8 @@ static void bc(pgs *s, pn *a, K values, K index, K line, int *vm) {
       }
       else if(0xc6==s(a->v)||0xc7==s(a->v)||0xd1==s(a->v)||0xd2==s(a->v)
             ||0xd3==s(a->v)||0xcc==s(a->v)||0xcd==s(a->v)||0xca==s(a->v)
-            ||0xc9==s(a->v)||0xcb==s(a->v)||0x85==s(a->v)||0x82==s(a->v)) {
+            ||0xc9==s(a->v)||0xcb==s(a->v)||0x85==s(a->v)||0x82==s(a->v)
+            ||0xd8==s(a->v)) {
         pvalues[j++]=k_(a->v);
       }
       else if(a->v==0xff) pvalues[j++]=t(1,st(0xc0,(u8)0xff));

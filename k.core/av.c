@@ -114,7 +114,8 @@ K overd(i32 f, K x) {
     } break;
   default:
     switch(Tx) {
-    case  1: case 2: case 3: case 4: case 10: r=k_(x); break;
+    case  1: case 2: case 3: case 4: r=k_(x); break;
+    case 10: r=kcp(x); break;
     case -1: PXI; r=t(1,(u32)*pxi++); i1(nx,p=ki(f,r,x,-1,i);_k(r);r=0;EC(p);r=p) break;
     case -2: PXF; r=t2(*pxf++); i1(nx,p=ki(f,r,x,-1,i);_k(r);r=0;EC(p);r=p) break;
     case -3: PXC; r=t(3,(u8)*pxc++); i1(nx,p=ki(f,r,x,-1,i);_k(r);r=0;EC(p);r=p) break;
@@ -148,7 +149,8 @@ K scand(i32 f, K x) {
     return r;
   }
   if(Tx==-1&&!nx&&ff=='=') return tn(1,0);
-  if(Tx==3||Tx==1||Tx==2||Tx==4||Tx==10) return k_(x);
+  if(Tx==3||Tx==1||Tx==2||Tx==4) return k_(x);
+  if(Tx==10) return kcp(x);
   if(Tx<=0&&!nx) return tn(0,0);
   switch(f) {
   case 1:
