@@ -538,7 +538,7 @@ static int gback(pgs *pgs, int load) {
     else {
       p+=2;
       push(pgs,T015,254);
-      push(pgs,T014,(K)3<<60); /* zero */
+      push(pgs,T014,null); /* zero */
       push(pgs,T013,0);
       *p=0;
     }

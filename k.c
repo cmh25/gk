@@ -403,7 +403,7 @@ const char* kprint_(K x, char *s, char *e, char *s0) {
       case  2: pf(x,s,e); break;
       case  3: pc(x,s,e); break;
       case  4: ps(x,s,e); break;
-      case  6: case 16: mprintf("%s%s",s,e); break;
+      case  6: case 10: mprintf("%s%s",s,e); break;
       case -1: pia(x,s,e); break;
       case -2: pfa(x,s,e); break;
       case -3: pca(x,s,e); break;
@@ -841,7 +841,7 @@ static K kamendi4d(K d, K i, K f, K y) {
 
   ti=T(i);
   ty=T(y);
-  Ty=ty; if(s(y)) { if(!VST(y)) { e=KERR_TYPE; goto cleanup; } Ty=10; }
+  Ty=ty; if(s(y)) { if(!VST(y)) { e=KERR_TYPE; goto cleanup; } Ty=15; }
   if(s(i)) { e=KERR_TYPE; goto cleanup; }
   if(ti!=4 && ti!=-4 && ti!=6 && ti!=0) { e=KERR_TYPE; goto cleanup; }
   if(d==ktree && i==null) { e=KERR_RESERVED; goto cleanup; }
@@ -868,7 +868,7 @@ static K kamendi4d(K d, K i, K f, K y) {
         e=dset(d,pis[j],r); _k(r); if(E(e)) goto cleanup;
       }
       break;
-    case 10:
+    case 15:
       for(u64 j=0;j<n(i);++j) {
         if(b) { t=dget(d,pis[j]);if(!t)t=null;r=fe(k_(f),t,k_(y),0);EC(r); }
         else { r=kcp(y); EC(r); }
@@ -931,7 +931,7 @@ static K kamendi4d(K d, K i, K f, K y) {
       if(b) i(n(v),r=fe(k_(f),k_(pv[i]),k_(y),0);EC(r);_k(pv[i]);pv[i]=r)
       else i(n(v),_k(pv[i]);pv[i]=k_(y))
       break;
-    case 10:
+    case 15:
       if(b) i(n(v),r=fe(k_(f),k_(pv[i]),k_(y),0);EC(r);_k(pv[i]);pv[i]=r)
       else i(n(v),_k(pv[i]);pv[i]=kcp(y);EC(pv[i]))
       break;
@@ -962,7 +962,7 @@ static K kamendi4d(K d, K i, K f, K y) {
         if(n(i_)!=n(y_)) { e=KERR_LENGTH; goto cleanup; }
         i(n(i_),d=kamendi4d(d,k_(piu[i]),k_(f),t(4,pys[i]));EC(d))
         break;
-      case 1: case 2: case 3: case 4: case 6: case 10:
+      case 1: case 2: case 3: case 4: case 6: case 15:
         while(pf->j<n(i_)) {
           K i2=piu[pf->j++];
           if(s(i2)) { e=KERR_TYPE; goto cleanup; }
@@ -1048,7 +1048,7 @@ static K kamendi4v(K d, K i, K f, K y) {
   td=T(d);
   ti=T(i);
   ty=T(y);
-  Ty=ty; if(s(y)) { if(!VST(y)) { e=KERR_TYPE; goto cleanup; } Ty=10; }
+  Ty=ty; if(s(y)) { if(!VST(y)) { e=KERR_TYPE; goto cleanup; } Ty=15; }
   if(s(i)) { e=KERR_TYPE; goto cleanup; }
 
   switch(ti) {
@@ -1182,7 +1182,7 @@ static K kamendi4v(K d, K i, K f, K y) {
         if(b) { i(n(i),r=fe(k_(f),k_(pdu[pii[i]]),k_(y),0); EC(r); _k(pdu[pii[i]]); pdu[pii[i]]=r) }
         else { i(n(i),_k(pdu[pii[i]]); pdu[pii[i]]=k_(y)) }
         break;
-      case 10:
+      case 15:
         if(b) i(n(i),r=fe(k_(f),k_(pdu[pii[i]]),k_(y),0); EC(r); _k(pdu[pii[i]]); pdu[pii[i]]=r)
         else i(n(i),_k(pdu[pii[i]]);pdu[pii[i]]=kcp(y);EC(pdu[pii[i]]))
         break;
@@ -1213,7 +1213,7 @@ static K kamendi4v(K d, K i, K f, K y) {
         if(b) { i(n(d),r=fe(k_(f),k_(pdu[i]),k_(y),0); EC(r); _k(pdu[i]); pdu[i]=r) }
         else { i(n(d),_k(pdu[i]); pdu[i]=k_(y)) }
         break;
-      case 10:
+      case 15:
         if(b) i(n(d),r=fe(k_(f),k_(pdu[i]),k_(y),0); EC(r); _k(pdu[i]); pdu[i]=r)
         else i(n(d),_k(pdu[i]);pdu[i]=kcp(y);EC(pdu[i]))
         break;
@@ -1269,7 +1269,7 @@ static K kamendi4v(K d, K i, K f, K y) {
           if(n(i_)!=n(y_)) { e=KERR_LENGTH; goto cleanup; }
           i(n(i_),d=kamendi4v(d,k_(piu[i]),k_(f),t(4,pys[i]));EC(d))
           break;
-        case 1: case 2: case 3: case 4: case 6: case 10:
+        case 1: case 2: case 3: case 4: case 6: case 15:
           while(pf->j<n(i_)) {
             K i2=piu[pf->j++];
             if(s(i2)) { e=KERR_TYPE; goto cleanup; }
@@ -2300,14 +2300,14 @@ K kslide(K f, K a, K x, char *av) {
   K ff=f;
   char Tx;
 
-  if(T(f)==16||T(a)==16||T(x)==16) {
+  if(T(f)==10||T(a)==10||T(x)==10) {
     r=tn(0,4); prk=px(r);
     K g=t(1,st(0xc0,48)); // _
     prk[0]=g; prk[1]=a; prk[2]=f; prk[3]=x;
     return st(0xd5,r);
   }
 
-  Tx=tx; if(!Tx&&s(x)) { if(!VST(x)) { e=KERR_TYPE; goto cleanup; } Tx=10; }
+  Tx=tx; if(!Tx&&s(x)) { if(!VST(x)) { e=KERR_TYPE; goto cleanup; } Tx=15; }
   if(ta!=1) { e=KERR_TYPE; goto cleanup; }
   if(!ik(a)) { e=KERR_TYPE; goto cleanup; }
   if(Tx<=0&&!nx) { _k(f); _k(a); _k(x); return tn(0,0); }

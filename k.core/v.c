@@ -561,12 +561,12 @@ static K take_(K a, K x) {
   char *prc,*pxc,**prs,**pxs,Ta,Tx;
   i32 c,d,*pri,*pxi;
   double *prf,*pxf;
-  Ta=ta; if(s(a)) { if(!vstcb(a)) return KERR_TYPE; Ta=10; }
-  Tx=tx; if(s(x)) { if(!vstcb(x)) return KERR_TYPE; Tx=10; }
+  Ta=ta; if(s(a)) { if(!vstcb(a)) return KERR_TYPE; Ta=15; }
+  Tx=tx; if(s(x)) { if(!vstcb(x)) return KERR_TYPE; Tx=15; }
 
   if(Ta<=0 && !na) {
     switch(Tx) {
-    case  1: case  2: case  3: case  4: case 6: case 10: r=k_(x); break;
+    case  1: case  2: case  3: case  4: case 6: case 15: r=k_(x); break;
     case  0: if(nx) r=k_(((K*)px(x))[0]); else r=null; break;
     case -1: if(nx) r=t(1,(u32)(((i32*)px(x))[0])); else r=null; break;
     case -2: if(nx) r=t2(((double*)px(x))[0]); else r=null; break;
@@ -587,7 +587,7 @@ static K take_(K a, K x) {
     case  3: PRC(c); i(c,*prc++=ck(x)) break;
     case  4: PRS(c); i(c,*prs++=sk(x)) break;
     case  6: PRK(c); i(c,*prk++=null) break;
-    case 10: PRK(c); i(c,*prk=kcp(x); EC(*prk); ++prk) break;
+    case 15: PRK(c); i(c,*prk=kcp(x); EC(*prk); ++prk) break;
     case -1: PRI(c); PXI;
       if(nx&&ik(a)<0) { d=c%nx; i(c,*pri++=pxi[(nx-d+i+TJ)%nx]) }
       else if(nx) i(c,*pri++=pxi[(i+TJ)%nx])
@@ -934,8 +934,8 @@ K join(K a, K x) {
   char *prc,*pac,*pxc,**prs,**pas,**pxs,Ta,Tx;
   i32 *pri,*pai,*pxi;
   double *prf,*paf,*pxf;
-  Ta=ta; if(s(a)) { if(!vstcb(a)) return KERR_TYPE; Ta=10; }
-  Tx=tx; if(s(x)) { if(!vstcb(x)) return KERR_TYPE; Tx=10; }
+  Ta=ta; if(s(a)) { if(!vstcb(a)) return KERR_TYPE; Ta=15; }
+  Tx=tx; if(s(x)) { if(!vstcb(x)) return KERR_TYPE; Tx=15; }
   if(Ta<=0&&Tx<=0&&!na&&!nx&&Ta!=Tx) return tn(0,0);
   switch(Ta) {
   case 1:
@@ -945,7 +945,7 @@ K join(K a, K x) {
     case  3: PRK(2); prk[0]=a; prk[1]=x; break;
     case  4: PRK(2); prk[0]=a; prk[1]=x; break;
     case  6: PRK(2); prk[0]=a; prk[1]=x; break;
-    case 10: PRK(2); prk[0]=a; prk[1]=kcp(x); EC(prk[1]); break;
+    case 15: PRK(2); prk[0]=a; prk[1]=kcp(x); EC(prk[1]); break;
     case -3: PRK(1+nx); PXC; *prk++=a; i(nx,*prk++=t(3,(u8)*pxc++)) break;
     case -1: PRI(1+nx); PXI; *pri++=ik(a); i(nx,*pri++=*pxi++) break;
     case -2: PRK(1+nx); PXF; *prk++=a; i(nx,*prk++=t2(*pxf++)) break;
@@ -960,7 +960,7 @@ K join(K a, K x) {
     case  3: PRK(2); prk[0]=k_(a); prk[1]=x; break;
     case  4: PRK(2); prk[0]=k_(a); prk[1]=x; break;
     case  6: PRK(2); prk[0]=k_(a); prk[1]=x; break;
-    case 10: PRK(2); prk[0]=k_(a); prk[1]=kcp(x); EC(prk[1]); break;
+    case 15: PRK(2); prk[0]=k_(a); prk[1]=kcp(x); EC(prk[1]); break;
     case -1: PRK(1+nx); PXI; *prk++=k_(a); i(nx,*prk++=t(1,(u32)*pxi++)) break;
     case -2: PRF(1+nx); PXF; *prf++=fk(a); i(nx,*prf++=*pxf++) break;
     case -3: PRK(1+nx); PXC; *prk++=k_(a); i(nx,*prk++=t(3,(u8)*pxc++)) break;
@@ -975,7 +975,7 @@ K join(K a, K x) {
     case  3: PRC(2); prc[0]=ck(a); prc[1]=ck(x); break;
     case  4: PRK(2); prk[0]=a; prk[1]=x; break;
     case  6: PRK(2); prk[0]=a; prk[1]=x; break;
-    case 10: PRK(2); prk[0]=a; prk[1]=kcp(x); EC(prk[1]); break;
+    case 15: PRK(2); prk[0]=a; prk[1]=kcp(x); EC(prk[1]); break;
     case -1: PRK(1+nx); PXI; *prk++=a; i(nx,*prk++=t(1,(u32)*pxi++)) break;
     case -2: PRK(1+nx); PXF; *prk++=a; i(nx,*prk++=t2(*pxf++)) break;
     case -3: PRC(1+nx); PXC; *prc++=ck(a); i(nx,*prc++=*pxc++) break;
@@ -990,7 +990,7 @@ K join(K a, K x) {
     case  3: PRK(2); prk[0]=a; prk[1]=x; break;
     case  4: PRS(2); prs[0]=sk(a); prs[1]=sk(x); break;
     case  6: PRK(2); prk[0]=a; prk[1]=x; break;
-    case 10: PRK(2); prk[0]=a; prk[1]=kcp(x); EC(prk[1]); break;
+    case 15: PRK(2); prk[0]=a; prk[1]=kcp(x); EC(prk[1]); break;
     case -1: PRK(1+nx); PXI; *prk++=a; i(nx,*prk++=t(1,(u32)*pxi++)) break;
     case -2: PRK(1+nx); PXF; *prk++=a; i(nx,*prk++=t2(*pxf++)) break;
     case -3: PRK(1+nx); PXC; *prk++=a; i(nx,*prk++=t(3,(u8)*pxc++)) break;
@@ -1005,7 +1005,7 @@ K join(K a, K x) {
     case  3: PRK(2); prk[0]=a; prk[1]=x; break;
     case  4: PRK(2); prk[0]=a; prk[1]=x; break;
     case  6: PRK(2); prk[0]=a; prk[1]=x; break;
-    case 10: PRK(2); prk[0]=a; prk[1]=kcp(x); EC(prk[1]); break;
+    case 15: PRK(2); prk[0]=a; prk[1]=kcp(x); EC(prk[1]); break;
     case -1: PRK(1+nx); PXI; *prk++=a; i(nx,*prk++=t(1,(u32)*pxi++)) break;
     case -2: PRK(1+nx); PXF; *prk++=a; i(nx,*prk++=t2(*pxf++)) break;
     case -3: PRK(1+nx); PXC; *prk++=a; i(nx,*prk++=t(3,(u8)*pxc++)) break;
@@ -1013,11 +1013,11 @@ K join(K a, K x) {
     case  0: PRK(1+nx); PXK; *prk++=a; i(nx,*prk++=k_(*pxk++)) break;
     default: return KERR_TYPE;
     } break;
-  case 10:
+  case 15:
     switch(Tx) {
     case 1: case 2: case 3: case 4: case 6:
       PRK(2); prk[0]=kcp(a); EC(prk[0]); prk[1]=k_(x); break;
-    case 10: PRK(2); prk[0]=kcp(a); EC(prk[0]); prk[1]=kcp(x); EC(prk[1]); break;
+    case 15: PRK(2); prk[0]=kcp(a); EC(prk[0]); prk[1]=kcp(x); EC(prk[1]); break;
     case -1: PRK(1+nx); PXI; prk[0]=kcp(a); EC(prk[0]); ++prk; i(nx,*prk++=t(1,(u32)*pxi++)) break;
     case -2: PRK(1+nx); PXF; prk[0]=kcp(a); EC(prk[0]); ++prk; i(nx,*prk++=t2(*pxf++)) break;
     case -3: PRK(1+nx); PXC; prk[0]=kcp(a); EC(prk[0]); ++prk; i(nx,*prk++=t(3,(u8)*pxc++)) break;
@@ -1031,7 +1031,7 @@ K join(K a, K x) {
     case  3: PRC(na+1); PAC; i(na,*prc++=*pac++) *prc=ck(x); break;
     case  4: PRK(na+1); PAC; i(na,*prk++=t(3,(u8)*pac++)) *prk=x; break;
     case  6: PRK(na+1); PAC; i(na,*prk++=t(3,(u8)*pac++)) *prk=x; break;
-    case 10: PRK(na+1); PAC; i(na,*prk++=t(3,(u8)*pac++)) *prk=kcp(x); EC(*prk); break;
+    case 15: PRK(na+1); PAC; i(na,*prk++=t(3,(u8)*pac++)) *prk=kcp(x); EC(*prk); break;
     case -1: PRK(na+nx); PAC; PXI; i(na,*prk++=t(3,(u8)*pac++)) i(nx,*prk++=t(1,(u32)*pxi++)) break;
     case -2: PRK(na+nx); PAC; PXF; i(na,*prk++=t(3,(u8)*pac++)) i(nx,*prk++=t2(*pxf++)) break;
     case -3: PRC(na+nx); PAC; PXC; i(na,*prc++=*pac++) i(nx,*prc++=*pxc++) break;
@@ -1046,7 +1046,7 @@ K join(K a, K x) {
     case  3: PRK(na+1); PAI; i(na,*prk++=t(1,(u32)*pai++)) *prk=x; break;
     case  4: PRK(na+1); PAI; i(na,*prk++=t(1,(u32)*pai++)) *prk=x; break;
     case  6: PRK(na+1); PAI; i(na,*prk++=t(1,(u32)*pai++)) *prk=x; break;
-    case 10: PRK(na+1); PAI; i(na,*prk++=t(1,(u32)*pai++)) *prk=kcp(x); EC(*prk); break;
+    case 15: PRK(na+1); PAI; i(na,*prk++=t(1,(u32)*pai++)) *prk=kcp(x); EC(*prk); break;
     case -1: PRI(na+nx); PAI; PXI; i(na,*pri++=*pai++) i(nx,*pri++=*pxi++) break;
     case -2: PRK(na+nx); PAI; PXF; i(na,*prk++=t(1,(u32)*pai++)) i(nx,*prk++=t2(*pxf++)) break;
     case -3: PRK(na+nx); PAI; PXC; i(na,*prk++=t(1,(u32)*pai++)) i(nx,*prk++=t(3,(u8)*pxc++)) break;
@@ -1061,7 +1061,7 @@ K join(K a, K x) {
     case  3: PRK(na+1); PAF; i(na,*prk++=t2(*paf++)) *prk=x; break;
     case  4: PRK(na+1); PAF; i(na,*prk++=t2(*paf++)) *prk=x; break;
     case  6: PRK(na+1); PAF; i(na,*prk++=t2(*paf++)) *prk=x; break;
-    case 10: PRK(na+1); PAF; i(na,*prk++=t2(*paf++)) *prk=kcp(x); EC(*prk); break;
+    case 15: PRK(na+1); PAF; i(na,*prk++=t2(*paf++)) *prk=kcp(x); EC(*prk); break;
     case -1: PRK(na+nx); PAF; PXI; i(na,*prk++=t2(*paf++)) i(nx,*prk++=t(1,(u32)*pxi++)) break;
     case -2: PRF(na+nx); PAF; PXF; i(na,*prf++=*paf++) i(nx,*prf++=*pxf++) break;
     case -3: PRK(na+nx); PAF; PXC; i(na,*prk++=t2(*paf++)) i(nx,*prk++=t(3,(u8)*pxc++)) break;
@@ -1076,7 +1076,7 @@ K join(K a, K x) {
     case  3: PRK(na+1); PAS; i(na,*prk++=t(4,*pas++)) *prk=x; break;
     case  4: PRS(na+1); PAS; i(na,*prs++=*pas++) *prs=sk(x); break;
     case  6: PRK(na+1); PAS; i(na,*prk++=t(4,*pas++)) *prk=x; break;
-    case 10: PRK(na+1); PAS; i(na,*prk++=t(4,*pas++)) *prk=kcp(x); EC(*prk); break;
+    case 15: PRK(na+1); PAS; i(na,*prk++=t(4,*pas++)) *prk=kcp(x); EC(*prk); break;
     case -1: PRK(na+nx); PAS; PXI; i(na,*prk++=t(4,*pas++)) i(nx,*prk++=t(1,(u32)*pxi++)) break;
     case -2: PRK(na+nx); PAS; PXF; i(na,*prk++=t(4,*pas++)) i(nx,*prk++=t2(*pxf++)) break;
     case -3: PRK(na+nx); PAS; PXC; i(na,*prk++=t(4,*pas++)) i(nx,*prk++=t(3,(u8)*pxc++)) break;
@@ -1091,7 +1091,7 @@ K join(K a, K x) {
     case  3: PRK(na+1); PAK; i(na,*prk++=k_(*pak++)) *prk=x; break;
     case  4: PRK(na+1); PAK; i(na,*prk++=k_(*pak++)) *prk=x; break;
     case  6: PRK(na+1); PAK; i(na,*prk++=k_(*pak++)) *prk=x; break;
-    case 10: PRK(na+1); PAK; i(na,*prk++=k_(*pak++)) *prk=kcp(x); EC(*prk); break;
+    case 15: PRK(na+1); PAK; i(na,*prk++=k_(*pak++)) *prk=kcp(x); EC(*prk); break;
     case -1: PRK(na+nx); PAK; PXI; i(na,*prk++=k_(*pak++)) i(nx,*prk++=t(1,(u32)*pxi++)) break;
     case -2: PRK(na+nx); PAK; PXF; i(na,*prk++=k_(*pak++)) i(nx,*prk++=t2(*pxf++)) break;
     case -3: PRK(na+nx); PAK; PXC; i(na,*prk++=k_(*pak++)) i(nx,*prk++=t(3,(u8)*pxc++)) break;

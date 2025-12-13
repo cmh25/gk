@@ -13,8 +13,8 @@ static K avdoi(K f, K a, K x, int ai, int xi, char *av) {
   int *pai,*pxi;
   double *paf,*pxf;
   static int d=0;
-  Ta=ta; if(s(a)) { if(!VST(a)) return kerror("type"); Ta=10; }
-  Tx=tx; if(s(x)) { if(!VST(x)) return kerror("type"); Tx=10; }
+  Ta=ta; if(s(a)) { if(!VST(a)) return kerror("type"); Ta=15; }
+  Tx=tx; if(s(x)) { if(!VST(x)) return kerror("type"); Tx=15; }
   if(++d>maxr) { --d; return kerror("stack"); } /* stack */
   if(ai==-1) a_=k_(a);
   else {
@@ -43,8 +43,8 @@ static K avdoi(K f, K a, K x, int ai, int xi, char *av) {
 static K each(K f, K a, K x, char *av) {
   K r=0,e,*prk;
   char Ta,Tx;
-  Ta=ta; if(s(a)) { if(!VST(a)) return kerror("type"); Ta=10; }
-  Tx=tx; if(s(x)) { if(!VST(x)) return kerror("type"); Tx=10; }
+  Ta=ta; if(s(a)) { if(!VST(a)) return kerror("type"); Ta=15; }
+  Tx=tx; if(s(x)) { if(!VST(x)) return kerror("type"); Tx=15; }
   if(a&&Ta<=0) {
     PRK(na);
     if(Tx>0) i(na,prk[i]=avdoi(f,a,x,i,-1,av);EC(prk[i]))
@@ -64,7 +64,7 @@ cleanup:
 static K eachright(K f, K a, K x, char *av) {
   K r=0,e,*prk;
   char Tx;
-  Tx=tx; if(!Tx&&s(x)) { if(!VST(x)) return kerror("type"); Tx=10; }
+  Tx=tx; if(!Tx&&s(x)) { if(!VST(x)) return kerror("type"); Tx=15; }
   if(Tx>0) r=avdoi(f,a,x,-1,-1,av);
   else { PRK(nx); i(nx,prk[i]=avdoi(f,a,x,-1,i,av);EC(prk[i])) }
   return r;
@@ -76,7 +76,7 @@ cleanup:
 static K eachleft(K f, K a, K x, char *av) {
   K r=0,e,*prk;
   char Ta;
-  Ta=ta; if(s(a)) { if(!VST(a)) return kerror("type"); Ta=10; }
+  Ta=ta; if(s(a)) { if(!VST(a)) return kerror("type"); Ta=15; }
   if(Ta>0) r=avdoi(f,a,x,-1,-1,av);
   else { PRK(na); i(na,prk[i]=avdoi(f,a,x,i,-1,av);EC(prk[i])) }
   return r;
@@ -406,16 +406,16 @@ static K each7(K f, K a, K x) {
   int *pai,*pxi;
   char *pac,**pas,*pxc,**pxs,Ta,Tx;
   double *paf,*pxf;
-  Ta=ta; if(s(a)) { if(!VST(a)) return kerror("type"); Ta=10; }
-  Tx=tx; if(s(x)) { if(!VST(x)) return kerror("type"); Tx=10; }
+  Ta=ta; if(s(a)) { if(!VST(a)) return kerror("type"); Ta=15; }
+  Tx=tx; if(s(x)) { if(!VST(x)) return kerror("type"); Tx=15; }
   if(a) {
     if(Ta<=0&&Tx<=0&&nx!=na) return kerror("length");
     p=tn(0,2);
     pp=px(p);
     switch(Ta) {
-    case 1: case 2: case 3: case 4: case 6: case 10:
+    case 1: case 2: case 3: case 4: case 6: case 15:
       switch(Tx) {
-      case  1: case 2: case 3: case 4: case 6: case 10: pp[0]=a;pp[1]=x;r=fne_(k_(f),k_(p),0);EC(r); break;
+      case  1: case 2: case 3: case 4: case 6: case 15: pp[0]=a;pp[1]=x;r=fne_(k_(f),k_(p),0);EC(r); break;
       case -1: PRK(nx); PXI; pp[0]=a; i(nx,pp[1]=t(1,(u32)pxi[i]);prk[i]=fne_(k_(f),k_(p),0);EC(prk[i])) break;
       case -2: PRK(nx); PXF; pp[0]=a; i(nx,pp[1]=t2(pxf[i]);prk[i]=fne_(k_(f),k_(p),0);_k(pp[1]);EC(prk[i])) break;
       case -3: PRK(nx); PXC; pp[0]=a; i(nx,pp[1]=t(3,(u8)pxc[i]);prk[i]=fne_(k_(f),k_(p),0);EC(prk[i])) break;
@@ -426,7 +426,7 @@ static K each7(K f, K a, K x) {
     case -1:
       PRK(na); PAI;
       switch(Tx) {
-      case  1: case 2: case 3: case 4: case 6: case 10: pp[1]=x;i(na,pp[0]=t(1,(u32)pai[i]);prk[i]=fne_(k_(f),k_(p),0);EC(prk[i])) break;
+      case  1: case 2: case 3: case 4: case 6: case 15: pp[1]=x;i(na,pp[0]=t(1,(u32)pai[i]);prk[i]=fne_(k_(f),k_(p),0);EC(prk[i])) break;
       case -1: PXI; i(na,pp[0]=t(1,(u32)pai[i]);pp[1]=t(1,(u32)pxi[i]);prk[i]=fne_(k_(f),k_(p),0);EC(prk[i])) break;
       case -2: PXF; i(na,pp[0]=t(1,(u32)pai[i]);pp[1]=t2(pxf[i]);prk[i]=fne_(k_(f),k_(p),0);_k(pp[1]);EC(prk[i])) break;
       case -3: PXC; i(na,pp[0]=t(1,(u32)pai[i]);pp[1]=t(3,(u8)pxc[i]);prk[i]=fne_(k_(f),k_(p),0);EC(prk[i])) break;
@@ -437,7 +437,7 @@ static K each7(K f, K a, K x) {
     case -2:
       PRK(na); PAF;
       switch(Tx) {
-      case  1: case 2: case 3: case 4: case 6: case 10: pp[1]=x;i(na,pp[0]=t2(paf[i]);prk[i]=fne_(k_(f),k_(p),0);_k(pp[0]);EC(prk[i])) break;
+      case  1: case 2: case 3: case 4: case 6: case 15: pp[1]=x;i(na,pp[0]=t2(paf[i]);prk[i]=fne_(k_(f),k_(p),0);_k(pp[0]);EC(prk[i])) break;
       case -1: PXI; i(na,pp[0]=t2(paf[i]);pp[1]=t(1,(u32)pxi[i]);prk[i]=fne_(k_(f),k_(p),0);_k(pp[0]);EC(prk[i])) break;
       case -2: PXF; i(na,pp[0]=t2(paf[i]);pp[1]=t2(pxf[i]);prk[i]=fne_(k_(f),k_(p),0);_k(pp[0]);_k(pp[1]);EC(prk[i])) break;
       case -3: PXC; i(na,pp[0]=t2(paf[i]);pp[1]=t(3,(u8)pxc[i]);prk[i]=fne_(k_(f),k_(p),0);_k(pp[0]);EC(prk[i])) break;
@@ -448,7 +448,7 @@ static K each7(K f, K a, K x) {
     case -3:
       PRK(na); PAC;
       switch(Tx) {
-      case  1: case 2: case 3: case 4: case 6: case 10: pp[1]=x;i(na,pp[0]=t(3,(u8)pac[i]);prk[i]=fne_(k_(f),k_(p),0);EC(prk[i])) break;
+      case  1: case 2: case 3: case 4: case 6: case 15: pp[1]=x;i(na,pp[0]=t(3,(u8)pac[i]);prk[i]=fne_(k_(f),k_(p),0);EC(prk[i])) break;
       case -1: PXI; i(na,pp[0]=t(3,(u8)pac[i]);pp[1]=t(1,(u32)pxi[i]);prk[i]=fne_(k_(f),k_(p),0);EC(prk[i])) break;
       case -2: PXF; i(na,pp[0]=t(3,(u8)pac[i]);pp[1]=t2(pxf[i]);prk[i]=fne_(k_(f),k_(p),0);_k(pp[1]);EC(prk[i])) break;
       case -3: PXC; i(na,pp[0]=t(3,(u8)pac[i]);pp[1]=t(3,(u8)pxc[i]);prk[i]=fne_(k_(f),k_(p),0);EC(prk[i])) break;
@@ -459,7 +459,7 @@ static K each7(K f, K a, K x) {
     case -4:
       PRK(na); PAS;
       switch(Tx) {
-      case  1: case 2: case 3: case 4: case 6: case 10: pp[1]=x;i(na,pp[0]=t(4,pas[i]);prk[i]=fne_(k_(f),k_(p),0);EC(prk[i])) break;
+      case  1: case 2: case 3: case 4: case 6: case 15: pp[1]=x;i(na,pp[0]=t(4,pas[i]);prk[i]=fne_(k_(f),k_(p),0);EC(prk[i])) break;
       case -1: PXI; i(na,pp[0]=t(4,pas[i]);pp[1]=t(1,(u32)pxi[i]);prk[i]=fne_(k_(f),k_(p),0);EC(prk[i])) break;
       case -2: PXF; i(na,pp[0]=t(4,pas[i]);pp[1]=t2(pxf[i]);prk[i]=fne_(k_(f),k_(p),0);_k(pp[1]);EC(prk[i])) break;
       case -3: PXC; i(na,pp[0]=t(4,pas[i]);pp[1]=t(3,(u8)pxc[i]);prk[i]=fne_(k_(f),k_(p),0);EC(prk[i])) break;
@@ -470,7 +470,7 @@ static K each7(K f, K a, K x) {
     case  0:
       PRK(na); PAK;
       switch(Tx) {
-      case  1: case 2: case 3: case 4: case 6: case 10: pp[1]=x;i(na,pp[0]=pak[i];prk[i]=fne_(k_(f),k_(p),0);EC(prk[i])) break;
+      case  1: case 2: case 3: case 4: case 6: case 15: pp[1]=x;i(na,pp[0]=pak[i];prk[i]=fne_(k_(f),k_(p),0);EC(prk[i])) break;
       case -1: PXI; i(na,pp[0]=pak[i];pp[1]=t(1,(u32)pxi[i]);prk[i]=fne_(k_(f),k_(p),0);EC(prk[i])) break;
       case -2: PXF; i(na,pp[0]=pak[i];pp[1]=t2(pxf[i]);prk[i]=fne_(k_(f),k_(p),0);_k(pp[1]);EC(prk[i])) break;
       case -3: PXC; i(na,pp[0]=pak[i];pp[1]=t(3,(u8)pxc[i]);prk[i]=fne_(k_(f),k_(p),0);EC(prk[i])) break;
@@ -485,7 +485,7 @@ static K each7(K f, K a, K x) {
     p=tn(0,1);
     pp=px(p);
     switch(Tx) {
-    case  1: case 2: case 3: case 4: case 6: case 10: pp[0]=x;r=fne_(k_(f),k_(p),0);EC(r); break;
+    case  1: case 2: case 3: case 4: case 6: case 15: pp[0]=x;r=fne_(k_(f),k_(p),0);EC(r); break;
     case -1: PRK(nx); PXI; i(nx,pp[0]=t(1,(u32)pxi[i]);prk[i]=fne_(k_(f),k_(p),0);EC(prk[i])) break;
     case -2: PRK(nx); PXF; i(nx,pp[0]=t2(pxf[i]);prk[i]=fne_(k_(f),k_(p),0);_k(pp[0]);EC(prk[i])) break;
     case -3: PRK(nx); PXC; i(nx,pp[0]=t(3,(u8)pxc[i]);prk[i]=fne_(k_(f),k_(p),0);EC(prk[i])) break;
@@ -507,10 +507,10 @@ static K eachright7(K f, K a, K x) {
   int *pxi;
   char *pxc,**pxs,Tx;
   double *pxf;
-  Tx=tx; if(!Tx&&s(x)) { if(!VST(x)) return kerror("type"); Tx=10; }
+  Tx=tx; if(!Tx&&s(x)) { if(!VST(x)) return kerror("type"); Tx=15; }
   p=tn(0,2); pp=px(p); pp[0]=a;
   switch(Tx) {
-  case  1: case 2: case 3: case 4: case 6: case 10: pp[1]=x; r=fne_(k_(f),k_(p),0); EC(r); break;
+  case  1: case 2: case 3: case 4: case 6: case 15: pp[1]=x; r=fne_(k_(f),k_(p),0); EC(r); break;
   case -1: PRK(nx); PXI; i(nx,pp[1]=t(1,(u32)pxi[i]);prk[i]=fne_(k_(f),k_(p),0);EC(prk[i])) break;
   case -2: PRK(nx); PXF; i(nx,pp[1]=t2(pxf[i]); prk[i]=fne_(k_(f),k_(p),0); _k(pp[1]); EC(prk[i])) break;
   case -3: PRK(nx); PXC; i(nx,pp[1]=t(3,(u8)pxc[i]);prk[i]=fne_(k_(f),k_(p),0);EC(prk[i])) break;
@@ -530,10 +530,10 @@ static K eachleft7(K f, K a, K x) {
   int *pai;
   char *pac,**pas,Ta;
   double *paf;
-  Ta=ta; if(s(a)) { if(!VST(a)) return kerror("type"); Ta=10; }
+  Ta=ta; if(s(a)) { if(!VST(a)) return kerror("type"); Ta=15; }
   p=tn(0,2); pp=px(p); pp[1]=x;
   switch(Ta) {
-  case  1: case 2: case 3: case 4: case 6: case 10: pp[0]=a; r=fne_(k_(f),k_(p),0); EC(r); break;
+  case  1: case 2: case 3: case 4: case 6: case 15: pp[0]=a; r=fne_(k_(f),k_(p),0); EC(r); break;
   case -1: PRK(na); PAI; i(na,pp[0]=t(1,(u32)pai[i]);prk[i]=fne_(k_(f),k_(p),0);EC(prk[i])) break;
   case -2: PRK(na); PAF; i(na,pp[0]=t2(paf[i]);prk[i]=fne_(k_(f),k_(p),0);_k(pp[0]);EC(prk[i])) break;
   case -3: PRK(na); PAC; i(na,pp[0]=t(3,(u8)pac[i]);prk[i]=fne_(k_(f),k_(p),0);EC(prk[i])) break;
@@ -554,14 +554,14 @@ static K eachfe(K f, K a, K x, char *av) {
   int *pai,*pxi;
   char *pac,**pas,*pxc,**pxs,Ta,Tx;
   double *paf,*pxf;
-  Ta=ta; if(s(a)) { if(!VST(a)) return kerror("type"); Ta=10; }
-  Tx=tx; if(s(x)) { if(!VST(x)) return kerror("type"); Tx=10; }
+  Ta=ta; if(s(a)) { if(!VST(a)) return kerror("type"); Ta=15; }
+  Tx=tx; if(s(x)) { if(!VST(x)) return kerror("type"); Tx=15; }
   if(a) {
     if(Ta<=0&&Tx<=0&&nx!=na) return kerror("length");
     switch(Ta) {
-    case 1: case 2: case 3: case 4: case 6: case 10:
+    case 1: case 2: case 3: case 4: case 6: case 15:
       switch(Tx) {
-      case  1: case 2: case 3: case 4: case 6: case 10: r=fe(k_(f),k_(a),k_(x),av);EC(r); break;
+      case  1: case 2: case 3: case 4: case 6: case 15: r=fe(k_(f),k_(a),k_(x),av);EC(r); break;
       case -1: PRK(nx); PXI; i(nx,prk[i]=fe(k_(f),k_(a),t(1,(u32)pxi[i]),av);EC(prk[i])) break;
       case -2: PRK(nx); PXF; i(nx,prk[i]=fe(k_(f),k_(a),t2(pxf[i]),av);EC(prk[i])) break;
       case -3: PRK(nx); PXC; i(nx,prk[i]=fe(k_(f),k_(a),t(3,(u8)pxc[i]),av);EC(prk[i])) break;
@@ -572,7 +572,7 @@ static K eachfe(K f, K a, K x, char *av) {
     case -1:
       PRK(na); PAI;
       switch(Tx) {
-      case  1: case 2: case 3: case 4: case 6: case 10: i(na,;prk[i]=fe(k_(f),t(1,(u32)pai[i]),k_(x),av);EC(prk[i])) break;
+      case  1: case 2: case 3: case 4: case 6: case 15: i(na,;prk[i]=fe(k_(f),t(1,(u32)pai[i]),k_(x),av);EC(prk[i])) break;
       case -1: PXI; i(na,prk[i]=fe(k_(f),t(1,(u32)pai[i]),t(1,(u32)pxi[i]),av);EC(prk[i])) break;
       case -2: PXF; i(na,prk[i]=fe(k_(f),t(1,(u32)pai[i]),t2(pxf[i]),av);EC(prk[i])) break;
       case -3: PXC; i(na,prk[i]=fe(k_(f),t(1,(u32)pai[i]),t(3,(u8)pxc[i]),av);EC(prk[i])) break;
@@ -583,7 +583,7 @@ static K eachfe(K f, K a, K x, char *av) {
     case -2:
       PRK(na); PAF;
       switch(Tx) {
-      case  1: case 2: case 3: case 4: case 6: case 10: i(na,prk[i]=fe(k_(f),t2(paf[i]),k_(x),av);EC(prk[i])) break;
+      case  1: case 2: case 3: case 4: case 6: case 15: i(na,prk[i]=fe(k_(f),t2(paf[i]),k_(x),av);EC(prk[i])) break;
       case -1: PXI; i(na,prk[i]=fe(k_(f),t2(paf[i]),t(1,(u32)pxi[i]),av);EC(prk[i])) break;
       case -2: PXF; i(na,prk[i]=fe(k_(f),t2(paf[i]),t2(pxf[i]),av);EC(prk[i])) break;
       case -3: PXC; i(na,prk[i]=fe(k_(f),t2(paf[i]),t(3,(u8)pxc[i]),av);EC(prk[i])) break;
@@ -594,7 +594,7 @@ static K eachfe(K f, K a, K x, char *av) {
     case -3:
       PRK(na); PAC;
       switch(Tx) {
-      case  1: case 2: case 3: case 4: case 6: case 10: i(na,prk[i]=fe(k_(f),t(3,pac[i]),k_(x),av);EC(prk[i])) break;
+      case  1: case 2: case 3: case 4: case 6: case 15: i(na,prk[i]=fe(k_(f),t(3,pac[i]),k_(x),av);EC(prk[i])) break;
       case -1: PXI; i(na,prk[i]=fe(k_(f),t(3,(u8)pac[i]),t(1,(u32)pxi[i]),av);EC(prk[i])) break;
       case -2: PXF; i(na,prk[i]=fe(k_(f),t(3,(u8)pac[i]),t2(pxf[i]),av);EC(prk[i])) break;
       case -3: PXC; i(na,prk[i]=fe(k_(f),t(3,(u8)pac[i]),t(3,(u8)pxc[i]),av);EC(prk[i])) break;
@@ -605,7 +605,7 @@ static K eachfe(K f, K a, K x, char *av) {
     case -4:
       PRK(na); PAS;
       switch(Tx) {
-      case  1: case 2: case 3: case 4: case 6: case 10: i(na,prk[i]=fe(k_(f),t(4,pas[i]),k_(x),av);EC(prk[i])) break;
+      case  1: case 2: case 3: case 4: case 6: case 15: i(na,prk[i]=fe(k_(f),t(4,pas[i]),k_(x),av);EC(prk[i])) break;
       case -1: PXI; i(na,prk[i]=fe(k_(f),t(4,pas[i]),t(1,(u32)pxi[i]),av);EC(prk[i])) break;
       case -2: PXF; i(na,prk[i]=fe(k_(f),t(4,pas[i]),t2(pxf[i]),av);EC(prk[i])) break;
       case -3: PXC; i(na,prk[i]=fe(k_(f),t(4,pas[i]),t(3,(u8)pxc[i]),av);EC(prk[i])) break;
@@ -616,7 +616,7 @@ static K eachfe(K f, K a, K x, char *av) {
     case  0:
       PRK(na); PAK;
       switch(Tx) {
-      case  1: case 2: case 3: case 4: case 6: case 10: i(na,prk[i]=fe(k_(f),k_(pak[i]),k_(x),av);EC(prk[i])) break;
+      case  1: case 2: case 3: case 4: case 6: case 15: i(na,prk[i]=fe(k_(f),k_(pak[i]),k_(x),av);EC(prk[i])) break;
       case -1: PXI; i(na,prk[i]=fe(k_(f),k_(pak[i]),t(1,(u32)pxi[i]),av);EC(prk[i])) break;
       case -2: PXF; i(na,prk[i]=fe(k_(f),k_(pak[i]),t2(pxf[i]),av);EC(prk[i])) break;
       case -3: PXC; i(na,prk[i]=fe(k_(f),k_(pak[i]),t(3,(u8)pxc[i]),av);EC(prk[i])) break;
@@ -629,7 +629,7 @@ static K eachfe(K f, K a, K x, char *av) {
   }
   else {
     switch(Tx) {
-    case  1: case 2: case 3: case 4: case 6: case 10: r=fe(k_(f),0,k_(x),av);EC(r); break;
+    case  1: case 2: case 3: case 4: case 6: case 15: r=fe(k_(f),0,k_(x),av);EC(r); break;
     case -1: PRK(nx); PXI; i(nx,prk[i]=fe(k_(f),0,t(1,(u32)pxi[i]),av);EC(prk[i])) break;
     case -2: PRK(nx); PXF; i(nx,prk[i]=fe(k_(f),0,t2(pxf[i]),av);EC(prk[i])) break;
     case -3: PRK(nx); PXC; i(nx,prk[i]=fe(k_(f),0,t(3,(u8)pxc[i]),av);EC(prk[i])) break;
@@ -649,9 +649,9 @@ static K eachrightfe(K f, K a, K x, char *av) {
   int *pxi;
   char *pxc,**pxs,Tx;
   double *pxf;
-  Tx=tx; if(!Tx&&s(x)) { if(!VST(x)) return kerror("type"); Tx=10; }
+  Tx=tx; if(!Tx&&s(x)) { if(!VST(x)) return kerror("type"); Tx=15; }
   switch(Tx) {
-  case  1: case 2: case 3: case 4: case 6: case 10: r=fe(k_(f),k_(a),k_(x),av); EC(r); break;
+  case  1: case 2: case 3: case 4: case 6: case 15: r=fe(k_(f),k_(a),k_(x),av); EC(r); break;
   case -1: PRK(nx); PXI; i(nx,prk[i]=fe(k_(f),k_(a),t(1,(u32)pxi[i]),av);EC(prk[i])) break;
   case -2: PRK(nx); PXF; i(nx,prk[i]=fe(k_(f),k_(a),t2(pxf[i]),av);EC(prk[i])) break;
   case -3: PRK(nx); PXC; i(nx,prk[i]=fe(k_(f),k_(a),k_(t(3,(u8)pxc[i])),av);EC(prk[i])) break;
@@ -670,9 +670,9 @@ static K eachleftfe(K f, K a, K x, char *av) {
   int *pai;
   char *pac,**pas,Ta;
   double *paf;
-  Ta=ta; if(s(a)) { if(!VST(a)) return kerror("type"); Ta=10; }
+  Ta=ta; if(s(a)) { if(!VST(a)) return kerror("type"); Ta=15; }
   switch(Ta) {
-  case  1: case 2: case 3: case 4: case 6: case 10: r=fe(k_(f),k_(a),k_(x),av); EC(r); break;
+  case  1: case 2: case 3: case 4: case 6: case 15: r=fe(k_(f),k_(a),k_(x),av); EC(r); break;
   case -1: PRK(na); PAI; i(na,prk[i]=fe(k_(f),t(1,(u32)pai[i]),k_(x),av);EC(prk[i])) break;
   case -2: PRK(na); PAF; i(na,prk[i]=fe(k_(f),t2(paf[i]),k_(x),av);EC(prk[i])) break;
   case -3: PRK(na); PAC; i(na,prk[i]=fe(k_(f),k_(t(3,(u8)pac[i])),k_(x),av);EC(prk[i])) break;

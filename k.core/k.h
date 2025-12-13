@@ -7,10 +7,10 @@
 #include "x.h"
 
 /*
-# K value k-core
-     8      8    48 bits
-    tx     st    px
-63..56 55..48 47..0
+# K value k-core (step 1: 5-bit type, top 3 bits reserved)
+     3      5      8    48 bits
+   (rx)    tx     sx    px
+63..61 60..56 55..48 47..0
 */
 typedef u64 K;
 typedef struct {
@@ -22,7 +22,7 @@ typedef struct {
 
 #define b(i) (((K)1<<(i))-1)
 #define n(x) ((ko*)(b(48)&x))->n
-#define T(x) ((char)((x)>>56))
+#define T(x) (((signed char)((((x)>>56)&0x1F)<<3))>>3)
 #define tx T(x)
 #define ax (tx>0)
 #define nx n(x)
@@ -37,7 +37,7 @@ typedef struct {
 #define j(b,z) {u64 n_=b;u64 j=0;while(j<n_){z;++j;}}
 #define i1(b,z) {u64 n_=b;u64 i=1;while(i<n_){z;++i;}}
 #define j1(b,z) {u64 n_=b;u64 j=1;while(j<n_){z;++j;}}
-#define t(t,z) ((K)(t)<<56|((K)(z)&b(56)))
+#define t(t,z) ((K)((t)&0x1F)<<56|((K)(z)&b(56)))
 #define ik(x) ((i32)(b(32)&x))
 #define fk(x) (((ko*)(b(48)&x))->f)
 #define ck(x) ((u8)(b(8)&(x)))

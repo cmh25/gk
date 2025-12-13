@@ -11,7 +11,7 @@
 
 i32 precision=7;
 K null=t(6,0);
-K inull=t(16,0);
+K inull=t(10,0);
 
 // P=":+-*%&|<>=~.!@?#_^,$'/\\"
 K k(i32 i, K a, K x) {
@@ -301,7 +301,7 @@ K kcp(K x) {
   case  2: r=k_(x); break;
   case  3: r=x; break;
   case  4: r=x; break;
-  case  6: case 16: r=x; break;
+  case  6: case 10: r=x; break;
   case -1: PRI(nx); PXI; i(nx,*pri++=*pxi++) break;
   case -2: PRF(nx); PXF; i(nx,*prf++=*pxf++) break;
   case -3: PRC(nx); PXC; i(nx,*prc++=*pxc++) break;
@@ -424,7 +424,7 @@ u64 khash(K x) {
   case  2: r=r+(u64)fk(x)*2654435761; break;
   case  3: r=r+(u64)ck(x)*2654435761; break;
   case  4: r=r+xfnv1a(sk(x),strlen(sk(x))); break;
-  case  6: case 16: break;
+  case  6: case 10: break;
   case  0: {
     if(s(x)) { --d; return khashcb(x); }
     typedef struct { K x; u64 h; size_t i; } sf;

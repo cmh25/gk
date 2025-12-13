@@ -8,12 +8,12 @@ K each(i32 f, K a, K x) {
   K r=0,*prk,e;
   char Ta,Tx;
   if(f<0||f>22) return KERR_TYPE;
-  Ta=ta; if(s(a)) { if(!vstcb(a)) return KERR_TYPE; Ta=10; }
-  Tx=tx; if(s(x)) { if(!vstcb(x)) return KERR_TYPE; Tx=10; }
+  Ta=ta; if(s(a)) { if(!vstcb(a)) return KERR_TYPE; Ta=15; }
+  Tx=tx; if(s(x)) { if(!vstcb(x)) return KERR_TYPE; Tx=15; }
   if(a) {
     if(Ta<=0&&Tx<=0&&na!=nx) return KERR_LENGTH;
     switch(Ta) {
-    case  1: case 2: case 3: case 4: case 6: case 10:
+    case  1: case 2: case 3: case 4: case 6: case 15:
       if(Tx>0) r=k(f,k_(a),k_(x));
       else { PRK(nx); i(nx,prk[i]=ki(f,a,x,-1,i);EC(prk[i])) }
       break;
@@ -37,7 +37,7 @@ K eachright(i32 f, K a, K x) {
   K r=0,*prk,e;
   char Tx;
   if(f<0||f>22) return KERR_TYPE;
-  Tx=tx; if(!Tx&&s(x)) { if(!vstcb(x)) return KERR_TYPE; Tx=10; }
+  Tx=tx; if(!Tx&&s(x)) { if(!vstcb(x)) return KERR_TYPE; Tx=15; }
   if(Tx>0) r=k(f,k_(a),k_(x));
   else { PRK(nx); i(nx,prk[i]=ki(f,a,x,-1,i);EC(prk[i])) }
   return knorm(r);
@@ -50,7 +50,7 @@ K eachleft(i32 f, K a, K x) {
   K r=0,*prk,e;
   char Ta;
   if(f<0||f>22) return KERR_TYPE;
-  Ta=ta; if(s(a)) { if(!vstcb(a)) return KERR_TYPE; Ta=10; }
+  Ta=ta; if(s(a)) { if(!vstcb(a)) return KERR_TYPE; Ta=15; }
   if(Ta>0) r=k(f,k_(a),k_(x));
   else { PRK(na); i(na,prk[i]=ki(f,a,x,i,-1);EC(prk[i])) }
   return knorm(r);
@@ -65,7 +65,7 @@ K overd(i32 f, K x) {
   i32 si,*pxi;
   double sf,*pxf;
   if(f<0||f>22) return KERR_TYPE;
-  Tx=tx; if(!Tx&&s(x)) { if(!vstcb(x)) return KERR_TYPE; Tx=10; }
+  Tx=tx; if(!Tx&&s(x)) { if(!vstcb(x)) return KERR_TYPE; Tx=15; }
   if(Tx<=0&&!nx) {
     ff=P[f];
     if(strchr("+*&|",ff)) {
@@ -115,7 +115,7 @@ K overd(i32 f, K x) {
   default:
     switch(Tx) {
     case  1: case 2: case 3: case 4: r=k_(x); break;
-    case 10: r=kcp(x); break;
+    case 15: r=kcp(x); break;
     case -1: PXI; r=t(1,(u32)*pxi++); i1(nx,p=ki(f,r,x,-1,i);_k(r);r=0;EC(p);r=p) break;
     case -2: PXF; r=t2(*pxf++); i1(nx,p=ki(f,r,x,-1,i);_k(r);r=0;EC(p);r=p) break;
     case -3: PXC; r=t(3,(u8)*pxc++); i1(nx,p=ki(f,r,x,-1,i);_k(r);r=0;EC(p);r=p) break;
@@ -136,7 +136,7 @@ K scand(i32 f, K x) {
   i32 si,*pri,*pxi;
   double sf,*prf,*pxf;
   if(f<0||f>22) return KERR_TYPE;
-  Tx=tx; if(!Tx&&s(x)) { if(!vstcb(x)) return KERR_TYPE; Tx=10; }
+  Tx=tx; if(!Tx&&s(x)) { if(!vstcb(x)) return KERR_TYPE; Tx=15; }
   ff=P[f];
   if(Tx<=0&&!nx&&strchr("+*&|",ff)) {
     switch(Tx) {

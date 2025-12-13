@@ -1311,7 +1311,7 @@ static K serialize(K x, char **b, char **v, i32 *n, i32 *m) {
   case  2: *n+=sd; break;
   case  3: *n+=si; break;
   case  4: *n+=1+strlen(sk(x)); break;
-  case  6: case 16: break;
+  case  6: case 10: break;
   case -4: PXS; *n+=sn; i(nx,*n+=1+strlen(pxs[i])); break;
   case -3: *n+=sn; *n+=nx; break;
   case -2: *n+=sn; *n+=nx*sd; break;
@@ -1329,7 +1329,7 @@ static K serialize(K x, char **b, char **v, i32 *n, i32 *m) {
   case  2: memcpy(*v,&fk(x),sd); *v+=sd; break;
   case  3: cc=ck(x); memcpy(*v,&cc,1); *v+=1; break;
   case  4: pxc=sk(x); memcpy(*v,pxc,1+strlen(pxc)); *v+=1+strlen(pxc); break;
-  case  6: case 16: break;
+  case  6: case 10: break;
   case -4: PXS; memcpy(*v,&nx,sn); *v+=sn; i(nx,memcpy(*v,pxs[i],1+strlen(pxs[i]));*v+=1+strlen(pxs[i])); break;
   case -3: PXC; memcpy(*v,&nx,sn); *v+=sn; memcpy(*v,pxc,nx); *v+=nx; break;
   case -2: PXF; memcpy(*v,&nx,sn); *v+=sn; memcpy(*v,pxf,nx*sd); *v+=nx*sd; break;
@@ -1368,7 +1368,7 @@ static K deserialize(char **b,u64 *m) {
   case  3: if(n<1) return KERR_LENGTH; memcpy(&cc,*b,1); r=t(3,(u8)cc); *b+=1; break;
   case  4: if(n<1+strlen(*b)) return KERR_LENGTH; r=t(4,sp(*b)); *b+=1+strlen(*b); break;
   case  6: r=null; break;
-  case 16: r=inull; break;
+  case 10: r=inull; break;
   case -4:
     if(n<sn) return KERR_LENGTH;
     memcpy(&count,*b,sn);
