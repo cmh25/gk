@@ -468,7 +468,7 @@ static K onecolon1(K x) {
   v=mmap(0,len,PROT_READ|PROT_WRITE,MAP_PRIVATE,fd,0);
   if(v==(void*)-1) { r=ferr(s,errno); return r; }
   r=tnv(-t,c,24+(char*)v);
-  ((ko*)(b(48)&r))->r=-2;
+  ((ko*)(b(48)&r))->m=1;
   n(r)=c;
   close(fd);
   return r;

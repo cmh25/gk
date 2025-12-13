@@ -16,9 +16,9 @@ typedef u64 K;
 typedef struct {
   u64 n;
   union { void *v; double f; i64 j; float e; short h; };
-  i32 r;
+  u32 r;
+  u32 m;
 } ko;
-
 
 #define b(i) (((K)1<<(i))-1)
 #define n(x) ((ko*)(b(48)&x))->n

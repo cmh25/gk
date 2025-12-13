@@ -43,7 +43,7 @@ K k(i32 i, K a, K x) {
 K k_(K x) {
   if(E(x)||(tx>0 && tx!=2)) return x;
   ko *k=(ko*)(b(48)&x);
-  k->r+=k->r>-2?1:-1;
+  ++k->r;
   return x;
 }
 
@@ -79,20 +79,7 @@ void _k(K x) {
     x=f->x;
     if(E(x)||(tx>0 && tx!=2)) continue;
     ko *k=(ko*)(b(48)&x);
-    if(k->r>0) { --k->r; continue; }
-    else if(k->r<-2) { k->r++; continue; }
-#ifndef _WIN32  // TODO: mmap on windows?
-    else if(k->r==-2) {  // mapped object
-      size_t len;
-      if(tx == -1) len = 12 + nx*sizeof(int);
-      else if(tx == -2) len = nx*sizeof(double);
-      else if(tx == -3) len = nx*sizeof(char);
-      else { fprintf(stderr,"unexpected mmap'd type\n"); exit(1); }
-      munmap((char*)k->v - 20, len);
-      xfree(k);
-      continue;
-    }
-#endif
+    if(k->r>0) --k->r;
     else if(f->s==0) {
       push_sf(&stack, &sp, &cap, local, (i32)(sizeof local/sizeof local[0]), x, 1);
       if(tx==0) {
@@ -101,6 +88,17 @@ void _k(K x) {
           push_sf(&stack, &sp, &cap, local, (i32)(sizeof local/sizeof local[0]), px[i], 0);
       }
     }
+#ifndef _WIN32  // TODO: mmap on windows?
+    else if(k->m) {  // mapped object
+      size_t len;
+      if(tx == -1) len = 12 + nx*sizeof(int);
+      else if(tx == -2) len = nx*sizeof(double);
+      else if(tx == -3) len = nx*sizeof(char);
+      else { fprintf(stderr,"unexpected mmap'd type\n"); exit(1); }
+      munmap((char*)k->v - 20, len);
+      xfree(k);
+    }
+#endif
     else {
       if(tx!=2) xfree(k->v);
       xfree(k);
@@ -118,7 +116,7 @@ K tn(i32 t, i32 n) {
   case 3: v=xcalloc(n+1,1); break;
   case 4: v=xmalloc(sizeof(char*)*n); break;
   }
-  k=xmalloc(sizeof(ko)); k->n=n; k->v=v; k->r=0; r=t(-t,k);
+  k=xmalloc(sizeof(ko)); k->n=n; k->v=v; k->r=0; k->m=0; r=t(-t,k);
   return r;
 }
 
@@ -132,7 +130,7 @@ K tnv(i32 t, i32 n, void *v) {
 }
 
 K t2(double x) {
-  ko *k=xmalloc(sizeof(ko)); k->n=0; k->f=x; k->r=0;
+  ko *k=xmalloc(sizeof(ko)); k->n=0; k->f=x; k->r=0; k->m=0;
   return t(2,k);
 }
 
