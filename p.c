@@ -570,6 +570,9 @@ static inline K reduce(K x) {
   case 0x44: return r44(x); // plist+adverbs
   case 0xc5: return rc5(x); // verb composition
   case 0xd0: return rd0(x); // fixed dyad
+  case 0xc9: return rpd(x); // predefined monad
+  case 0xca: return rpd(x); // predefined dyad
+  case 0xcb: return rpd(x); // predefined triad
   default: return x;
   }
 }
