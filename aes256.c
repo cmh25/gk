@@ -3,6 +3,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <stdint.h>
+#include "k.core/x.h"
 
 #define BLOCKLEN 16
 #define KEYLEN 32
@@ -203,7 +204,7 @@ static void cipher(state *s, unsigned char* rk) {
 static char* hex(const unsigned char *b, size_t n) {
   char h[16]="0123456789abcdef";
   size_t i;
-  char *r=malloc(1+n*2);
+  char *r=xmalloc(1+n*2);
   for(i=0;i<n;i++) {
     r[2*i]=h[b[i]>>4];
     r[2*i+1]=h[b[i]&0xf];
@@ -214,7 +215,7 @@ static char* hex(const unsigned char *b, size_t n) {
 
 static unsigned char* unhex(const char *h, size_t n, size_t *m) {
   if(n%2!=0) { *m=0; return 0; }
-  unsigned char *r=malloc(1+n/2);
+  unsigned char *r=xmalloc(1+n/2);
   for(size_t i=0;i<n/2;i++) {
     char b[3]={ h[2*i], h[2*i+1], 0 };
     r[i]=(unsigned char)strtol(b,0,16);
@@ -246,13 +247,13 @@ static void aescrypt(ctx *c, unsigned char *b, size_t n) {
 /*  echo -n "charles" | openssl enc --aes-256-ctr -iv "f0f1f2f3f4f5f6f7f8f9fafbfcfdfeff" -K "603deb1015ca71be2b73aef0857d77811f352c073b6108d72d9810a30914dff4" | xxd -p */
 char* aes256e(const char *s, size_t n, unsigned char *iv, unsigned char *key, size_t *m) {
   ctx c;
-  unsigned char *b=malloc(n);
+  unsigned char *b=xmalloc(n);
   char *r;
   memcpy(b,s,n);
   aesinit(&c,iv,key);
   aescrypt(&c,b,n);
   r=(char*)hex(b,n);
-  free(b);
+  xfree(b);
   *m=strlen(r);
   return r;
 }

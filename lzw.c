@@ -3,42 +3,12 @@
 #include <string.h>
 #include <stdlib.h>
 #include <stdint.h>
+#include "k.core/x.h"
 
 #define MAX 4096
 
 static char *D[MAX];
 static int L[MAX],N=257;
-
-static void* xmalloc(size_t s) {
-  void *p=0;
-  if(!(p=malloc(s))) {
-    printf("error: xmalloc(): memory allocation failed\n");
-    exit(1);
-  }
-  return p;
-}
-
-static void xfree(void *p) {
-  if(p) free(p);
-}
-
-static void* xcalloc(size_t n, size_t s) {
-  void *p=0;
-  if(!(p=calloc(n,s))) {
-    printf("error: xcalloc(): memory allocation failed\n");
-    exit(1);
-  }
-  return p;
-}
-
-static void* xrealloc(void *p, size_t s) {
-  void *p2=0;
-  if(!(p2=realloc(p,s))) {
-    printf("error: xrealloc(): memory allocation failed\n");
-    exit(1);
-  }
-  return p2;
-}
 
 static void bfa(LZW *b, int n, int w) {
   size_t i=b->i;

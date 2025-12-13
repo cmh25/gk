@@ -32,7 +32,7 @@ char *sp(char *s) {
   if(j==k) {
     int oldk=k;
     k=k?k*2:2;
-    p=calloc((size_t)k,sizeof(char*));
+    p=xcalloc((size_t)k,sizeof(char*));
     if(!p) { fprintf(stderr, "sp\n"); exit(1); }
 
     // rehash old entries
@@ -55,7 +55,7 @@ char *sp(char *s) {
 
   // 3. Insert new symbol
   len=strlen(s);
-  t=malloc(len+1);
+  t=xmalloc(len+1);
   if(!t) { fprintf(stderr, "sp\n"); exit(1); }
   memcpy(t,s,len+1);
 

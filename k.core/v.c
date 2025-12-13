@@ -1181,7 +1181,7 @@ K form(K a, K x) {
       else sprintf(t,"%0.*f",y,f);
       l=strlen(t);
       if(l>INT32_MAX-m-1) return KERR_WSFULL;
-      s=calloc(1,l+m+1);
+      s=xcalloc(1,l+m+1);
       if(!m) sprintf(s,"%s",t);
       else if(m<l) { i(m,s[i]='*') s[m]=0; }
       else if(xx<0) sprintf(s,"%s%*s",t,m-l,"");
@@ -1429,9 +1429,9 @@ K group(K x) {
     PRK(rs); nr=0; PXK;
     m=nx;
     w=1; while(w<=m) w<<=1; q=w-1;
-    ht=calloc(w,sizeof(K));
-    hm=calloc(w,sizeof(u64));
-    hk=calloc(w,sizeof(K));
+    ht=xcalloc(w,sizeof(K));
+    hm=xcalloc(w,sizeof(u64));
+    hk=xcalloc(w,sizeof(K));
     pk=pxk-1;
     for(i=0;i<nx;i++) {
       pk++;
@@ -1450,7 +1450,7 @@ K group(K x) {
         p=tn(1,hm[h]);
         ht[h]=p;
         np=0;
-        if(rs==ri++){rs<<=1;vr=prk=realloc(prk,sizeof(K)*rs);}
+        if(rs==ri++){rs<<=1;vr=prk=xrealloc(prk,sizeof(K)*rs);}
         prk[nr++]=p;
       }
       pp=(i32*)px(p);
@@ -1468,8 +1468,8 @@ K group(K x) {
       if(min>pxi[i])min=pxi[i];
     }
     if(min>=0 && !bni && max<1000000000) { /* optimize for all positive n */
-      ht=calloc((u32)(max+1),sizeof(K));
-      hm=calloc((u32)(max+1),sizeof(u64));
+      ht=xcalloc((u32)(max+1),sizeof(K));
+      hm=xcalloc((u32)(max+1),sizeof(u64));
       n=pxi;n--;
       i(nx, n++; hm[*n]++)
       n=pxi;n--;
@@ -1482,7 +1482,7 @@ K group(K x) {
            pp=(i32*)px(p);
            pp[0]=i;
            np=1;
-           if(rs==ri++){rs<<=1;vr=prk=realloc(prk,sizeof(K)*rs);}
+           if(rs==ri++){rs<<=1;vr=prk=xrealloc(prk,sizeof(K)*rs);}
            prk[nr++]=p;
          }
          else { pp=(i32*)px(p); pp[np++]=i; }
@@ -1495,9 +1495,9 @@ K group(K x) {
       if(!m) m=2; /* handle ?0I 0N */
       if(nx<m) m=nx;
       w=1; while(w<=m) w<<=1; q=w-1;
-      ht=calloc(w,sizeof(K));       /* groups */
-      hm=calloc(w,sizeof(u64)); /* max's */
-      hi=calloc(w,sizeof(i32));
+      ht=xcalloc(w,sizeof(K));       /* groups */
+      hm=xcalloc(w,sizeof(u64)); /* max's */
+      hi=xcalloc(w,sizeof(i32));
       n=pxi;n--;
       for(i=0;i<nx;i++) {
          n++;
@@ -1516,7 +1516,7 @@ K group(K x) {
            p=tn(1,hm[h]);
            ht[h]=p;
            np=0;
-           if(rs==ri++){rs<<=1;vr=prk=realloc(prk,sizeof(K)*rs);}
+           if(rs==ri++){rs<<=1;vr=prk=xrealloc(prk,sizeof(K)*rs);}
            prk[nr++]=p;
          }
          pp=(i32*)px(p);
@@ -1529,9 +1529,9 @@ K group(K x) {
     PRK(rs); nr=0; PXF;
     m=nx;
     w=1; while(w<=m) w<<=1; q=w-1;
-    ht=calloc(w,sizeof(K));       /* groups */
-    hm=calloc(w,sizeof(u64)); /* max's */
-    hf=calloc(w,sizeof(double));
+    ht=xcalloc(w,sizeof(K));       /* groups */
+    hm=xcalloc(w,sizeof(u64)); /* max's */
+    hf=xcalloc(w,sizeof(double));
     f=pxf;f--;
     for(i=0;i<nx;i++) {
        f++;
@@ -1550,7 +1550,7 @@ K group(K x) {
          p=tn(1,hm[h]);
          ht[h]=p;
          np=0;
-         if(rs==ri++){rs<<=1;vr=prk=realloc(prk,sizeof(K)*rs);}
+         if(rs==ri++){rs<<=1;vr=prk=xrealloc(prk,sizeof(K)*rs);}
          prk[nr++]=p;
        }
        pp=(i32*)px(p);
@@ -1560,8 +1560,8 @@ K group(K x) {
     break;
   case -3:
     PRK(256); nr=0; PXC;
-    ht=calloc(256,sizeof(K));
-    hm=calloc(256,sizeof(u64));
+    ht=xcalloc(256,sizeof(K));
+    hm=xcalloc(256,sizeof(u64));
     c=(u8*)pxc-1;
     i(nx, c++; hm[*c]++)
     c=(u8*)pxc-1;
@@ -1577,9 +1577,9 @@ K group(K x) {
     PRK(rs); nr=0; PXS;
     m=nx;
     w=1; while(w<=m) w<<=1; q=w-1;
-    ht=calloc(w,sizeof(K));
-    hm=calloc(w,sizeof(u64));
-    hs=calloc(w,sizeof(char*));
+    ht=xcalloc(w,sizeof(K));
+    hm=xcalloc(w,sizeof(u64));
+    hs=xcalloc(w,sizeof(char*));
     s=pxs-1;
     for(i=0;i<nx;i++) {
       s++;
@@ -1598,7 +1598,7 @@ K group(K x) {
         p=tn(1,hm[h]);
         ht[h]=p;
         np=0;
-        if(rs==ri++){rs<<=1;vr=prk=realloc(prk,sizeof(K)*rs);}
+        if(rs==ri++){rs<<=1;vr=prk=xrealloc(prk,sizeof(K)*rs);}
         prk[nr++]=p;
       }
       pp=(i32*)px(p);
@@ -1720,7 +1720,7 @@ K unique(K x) {
     if(!nx) return k_(x);
     PRK(nx); PXK;
     w=1; while(w<=nx) w<<=1; q=w-1;
-    hk=calloc(w,sizeof(K));
+    hk=xcalloc(w,sizeof(K));
     pxk--;
     for(i=0;i<nx;i++) {
       pxk++;
@@ -1742,7 +1742,7 @@ K unique(K x) {
       if(min>pxi[i])min=pxi[i];
     }
     if(min>=0 && !bni) { /* optimize for all positive n */
-      hi=calloc((u32)(max+1),sizeof(i32));
+      hi=xcalloc((u32)(max+1),sizeof(i32));
       pxi--;
       i(nx, pxi++; if(!hi[*pxi]) { hi[*pxi]=1; pri[j++]=*pxi; if(++t==max+1) break; })
       nr=j;
@@ -1753,7 +1753,7 @@ K unique(K x) {
       m+=3; /* handle 0I 0N -0I */
       if(nx<m) m=nx;
       w=1; while(w<=m) w<<=1; q=w-1;
-      hi=calloc(w,sizeof(i32));
+      hi=xcalloc(w,sizeof(i32));
       pxi--;
       for(i=0,j=0;i<nx;i++) {
         pxi++;
@@ -1771,7 +1771,7 @@ K unique(K x) {
     if(!nx) return k_(x);
     PRF(nx); PXF;
     w=1; while(w<=nx) w<<=1; q=w-1;
-    hf=calloc(w,sizeof(double));
+    hf=xcalloc(w,sizeof(double));
     pxf--;
     for(i=0;i<nx;i++) {
       pxf++;
@@ -1794,7 +1794,7 @@ K unique(K x) {
     if(!nx) return k_(x);
     PRS(nx); PXS;
     w=1; while(w<=nx) w<<=1; q=w-1;
-    hs=calloc(w,sizeof(char*));
+    hs=xcalloc(w,sizeof(char*));
     pxs--;
     for(i=0;i<nx;i++) {
       pxs++;
@@ -1845,7 +1845,7 @@ K shape(K x) {
     qc=1;
     ci=0;
     while(q) { /* breadth first traversal */
-      if(ci==cm) { cm<<=1; c=realloc(c,sizeof(u32)*cm); }
+      if(ci==cm) { cm<<=1; c=xrealloc(c,sizeof(u32)*cm); }
       c[ci]=tc=0; t=0;
       for(i=0;i<qc;i++) {
         a=q[i];
@@ -1853,7 +1853,7 @@ K shape(K x) {
         if(!c[ci]&&na) c[ci]=na;
         else if(c[ci]!=na) { if(t){xfree(t);t=0;}; ci--; break; }
         if(!ta&&!s(a)&&na) { /* enqueue next round */
-          if(t) t=realloc(t,sizeof(K)*(na+tc));
+          if(t) t=xrealloc(t,sizeof(K)*(na+tc));
           else t=xmalloc(sizeof(K)*na);
           PAK;
           j(na,t[tc++]=pak[j])
