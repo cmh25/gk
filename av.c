@@ -227,17 +227,18 @@ static K scanm7(K f, K x, char *av) {
   int zi=0,zm=32;
   PRK(zm);
   xx=tn(0,1); pxx=px(xx); pxx[0]=x;
-  prk[zi++]=kcp2(x); /* first */
+  prk[zi]=kcp2(x); if(E(prk[zi])) { e=prk[zi]; goto cleanup; } ++zi; /* first */
   q=fne_(k_(f),k_(xx),av); EC(q); /* previous */
   if(EXIT) { e=null; goto cleanup; }
   if(!ik(k(10,k_(x),k_(q)))) {
-    prk[zi++]=kcp2(q);
+    prk[zi]=kcp2(q); if(E(prk[zi])) { e=prk[zi]; goto cleanup; } ++zi;
+    if(E(prk[zi-1])) { e=prk[zi-1]; goto cleanup; }
     pxx[0]=q;
     t=fne_(k_(f),k_(xx),av); EC(t);
     if(EXIT) { e=null; goto cleanup; }
     while(!ik(k(10,k_(t),k_(x)))&&!ik(k(10,k_(t),k_(q)))) {
       if(zi==zm) { zm<<=1; r=kresize(r,zm); prk=px(r); }
-      prk[zi++]=kcp2(t);
+      prk[zi]=kcp2(t); if(E(prk[zi])) { e=prk[zi]; goto cleanup; } ++zi;
       _k(q); q=t;
       pxx[0]=q;
       t=fne_(k_(f),k_(xx),av); EC(t);
@@ -265,14 +266,14 @@ static K scanm(K f, K x, char *av) {
   if(0xc3==s(f)||0xc4==s(f)) return scanm7(f,x,av);
   if(n==0) b=1;
   PRK(zm);
-  prk[zi++]=kcp2(x); /* first */
+  prk[zi]=kcp2(x); if(E(prk[zi])) { e=prk[zi]; goto cleanup; } ++zi; /* first */
   q=b?fe(k_(f),0,k_(x),av):avdo(k_(f),0,k_(x),av); EC(q); /* previous */
   if(!ik(k(10,k_(x),k_(q)))) {
-    prk[zi++]=kcp2(q);
+    prk[zi]=kcp2(q); if(E(prk[zi])) { e=prk[zi]; goto cleanup; } ++zi;
     t=b?fe(k_(f),0,k_(q),av):avdo(k_(f),0,k_(q),av); EC(t);
     while(!ik(k(10,k_(t),k_(x)))&&!ik(k(10,k_(t),k_(q)))) {
       if(zi==zm) { zm<<=1; r=kresize(r,zm); prk=px(r); }
-      prk[zi++]=kcp2(t);
+      prk[zi]=kcp2(t); if(E(prk[zi])) { e=prk[zi]; goto cleanup; } ++zi;
       _k(q); q=t;
       t=b?fe(k_(f),0,k_(q),av):avdo(k_(f),0,k_(q),av); EC(t);
       if(STOP) { STOP=0; e=kerror("stop"); goto cleanup; }
@@ -842,7 +843,7 @@ K scanmonadn(K f, K a, K x, char *av) {
   i32 i=ik(a),j=0;
   if(i<0) { e=kerror("domain"); goto cleanup; }
   r=tn(0,1+i); prk=px(r);
-  prk[j++]=kcp2(x);
+  prk[j]=kcp2(x); if(E(prk[j])) { e=prk[j]; goto cleanup; } ++j;
   while(i>0) {
     p=fe(k_(f),0,k_(prk[j-1]),av); EC(p);
     prk[j++]=p;
@@ -886,7 +887,7 @@ K scanmonadb(K f, K a, K x, char *av) {
   K r=0,e,p=0,*prk,b;
   i32 j=0,m=32;
   r=tn(0,m); prk=px(r); n(r)=0;
-  prk[j++]=kcp2(x);
+  prk[j]=kcp2(x); if(E(prk[j])) { e=prk[j]; goto cleanup; } ++j;
   n(r)++;
   p=fe(k_(a),0,k_(prk[j-1]),av); EC(p);
   if(T(p)==1) b=ik(p);
