@@ -266,7 +266,7 @@ static K scope_set_(K s, char *n, K v) {
   int copy=0, gcopy=0;
   if(strlen(n)>255) return KERR_LENGTH;
 
-  /* Clear global cache on any global set */
+  /* clear global cache on any global set */
   if(s == gs) gcache_clear();
   psu=px(s);
   if(0x80==s(v)&&(s==gs||s==ks)) { // d.c:.k

@@ -246,7 +246,8 @@ K fnd(K f) {
   if(vz&&q<3) { SB(v,vm,q,sp("x")); q++; }
   if(vy&&q<2) { SB(v,vm,q,sp("x")); q++; }
   pf[4]=t(1,q);
-  for(i=0;i<q;i++) if((p=scope_set(pf[2],t(4,sp(v[i])),null))) { r=p; goto cleanup; }
+  i(q,if((p=scope_set(pf[2],t(4,sp(v[i])),null))) { r=p; goto cleanup; })
+  if(q!=(int)n(((K*)px(((K*)((K*)px(pf[2])))[1]))[0])) { r=KERR_PARSE; goto cleanup; }  // {[a;b;b]a,b}
   K locals=tn(4,q); K *plocals=px(locals);
   i(q,plocals[i]=(K)sp(v[i]))
 
@@ -281,6 +282,7 @@ static K closure(K x, K s0, K closurescope) {
   if(0xc3==s(x)) {
     px=px(x);
     s=px[2];
+    if(s==null) return x;
     fs=px(s);
     if(fs[0]!=s0) return x;
     r=fncp(x);

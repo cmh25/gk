@@ -30,8 +30,8 @@
 #define BUDDY_ARENA_SIZE (1L << 30)  /* 1GB total pool */
 
 static uint64_t buddy_fl[BUDDY_LEVELS];  /* freelists */
-static char *buddy_arena = NULL;
-static size_t buddy_used = 0;
+static char *buddy_arena;
+static size_t buddy_used;
 
 /* Compute level from size (including 8-byte header) */
 static inline uint32_t buddy_level(size_t s) {
@@ -93,7 +93,7 @@ static inline void buddy_free(uint32_t lv, uint64_t x) {
 }
 
 void* xmalloc(size_t s) {
-  if(!s) s = 1;
+  if(!s) s=1;
 
   uint32_t lv = buddy_level(s);
 
@@ -142,9 +142,9 @@ void xfree(void *p) {
 }
 
 void* xcalloc(size_t n, size_t s) {
-  size_t sz = n * s;
-  void *p = xmalloc(sz);
-  memset(p, 0, sz);
+  size_t sz=n*s;
+  void *p=xmalloc(sz);
+  memset(p,0,sz);
   return p;
 }
 
@@ -220,21 +220,21 @@ void* xrealloc(void *p, size_t s) {
 #endif /* USE_BUDDY */
 
 void* xstrdup(const char *s) {
-  size_t n = 1 + strlen(s);
-  void *p = xmalloc(n);
-  memcpy(p, s, n);
+  size_t n=1+strlen(s);
+  void *p=xmalloc(n);
+  memcpy(p,s,n);
   return p;
 }
 
 void* xstrndup(const char *s, size_t n) {
-  void *p = xcalloc(n + 1, 1);
-  memcpy(p, s, strnlen(s, n));
+  void *p=xcalloc(n+1,1);
+  memcpy(p,s,strnlen(s,n));
   return p;
 }
 
 void* xmemdup(const void *s, size_t n) {
-  void *p = xmalloc(n);
-  memcpy(p, s, n);
+  void *p=xmalloc(n);
+  memcpy(p,s,n);
   return p;
 }
 
@@ -285,7 +285,8 @@ char* xesc(char *p) {
       else if(p[i]=='\n') { ss[j++]='\\'; ss[j++]='n'; }
       else if(p[i]=='\r') { ss[j++]='\\'; ss[j++]='r'; }
       else j+=sprintf(&ss[j],"\\%03o",(unsigned char)p[i]);
-    } else {
+    }
+    else {
       if(p[i]=='"') { ss[j++]='\\'; ss[j++]='"'; }
       else if(p[i]=='\\') { ss[j++]='\\'; ss[j++]='\\'; }
       else ss[j++]=p[i];

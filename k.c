@@ -2349,10 +2349,10 @@ void kdump(i32 l) {
   i32 t,c,m=4,n,nn,refcount;
   u32 i;
   K v;
-  if(T(cs)) return;
-  if(n(cs)!=6) return;
-  K *pcs=px(cs);
-  K d=pcs[1];
+  //if(T(gs)) return;
+  //if(n(gs)!=6) return;
+  K *pgs=px(gs);
+  K d=pgs[1];
   if(0x80!=s(d)) return;
   if(n(d)!=3) return;
   K keys=((K*)px(d))[0];

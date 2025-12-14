@@ -15,7 +15,7 @@
 typedef u64 K;
 typedef struct {
   u64 n;
-  union { void *v; double f; i64 j; float e; short h; };
+  union { void *v; double f; i64 j; };
   u32 r;
   u32 m;
 } ko;
