@@ -31,6 +31,7 @@ K dset(K d, char *key, K val) {
   char **pk;
   u32 i;
   u64 n;
+  gcache_clear();  /* conservative: invalidate cache on any dict modification */
   if(d==ktree && strlen(key)==1 && (*key!='k'||0x80!=s(val))) return kerror("reserved");
   pd=px(d);
   k=pd[0]; v=pd[1]; m=ik(pd[2]);

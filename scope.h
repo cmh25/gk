@@ -20,5 +20,6 @@ K scope_set(K s, K n, K v);
 K scope_cp(K s);
 K scope_find(char *x);
 int scope_vktp(char *x);
+void gcache_clear(void);
 
 #endif /* SCOPE_H */

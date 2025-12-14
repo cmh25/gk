@@ -30,6 +30,15 @@ K ktree,C,Z,D;
 K locals[LOCALSMAX];
 int localsi;
 
+/* global variable cache */
+#define GCACHEN 8
+static char *gcachek[GCACHEN];
+static K gcachev[GCACHEN];
+
+void gcache_clear(void) {
+  i(GCACHEN,gcachek[i]=0;gcachev[i]=0)
+}
+
 void scope_init(int argc, char **argv) {
   char hn[256];
   K a;
@@ -175,6 +184,11 @@ static K scope_get_(K s, char *n) {
   K r=0,t=0,*ps=px(s),q;
   char *p,*rp;
   char nn[256];
+
+  /* check global cache first (for global scope lookups of simple names) */
+  if(s==gs && !strchr(n,'.') && n[0] != '.')
+    i(GCACHEN,if(gcachek[i]==n)return k_(gcachev[i]));
+
   if(!*n) { setz(); return k_(ktree); }
   if(strlen(n)>255) return KERR_LENGTH;
   if(n[0]=='.') {
@@ -210,6 +224,15 @@ static K scope_get_(K s, char *n) {
     if(!r && ps[0]!=null && s!=gs) r=scope_get_(ps[0],n);
     if(!r && s!=gs) r=scope_get_(gs,n);
     if(!r) r=dget(C,n);
+
+    /* add to global cache */
+    if(s==gs && r && !E(r)) {
+      memmove(&gcachek[1],&gcachek[0],(GCACHEN-1)*sizeof(char*));
+      memmove(&gcachev[1],&gcachev[0],(GCACHEN-1)*sizeof(K));
+      gcachek[0]=n;
+      gcachev[0]=r;
+    }
+
     return r?r:KERR_VALUE;
   }
 }
@@ -242,6 +265,9 @@ static K scope_set_(K s, char *n, K v) {
   ko *kd;
   int copy=0, gcopy=0;
   if(strlen(n)>255) return KERR_LENGTH;
+
+  /* Clear global cache on any global set */
+  if(s == gs) gcache_clear();
   psu=px(s);
   if(0x80==s(v)&&(s==gs||s==ks)) { // d.c:.k
     kd=(ko*)(b(48)&v); if(kd->r>0) gcopy=1;
