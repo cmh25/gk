@@ -40,13 +40,6 @@ K k(i32 i, K a, K x) {
   return r;
 }
 
-K k_(K x) {
-  if(E(x)||(tx>0 && tx!=2)) return x;
-  ko *k=(ko*)(b(48)&x);
-  ++k->r;
-  return x;
-}
-
 typedef struct { K x; i32 s; } SF;
 static SF *g_stack;
 static i32 g_cap;

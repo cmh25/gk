@@ -7,9 +7,9 @@
 #include "x.h"
 
 /*
-# K value k-core (step 1: 5-bit type, top 3 bits reserved)
+# K value k-core
      3      5      8    48 bits
-   (rx)    tx     sx    px
+    rx     tx     sx    px
 63..61 60..56 55..48 47..0
 */
 typedef u64 K;
@@ -79,6 +79,13 @@ typedef struct {
 
 #define E(x) ((x)<256||0x84==s(x))
 #define EC(x) do { K t_=(x); if(E(t_)) { e=t_; goto cleanup; } } while(0);
+
+/* Inline refcount increment */
+static inline K k_(K x) {
+  if(E(x)||(T(x)>0 && T(x)!=2)) return x;
+  ++((ko*)(b(48)&x))->r;
+  return x;
+}
 
 #ifdef ASAN_ENABLED
 #define VSIZE(x) do { if((x)<0||(x)>1000000000) return KERR_WSFULL; } while(0);
@@ -151,7 +158,6 @@ extern char* sp(char*);
 extern void sf(void);
 
 K k(i32 i, K a, K x);
-K k_(K x);
 void _k(K x);
 K tn(i32 t, i32 n);
 K tnv(i32 t, i32 n, void *v);

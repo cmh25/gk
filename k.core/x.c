@@ -7,6 +7,185 @@
 #include <math.h>
 #include <ctype.h>
 
+/*
+ * Compile with -DUSE_BUDDY to enable buddy allocator
+ * Default: use system malloc/free
+ */
+
+#ifdef USE_BUDDY
+
+#ifndef _WIN32
+#include <sys/mman.h>
+#endif
+
+/*
+ * Buddy allocator: power-of-2 blocks starting at 32 bytes
+ * Level 0 = 32B, level 1 = 64B, level 2 = 128B, ... level 24 = 512MB
+ * Stores level in first 8 bytes, returns pointer offset by 8
+ * Level 31 = marker for system malloc fallback
+ */
+#define BUDDY_MIN 32UL
+#define BUDDY_LEVELS 21              /* max 32MB per allocation */
+#define BUDDY_SYS 31
+#define BUDDY_ARENA_SIZE (1L << 30)  /* 1GB total pool */
+
+static uint64_t buddy_fl[BUDDY_LEVELS];  /* freelists */
+static char *buddy_arena = NULL;
+static size_t buddy_used = 0;
+
+/* Compute level from size (including 8-byte header) */
+static inline uint32_t buddy_level(size_t s) {
+  size_t sz = s + 8;
+  uint32_t lv = 0;
+  while(((size_t)BUDDY_MIN << lv) < sz && lv < BUDDY_LEVELS - 1) lv++;
+  return lv;
+}
+
+/* Allocate from level lv */
+static uint64_t buddy_alloc(uint32_t lv) {
+  uint64_t x;
+
+  /* Check freelist */
+  if(buddy_fl[lv]) {
+    x = buddy_fl[lv];
+    buddy_fl[lv] = *(uint64_t*)x;
+    return x;
+  }
+
+  /* Try splitting from higher level */
+  if(lv + 1 < BUDDY_LEVELS) {
+    uint64_t block = buddy_alloc(lv + 1);
+    if(block) {
+      /* Put first half on freelist, return second half */
+      *(uint64_t*)block = buddy_fl[lv];
+      buddy_fl[lv] = block;
+      return block + (BUDDY_MIN << lv);
+    }
+  }
+
+  /* Allocate from arena */
+  if(!buddy_arena) {
+#ifdef _WIN32
+    buddy_arena = (char*)malloc(BUDDY_ARENA_SIZE);
+#else
+    buddy_arena = (char*)mmap(NULL, BUDDY_ARENA_SIZE,
+                              PROT_READ|PROT_WRITE,
+                              MAP_PRIVATE|MAP_ANONYMOUS, -1, 0);
+    if(buddy_arena == MAP_FAILED) buddy_arena = NULL;
+#endif
+    buddy_used = 0;
+  }
+
+  size_t sz = BUDDY_MIN << lv;
+  if(buddy_arena && buddy_used + sz <= BUDDY_ARENA_SIZE) {
+    x = (uint64_t)(buddy_arena + buddy_used);
+    buddy_used += sz;
+    return x;
+  }
+
+  return 0;  /* Out of arena memory */
+}
+
+/* Free to level lv */
+static inline void buddy_free(uint32_t lv, uint64_t x) {
+  *(uint64_t*)x = buddy_fl[lv];
+  buddy_fl[lv] = x;
+}
+
+void* xmalloc(size_t s) {
+  if(!s) s = 1;
+
+  uint32_t lv = buddy_level(s);
+
+  /* Large allocations go to system malloc */
+  if(lv >= BUDDY_LEVELS) {
+    void *p = malloc(s + 8);
+    if(!p) {
+      printf("error: xmalloc(): memory allocation failed\n");
+      exit(1);
+    }
+    *(uint32_t*)p = BUDDY_SYS;
+    return (char*)p + 8;
+  }
+
+  uint64_t block = buddy_alloc(lv);
+  if(!block) {
+    /* Fallback to system malloc */
+    void *p = malloc(s + 8);
+    if(!p) {
+      printf("error: xmalloc(): memory allocation failed\n");
+      exit(1);
+    }
+    *(uint32_t*)p = BUDDY_SYS;
+    return (char*)p + 8;
+  }
+
+  *(uint32_t*)block = lv;
+  return (void*)(block + 8);
+}
+
+void xfree(void *p) {
+  if(!p) return;
+
+  uint64_t base = (uint64_t)p - 8;
+  uint32_t lv = *(uint32_t*)base;
+
+  if(lv == BUDDY_SYS) {
+    free((void*)base);
+    return;
+  }
+
+  if(lv < BUDDY_LEVELS) {
+    buddy_free(lv, base);
+  }
+  /* else: corrupted or invalid - ignore */
+}
+
+void* xcalloc(size_t n, size_t s) {
+  size_t sz = n * s;
+  void *p = xmalloc(sz);
+  memset(p, 0, sz);
+  return p;
+}
+
+void* xrealloc(void *p, size_t s) {
+  if(!p) return xmalloc(s);
+  if(!s) { xfree(p); return xmalloc(1); }
+
+  uint64_t base = (uint64_t)p - 8;
+  uint32_t old_lv = *(uint32_t*)base;
+
+  if(old_lv == BUDDY_SYS) {
+    /* System malloc - use system realloc */
+    void *p2 = realloc((void*)base, s + 8);
+    if(!p2) {
+      printf("error: xrealloc(): memory allocation failed\n");
+      exit(1);
+    }
+    *(uint32_t*)p2 = BUDDY_SYS;
+    return (char*)p2 + 8;
+  }
+
+  if(old_lv >= BUDDY_LEVELS) {
+    /* Corrupted - treat as new alloc */
+    return xmalloc(s);
+  }
+
+  size_t old_sz = (BUDDY_MIN << old_lv) - 8;
+  uint32_t new_lv = buddy_level(s);
+
+  /* Same bucket - no realloc needed */
+  if(new_lv == old_lv) return p;
+
+  /* Different bucket - alloc, copy, free */
+  void *p2 = xmalloc(s);
+  memcpy(p2, p, old_sz < s ? old_sz : s);
+  xfree(p);
+  return p2;
+}
+
+#else /* !USE_BUDDY - use system malloc */
+
 void* xmalloc(size_t s) {
   void *p=0;
   if(!(p=malloc(s))) {
@@ -38,27 +217,25 @@ void* xrealloc(void *p, size_t s) {
   return p2;
 }
 
+#endif /* USE_BUDDY */
+
 void* xstrdup(const char *s) {
-  void *p=0;
-  size_t n=1+strlen(s);
-  if(!(p=xmalloc(n))) {
-    printf("error: xstrdup(): memory allocation failed\n");
-    exit(1);
-  }
-  memcpy(p,s,n);
+  size_t n = 1 + strlen(s);
+  void *p = xmalloc(n);
+  memcpy(p, s, n);
   return p;
 }
 
 void* xstrndup(const char *s, size_t n) {
-  void *p=xcalloc(n+1,1);
-  memcpy(p,s,strnlen(s,n));
+  void *p = xcalloc(n + 1, 1);
+  memcpy(p, s, strnlen(s, n));
   return p;
 }
 
 void* xmemdup(const void *s, size_t n) {
-    void *p=xmalloc(n);
-    memcpy(p,s,n);
-    return p;
+  void *p = xmalloc(n);
+  memcpy(p, s, n);
+  return p;
 }
 
 int xatoi(char *s) {
