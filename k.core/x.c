@@ -34,10 +34,13 @@ static char *buddy_arena;
 static size_t buddy_used;
 
 /* compute level from size (including 8-byte header) */
+/* returns BUDDY_LEVELS if size exceeds max buddy allocation */
 static inline uint32_t buddy_level(size_t s) {
   size_t sz = s + 8;
   uint32_t lv = 0;
   while(((size_t)BUDDY_MIN << lv) < sz && lv < BUDDY_LEVELS - 1) lv++;
+  /* check if size actually fits in this level */
+  if(((size_t)BUDDY_MIN << lv) < sz) return BUDDY_LEVELS;
   return lv;
 }
 

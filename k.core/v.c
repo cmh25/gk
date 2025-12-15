@@ -1449,12 +1449,12 @@ K group(K x) {
       if(!p) {
         p=tn(1,hm[h]);
         ht[h]=p;
-        np=0;
+        hm[h]=0;
         if(rs==ri++){rs<<=1;vr=prk=xrealloc(prk,sizeof(K)*rs);}
         prk[nr++]=p;
       }
       pp=(i32*)px(p);
-      pp[np++]=i;
+      pp[hm[h]++]=i;
     }
     xfree(ht); xfree(hm); xfree(hk);
     break;
@@ -1481,11 +1481,11 @@ K group(K x) {
            ht[*n]=p;
            pp=(i32*)px(p);
            pp[0]=i;
-           np=1;
+           hm[*n]=1;
            if(rs==ri++){rs<<=1;vr=prk=xrealloc(prk,sizeof(K)*rs);}
            prk[nr++]=p;
          }
-         else { pp=(i32*)px(p); pp[np++]=i; }
+         else { pp=(i32*)px(p); pp[hm[*n]++]=i; }
       }
       xfree(hm);
       xfree(ht);
@@ -1515,12 +1515,12 @@ K group(K x) {
          if(!p){
            p=tn(1,hm[h]);
            ht[h]=p;
-           np=0;
+           hm[h]=0;
            if(rs==ri++){rs<<=1;vr=prk=xrealloc(prk,sizeof(K)*rs);}
            prk[nr++]=p;
          }
          pp=(i32*)px(p);
-         pp[np++]=i;
+         pp[hm[h]++]=i;
       }
       xfree(ht); xfree(hm); xfree(hi);
     }
@@ -1549,12 +1549,12 @@ K group(K x) {
        if(!p){
          p=tn(1,hm[h]);
          ht[h]=p;
-         np=0;
+         hm[h]=0;
          if(rs==ri++){rs<<=1;vr=prk=xrealloc(prk,sizeof(K)*rs);}
          prk[nr++]=p;
        }
        pp=(i32*)px(p);
-       pp[np++]=i;
+       pp[hm[h]++]=i;
     }
     xfree(ht); xfree(hm); xfree(hf);
     break;
@@ -1568,8 +1568,8 @@ K group(K x) {
     for(i=0;i<nx;i++) {
        c++;
        p=ht[*c];
-       if(!p){ p=tn(1,hm[*c]); ht[*c]=p; pp=(i32*)px(p); pp[0]=i; np=1; prk[nr++]=p; }
-       else { pp=(i32*)px(p); pp[np++]=i; }
+       if(!p){ p=tn(1,hm[*c]); ht[*c]=p; pp=(i32*)px(p); pp[0]=i; hm[*c]=1; prk[nr++]=p; }
+       else { pp=(i32*)px(p); pp[hm[*c]++]=i; }
     }
     xfree(hm); xfree(ht);
     break;
@@ -1597,12 +1597,12 @@ K group(K x) {
       if(!p) {
         p=tn(1,hm[h]);
         ht[h]=p;
-        np=0;
+        hm[h]=0;
         if(rs==ri++){rs<<=1;vr=prk=xrealloc(prk,sizeof(K)*rs);}
         prk[nr++]=p;
       }
       pp=(i32*)px(p);
-      pp[np++]=i;
+      pp[hm[h]++]=i;
     }
     xfree(ht); xfree(hm); xfree(hs);
     break;
