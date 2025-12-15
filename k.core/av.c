@@ -62,7 +62,7 @@ cleanup:
 K overd(i32 f, K x) {
   K r=0,*pxk,e,p;
   char *pxc,**pxs,*P=":+-*%&|<>=~.!@?#_^,$'/\\",ff,Tx;
-  i32 si,*pxi;
+  i32 *pxi;
   double sf,*pxf;
   if(f<0||f>22) return KERR_TYPE;
   Tx=tx; if(!Tx&&s(x)) { if(!vstcb(x)) return KERR_TYPE; Tx=15; }
@@ -98,7 +98,7 @@ K overd(i32 f, K x) {
     switch(Tx) {
     case  1: r=k_(x); break;
     case  2: r=k_(x); break;
-    case -1: PXI; si=0; i(nx,si+=*pxi++); r=t(1,(u32)si); break;
+    case -1: PXI; { u32 su=0; i(nx,su+=(u32)*pxi++); r=t(1,su); } break;
     case -2: PXF; sf=0; i(nx,sf+=*pxf++); r=t2(sf); break;
     case  0: PXK; r=k_(*pxk++); i1(nx,p=ki(f,r,x,-1,i);_k(r);r=0;EC(p);r=p) break;
     default: return KERR_TYPE;
@@ -107,7 +107,7 @@ K overd(i32 f, K x) {
     switch(Tx) {
     case  1: r=k_(x); break;
     case  2: r=k_(x); break;
-    case -1: PXI; si=1; i(nx,si*=*pxi++); r=t(1,(u32)si); break;
+    case -1: PXI; { u32 su=1; i(nx,su*=(u32)*pxi++); r=t(1,su); } break;
     case -2: PXF; sf=1; i(nx,sf*=*pxf++); r=t2(sf); break;
     case  0: PXK; r=k_(*pxk++); i1(nx,p=ki(f,r,x,-1,i);_k(r);r=0;EC(p);r=p) break;
     default: return KERR_TYPE;
@@ -133,7 +133,7 @@ cleanup:
 K scand(i32 f, K x) {
   K r=0,*prk,*pxk,e,p;
   char *pxc,**pxs,*P=":+-*%&|<>=~.!@?#_^,$'/\\",ff,Tx;
-  i32 si,*pri,*pxi;
+  i32 *pri,*pxi;
   double sf,*prf,*pxf;
   if(f<0||f>22) return KERR_TYPE;
   Tx=tx; if(!Tx&&s(x)) { if(!vstcb(x)) return KERR_TYPE; Tx=15; }
@@ -156,7 +156,7 @@ K scand(i32 f, K x) {
   case 1:
     switch(Tx) {
     case  1: case 2: r=k_(x); break;
-    case -1: PRI(nx); PXI; si=0; i(nx,si+=*pxi++; *pri++=si); break;
+    case -1: PRI(nx); PXI; { u32 su=0; i(nx,su+=(u32)*pxi++; *pri++=(i32)su); } break;
     case -2: PRF(nx); PXF; sf=0; i(nx,sf+=*pxf++; *prf++=sf); break;
     case  0: PRK(nx); PXK; *prk++=p=k_(*pxk++); i1(nx,p=ki(f,p,x,-1,i);EC(p);*prk++=p) break;
     default: return KERR_TYPE;
@@ -164,7 +164,7 @@ K scand(i32 f, K x) {
   case 3:
     switch(Tx) {
     case  1: case 2: r=k_(x); break;
-    case -1: PRI(nx); PXI; si=1; i(nx,si*=*pxi++; *pri++=si); break;
+    case -1: PRI(nx); PXI; { u32 su=1; i(nx,su*=(u32)*pxi++; *pri++=(i32)su); } break;
     case -2: PRF(nx); PXF; sf=1.0; i(nx,sf*=*pxf++; *prf++=sf); break;
     case  0: PRK(nx); PXK; *prk++=p=k_(*pxk++); i1(nx,p=ki(f,p,x,-1,i);EC(p);*prk++=p) break;
     default: return KERR_TYPE;

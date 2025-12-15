@@ -2402,7 +2402,7 @@ u64 khashcb(K x) {
   case 0x81: r=r+khash(x&(K)0xff00ffffffffffff); break;
   case 0x82: r=r+khash(x&(K)0xff00ffffffffffff); break;
   case 0x85: r=r+khash(x&(K)0xff00ffffffffffff); break;
-  case 0xc0: r=r+(u64)ck(x)*2654435761; break;
+  case 0xc0: r=r+(u64)ck(x)*2654435761U; break;
   case 0xc1: r=r+khash(x&(K)0xff00ffffffffffff); break;
   case 0xc2: r=r+khash(x&(K)0xff00ffffffffffff); break;
   case 0xc3: PXK; r=r+khash(pxk[0]); r^=r+khash(pxk[3]); break;

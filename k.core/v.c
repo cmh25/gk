@@ -45,9 +45,9 @@ K F(K a, K x) { \
   switch(ta) { \
   case 1: \
     switch(tx) { \
-    case  1: r=t(1,(u32)(ik(a) O ik(x))); break; \
+    case  1: r=t(1,(u32)ik(a) O (u32)ik(x)); break; \
     case  2: f=fi(ik(a)) O fk(x); r=t2(f); break; \
-    case -1: PRI(nx); PXI; i(nx,*pri++=ik(a) O *pxi++) break; \
+    case -1: PRI(nx); PXI; i(nx,*pri++=(i32)((u32)ik(a) O (u32)*pxi++)) break; \
     case -2: PRF(nx); PXF; i(nx,*prf++=fi(ik(a)) O *pxf++) break; \
     case  0: r=irecur2(F,a,x); break; \
     default: return KERR_TYPE; \
@@ -63,9 +63,9 @@ K F(K a, K x) { \
     } break; \
   case -1: \
     switch(tx) { \
-    case  1: PRI(na); PAI; i(na,*pri++=*pai++ O ik(x)) break; \
+    case  1: PRI(na); PAI; i(na,*pri++=(i32)((u32)*pai++ O (u32)ik(x))) break; \
     case  2: PRF(na); PAI; f=fk(x); i(na,*prf++=fi(*pai++) O f) break; \
-    case -1: PRI(nx); PAI; PXI; i(nx,*pri++=*pai++ O *pxi++) break; \
+    case -1: PRI(nx); PAI; PXI; i(nx,*pri++=(i32)((u32)*pai++ O (u32)*pxi++)) break; \
     case -2: PRF(nx); PAI; PXF; i(nx,*prf++=fi(*pai++) O *pxf++) break; \
     case  0: r=each(I,a,x); break; \
     default: return KERR_TYPE; \
@@ -1491,7 +1491,7 @@ K group(K x) {
       xfree(ht);
     }
     else {
-      m=max-min+1;
+      m=(i64)max-(i64)min+1;
       if(!m) m=2; /* handle ?0I 0N */
       if(nx<m) m=nx;
       w=1; while(w<=m) w<<=1; q=w-1;
@@ -1501,7 +1501,7 @@ K group(K x) {
       n=pxi;n--;
       for(i=0;i<nx;i++) {
          n++;
-         h=(*n*2654435761)&q;
+         h=((u32)*n*2654435761U)&q;
          if(*n) while(!h || (hi[h] && hi[h]!=*n)) h=(h+1)&q; /* h=0 iff *n=0 */
          hi[h]=*n;
          hm[h]++;
@@ -1509,7 +1509,7 @@ K group(K x) {
       n=pxi;n--;
       for(i=0;i<nx;i++) {
          n++;
-         h=(*n*2654435761)&q;
+         h=((u32)*n*2654435761U)&q;
          if(*n) while(!h || (hi[h] && hi[h]!=*n)) h=(h+1)&q;
          p=ht[h];
          if(!p){
@@ -1534,16 +1534,16 @@ K group(K x) {
     hf=xcalloc(w,sizeof(double));
     f=pxf;f--;
     for(i=0;i<nx;i++) {
-       f++;
-       h=((u64)*f*2654435761)&q;
+       u64 bits; f++;
+       memcpy(&bits,f,8); h=(bits*2654435761U)&q;
        if(*f) while(!h || (hf[h] && cmpff(hf[h],*f))) h=(h+1)&q; /* h=0 iff *f=0 */
        hf[h]=*f;
        hm[h]++;
     }
     f=pxf;f--;
     for(i=0;i<nx;i++) {
-       f++;
-       h=((u64)*f*2654435761)&q;
+       u64 bits; f++;
+       memcpy(&bits,f,8); h=(bits*2654435761U)&q;
        if(*f) while(!h || (hf[h] && cmpff(hf[h],*f))) h=(h+1)&q; /* h=0 iff *f=0 */
        p=ht[h];
        if(!p){
@@ -1749,7 +1749,7 @@ K unique(K x) {
       xfree(hi);
     }
     else {
-      m=max-min+1;
+      m=(i64)max-(i64)min+1;
       m+=3; /* handle 0I 0N -0I */
       if(nx<m) m=nx;
       w=1; while(w<=m) w<<=1; q=w-1;
@@ -1758,7 +1758,7 @@ K unique(K x) {
       for(i=0,j=0;i<nx;i++) {
         pxi++;
         if(!*pxi) { if(!z) { pri[j++]=0; z=1; } continue; }
-        h=(*pxi*2654435761)&q;
+        h=((u32)*pxi*2654435761U)&q;
         while(hi[h] && hi[h]!=*pxi) h=(h+1)&q;
         if(hi[h]!=*pxi) hi[h]=pri[j++]=*pxi;
         //if(++t==m) break;
@@ -1774,9 +1774,9 @@ K unique(K x) {
     hf=xcalloc(w,sizeof(double));
     pxf--;
     for(i=0;i<nx;i++) {
-      pxf++;
+      u64 bits; pxf++;
       if(!*pxf) { if(!z) { prf[j++]=0;z=1; } continue; }
-      h=((u32)*pxf*2654435761)&q;
+      memcpy(&bits,pxf,8); h=(bits*2654435761U)&q;
       while(hf[h]!=0 && cmpff(hf[h],*pxf)) h=(h+1)&q;
       if(cmpff(hf[h],*pxf)) hf[h]=prf[j++]=*pxf;
     }
@@ -1818,13 +1818,19 @@ K count(K x) {
 K floor__(K x) {
   K r=0;
   i32 *pri;
-  double *pxf;
+  double f,*pxf;
   if(s(x)) return KERR_TYPE;
   switch(tx) {
   case  1: r=x; break;
-  case  2: r=t(1,(u32)((i32)floor(fk(x)))); break;
+  case  2:
+    f=floor(fk(x));
+    if(f!=f||f>=INT32_MAX||f<INT32_MIN) r=t(1,(u32)(f>=INT32_MAX?INT32_MAX:f<INT32_MIN?INT32_MIN:INT32_MIN));
+    else r=t(1,(u32)((i32)f));
+    break;
   case -1: r=k_(x); break;
-  case -2: PRI(nx); PXF; i(nx,*pri++=floor(*pxf++)) break;
+  case -2: PRI(nx); PXF;
+    i(nx,f=floor(*pxf++);*pri++=(f!=f||f>=INT32_MAX||f<INT32_MIN)?(f>=INT32_MAX?INT32_MAX:INT32_MIN):(i32)f)
+    break;
   case  0: r=irecur1(floor__,x); break;
   default: return KERR_TYPE;
   }

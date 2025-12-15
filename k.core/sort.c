@@ -8,7 +8,7 @@
 static i32 *L,*M;
 
 i32* csortg(i32 *g, i32 *a, u32 n, i32 min, i32 max, i32 down) {
-  i32 i=0,mm1=max-min+1;
+  i32 i=0,mm1=(i32)((i64)max-(i64)min+1);
   u32 k;
   i32 *count=xcalloc(mm1,sizeof(i32));
   for(k=0;k<n;k++) count[a[k]-min]++;
@@ -30,7 +30,7 @@ i32* rcsortg(i32 *g, i32 *a, u32 n, i32 down) {
     max = max < a[k] ? a[k] : max;
     min = min > a[k] ? a[k] : min;
   }
-  mm1=max-min+1;
+  mm1=(i32)((i64)max-(i64)min+1);
 
   /* if we have INT32_MIN and INT32_MAX, can't radixsort */
   if(mm1<=0) { i(n,g[i]=i); msortg1(g,a,0,n-1,down); return g; }
@@ -53,7 +53,7 @@ i32* rcsortg(i32 *g, i32 *a, u32 n, i32 down) {
     max = max < as ? as : max;
     min = min > as ? as : min;
   }
-  mm1=max-min+1;
+  mm1=(i32)((i64)max-(i64)min+1);
   count=xcalloc(mm1+1,sizeof(i32));
   for(k=0;k<n;k++) count[HI16S(a[k])-min]++;
   if(down) for(i=mm1-1;i>=0;i--) count[i] += count[i+1];

@@ -400,10 +400,10 @@ K kresize(K x, i32 n) {
 
 extern u64 khashcb(K x);
 u64 khash(K x) {
-  u64 r=2654435761;
+  u64 r=2654435761,bits;
   K *pxk;
   i32 *pxi;
-  double *pxf;
+  double *pxf,f;
   char *pxc,**pxs;
   static i32 d=0;
 #ifdef ASAN_ENABLED
@@ -413,9 +413,9 @@ u64 khash(K x) {
 #endif
   if(s(x)) { --d; return khashcb(x); }
   switch(tx) {
-  case  1: r=r+(u64)ik(x)*2654435761; break;
-  case  2: r=r+(u64)fk(x)*2654435761; break;
-  case  3: r=r+(u64)ck(x)*2654435761; break;
+  case  1: r=r+(u64)(u32)ik(x)*2654435761U; break;
+  case  2: f=fk(x); memcpy(&bits,&f,8); r=r+bits*2654435761U; break;
+  case  3: r=r+(u64)ck(x)*2654435761U; break;
   case  4: r=r+xfnv1a(sk(x),strlen(sk(x))); break;
   case  6: case 10: break;
   case  0: {
@@ -450,9 +450,9 @@ u64 khash(K x) {
     xfree(stack);
     break;
   }
-  case -1: PXI; i(nx,r^=r+(u64)pxi[i]*2654435761) break;
-  case -2: PXF; i(nx,r^=r+(u64)pxf[i]*2654435761) break;
-  case -3: PXC; i(nx,r^=r+(u64)pxc[i]*2654435761) break;
+  case -1: PXI; i(nx,r^=r+(u64)(u32)pxi[i]*2654435761U) break;
+  case -2: PXF; i(nx,memcpy(&bits,&pxf[i],8); r^=r+bits*2654435761U) break;
+  case -3: PXC; i(nx,r^=r+(u64)pxc[i]*2654435761U) break;
   case -4: PXS; i(nx,r^=r+xfnv1a(pxs[i],strlen(pxs[i]))) break;
   default:
     fprintf(stderr,"error: unsupported type in khash()\n");
