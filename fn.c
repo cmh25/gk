@@ -225,16 +225,19 @@ K fnd(K f) {
     case 11: /* .z.s */
       if(isalnum(*ff)) s=11;
       else if(*ff=='.') s=11;
+      else if(*ff=='}') s=2;
       else s=1;
       break;
     case 15: /* .z.s */
       if(isalnum(*ff)) s=15;
       else if(*ff=='.') s=15;
+      else if(*ff=='}') s=2;
       else s=5;
       break;
     case 16: /* .z.s */
       if(isalnum(*ff)) s=16;
       else if(*ff=='.') s=16;
+      else if(*ff=='}') s=2;
       else s=6;
       break;
     default: { r=KERR_PARSE; goto cleanup; }
