@@ -96,7 +96,7 @@ K formatcb(K x) {
 
 extern K dot0(K a,K x);
 K dotcb(K a,K x) {
-  K r=0,t,*pt;
+  K r=0,e,t,*pr,*pt,v,*pv,x2,*px;
   char **pxs,b[2];
   static i32 d=0;
   if(++d>maxr) { --d; return KERR_STACK; }
@@ -157,10 +157,30 @@ K dotcb(K a,K x) {
         t=r;
       }
       break;
-    case  0: r=dot0(a,x); break;
+    case  0:
+      px=px(x);
+      if(nx>=1 && (px[0]==null || px[0]==inull)) {
+        /* d[;i] - apply remaining indices to each value, return list */
+        v=dvals(a); pv=px(v);
+        u64 n=n(v);
+        r=tn(0,n); pr=px(r);
+        for(u64 j=0;j<n;j++) {
+          if(nx==1) pr[j]=k_(pv[j]);  /* d[;] -> copy values */
+          else if(nx==2) pr[j]=k(13,k_(pv[j]),k_(px[1]));  /* d[;i] -> value@i */
+          else {  /* d[;i;j;...] */
+            x2=k(16,t(1,1),k_(x));
+            if(E(x2)) { _k(v); --d; return x2; }
+            pr[j]=k(11,k_(pv[j]),x2);
+          }
+          if(E(pr[j])) { e=pr[j]; _k(r); _k(v); --d; return e; }
+        }
+        _k(v);
+      }
+      else r=dot0(a,x);
+      break;
     default: r=KERR_TYPE;
     }
-    { --d; return knorm(r); }
+    --d; return knorm(r);
   }
   else if(0xc3==s(a)||0xc4==s(a)) {
     switch(tx) {
