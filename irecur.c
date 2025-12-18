@@ -34,7 +34,9 @@ K irecur2(K(*ff)(K,K), K a, K x) {
   typedef struct { K r,a,x; size_t i; } sf;
   K r;
   i32 sm=32,sp=0;
-  if(!ta&&!tx&&!s(a)&&!s(x)&&na!=nx) return KERR_LENGTH;
+  static i32 d=0;
+  if(++d>maxr) { --d; return KERR_STACK; }
+  if(!ta&&!tx&&!s(a)&&!s(x)&&na!=nx) { --d; return KERR_LENGTH; }
   sf *stack=xmalloc(sizeof(sf)*sm);
   stack[sp++]=(sf){tn(0,IS0(a)?na:nx),a,x,0};
   while(sp) {
@@ -47,22 +49,26 @@ K irecur2(K(*ff)(K,K), K a, K x) {
       if(sp) ((K*)px(stack[sp-1].r))[stack[sp-1].i++]=knorm(r);
     }
     else {
-      K a_=a0?((K*)px(f->a))[f->i]:a;
-      K x_=x0?((K*)px(f->x))[f->i]:x;
+      K a_=a0?((K*)px(f->a))[f->i]:f->a;
+      K x_=x0?((K*)px(f->x))[f->i]:f->x;
       i32 a0_=IS0(a_), x0_=IS0(x_);
-      if(a0_||x0_) {
-        if(a0_&&x0_&&(n(a_)!=n(x_))) { while(sp--) _k(stack[sp].r); xfree(stack); return KERR_LENGTH; }
+      i32 av_=T(a_)<0, xv_=T(x_)<0;  // is vector?
+      // recurse for list+list, list+atom, atom+list; but NOT vector+list
+      if((a0_||x0_) && !((a0_&&xv_)||(x0_&&av_))) {
+        if(a0_&&x0_&&(n(a_)!=n(x_))) { while(sp--) _k(stack[sp].r); xfree(stack); --d; return KERR_LENGTH; }
         if(sp==sm) stack=xrealloc(stack,sizeof(sf)*(sm*=2));
         n=a0_?n(a_):n(x_);
         stack[sp++]=(sf){tn(0,n),a_,x_,0};
       }
       else {
+        // call ff for vector+list, list+vector, or no lists
         K r_=ff(a_,x_);
-        if(E(r_)) { while(sp--) _k(stack[sp].r); xfree(stack); return r_; }
+        if(E(r_)) { while(sp--) _k(stack[sp].r); xfree(stack); --d; return r_; }
         ((K*)px(f->r))[f->i++]=r_;
       }
     }
   }
   xfree(stack);
+  --d;
   return knorm(r);
 }
