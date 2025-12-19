@@ -187,8 +187,7 @@ K dotcb(K a,K x) {
     case  0: r=fne(k_(a),k_(x),0); break;
     case -1: case -2: case -3: case -4:
       t=kmix(x); if(E(t)) { --d; return t; }
-      r=dot0(a,t);
-      _k(t);
+      r=fne(k_(a),t,0);
       break;
     default: t=tn(0,1); pt=px(t); pt[0]=k_(x); r=fne(k_(a),t,0); break;
     }

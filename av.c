@@ -725,6 +725,7 @@ K avdo(K f, K a, K x, char *av) {
     }
     else {
       if(!x) { _k(f); r=kerror("type"); }
+      else if(0x81==s(x)&&nx!=(u32)ik(val(f))&&*av!='\'') { r=kerror("valence"); _k(f); _k(x); }
       else if(0xc3==s(f) || 0xc4==s(f)) {
         if(*av=='\'') {
           if(0x81==s(x)) r=eachparam7(f,x);

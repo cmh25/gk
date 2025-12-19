@@ -1242,6 +1242,16 @@ K pgreduce_(K x0, int *quiet) {
               else if(s(t)==0xc3 && !strcmp(favp,"\\")) { *pA++=scanmonadb(f,t,b,""); *quiet=0; }
               else { _k(f); _k(b); _k(t); *pA++=KERR_TYPE; break; }
             }
+            else if(!strcmp(favp,"'")&&0==ik(val(a))) {
+              K f=kcp(a); _k(a);
+              if(E(f)) { _k(b); *pA++=f; break; }
+              K *pf=px(f);
+              if(0xc3==s(f)) { _k(pf[3]); pf[3]=null; }
+              else if(0xc4==s(f)) { _k(pf[2]); pf[2]=null; }
+              char av2[256];
+              snprintf(av2,256,"%s%s",favp,av?av:"");
+              *pA++=avdo(f,0,b,av2);
+            }
             else if(0x45==s(b)) {
               pb=px(b);
               K b1=pb[1];

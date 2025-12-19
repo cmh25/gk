@@ -559,6 +559,7 @@ i32 kreserved(char *p) {
 K val(K x) {
   K r,g,*px;
   i32 n;
+  if(x<20) return 2;  /* primitive */
   switch(s(x)) {
   case 0xc0: r=t(1,2); break;
   case 0xc1: r=t(1,2); break;
