@@ -1381,7 +1381,7 @@ K pgreduce_(K x0, int *quiet) {
             if(!strcmp(pav1,"/")) *pA++=indexconvergeover(a,k_(pb[2]));
             else if(!strcmp(pav1,"\\")) *pA++=indexconvergescan(a,k_(pb[2]));
             else { _k(a); _k(b); *pA++=KERR_RANK; break; }
-          } 
+          }
           _k(b);
         }
         else if(0xc3==s(b)||0xc4==s(b)) {
@@ -2317,7 +2317,7 @@ static void r013(pgs *s) { /* plist > '[' elist ']' pz */
     return;
   }
   // [a]
-  if(a&&!b) { 
+  if(a&&!b) {
     if(a->t==3) {
       a->t=4;
       s->V[s->vi]=a;

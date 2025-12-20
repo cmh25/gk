@@ -534,7 +534,7 @@ static K draw(K a, K x) {
     } break;
   default: return KERR_TYPE;
   }
-  return r; 
+  return r;
 }
 K find(K a, K x) {
   K r=0,*pak;
@@ -714,7 +714,7 @@ static K take_(K a, K x) {
         sp--;
         continue;
       }
-  
+
       // non-leaf: push next sub box
       if(f->i<pa[f->d]) {
         if(f->d+1==na-1) {

@@ -736,14 +736,14 @@ static K fivecolon2(K a, K x) {
       int ioe=ferror(fp);
       fclose(fp);
       if(ioe) return ferr("",errno);
-      return KERR_LENGTH; 
+      return KERR_LENGTH;
     }
     if(h[0]!=2) { fclose(fp); return kerror("header"); }
     if(fread(&t,sizeof(int),1,fp)!=1) {
       int ioe=ferror(fp);
       fclose(fp);
       if(ioe) return ferr("",errno);
-      return KERR_LENGTH; 
+      return KERR_LENGTH;
     }
     if(t>0) { fclose(fp); return KERR_TYPE; }
     if(t!=tx) { fclose(fp); return KERR_TYPE; }
@@ -751,19 +751,19 @@ static K fivecolon2(K a, K x) {
       int ioe=ferror(fp);
       fclose(fp);
       if(ioe) return ferr("",errno);
-      return KERR_LENGTH; 
+      return KERR_LENGTH;
     }
     if(fread(&pad,sizeof(int),1,fp)!=1) {
       int ioe=ferror(fp);
       fclose(fp);
       if(ioe) return ferr("",errno);
-      return KERR_LENGTH; 
+      return KERR_LENGTH;
     }
     if(fread(&c,sizeof(u64),1,fp)!=1) {
       int ioe=ferror(fp);
       fclose(fp);
       if(ioe) return ferr("",errno);
-      return KERR_LENGTH; 
+      return KERR_LENGTH;
     }
     VSIZE((i64)c);
     p=bd_(x);

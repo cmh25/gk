@@ -206,7 +206,7 @@ LZW* lzwd(LZW *z) {
 
   size_t max_bits_from_n = z->n * 8;
   size_t total_bits = (z->i && z->i <= max_bits_from_n) ? z->i : max_bits_from_n;
-  
+
   while(k+(size_t)w<=total_bits) {
     j=bfr(z,k,w);
     if(j<0) goto corrupt;

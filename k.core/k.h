@@ -30,8 +30,8 @@ typedef struct {
 #define ta T(a)
 #define aa (ta>0)
 #define na n(a)
-#define nr n(r) 
-#define np n(p) 
+#define nr n(r)
+#define np n(p)
 #define vr ((ko*)(b(48)&r))->v
 #define i(b,z) {u64 n_=b;u64 i=0;while(i<n_){z;++i;}}
 #define j(b,z) {u64 n_=b;u64 j=0;while(j<n_){z;++j;}}

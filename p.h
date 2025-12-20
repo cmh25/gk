@@ -70,7 +70,7 @@ extern char *pfile;
 extern int gline,glinei,gline0,gline0i,fileline;
 extern char *glinep,*gline0p;
 
-pgs* pgnew(void);   
+pgs* pgnew(void);
 void pgfree(pgs *s);
 pn* pnnew(pgs *s, int t, K v, K n, int m, int f);
 pn* pnnewi(pgs *s, int t, K v, K n, int m, int f, int i, int line);

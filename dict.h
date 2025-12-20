@@ -3,8 +3,8 @@
 
 #include "k.h"
 
-#define nk n(k) 
-#define nv n(v) 
+#define nk n(k)
+#define nv n(v)
 #define DMAX 100
 
 K dnew(void);

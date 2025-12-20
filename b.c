@@ -1509,16 +1509,16 @@ K bz_(K x) {
   memcpy(&p->i,pxc,sizeof(size_t)); pxc+=sizeof(size_t);
   memcpy(&p->n,pxc,sizeof(size_t)); pxc+=sizeof(size_t);  // read it, but don't trust it
   memcpy(&p->c,pxc,sizeof(size_t)); pxc+=sizeof(size_t);
- 
+
   // derive the byte count from i (bits) and clamp to actual payload
   size_t n_from_i = (p->i + 7) >> 3;
   size_t payload  = nx - (1 + 3*sizeof(size_t));
   if (n_from_i > payload) { lzwfree(p); return KERR_LENGTH; }
   p->n = n = n_from_i;  // OVERRIDE stream 'n'
- 
+
   if (n > 32) p->b = xrealloc(p->b, n);
   memcpy(p->b, pxc, n);
- 
+
   size_t total_bits = n * 8;
   size_t max_codes  = total_bits / 9 + 8; // slack for width bumps
   if (p->c == 0 || p->c > max_codes) p->c = max_codes;
