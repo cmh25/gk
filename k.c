@@ -462,6 +462,14 @@ const char* kprint_(K x, char *s, char *e, char *s0) {
 void kprint(K x, char *s, char *e, char *s0) {
   mreset();
   const char *t=kprint_(x,s,e,s0);
+  size_t n=strlen(t);
+  size_t m=n/4096;
+  size_t i;
+  for(i=0;i<m;++i)  {
+    fwrite(t,1,4096,stdout);
+    t+=4096;
+    if(STOP) { STOP=0; fputs("\n",stdout); fprintf(stderr,"stop\n"); _k(x); return; }
+  }
   fputs(t,stdout);
   _k(x);
 }
