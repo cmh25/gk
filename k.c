@@ -829,7 +829,7 @@ K kamendi3(K d, K i, K f) {
   else { e=KERR_RANK; goto cleanup; }
 
   if(E(r)) return r;
-  else if(sym) { scope_set(gs,sym,r); _k(r); return sym; }
+  else if(sym) { K p=scope_set(gs,sym,r); if(E(p)) return p; _k(p); return sym; }
   else return r;
 cleanup:
   _k(d); _k(i); _k(f);
@@ -1362,7 +1362,7 @@ K kamendi4(K d, K i, K f, K y) {
   else r=kamendi4v(d,i,f,y);
 
   if(E(r)) return r;
-  else if(sym) { scope_set(gs,sym,r); _k(r); return sym; }
+  else if(sym) { K p=scope_set(gs,sym,r); if(E(p)) return p; _k(p); return sym; }
   else return r;
 cleanup:
   _k(d); _k(i); _k(f); _k(y);
@@ -1798,7 +1798,7 @@ K kamend3(K d, K i, K f) {
 
   if(E(r)) return r;
   else if(sym && kt) { _k(r); return sym; }
-  else if(sym) { scope_set(gs,sym,r); _k(r); return sym; }
+  else if(sym) { K p=scope_set(gs,sym,r); if(E(p)) return p; _k(p); return sym; }
   else return r;
 cleanup:
   _k(d); _k(i); _k(f);
@@ -2296,7 +2296,7 @@ K kamend4(K d, K i, K f, K y) {
 
   if(E(r)) return r;
   else if(sym && kt) { _k(r); return sym; }
-  else if(sym) { scope_set(gs,sym,r); _k(r); return sym; }
+  else if(sym) { K p=scope_set(gs,sym,r); if(E(p)) return p; _k(p); return sym; }
   else return r;
 cleanup:
   _k(d); _k(i); _k(f); _k(y);

@@ -355,9 +355,9 @@ static K assign(K d, K i, K y) {
   if(E(r)||EXIT) { _k(y); return r; }
   else {
     if(v) p=scope_set(rs,v,r);
-    _k(r);
-    if(p) { _k(y); return p; }
-    return knorm(y);
+    if(E(p)) { _k(y); return p; }  /* r already freed by scope_set */
+    _k(p);  /* free the stored array ref - we return the assigned value */
+    return y;  /* return the assigned value, not the array */
   }
 
 cleanup:
@@ -664,8 +664,9 @@ K pgreduce_(K x0, int *quiet) {
         b=*--pA;
         if(0x40==s(b)&&i+1<nx&&64==ik(px[i+1])&&pA==A) { /* f:draw */
           ++i;
-          if((p=scope_set(cs,b,v))) { _k(v); *pA++=p; }
-          else { *pA++=v; *quiet=1; }
+          p=scope_set(cs,b,k_(v));  /* add ref since v is borrowed from parse tree */
+          if(E(p)) { *pA++=p; }
+          else { *pA++=p; *quiet=1; }
           break;
         }
         if(s(b)) { b=reduce(b); if(E(b)||EXIT) { _k(v); *pA++=b; break; } }
@@ -678,8 +679,11 @@ K pgreduce_(K x0, int *quiet) {
             if(!VST(b)) { _k(v); _k(b); *pA++=KERR_TYPE; break; }
             t=builtin(v,0,b);
             if(E(t)||EXIT) *pA++=t;
-            else if((p=scope_set(cs,a,t))) { _k(t); *pA++=p; }
-            else { *pA++=t; *quiet=1; }
+            else {
+              p=scope_set(cs,a,t);
+              if(E(p)) { *pA++=p; }  /* t already freed by scope_set */
+              else { *pA++=p; *quiet=1; }
+            }
             break;
           }
           if(s(a)) { a=reduce(a); if(E(a)||EXIT) { _k(v); _k(b); *pA++=a; break; } }
@@ -702,8 +706,9 @@ K pgreduce_(K x0, int *quiet) {
         a=*--pA;
         if(0x40==s(a)&&i+1<nx&&64==ik(px[i+1])&&pA==A) { /* f:+ */
           ++i;
-          if((p=scope_set(cs,a,v))) { _k(a); *pA++=p; }
-          else { *pA++=v; *quiet=1; }
+          p=scope_set(cs,a,k_(v));  /* add ref since v is borrowed from parse tree */
+          if(E(p)) { _k(a); *pA++=p; }
+          else { *pA++=p; *quiet=1; }
           break;
         }
         if(s(a)) { a=reduce(a); if(E(a)||EXIT) { *pA++=a; break; } }
@@ -757,8 +762,9 @@ K pgreduce_(K x0, int *quiet) {
         if(s(b)) { b=reduce(b); if(E(b)||EXIT) { _k(a); *pA++=b; break; } }
         if(0x40!=s(a)) { _k(a); _k(b); *pA++=KERR_VALUE; break; }
         if(!VST(b)) { _k(b); *pA++=KERR_PARSE; break; }
-        if((p=scope_set(gs,a,b))) { _k(a); _k(b); *pA++=p; }
-        else { *pA++=b; *quiet=1; }
+        p=scope_set(gs,a,b);
+        if(E(p)) { _k(a); *pA++=p; }  /* b already freed by scope_set */
+        else { *pA++=p; *quiet=1; }
         break;
       case 0xcf: /* a+: */
         if(pA<=A+1) { k_(v); break; }
@@ -769,8 +775,9 @@ K pgreduce_(K x0, int *quiet) {
         if(E(a_)) { *pA++=a_; break; }
         t=k(strchr(P,ik(v))-P,0,a_);
         if(E(t)) { *pA++=t; break; };
-        if((p=scope_set(cs,a,t))) { _k(t); *pA++=p; }
-        else { *pA++=t; *quiet=1; }
+        p=scope_set(cs,a,t);
+        if(E(p)) { *pA++=p; }  /* t already freed by scope_set */
+        else { *pA++=p; *quiet=1; }
         break;
       case 0xce: /* a+:1 */
         if(pA<=A+2) {
@@ -789,8 +796,9 @@ K pgreduce_(K x0, int *quiet) {
           if(E(a_)) { _k(b); *pA++=a_; break; }
           t=k(strchr(P,ik(v))-P,a_,b);
           if(E(t)||EXIT) { *pA++=t; break; };
-          if((p=scope_set(rs,a,t))) { _k(t); *pA++=p; }
-          else { *pA++=t; *quiet=1; }
+          p=scope_set(rs,a,t);
+          if(E(p)) { *pA++=p; }  /* t already freed by scope_set */
+          else { *pA++=p; *quiet=1; }
         }
         else if(0x44==s(a)) {
           if(s(b)) { b=reduce(b); if(E(b)||EXIT) { _k(a); *pA++=b; break; } }
@@ -831,8 +839,11 @@ K pgreduce_(K x0, int *quiet) {
           }
           K r=kamend4(a_,i_,0,k_(t));
           if(E(r)) { _k(t); *pA++=r; }
-          else if((p=scope_set(rs,pa[0],r))) { _k(r); _k(t); *pA++=p; }
-          else { _k(r); *pA++=t; *quiet=1; }
+          else {
+            p=scope_set(rs,pa[0],r);
+            if(E(p)) { _k(t); *pA++=p; }  /* r already freed by scope_set */
+            else { _k(p); *pA++=t; *quiet=1; }  /* return the computed value t, not the dict */
+          }
         }
         else { _k(a); _k(b); *pA++=KERR_TYPE; break; }
         break;
@@ -846,8 +857,9 @@ K pgreduce_(K x0, int *quiet) {
         if(0x40==s(b)&&i+1<nx&&64==ik(px[i+1])) {
           if(pA<=A) { /* b:+' */
             ++i;
-            if((p=scope_set(cs,b,v))) *pA++=p;
-            else { *pA++=k_(b); *quiet=1; }
+            p=scope_set(cs,b,k_(v));  /* add ref since v is borrowed from parse tree */
+            if(E(p)) *pA++=p;
+            else { *pA++=p; *quiet=1; }
           }
           else { /* +'b */
             if(s(b)) { b=reduce(b); if(E(b)||EXIT) { *pA++=b; break; } }
@@ -898,8 +910,9 @@ K pgreduce_(K x0, int *quiet) {
           b=*--pA;
           if(0x40==s(b)&&i+1<nx&&64==ik(px[i+1])&&pA==A) { /* f:gtime */
             ++i;
-            if((p=scope_set(cs,b,f))) { _k(f); *pA++=p; }
-            else { *pA++=f; *quiet=1; }
+            p=scope_set(cs,b,f);
+            if(E(p)) { *pA++=p; }  /* f already freed by scope_set */
+            else { *pA++=p; *quiet=1; }
             break;
           }
           if(0x40==s(b)) { b=r40(b); if(E(b)||EXIT) { _k(f); *pA++=b; break; } }
@@ -942,8 +955,11 @@ K pgreduce_(K x0, int *quiet) {
                 t=fne(f,k_(xx),0);
                 _k(b); --paramsi;
                 if(E(t)||EXIT) *pA++=t;
-                else if((p=scope_set(cs,a,t))) { _k(t); *pA++=p; }
-                else { *pA++=t; *quiet=1; }
+                else {
+                  p=scope_set(cs,a,t);
+                  if(E(p)) { *pA++=p; }  /* t already freed by scope_set */
+                  else { *pA++=p; *quiet=1; }
+                }
                 break;
               }
               if(s(a)) { a=reduce(a); if(E(a)||EXIT) { _k(f); _k(b); *pA++=a; break; } }
@@ -987,8 +1003,9 @@ K pgreduce_(K x0, int *quiet) {
       }
       if(0x40==s(a)&&i+1<nx&&64==ik(px[i+1])&&pA==A) { /* f:+ */
         ++i;
-        if((p=scope_set(cs,a,v))) { _k(a); *pA++=p; }
-        else { *pA++=a; *quiet=1; }
+        p=scope_set(cs,a,k_(v));  /* add ref since v is borrowed from parse tree */
+        if(E(p)) { _k(a); *pA++=p; }
+        else { *pA++=p; *quiet=1; }
       }
       else {
         if(s(a)) {
@@ -1045,8 +1062,9 @@ K pgreduce_(K x0, int *quiet) {
               rs=cs;
             }
           }
-          if((p=scope_set(rs,a,b))) { _k(a); _k(b); *pA++=p; }
-          else { *pA++=b; *quiet=1; }
+          p=scope_set(rs,a,b);
+          if(E(p)) { _k(a); *pA++=p; }  /* b already freed by scope_set */
+          else { *pA++=p; *quiet=1; }
         }
         else if(0x44==s(a)) {
           if(0x44==s(b)) { b=r44(b); if(E(b)||EXIT) { _k(a); *pA++=b; break; } }
@@ -1133,8 +1151,9 @@ K pgreduce_(K x0, int *quiet) {
             ++i;
             K d0=tn(0,2); K *pd0=px(d0);
             pd0[0]=a; pd0[1]=b;
-            if((p=scope_set(cs,t,st(0xd0,d0)))) { _k(d0); *pA++=p; }
-            else { *pA++=d0; *quiet=1; }
+            p=scope_set(cs,t,st(0xd0,d0));
+            if(E(p)) { *pA++=p; }  /* st(0xd0,d0) already freed by scope_set */
+            else { *pA++=p; *quiet=1; }
           }
           else {
             /* primitive do/while */

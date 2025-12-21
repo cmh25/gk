@@ -256,48 +256,57 @@ static K scope_set_local(K s, int n, K v) {
   pv=px(pd[1]);
   _k(pv[n]);
   pv[n]=k_(v);
-  return 0;
+  return v;
 }
+
+/*
+ - consumes v (caller transfers ownership)
+ - returns p (the stored value, caller owns one reference)
+ - on error, v is freed and error is returned
+ */
 static K scope_set_(K s, char *n, K v) {
   K d,e=0,m,*psu,w;
   char *rp,nn[256],*t,*ss,*u;
   K es=s,*pes;
   ko *kd;
   int copy=0, gcopy=0;
-  if(strlen(n)>255) return KERR_LENGTH;
+  if(strlen(n)>255) { _k(v); return KERR_LENGTH; }
 
   /* clear global cache on any global set */
   if(s == gs) gcache_clear();
   psu=px(s);
-  if(0x80==s(v)&&(s==gs||s==ks)) { // d.c:.k
+  if(0x80==s(v)&&(s==gs||s==ks)) { // d.c:.k - copy shared dicts when setting to global
     kd=(ko*)(b(48)&v); if(kd->r>0) gcopy=1;
+  }
+  else if(0x80==s(v)&&s!=gs&&s!=ks) { // copy shared dicts from global when setting to local scope
+    kd=(ko*)(b(48)&v); if(kd->r>1) gcopy=1;  // only if refcount > 1 (shared)
   }
   if(v==ktree) gcopy=1; // d.c:.`
   if(s==ks && strlen(n)==1 && *n!='k') { // top level, single letters reserved, except k
     fprintf(stderr,"reserved: %s\n",n);
-    return KERR_RESERVED;
+    _k(v); return KERR_RESERVED;
   }
   if(kreserved(sp(n))) { // reserved names
     fprintf(stderr,"reserved: %s\n",n);
-    return KERR_RESERVED;
+    _k(v); return KERR_RESERVED;
   }
   if(strchr(n,'.')) {
     if(n[0]=='.') {
       // cannot change current directory path
       char *skd=sk(D);
-      if(skd==strstr(skd,n)) return KERR_DOMAIN;
+      if(skd==strstr(skd,n)) { _k(v); return KERR_DOMAIN; }
       es=ks;
     }
-    if(!scope_vktp(n)) return KERR_DOMAIN;
+    if(!scope_vktp(n)) { _k(v); return KERR_DOMAIN; }
     memcpy(nn,n,1+strlen(n));
     u=t=ss=strtok_r(nn,".",&rp);
 
     pes=px(es);
     d=dget(pes[1],sp(ss));
     if(!d) d=dnew();
-    else if(0x80!=s(d)) { _k(d); return KERR_VALUE; }
+    else if(0x80!=s(d)) { _k(d); _k(v); return KERR_VALUE; }
     kd=(ko*)(b(48)&d);
-    if(kd->r>1) { --kd->r; d=kcp(d); if(E(d)) { return d; } } /* copy on write */
+    if(kd->r>1) { --kd->r; d=kcp(d); if(E(d)) { _k(v); return d; } } /* copy on write */
     e=m=k_(d);
     while((ss=strtok_r(0,".",&rp))) {
       t=ss; e=d; _k(d);
@@ -306,27 +315,28 @@ static K scope_set_(K s, char *n, K v) {
       if(d) { if(0x80!=s(d)) break; }
       else d=dnew();
       kd=(ko*)(b(48)&e);
-      if(kd->r>1 && v!=e) { --kd->r; e=kcp(e); if(E(e)) { _k(m); return e;} }
+      if(kd->r>1 && v!=e) { --kd->r; e=kcp(e); if(E(e)) { _k(m); _k(v); return e;} }
       (void)dset(e,sp(ss),d);
     }
     _k(d);
     if(!strtok_r(0,".",&rp)) {
-      if(copy||gcopy) { w=kcp(v); if(E(w)) { _k(m); return w; } (void)dset(e,sp(t),w); _k(w); }
-      else (void)dset(e,sp(t),v);
-      scope_set_(es,sp(u),m);
+      if(copy||gcopy) { w=kcp(v); if(E(w)) { _k(m); _k(v); return w; } (void)dset(e,sp(t),w); _k(v); }
+      else { (void)dset(e,sp(t),v); w=v; }
+      K m2=scope_set_(es,sp(u),m);  /* consumes m */
+      if(E(m2)) { _k(w); return m2; }
+      _k(m2);  /* free the returned tree ref - we only need w */
+      return w;
     }
-    else  { _k(m); return KERR_VALUE; }
-    _k(m);
+    else  { _k(m); _k(v); return KERR_VALUE; }
   }
   else {
     // this can happen like this:
     // .[`;nul;,;"0"]
     // .[`;nul;,]
-    if(0x80!=s(psu[1])) return KERR_VALUE;
-    if(gcopy) { w=kcp(v); if(E(w)) return w; (void)dset(psu[1],sp(n),w); _k(w); }
-    else (void)dset(psu[1],sp(n),v);
+    if(0x80!=s(psu[1])) { _k(v); return KERR_VALUE; }
+    if(gcopy) { w=kcp(v); if(E(w)) { _k(v); return w; } (void)dset(psu[1],sp(n),w); _k(v); return w; }
+    else { (void)dset(psu[1],sp(n),v); return v; }
   }
-  return 0;
 }
 
 K scope_set(K s, K n, K v) {
