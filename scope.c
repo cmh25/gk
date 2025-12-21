@@ -198,6 +198,7 @@ static K scope_get_(K s, char *n) {
   if(ps[2]!=null) { /* refresh scope dict from ktree */
     q=ktree_get(sk(ps[2]));
     if(E(q)) return q;
+    if(0x80!=s(q)) { _k(q); return KERR_VALUE; }
     _k(ps[1]); ps[1]=q;
   }
   if(strchr(n,'.')) {
@@ -275,6 +276,14 @@ static K scope_set_(K s, char *n, K v) {
   /* clear global cache on any global set */
   if(s == gs) gcache_clear();
   psu=px(s);
+
+  if(psu[2]!=null) { /* refresh scope dict from ktree */
+    K q=ktree_get(sk(psu[2]));
+    if(E(q)) return q;
+    if(0x80!=s(q)) { _k(q); _k(v); return KERR_VALUE; }
+    _k(psu[1]); psu[1]=q;
+  }
+
   if(0x80==s(v)&&(s==gs||s==ks)) { // d.c:.k - copy shared dicts when setting to global
     kd=(ko*)(b(48)&v); if(kd->r>0) gcopy=1;
   }

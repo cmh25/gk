@@ -374,6 +374,16 @@ const char* kprint_(K x, char *s, char *e, char *s0) {
       kprint_(px[0],s,"",s0);
       kprint_(px[1],"",e,s0);
       break;
+    case 0xd9:
+      px=px(x);
+      kprint_(px[0],s,"",s0);
+      mprintf("[");
+      K *px1=px(px[1]);
+      kprint_(px1[0],"","",s0);
+      i1(n(px[1]),mprintf(";");kprint_(px1[i],"","",s0))
+      mprintf("]");
+      mprintf(e);
+      break;
     case 0x80:
       mprintf("%s.",s);
       s2=xmalloc(2+strlen(s0));
@@ -783,6 +793,7 @@ cleanup:
 
 K kamendi3(K d, K i, K f) {
   K r,e,sym=0,t,*prk;
+  int kt=0;
 
   if(d==inull||i==inull||f==inull) {
     r=tn(0,4); prk=px(r);
@@ -798,6 +809,7 @@ K kamendi3(K d, K i, K f) {
   if(!d) { e=KERR_TYPE; goto cleanup; }
   if(!ISF(f)) { e=KERR_TYPE; goto cleanup; }
   if(4==T(d)&&!s(d)) {
+    if('.'==*sk(d)||0==*sk(d)) kt=1;
     K d2=scope_get(gs,d); sym=d; d=d2;
     //if(!d) d=null;
     //EC(d);
@@ -829,6 +841,7 @@ K kamendi3(K d, K i, K f) {
   else { e=KERR_RANK; goto cleanup; }
 
   if(E(r)) return r;
+  else if(sym && kt) { _k(r); return sym; }
   else if(sym) { K p=scope_set(gs,sym,r); if(E(p)) return p; _k(p); return sym; }
   else return r;
 cleanup:
@@ -1332,6 +1345,7 @@ cleanup:
 
 K kamendi4(K d, K i, K f, K y) {
   K r,e,sym=0,*prk;
+  int kt=0;
 
   if(d==inull||i==inull||f==inull||y==inull) {
     r=tn(0,5); prk=px(r);
@@ -1348,6 +1362,7 @@ K kamendi4(K d, K i, K f, K y) {
   if(!d) { e=KERR_TYPE; goto cleanup; }
   if(!ISF(f)) { e=KERR_TYPE; goto cleanup; }
   if(4==T(d)) {
+    if('.'==*sk(d)||0==*sk(d)) kt=1;
     K d2=scope_get(gs,d); sym=d; d=d2;
     if(E(d)) d=null;
     else if((T(d)<=0||T(d)==2) && 1<((ko*)(b(48)&d))->r) { K d2=kcp(d); _k(d); d=d2; }
@@ -1362,6 +1377,7 @@ K kamendi4(K d, K i, K f, K y) {
   else r=kamendi4v(d,i,f,y);
 
   if(E(r)) return r;
+  else if(sym && kt) { _k(r); return sym; }
   else if(sym) { K p=scope_set(gs,sym,r); if(E(p)) return p; _k(p); return sym; }
   else return r;
 cleanup:

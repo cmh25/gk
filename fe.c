@@ -43,9 +43,20 @@ cleanup:
 }
 
 K fe(K f, K a, K x, char *av) {
-  K r=3,f1,*pf,*pf1;
+  K r=3,f1,*pf,*pf1,*pr,t,*pt;
   char *P=":+-*%&|<>=~.!@?#_^,$'/\\";
   char ff=f;
+  int valence=ik(val(f));
+
+  if(valence==2 && a==inull && x==inull) {
+    t=tn(0,2); pt=px(t);
+    pt[0]=a;
+    pt[1]=x;
+    r=tn(0,2); pr=px(r);
+    pr[0]=f;
+    pr[1]=st(0x81,t);
+    return st(0xd9,r);
+  }
 
   if(0x45==s(a)||0x45==s(x)) { _k(f); _k(a); _k(x); return KERR_TYPE; }
 
