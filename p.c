@@ -1096,6 +1096,7 @@ K pgreduce_(K x0, int *quiet) {
             if(KERR_VALUE==a) a=null;
             else if(E(a)||EXIT) { _k(b); *pA++=a; break; }
           }
+          if(!VST(a)||!VST(b)) { _k(b); _k(a); *pA++=KERR_TYPE; break; }
           *pA++=k(w,a,b);
         }
       }

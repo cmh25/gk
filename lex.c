@@ -530,6 +530,7 @@ static int gback(pgs *pgs, int load) {
   K u;
   size_t n;
   if(*p=='\r') ++p;
+  if(!opencode) return 0;
   if(S2(p)&&p[1]=='\\') {
     if(load==2) { /* \l file */
       push(pgs,T012,0);
@@ -785,13 +786,18 @@ K lex(pgs *pgs, int load) {
           if(system(p+1)) return 0;
 #endif
         }
-        else { /* trace */
+        else { /* trace in lambda */
           push(pgs,T015,t(4,st(0xd8,sp("\\"))));
           ++p;
           continue;
         }
         while(*p&&*p!='\n')++p;
       }
+    }
+    else if(b&&*p=='\\') { /* trace in opencode 1 + \2 3 */
+      push(pgs,T015,t(4,st(0xd8,sp("\\"))));
+      ++p;
+      continue;
     }
     else if((*p&&isdigit(*p))||(S2(p)&&*p=='.'&&isdigit(p[1]))) { if(!gn(pgs)) goto parseerror; }
     else if(*p&&strchr("'/\\",*p)) getmv(pgs,-3,0x85); /* ??? */
