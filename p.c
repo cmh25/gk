@@ -512,7 +512,7 @@ static K rd0(K x) {
     _k(px[1]);
     px[1]=p;
   }
-  else if(0xd1==s(px[1]) || 0xd2==s(px[1]) || 0xd3==s(px[1])) {
+  else if(0xd1==s(px[1]) || 0xd2==s(px[1]) || 0xd3==s(px[1]) || 0xd8==s(px[1])) {
     _k(x);
     return KERR_PARSE;
   }

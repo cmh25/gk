@@ -357,12 +357,13 @@ K knorm(K x) {
   if(!tx&&nx) {
     PXK;
     t=T(pxk[0]);
-    i(nx,if(s(pxk[i])||t!=T(pxk[i])) return r)
+    if(t<=0||s(pxk[0])) return r;
+    i(nx,if(t!=T(pxk[i])) return r)
     switch(t) {
     case 1: PRI(nx); i(nx,pri[i]=ik(pxk[i])); _k(x); break;
-    case 2: PRF(nx); i(nx,prf[i]=fk(pxk[i])) ; _k(x);break;
+    case 2: PRF(nx); i(nx,prf[i]=fk(pxk[i])); _k(x); break;
     case 3: PRC(nx); i(nx,prc[i]=ck(pxk[i])); _k(x); break;
-    case 4: PRS(nx); i(nx,prs[i]=sk(pxk[i])) ; _k(x);break;
+    case 4: PRS(nx); i(nx,prs[i]=sk(pxk[i])); _k(x); break;
     }
   }
   return r;

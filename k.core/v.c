@@ -1691,15 +1691,15 @@ K enumerate(K x) {
   if(s(x)) return enumeratecb(x);
   switch(tx) {
   case  1: if(ik(x)<0||ik(x)==INT32_MAX) return 6; PRI(ik(x)); i(ik(x),pri[i]=i); break;
-  case  2: return 9; /* int */
+  case  2: return KERR_INT;
   case  3: p[0]=ck(x); p[1]=0; r=lsdir(p); break;
   case  4: return enumeratecb(x);
   case  6: r=tn(4,0); break;
   case -3: p=xmalloc(1+nx); memcpy(p,px(x),nx); p[nx]=0; r=lsdir(p); xfree(p); break;
-  default: return 3;
+  default: return KERR_TYPE;
   }
   _k(q);
-  return knorm(r);
+  return r;
 }
 
 K atom(K x) {

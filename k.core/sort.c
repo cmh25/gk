@@ -54,7 +54,7 @@ i32* rcsortg(i32 *g, i32 *a, u32 n, i32 down) {
     min = min > as ? as : min;
   }
   mm1=(i32)((i64)max-(i64)min+1);
-  count=xcalloc(mm1,sizeof(i32));
+  count=xcalloc(mm1+1,sizeof(i32));
   for(k=0;k<n;k++) count[HI16S(a[k])-min]++;
   if(down) for(i=mm1-1;i>=0;i--) count[i] += count[i+1];
   else for(i=1;i<mm1;i++) count[i] += count[i-1];

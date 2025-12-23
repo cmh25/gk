@@ -161,7 +161,9 @@ K dotcb(K a,K x) {
       px=px(x);
       if(nx>=1 && (px[0]==null || px[0]==inull)) {
         /* d[;i] - apply remaining indices to each value, return list */
-        v=dvals(a); pv=px(v);
+        v=dvals(a);
+        if(E(v)) { --d; return v; }
+        pv=px(v);
         u64 n=n(v);
         r=tn(0,n); pr=px(r);
         for(u64 j=0;j<n;j++) {
