@@ -186,8 +186,8 @@ static K scope_get_(K s, char *n) {
   char nn[256];
 
   /* check global cache first (for global scope lookups of simple names) */
-  if(s==gs && !strchr(n,'.') && n[0] != '.')
-    i(GCACHEN,if(gcachek[i]==n)return k_(gcachev[i]));
+  if(s==gs && n[0] != '.')
+    i(GCACHEN,if(gcachek[i]==n) return k_(gcachev[i]));
 
   if(!*n) { setz(); return k_(ktree); }
   if(strlen(n)>255) return KERR_LENGTH;

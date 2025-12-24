@@ -160,8 +160,15 @@ static K vlookupav(K x) {
 }
 static K vlookup(K x) {
   K r;
-  if(4==T(x) && strpbrk(sk(x),"'/\\")) return vlookupav(x);
-  else r=scope_get(cs,x);
+  /* fast path: indexed locals (type 1) go directly to scope_get */
+  if(4!=T(x)) {
+    r=scope_get(cs,x);
+    return r?r:KERR_VALUE;
+  }
+  char *n=sk(x);
+  /* fast path: empty or single-char names can't have adverbs */
+  if(n[0] && n[1] && strpbrk(n,"'/\\")) return vlookupav(x);
+  r=scope_get(cs,x);
   return r?r:KERR_VALUE;
 }
 static K vlookuprs(K x, K *rs) {
@@ -849,8 +856,6 @@ K pgreduce_(K x0, int *quiet) {
         break;
       case 0xc1: /* +/x */
         if(pA<=A+1) { k_(v); break; }
-        mv=px(v);
-        s=strchr(P,*mv);
         --pA;
         b=*--pA;
         if(0x42==s(b)) { b=r42(b); if(E(b)||EXIT) { *pA++=b; break; } }
@@ -869,15 +874,7 @@ K pgreduce_(K x0, int *quiet) {
         }
         else {
           if(s(b)) { b=reduce(b); if(E(b)||EXIT) { *pA++=b; break; } }
-          if(0x81==s(b)) {
-            if(n(b)==1) { K *pb=px(b); p=pb[0]; pb[0]=0; _k(b); b=p; }
-            else if(n(b)==0) { _k(b); b=null; }
-          }
-          if(*++mv && s-P<=20) {
-            if(s(b)&&s(b)!=0x80&&s(b)!=0xc3&&s(b)!=0xc4) { _k(b); *pA++=KERR_TYPE; }
-            else *pA++=avdo(s-P,0,b,mv);
-          }
-          else { _k(b); *pA++=KERR_PARSE; } /* parse */
+          *pA++=fe(k_(v),0,b,"");
         }
         break;
       case 0xc2: /* a+/x */
@@ -886,19 +883,13 @@ K pgreduce_(K x0, int *quiet) {
           *pA++=KERR_PARSE; /* parse */
           break;
         }
-        mv=px(v);
-        s=strchr(P,*mv);
         --pA;
         b=*--pA;
         a=*--pA;
         if(!a||!b) { _k(a); _k(b); *pA++=KERR_PARSE; break; } /* parse */
         if(s(b)) { b=reduce(b); if(E(b)||EXIT) { _k(a); *pA++=b; break; } }
         if(s(a)) { a=reduce(a); if(E(a)||EXIT) { _k(b); *pA++=a; break; } }
-        if(*++mv && s-P<=20) {
-          if(!VST(a)||!VST(b)) { _k(a); _k(b); *pA++=KERR_TYPE; }
-          else *pA++=avdo(s-P,a,b,mv);
-        }
-        else { _k(a); _k(b); *pA++=KERR_PARSE; } /* parse */
+        *pA++=fe(k_(v),a,b,"");
         break;
       case 0xca: /* predefined dyad (in lin dv dvl ...) */
       case 0xc9: /* predefined monad (gtime ltime ...) */
@@ -1173,7 +1164,7 @@ K pgreduce_(K x0, int *quiet) {
       switch(s(a)) {
       case 0xc3: case 0xc4:
         if(0x81==s(b)) { *pA++=fne(a,b,av); } /* f[x] */
-        else if(ISF(b)&&0xc3!=s(b)&&0xc4!=s(b)&&(!av||!strlen(av))) {  /* {x} val */
+        else if(ISF(b)&&0xc3!=s(b)&&0xc4!=s(b)&&(!av||!*av)) {  /* {x} val */
           p=tn(0,2); pp=px(p);
           pp[0]=a; pp[1]=b;
           K q=tn(0,2); K *pq=px(q);

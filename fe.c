@@ -21,7 +21,7 @@ static K stripav(K x, char **av) {
 
 K fc(K f, K a, K x, char *av) {
   K r=0,e,p,f2,*pf,*pf2;
-  if(av&&strlen(av)) r=avdo(k_(f),k_(a),k_(x),av);
+  if(av&&*av) r=avdo(k_(f),k_(a),k_(x),av);
   else {
     pf=px(f);
     f2=pf[0];
@@ -43,20 +43,10 @@ cleanup:
 }
 
 K fe(K f, K a, K x, char *av) {
-  K r=3,f1,*pf,*pf1,*pr,t,*pt;
+  K r=3,f1,*pf,*pf1,*pr,t,*pt,xx,*pxx;
   char *P=":+-*%&|<>=~.!@?#_^,$'/\\";
   char ff=f;
-  int valence=ik(val(f));
-
-  if(valence==2 && a==inull && x==inull) {
-    t=tn(0,2); pt=px(t);
-    pt[0]=a;
-    pt[1]=x;
-    r=tn(0,2); pr=px(r);
-    pr[0]=f;
-    pr[1]=st(0x81,t);
-    return st(0xd9,r);
-  }
+  char *mv,*s;
 
   if(0x45==s(a)||0x45==s(x)) { _k(f); _k(a); _k(x); return KERR_TYPE; }
 
@@ -65,45 +55,30 @@ K fe(K f, K a, K x, char *av) {
     pf=px(f);
     a=k_(pf[0]);
     K f2=k_(pf[1]);
-    _k(f);
-    f=f2;
+    _k(f); f=f2;
     if(0x81==s(x)) {
       if(nx!=1) { _k(f); _k(a); _k(x); return KERR_VALENCE; }
       K *px=px(x);
       K x2=k_(px[0]);
-      _k(x);
-      x=x2;
-    }
-    if(0xc==s(f)) {
-      K x2=tn(0,2); K *px2=px(x2);
-      px2[0]=k_(a);
-      px2[1]=k_(x);
-      _k(a); a=0;
-      _k(x);
-      x=st(0x81,x2);
+      _k(x); x=x2;
     }
   }
 
   if(0xc0==s(f)) ff=ck(f)%32;
-  else if(0xc2==s(f) || 0xc1==s(f)) {
-    char *mv=px(f);
-    char *s=strchr(P,*mv);
-    if(*++mv && s-P<=20) {
-      r=avdo(s-P,a,x,mv);
-      _k(f);
-      return r;
-    }
-    else { _k(f); _k(a); _k(x); return KERR_PARSE; }
-  }
   else if(!s(f)&&f>32) ff=strchr(P,ck(f))-P; /* r19 primitive verbs are literal '+' '-' etc. */
 
   if(!a) {
     switch(s(f)) {
+    case 0xc1: case 0xc2:
+      mv=px(f);
+      s=strchr(P,*mv);
+      if(*++mv && s-P<=20) r=avdo(s-P,a,x,mv);
+      else { _k(a); _k(x); r=KERR_PARSE; }
+      break;
     case 0xc3: case 0xc4:
       if(0x81==s(x)) r=fne(k_(f),x,av);
       else {
-        K xx=tn(0,1);
-        K *pxx=px(xx);
+        xx=tn(0,1); pxx=px(xx);
         pxx[0]=x;
         r=fne(k_(f),xx,av);
       }
@@ -143,7 +118,7 @@ K fe(K f, K a, K x, char *av) {
         else { _k(f); _k(x); return KERR_VALENCE; }
         break;
       case 0xc7:
-        ; f1=pf[1]; pf1=px(f1);
+        f1=pf[1]; pf1=px(f1);
         if(pf1[0]==inull) {
           if(0x81==s(x)&&n(x)==1) { K *px=px(x); r=builtin(pf[0],k_(px[0]),k_(pf1[1])); _k(x); }
           else if(0x81==s(x)) { _k(x); r=KERR_VALENCE; }
@@ -273,16 +248,32 @@ K fe(K f, K a, K x, char *av) {
   }
   else {
     switch(s(f)) {
+    case 0xc1: case 0xc2:
+      if(a==inull || x==inull) {
+        r=tn(0,2); pr=px(r);
+        t=tn(0,2); pt=px(t);
+        pt[0]=a;
+        pt[1]=x;
+        pr[0]=k_(f);
+        pr[1]=st(0x81,t);
+        r=st(0xd9,r);
+      }
+      else {
+        mv=px(f);
+        s=strchr(P,*mv);
+        if(*++mv && s-P<=20) r=avdo(s-P,a,x,mv);
+        else { _k(a); _k(x); r=KERR_PARSE; }
+      }
+      break;
     case 0xc3: case 0xc4:
-      ; K xx=tn(0,2);
-      K *pxx=px(xx);
+      xx=tn(0,2); pxx=px(xx);
       pxx[0]=a; pxx[1]=x;
       r=fne(k_(f),xx,av);
       break;
     case 0xc7: case 0xcd:
       if(a==inull || x==inull) {
-        r=tn(0,2); K *pr=px(r);
-        K t=tn(0,2); K *pt=px(t);
+        r=tn(0,2); pr=px(r);
+        t=tn(0,2); pt=px(t);
         pt[0]=a;
         pt[1]=x;
         pr[0]=f;
@@ -293,8 +284,8 @@ K fe(K f, K a, K x, char *av) {
       break;
     case 0xc5:
       if(a==inull || x==inull) {
-        r=tn(0,2); K *pr=px(r);
-        K t=tn(0,2); K *pt=px(t);
+        r=tn(0,2); pr=px(r);
+        t=tn(0,2); pt=px(t);
         pt[0]=a;
         pt[1]=x;
         pr[0]=k_(f);
@@ -317,8 +308,8 @@ K fe(K f, K a, K x, char *av) {
       if(!ff) { _k(a); r=x; }
       else if(ff>0&&ff<32) {
         if(a==inull || x==inull) {
-          r=tn(0,2); K *pr=px(r);
-          K t=tn(0,2); K *pt=px(t);
+          r=tn(0,2); pr=px(r);
+          t=tn(0,2); pt=px(t);
           pt[0]=a;
           pt[1]=x;
           pr[0]=t(1,st(0xc0,(u32)ff+32));

@@ -392,7 +392,7 @@ K fne_(K f, K x, char *av) {
       fav=px(g);
       snprintf(av2+strlen(av2),sizeof(av2)-strlen(av2),"%s",fav);
     }
-    if(av&&strlen(av)) snprintf(av2+strlen(av2),sizeof(av2)-strlen(av2),"%s",av);
+    if(av&&*av) snprintf(av2+strlen(av2),sizeof(av2)-strlen(av2),"%s",av);
     r=fne_(f,x,av2);
     --d;
     return r;
@@ -404,7 +404,7 @@ K fne_(K f, K x, char *av) {
 
   u64 inc=0; i(nx,if(px[i]==inull)++inc)
   nn=nx-inc; //  if there are inulls, number of inulls must less than or equal to nx
-  if((nx<n||nn<n) && (!av||!strlen(av))) { /* project */
+  if((nx<n||nn<n) && (!av||!*av)) { /* project */
     t=fncp(f);
     if(E(t)) { _k(f); _k(x); --d; return t; }
     r=tn(0,3); pr=px(r);
@@ -416,7 +416,7 @@ K fne_(K f, K x, char *av) {
     --d;
     return st(0xc4,r);
   }
-  if(nx!=n && nx!=1 && n!=0 && (!av||!strlen(av))) { r=KERR_VALENCE; goto cleanup; }
+  if(nx!=n && nx!=1 && n!=0 && (!av||!*av)) { r=KERR_VALENCE; goto cleanup; }
   if(av&&*av) {
     if(inc) { r=KERR_VALENCE; goto cleanup; } /* TODO: {y}'[!5;] */
     if(n==0) r=avdo(k_(f),0,k_(x),av);
@@ -503,9 +503,13 @@ K fne(K f, K x, char *av) {
 
   if(0xc4==s(f)) return fne_(f,x,av);
 
-  av2[0]=0;
   pf=px(f);
   g=pf[3];
+
+  /* fast path: no adverbs on f, no av passed */
+  if(6==T(g) && (!av || !*av)) return fne_(f,x,"");
+
+  av2[0]=0;
   if(6!=T(g)) {
     fav=px(g);
     snprintf(av2+strlen(av2),sizeof(av2)-strlen(av2),"%s",fav);
@@ -514,6 +518,6 @@ K fne(K f, K x, char *av) {
     _k(pf2[3]); pf2[3]=null;
     _k(f); f=f2;
   }
-  if(av&&strlen(av))  snprintf(av2+strlen(av2),sizeof(av2)-strlen(av2),"%s",av);
+  if(av&&*av)  snprintf(av2+strlen(av2),sizeof(av2)-strlen(av2),"%s",av);
   return fne_(f,x,av2);
 }

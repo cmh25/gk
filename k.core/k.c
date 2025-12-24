@@ -40,7 +40,7 @@ K k(i32 i, K a, K x) {
   return r;
 }
 
-typedef struct { K x; i32 s; } SF;
+typedef struct { K x; i8 s; } SF;
 static SF *g_stack;
 static i32 g_cap;
 
@@ -61,11 +61,28 @@ static inline void push_sf(SF **stack, i32 *sp, i32 *cap, SF *local, i32 local_c
   (*stack)[(*sp)++] = (SF){ x, s };
 }
 
-void _k(K x) {
-  if(E(x)||(tx>0 && tx!=2)) return;
+static void __k(K x) {
   // allocate a small local work stack (spills to g_stack if needed)
+  ko *k=(ko*)(b(48)&x);
+  if(tx) {
+#ifndef _WIN32  // TODO: mmap on windows?
+    if(k->m) {  // mapped object
+      size_t len;
+      if(tx == -1) len = 12 + nx*sizeof(int);
+      else if(tx == -2) len = nx*sizeof(double);
+      else if(tx == -3) len = nx*sizeof(char);
+      else { fprintf(stderr,"unexpected mmap'd type\n"); exit(1); }
+      munmap((char*)k->v - 20, len);
+      xfree(k);
+    }
+    else
+#endif
+    { if(tx!=2) xfree(k->v); xfree(k); }
+    return;
+  }
   SF local[64],*stack=local;
-  i32 sp=0, cap=(i32)(sizeof(local)/sizeof(local[0]));
+  const i32 cap0=(i32)(sizeof(local)/sizeof(local[0]));
+  i32 sp=0, cap=cap0;
   push_sf(&stack, &sp, &cap, local, cap, x, 0);
   while(sp) {
     SF *f=&stack[--sp];
@@ -74,11 +91,11 @@ void _k(K x) {
     ko *k=(ko*)(b(48)&x);
     if(k->r>0) --k->r;
     else if(f->s==0) {
-      push_sf(&stack, &sp, &cap, local, (i32)(sizeof local/sizeof local[0]), x, 1);
+      stack[sp++].s=1;
       if(tx==0) {
         K *px=(K*)k->v;
         for(i64 i=k->n-1;i>=0;--i)
-          push_sf(&stack, &sp, &cap, local, (i32)(sizeof local/sizeof local[0]), px[i], 0);
+          push_sf(&stack, &sp, &cap, local, cap0, px[i], 0);
       }
     }
 #ifndef _WIN32  // TODO: mmap on windows?
@@ -92,11 +109,14 @@ void _k(K x) {
       xfree(k);
     }
 #endif
-    else {
-      if(tx!=2) xfree(k->v);
-      xfree(k);
-    }
+    else { if(tx!=2) xfree(k->v); xfree(k); }
   }
+}
+void _k(K x) {
+  if(E(x)||(tx>0 && tx!=2)) return;
+  ko *k=(ko*)(b(48)&x);
+  if(k->r>0) { --k->r; return; }
+  __k(x);
 }
 
 K tn(i32 t, i32 n) {
