@@ -367,18 +367,21 @@ cleanup:
   return e;
 }
 
+#define TS(x) (((u64)(x) >> 48) & 0x1FFF)  // 13 bits: tx:sx
 K knorm(K x) {
   K r=x,*pxk;
   i32 *pri;
   double *prf;
   char t,*prc,**prs;
+  u64 ts0;
   if(x<20) return x; /* error */
   if(s(x)) return x;
   if(!tx&&nx) {
     PXK;
-    t=T(pxk[0]);
-    if(t<=0||s(pxk[0])) return r;
-    i(nx,if(t!=T(pxk[i])) return r)
+    ts0=TS(pxk[0]);
+    t=ts0>>8;
+    if(t<=0||ts0&0xff) return r;
+    i(nx,if(ts0!=TS(pxk[i])) return r)
     switch(t) {
     case 1: PRI(nx); i(nx,pri[i]=ik(pxk[i])); _k(x); break;
     case 2: PRF(nx); i(nx,prf[i]=fk(pxk[i])); _k(x); break;
