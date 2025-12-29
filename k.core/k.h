@@ -173,4 +173,28 @@ u64 khash(K x);
 K ksplit(char *b, char *c);
 void kexit(void);
 
+/* extract element from vector - no refcount bump */
+static inline K xi(K x, u64 i, i8 t) {
+  switch(t) {
+  case -1: return t(1,(u32)((i32*)px(x))[i]);
+  case -2: return t2(((double*)px(x))[i]);
+  case -3: return t(3,(u8)((char*)px(x))[i]);
+  case -4: return t(4,((char**)px(x))[i]);
+  case  0: return ((K*)px(x))[i];
+  default: return x;
+  }
+}
+
+/* extract element from vector - bumps refcount for K lists */
+static inline K xi_(K x, u64 i, i8 t) {
+  switch(t) {
+  case -1: return t(1,(u32)((i32*)px(x))[i]);
+  case -2: return t2(((double*)px(x))[i]);
+  case -3: return t(3,(u8)((char*)px(x))[i]);
+  case -4: return t(4,((char**)px(x))[i]);
+  case  0: return k_(((K*)px(x))[i]);
+  default: return k_(x);
+  }
+}
+
 #endif /* K_H */
