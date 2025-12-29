@@ -2448,6 +2448,7 @@ u64 khashcb(K x) {
   case 0xd5: r=r+khash(x&(K)0xff00ffffffffffff); break;
   case 0xd6: r=r+khash(x&(K)0xff00ffffffffffff); break;
   case 0xd7: r=r+khash(x&(K)0xff00ffffffffffff); break;
+  case 0xd8: r=r+khash(x&(K)0xff00ffffffffffff); break;
   case 0xd9: r=r+khash(x&(K)0xff00ffffffffffff); break;
   default:
     fprintf(stderr,"error: unsupported type in khashcb()\n");
@@ -2509,6 +2510,7 @@ K kcpcb(K x) {
   case 0xd5: p=kcp(x&(K)0xff00ffffffffffff); if(E(p)) r=p; else r=set_sx(p,0xd5); break;
   case 0xd6: p=kcp(x&(K)0xff00ffffffffffff); if(E(p)) r=p; else r=set_sx(p,0xd6); break;
   case 0xd7: p=kcp(x&(K)0xff00ffffffffffff); if(E(p)) r=p; else r=set_sx(p,0xd7); break;
+  case 0xd8: p=kcp(x&(K)0xff00ffffffffffff); if(E(p)) r=p; else r=set_sx(p,0xd8); break;
   case 0xd9: p=kcp(x&(K)0xff00ffffffffffff); if(E(p)) r=p; else r=set_sx(p,0xd9); break;
   }
   --d;

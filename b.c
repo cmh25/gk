@@ -793,9 +793,9 @@ static K cond81_(K x) {
     if(i<nx-1) {
       a=k_(px[i++]);;
       if(ta!=1) { _k(a); return KERR_TYPE; }
-      if(ik(a)&&i<=nx-1) { _k(r); r=k_(px[i]); break; }
+      if(ik(a)&&i<=nx-1) { _k(r); r=k_(px[i]); if(!r) r=null; break; }
     }
-    else r=k_(px[i]);
+    else { r=k_(px[i]); if(!r) r=null; }
     if(RETURN) return r;
   }
   return r;
@@ -809,9 +809,9 @@ K cond_(K x) {
     if(i) {
       a=pgreduce_(px[i--],&q); if(!a) a=null;
       if(ta!=1) { _k(a); return KERR_TYPE; }
-      if(ik(a)&&i>=0) { _k(r); r=pgreduce_(px[i],&q); break; }
+      if(ik(a)&&i>=0) { _k(r); r=pgreduce_(px[i],&q); if(!r) r=null; break; }
     }
-    else r=pgreduce_(px[i],&q);
+    else { r=pgreduce_(px[i],&q); if(!r) r=null; }
     if(RETURN) return r;
   }
   return r;

@@ -923,7 +923,7 @@ K power(K a, K x) {
 }
 
 K join(K a, K x) {
-  K r=0,*prk;
+  K r=0,e,*prk;
   i32 *pri;
   double *prf;
   char *prc,**prs;
@@ -937,7 +937,13 @@ K join(K a, K x) {
     else if(Ta==2&&Tx==2) { PRF(2); prf[0]=fk(a); prf[1]=fk(x); }
     else if(Ta==3&&Tx==3) { PRC(2); prc[0]=ck(a); prc[1]=ck(x); }
     else if(Ta==4&&Tx==4) { PRS(2); prs[0]=sk(a); prs[1]=sk(x); }
-    else { PRK(2); prk[0]=Ta==2?k_(a):Ta==15?kcp(a):a; prk[1]=Tx==2?k_(x):Tx==15?kcp(x):x; }
+    else {
+      PRK(2);
+      prk[0]=Ta==2?k_(a):Ta==15?kcp(a):a;
+      EC(prk[0]);
+      prk[1]=Tx==2?k_(x):Tx==15?kcp(x):x;
+      EC(prk[1]);
+    }
     return r;
   }
   if(Ta>0&&Tx==-Ta) { /* scalar + matching vector */
@@ -971,11 +977,14 @@ K join(K a, K x) {
   /* box to K list */
   u64 an=Ta>0?1:na,xn=Tx>0?1:nx;
   PRK(an+xn);
-  if(Ta>0) prk[j++]=Ta==2?k_(a):Ta==15?kcp(a):a;
+  if(Ta>0) { prk[j]=Ta==2?k_(a):Ta==15?kcp(a):a; EC(prk[j]); ++j; }
   else i(na,prk[j++]=xi_(a,i,Ta))
-  if(Tx>0) prk[j++]=Tx==2?k_(x):Tx==15?kcp(x):x;
+  if(Tx>0) { prk[j]=Tx==2?k_(x):Tx==15?kcp(x):x; EC(prk[j]); ++j; }
   else i(nx,prk[j++]=xi_(x,i,Tx))
   return knorm(r);
+cleanup:
+  if(r) _k(r);
+  return e;
 }
 
 static K form2w(char *t, i32 w, i32 z) {
