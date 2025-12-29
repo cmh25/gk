@@ -69,6 +69,8 @@ extern int opencode;
 extern char *pfile;
 extern int gline,glinei,gline0,gline0i,fileline;
 extern char *glinep,*gline0p;
+extern K params[];
+extern int paramsi;
 
 pgs* pgnew(void);
 void pgfree(pgs *s);
