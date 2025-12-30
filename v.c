@@ -297,6 +297,7 @@ K valuecb(K x) {
   char *pxc,*h,**pk,**ts;
   K i;
   size_t n;
+  int opencode0;
   if(0x80==s(x)) {
     px=px(x);
     v=px[2]; px[2]=null;
@@ -309,7 +310,9 @@ K valuecb(K x) {
   case  3:
     h=xmalloc(3);
     h[0]=ck(x); h[1]='\n'; h[2]=0;
+    opencode0=opencode; opencode=1;
     q=pgparse(h,0,0);
+    opencode=opencode0;
     if(E(q)) r=q;
     else if(q) { r=pgreduce(q,0); prfree(q); }
     else r=KERR_PARSE;
@@ -320,7 +323,9 @@ K valuecb(K x) {
     if(!n) { r=k_(ktree); break; }
     h=xmalloc(n+2);
     i(n,h[i]=pxc[i]) h[n]='\n'; h[n+1]=0;
+    opencode0=opencode; opencode=1;
     q=pgparse(h,0,0);
+    opencode=opencode0;
     if(E(q)) r=q;
     else if(q) { r=pgreduce(q,0); prfree(q); }
     else r=KERR_PARSE;
@@ -329,7 +334,9 @@ K valuecb(K x) {
     pxc=px(x);
     h=xcalloc(1,nx+2);
     i(nx,h[i]=pxc[i]) h[nx]='\n'; h[nx+1]=0;
+    opencode0=opencode; opencode=1;
     q=pgparse(h,0,0);
+    opencode=opencode0;
     if(E(q)) r=q;
     else if(q) {
       r=pgreduce(q,0); prfree(q);
