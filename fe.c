@@ -43,7 +43,7 @@ cleanup:
 }
 
 K fe(K f, K a, K x, char *av) {
-  K r=3,f1,*pf,*pf1,*pr,t,*pt,xx,*pxx;
+  K r=3,f0,f1,*pf,*pf1,*pr,t,*pt,xx,*pxx,fav;
   char *P=":+-*%&|<>=~.!@?#_^,$'/\\";
   char ff=f;
   char *mv,*s;
@@ -134,7 +134,13 @@ K fe(K f, K a, K x, char *av) {
       default:
         ff=ck(pf[0])%32;
         f1=pf[1]; pf1=px(f1);
-        if(pf1[0]==inull) {
+        if(pf1[0]==inull && pf1[1]==inull) {
+          _k(pf1[0]);
+          if(0x81==s(x)&&n(x)==1) { K *px=px(x); pf1[0]=kcp(px[0]); if(E(pf[1])) { _k(x); r=pf1[0]; } else r=k_(f); }
+          else if(0x81==s(x)) { _k(x); r=KERR_VALENCE; }
+          else { pf1[0]=x; if(E(pf[1])) { _k(x); r=pf1[0]; } else r=k_(f); }
+        }
+        else if(pf1[0]==inull) {
           if(0x81==s(x)&&n(x)==1) { K *px=px(x); r=k(ff,k_(px[0]),k_(pf1[1])); _k(x); }
           else if(0x81==s(x)) { _k(x); r=KERR_VALENCE; }
           else r=k(ff,x,k_(pf1[1]));
@@ -150,12 +156,11 @@ K fe(K f, K a, K x, char *av) {
     case 0xd0:
       r=avdo(k_(f),0,x,av);
       break;
-    case 0xd7:;
-      K *pf=px(f);
-      K f0=k_(pf[0]);
-      K f1=k_(pf[1]);
-      K *pf1=px(f1);
-      K fav=0;
+    case 0xd7:
+      pf=px(f);
+      f0=k_(pf[0]);
+      f1=k_(pf[1]);
+      pf1=px(f1);
       if(0xc3==s(f1)) fav=pf1[3];
       else if(0xc4==s(f1)) fav=pf1[2];
       else { _k(x); r=KERR_PARSE; break; }
