@@ -135,7 +135,7 @@ static K vlookupav(K x) {
       }
       else {
         u64 n0=n(fav);
-        fav=kresize(fav,n(fav)+strlen(av));
+        fav=kresize(fav,n(fav)+1+strlen(av));
         char *pfav=px(fav);
         snprintf(pfav+n0,1+strlen(av),"%s",av);
       }

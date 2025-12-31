@@ -97,13 +97,12 @@ static K over7(K f, K x, char *av) {
   if(allatoms) { r=fne_(k_(f),k_(x),av); return r; }
 
   q=tn(0,nx); pq=px(q);
-  pxk=px(x);
   pq[0]=k_(pxk[0]);
   for(u64 i=1;i<nx;i++) {
     p=pxk[i];
     if(m==-1&&T(p)<=0) m=n(p);
     else if(m>=0&&T(p)<=0&&!s(p)&&m!=(i64)n(p)) { _k(q);  return kerror("valence"); }
-    if(T(p)<0) { pq[i]=kmix(p); EC(pq[i]); }
+    if(T(p)<0&&!s(p)) { pq[i]=kmix(p); EC(pq[i]); }
     else pq[i]=k_(p);
   }
   if(m==1) r=fne_(k_(f),k_(x),av);

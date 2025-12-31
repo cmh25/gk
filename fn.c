@@ -449,6 +449,7 @@ K fne_(K f, K x, char *av) {
     fnestack[++fnestacki]=f;
     int opencode0=opencode;
     opencode=0;
+    RETURN=0;  /* clear early return flag from previous calls */
     r=pgreduce(pf[1],0);
     opencode=opencode0;
     --fnestacki;

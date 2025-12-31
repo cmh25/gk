@@ -312,6 +312,12 @@ static K scope_set_(K s, char *n, K v) {
 
     pes=px(es);
     d=dget(pes[1],sp(ss));
+    if(!d && es!=gs) {
+      /* not found locally, check global scope */
+      K *pgs_=px(gs);
+      d=dget(pgs_[1],sp(ss));
+      if(d) es=gs;  /* found globally, use global scope */
+    }
     if(!d) d=dnew();
     else if(0x80!=s(d)) { _k(d); _k(v); return KERR_VALUE; }
     kd=(ko*)(b(48)&d);

@@ -102,9 +102,29 @@ K fe(K f, K a, K x, char *av) {
       break;
     case 0xd4:
       pf=px(f);
+      f1=pf[1]; pf1=px(f1);
+      if(pf1[0]==inull && pf1[1]==inull) {
+        if(0x81==s(x)&&n(x)==1) {
+          r=tn(0,2); pr=px(r);
+          pr[0]=kcp(f); if(E(pr[0])) { r=pr[0]; _k(r); _k(x); break; }
+          pr[1]=kcp(x); if(E(pr[1])) { r=pr[1]; _k(r); _k(x); break; }
+          r=st(0xd9,r);
+          _k(x);
+        }
+        else if(0x81==s(x)) { _k(x); r=KERR_VALENCE; }
+        else {
+          r=tn(0,2); pr=px(r);
+          t=tn(0,1); pt=px(t);
+          pt[0]=kcp(x); if(E(pt[0])) { r=pt[0]; _k(t); _k(r); _k(x); break; }
+          pr[0]=kcp(f); if(E(pr[0])) { r=pr[0]; _k(t); _k(r); _k(x); break; }
+          pr[1]=st(0x81,t);
+          r=st(0xd9,r);
+          _k(x);
+        }
+        break;
+      }
       switch(s(pf[0])) {
       case 0xc5:
-        f1=pf[1]; pf1=px(f1);
         if(pf1[0]==inull) {
           if(0x81==s(x)&&n(x)==1) { K *px=px(x); r=fc(pf[0],k_(px[0]),k_(pf1[1]),av); _k(x); }
           else if(0x81==s(x)) { _k(x); r=KERR_VALENCE; }
@@ -118,7 +138,6 @@ K fe(K f, K a, K x, char *av) {
         else { _k(f); _k(x); return KERR_VALENCE; }
         break;
       case 0xc7:
-        f1=pf[1]; pf1=px(f1);
         if(pf1[0]==inull) {
           if(0x81==s(x)&&n(x)==1) { K *px=px(x); r=builtin(pf[0],k_(px[0]),k_(pf1[1])); _k(x); }
           else if(0x81==s(x)) { _k(x); r=KERR_VALENCE; }
@@ -133,14 +152,7 @@ K fe(K f, K a, K x, char *av) {
         break;
       default:
         ff=ck(pf[0])%32;
-        f1=pf[1]; pf1=px(f1);
-        if(pf1[0]==inull && pf1[1]==inull) {
-          _k(pf1[0]);
-          if(0x81==s(x)&&n(x)==1) { K *px=px(x); pf1[0]=kcp(px[0]); if(E(pf[1])) { _k(x); r=pf1[0]; } else r=k_(f); }
-          else if(0x81==s(x)) { _k(x); r=KERR_VALENCE; }
-          else { pf1[0]=x; if(E(pf[1])) { _k(x); r=pf1[0]; } else r=k_(f); }
-        }
-        else if(pf1[0]==inull) {
+        if(pf1[0]==inull) {
           if(0x81==s(x)&&n(x)==1) { K *px=px(x); r=k(ff,k_(px[0]),k_(pf1[1])); _k(x); }
           else if(0x81==s(x)) { _k(x); r=KERR_VALENCE; }
           else r=k(ff,x,k_(pf1[1]));
@@ -234,7 +246,7 @@ K fe(K f, K a, K x, char *av) {
         }
         else if(av && *av) {
           int n=strlen(av);
-          if(n > 32) { _k(a); _k(x); return KERR_LENGTH; }
+          if(n>32) { _k(a); _k(x); return KERR_LENGTH; }
           if(n==1) {
             int avf=strchr(P,*av)-P;
             r=k(avf,ff,x);
