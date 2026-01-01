@@ -72,7 +72,8 @@ K fe(K f, K a, K x, char *av) {
     case 0xc1: case 0xc2:
       mv=px(f);
       s=strchr(P,*mv);
-      if(*++mv && s-P<=20) r=avdo(s-P,a,x,mv);
+      if(0x81==s(x)) { _k(a); _k(x); r=KERR_TYPE; }  /* TODO */
+      else if(*++mv && s-P<=20) r=avdo(s-P,a,x,mv);
       else { _k(a); _k(x); r=KERR_PARSE; }
       break;
     case 0xc3: case 0xc4:
