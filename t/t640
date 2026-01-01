@@ -1,15 +1,5 @@
-f:{
-  d::.+(`a`b`c;1 2 3)
-  d.b:9
-  d}
+/ regression: d.n+:1 inside function
+/ was getting type error because vlookuprs didn't handle dotted names for locals
+f:{d.a:1;d.a+:1;d}
 f`
-d
-
-d2:.+(`a`b`c;1 2 3)
-f2:{
-  d2.b:9
-  d2}
-f2`
-d2
-
 \\

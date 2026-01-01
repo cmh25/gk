@@ -172,15 +172,57 @@ static K vlookup(K x) {
   return r?r:KERR_VALUE;
 }
 static K vlookuprs(K x, K *rs) {
-  K r=0,s=cs,*ps;
+  K r=0,sc=cs,*ps;
+  if(0x40!=s(x)) return KERR_VALUE;
+  /* fast path: indexed locals (type 1) go directly to scope_get */
+  if(4!=T(x)) {
+    r=scope_get(cs,x);
+    if(r) { *rs=cs; return r; }
+    return KERR_VALUE;
+  }
   char *n=sk(x);
-  while(s!=null&&s!=ks) {
-    ps=px(s);
-    if(0x80!=s(ps[1])) break;
-    r=dget(ps[1],n);
-    if(r) { *rs=s; break; }
-    if(null==ps[2]) s=ps[0];
-    else break;
+  char *dot=strchr(n,'.');
+  char base[256];
+
+  /* for dotted names, extract base and look up path */
+  if(dot && dot!=n && (size_t)(dot-n)<sizeof(base)-1) {
+    memcpy(base,n,dot-n); base[dot-n]=0;
+    while(sc!=null&&sc!=ks) {
+      ps=px(sc);
+      if(0x80!=s(ps[1])) break;
+      r=dget(ps[1],sp(base));  /* look for base "d" */
+      if(r) {
+        /* found base, now traverse path */
+        *rs=sc;
+        char *p=dot;
+        while(*++p) {
+          char *p2=strchr(p,'.');
+          size_t len=p2?(size_t)(p2-p):strlen(p);
+          if(len>=sizeof(base)) { _k(r); return KERR_LENGTH; }
+          memcpy(base,p,len); base[len]=0;
+          if(0x80!=s(r)) { _k(r); return KERR_VALUE; }  /* not a dict - treat as not found */
+          K t=dget(r,sp(base));
+          _k(r);
+          if(!t) return KERR_VALUE;
+          r=t;
+          if(!p2) break;
+          p=p2;
+        }
+        return r;
+      }
+      if(null==ps[2]) sc=ps[0];
+      else break;
+    }
+  } else {
+    /* simple name */
+    while(sc!=null&&sc!=ks) {
+      ps=px(sc);
+      if(0x80!=s(ps[1])) break;
+      r=dget(ps[1],n);
+      if(r) { *rs=sc; break; }
+      if(null==ps[2]) sc=ps[0];
+      else break;
+    }
   }
   if(!r) {
     r=scope_get(gs,x);
@@ -341,9 +383,14 @@ static K assign(K d, K i, K y) {
   if(!d||!i||!y) { _k(d); d=KERR_TYPE; goto cleanup; }
   if(0x40!=s(d)) { _k(d); d=KERR_TYPE; goto cleanup; }
   d=vlookuprs(d,&rs);
-  if(d==KERR_VALUE) { /* d[`a]:1 */
+  if(d==KERR_VALUE) { /* d[`a]:1 - d not found, create in global */
     if(T(i)==4 || T(i)==-4) { rs=gs; d=dnew(); }
     else goto cleanup; /* value */
+  }
+  else if(rs && rs!=gs && rs!=cs) {
+    /* d[`a]:1 resolved in parent - apply closure check */
+    K *prs=px(rs);
+    if(!ik(prs[3])) rs=cs;  /* parent non-closure → local copy */
   }
   if(E(d)) goto cleanup;
   if(s(d)!=0x80 && T(d)>0) { _k(d); d=KERR_TYPE; goto cleanup; }
@@ -761,17 +808,63 @@ K pgreduce_(K x0, int *quiet) {
         if(!VST(b)) { _k(a); _k(b); *pA++=KERR_TYPE; }
         else *pA++=builtin(v,a,b);
         break;
-      case 0x82: /* a::1 */
+      case 0x82: /* a::1 or d[`a]::1 - resolve then modify */
         if(pA<=A+2) { k_(v); break; }
         --pA;
         b=*--pA;
         a=*--pA;
         if(s(b)) { b=reduce(b); if(E(b)||EXIT) { _k(a); *pA++=b; break; } }
-        if(0x40!=s(a)) { _k(a); _k(b); *pA++=KERR_VALUE; break; }
-        if(!VST(b)) { _k(b); *pA++=KERR_PARSE; break; }
-        p=scope_set(gs,a,b);
-        if(E(p)) { _k(a); *pA++=p; }  /* b already freed by scope_set */
-        else { *pA++=p; *quiet=1; }
+        if(0x40==s(a)) { /* a::1 */
+          if(!VST(b)) { _k(b); *pA++=KERR_PARSE; break; }
+          K rs; K a_=vlookuprs(a,&rs);
+          if(KERR_VALUE==a_) rs=gs;  /* not found → global */
+          else if(E(a_)) { _k(b); *pA++=a_; break; }
+          else {
+            _k(a_);
+            if(rs!=gs && rs!=cs) {
+              K *prs=px(rs);
+              if(!ik(prs[3])) rs=cs;  /* parent non-closure → local copy */
+            }
+          }
+          p=scope_set(rs,a,b);
+          if(E(p)) { _k(a); *pA++=p; }
+          else { *pA++=p; *quiet=1; }
+        }
+        else if(0x44==s(a)) { /* d[`a]::1 */
+          if(!VST(b)) { _k(a); _k(b); *pA++=KERR_PARSE; break; }
+          pa=px(a);
+          K a_=k_(pa[0]); K i_=k_(pa[1]); _k(a);
+          /* resolve index */
+          if(0x41==s(i_)) {
+            if(n(i_)) {
+              i_=r41(i_); if(E(i_)) { _k(a_); _k(b); *pA++=i_; break; }
+              if(0x81==s(i_)) i_=b(48)&i_;
+            }
+            else { _k(i_); i_=null; }
+          }
+          else if(0x81==s(i_)) {
+            if(n(i_)) i_=b(48)&i_;
+            else { _k(i_); i_=null; }
+          }
+          else { _k(a_); _k(i_); _k(b); *pA++=KERR_TYPE; break; }
+          if(0x40!=s(a_)) { _k(a_); _k(i_); _k(b); *pA++=KERR_TYPE; break; }
+          /* resolve base, apply closure check */
+          K rs; if(KERR_VALUE==(a_=vlookuprs(a_,&rs))) { a_=null; rs=gs; }
+          if(E(a_)) { _k(b); _k(i_); *pA++=a_; break; }
+          if(rs!=gs && rs!=cs) {
+            K *prs=px(rs);
+            if(!ik(prs[3])) rs=cs;  /* parent non-closure → local copy */
+          }
+          /* amend dict and save */
+          K r=kamend4(a_,i_,0,k_(b));
+          if(E(r)) { _k(b); *pA++=r; }
+          else {
+            p=scope_set(rs,pa[0],r);
+            if(E(p)) { _k(b); *pA++=p; }
+            else { _k(p); *pA++=b; *quiet=1; }
+          }
+        }
+        else { _k(a); _k(b); *pA++=KERR_VALUE; break; }
         break;
       case 0xcf: /* a+: */
         if(pA<=A+1) { k_(v); break; }
@@ -798,9 +891,13 @@ K pgreduce_(K x0, int *quiet) {
         if(0x40==s(a)) {
           if(s(b)) { b=reduce(b); if(E(b)||EXIT) { _k(a); *pA++=b; break; } }
           if(!VST(b)) { _k(b); *pA++=KERR_PARSE; break; }
-          // need to know which scope variable was resolved from
+          // resolve, then apply closure check
           K rs; if(KERR_VALUE==(a_=vlookuprs(a,&rs))) { a_=null; rs=gs; }
           if(E(a_)) { _k(b); *pA++=a_; break; }
+          if(rs!=gs && rs!=cs) {
+            K *prs=px(rs);
+            if(!ik(prs[3])) rs=cs;  /* parent non-closure → local copy */
+          }
           t=k(strchr(P,ik(v))-P,a_,b);
           if(E(t)||EXIT) { *pA++=t; break; };
           p=scope_set(rs,a,t);
@@ -828,9 +925,13 @@ K pgreduce_(K x0, int *quiet) {
           else { _k(a_); _k(i_); _k(b); *pA++=KERR_TYPE; break; }
 
           if(0x40!=s(a_)) { _k(a_); _k(i_); _k(b); *pA++=KERR_TYPE; break; }
-          // need to know which scope variable was resolved from
+          // resolve, then apply closure check
           K rs; if(KERR_VALUE==(a_=vlookuprs(a_,&rs))) { a_=null; rs=gs; }
           if(E(a_)) { _k(b); _k(i_); *pA++=a_; break; }
+          if(rs!=gs && rs!=cs) {
+            K *prs=px(rs);
+            if(!ik(prs[3])) rs=cs;  /* parent non-closure → local copy */
+          }
           a=k(11,k_(a_),k_(i_));
           if(E(a)) { _k(b); _k(a_); _k(i_); *pA++=a; break; }
           if(T(i_)>0) {
@@ -1033,27 +1134,10 @@ K pgreduce_(K x0, int *quiet) {
       if(0x42==s(a)) { a=r42(a); if(E(a)||EXIT) { _k(b); *pA++=a; break; } }
       if(0x41==s(b)) { _k(a); _k(b); *pA++=KERR_TYPE; break; }
       if(c==64) {
-        if(0x40==s(a)) { /* a:1 */
+        if(0x40==s(a)) { /* a:1 - always local */
           if(s(b)) { b=reduce(b); if(E(b)||EXIT) { _k(a); *pA++=b; break; } }
           if(!VST(b)) { _k(b); *pA++=KERR_PARSE; break; }
-          // if this is a closure, where to set?
-          // if the variable is defined in the parent lexical scope, set it there
-          // otherwise, set it in cs
-          // under no circumstances set it in gs here.
-          K rs; K a_=vlookuprs(a,&rs);
-          if(KERR_VALUE==a_) rs=cs;
-          else if(E(a_)) { _k(b); *pA++=a_; break; }
-          else if(rs==gs) { _k(a_); rs=cs; }
-          else _k(a_);
-          if(rs!=cs) {
-            K *prs=px(rs);
-            if(!ik(prs[3])) { /* if not closure scope */
-              // resolved in parent, but parent is not a closure scope
-              // so we can't write to it.
-              rs=cs;
-            }
-          }
-          p=scope_set(rs,a,b);
+          p=scope_set(cs,a,b);
           if(E(p)) { _k(a); *pA++=p; }  /* b already freed by scope_set */
           else { *pA++=p; *quiet=1; }
         }

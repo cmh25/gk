@@ -1,6 +1,6 @@
 / closure
 j:0
-f:{i:0;{i:i+x;j:5;i}}
+f:{i:0;{i+:x;j:5;i}}
 g:f`
 h:f`
 g 2
