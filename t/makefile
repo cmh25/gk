@@ -8,4 +8,4 @@ testp:
 	./p.sh
 
 clean:
-	rm -f [0dv][0123456789]*
+	rm -f [0-9]* [dev][0-9]*

@@ -184,7 +184,7 @@ static K overm7(K f, K x, char *av) {
       pxx[0]=q;
       z=fne_(k_(f),k_(xx),av); EC(z); r=z;
       if(STOP) { STOP=0; e=kerror("stop"); goto cleanup; }
-      if(EXIT) break;
+      if(EXIT) { e=kerror("abort"); goto cleanup; }
     }
   }
   _k(r);
@@ -210,7 +210,7 @@ static K overm(K f, K x, char *av) {
       _k(q); q=r;
       z=b?fe(k_(f),0,k_(q),av):avdo(k_(f),0,k_(q),av); EC(z); r=z;
       if(STOP) { STOP=0; e=kerror("stop"); goto cleanup; }
-      if(EXIT) break;
+      if(EXIT) { e=kerror("abort"); goto cleanup; }
     }
   }
   _k(r);
@@ -228,21 +228,21 @@ static K scanm7(K f, K x, char *av) {
   xx=tn(0,1); pxx=px(xx); pxx[0]=x;
   prk[zi]=kcp2(x); if(E(prk[zi])) { e=prk[zi]; goto cleanup; } ++zi; /* first */
   q=fne_(k_(f),k_(xx),av); EC(q); /* previous */
-  if(EXIT) { e=null; goto cleanup; }
+  if(EXIT) { e=kerror("abort"); goto cleanup; }
   if(!ik(k(10,k_(x),k_(q)))) {
     prk[zi]=kcp2(q); if(E(prk[zi])) { e=prk[zi]; goto cleanup; } ++zi;
     if(E(prk[zi-1])) { e=prk[zi-1]; goto cleanup; }
     pxx[0]=q;
     t=fne_(k_(f),k_(xx),av); EC(t);
-    if(EXIT) { e=null; goto cleanup; }
+    if(EXIT) { e=kerror("abort"); goto cleanup; }
     while(!ik(k(10,k_(t),k_(x)))&&!ik(k(10,k_(t),k_(q)))) {
       if(zi==zm) { zm<<=1; r=kresize(r,zm); prk=px(r); }
       prk[zi]=kcp2(t); if(E(prk[zi])) { e=prk[zi]; goto cleanup; } ++zi;
       _k(q); q=t;
       pxx[0]=q;
       t=fne_(k_(f),k_(xx),av); EC(t);
-      if(EXIT) break;
       if(STOP) { STOP=0; e=kerror("stop"); goto cleanup; }
+      if(EXIT) { e=kerror("abort"); goto cleanup; }
     }
   }
   _k(q);
@@ -276,7 +276,7 @@ static K scanm(K f, K x, char *av) {
       _k(q); q=t;
       t=b?fe(k_(f),0,k_(q),av):avdo(k_(f),0,k_(q),av); EC(t);
       if(STOP) { STOP=0; e=kerror("stop"); goto cleanup; }
-      if(EXIT) break;
+      if(EXIT) { e=kerror("abort"); goto cleanup; }
     }
   }
   _k(q);
@@ -590,10 +590,7 @@ K avdo(K f, K a, K x, char *av) {
         else r=kerror("type");
         _k(f); _k(x);
       }
-      else if(0xc7==s(f)) { /* builtin dyad */
-        r=kerror("valence"); _k(f); _k(x);
-      }
-      else if(0xc5==s(f)) {
+      else if(0xc5==s(f)||0xc7==s(f)) {
         /* f'[a;x]; f/[a;x];   f\[a;x] */
         /* each     eachright  eachleft */
         if(*av=='\'') {
@@ -663,16 +660,19 @@ K overmonadn(K f, K a, K x, char *av) {
   if(i<0) { e=kerror("domain"); goto cleanup; }
   r=k_(x);
   while(i>0) {
-    p=fe(k_(f),0,r,av); EC(p);
-    r=p;
+    p=fe(k_(f),0,k_(r),av); EC(p);
+    _k(r); r=p;
     --i;
-    if(STOP) { STOP=0; _k(r); e=kerror("stop"); goto cleanup; }
-    if(EXIT) break;
+    if(STOP) { STOP=0; e=kerror("stop"); goto cleanup; }
+    if(EXIT) { e=kerror("abort"); goto cleanup; }
   }
   _k(f); _k(a); _k(x);
   return knorm(r);
 cleanup:
-  _k(f); _k(a); _k(x);
+  _k(f);
+  _k(r);
+  _k(a);
+  if(r!=x) _k(x);
   return e;
 }
 
@@ -687,7 +687,7 @@ K scanmonadn(K f, K a, K x, char *av) {
     prk[j++]=p;
     --i;
     if(STOP) { STOP=0; e=kerror("stop"); goto cleanup; }
-    if(EXIT) break;
+    if(EXIT) { e=kerror("abort"); goto cleanup; }
   }
   _k(f); _k(a); _k(x);
   return knorm(r);
@@ -704,20 +704,23 @@ K overmonadb(K f, K a, K x, char *av) {
   else b=1;
   _k(p);
   while(ik(b)) {
-    p=fe(k_(f),0,r,av); EC(p);
-    r=p;
+    p=fe(k_(f),0,k_(r),av); EC(p);
+    _k(r); r=p;
     p=fe(k_(a),0,k_(r),av); //EC(p);
-    if(E(p)) { _k(r); e=p; goto cleanup; }
+    if(E(p)) { e=p; goto cleanup; }
     if(T(p)==1) b=ik(p);
     else b=1;
     _k(p);
-    if(STOP) { STOP=0; _k(r); e=kerror("stop"); goto cleanup; }
-    if(EXIT) break;
+    if(STOP) { STOP=0; e=kerror("stop"); goto cleanup; }
+    if(EXIT) { e=kerror("abort"); goto cleanup; }
   }
   _k(f); _k(a); _k(x);
   return knorm(r);
 cleanup:
-  _k(f); _k(a); _k(x);
+  _k(f);
+  _k(r);
+  _k(a);
+  if(r!=x) _k(x);
   return e;
 }
 
@@ -741,7 +744,7 @@ K scanmonadb(K f, K a, K x, char *av) {
     else b=1;
     _k(p);
     if(STOP) { STOP=0; e=kerror("stop"); goto cleanup; }
-    if(EXIT) break;
+    if(EXIT) { e=kerror("abort"); goto cleanup; }
   }
   _k(f); _k(a); _k(x);
   return knorm(r);

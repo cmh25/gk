@@ -434,6 +434,7 @@ static K rpd(K x) {
   f=f2;
   pf=px(f);
   pf[3]=tnv(3,strlen(av),xmemdup(av,1+strlen(av)));
+  if(0xc9==s(x)) pf[4]=t(1,1);
   return f;
 }
 
@@ -1029,12 +1030,14 @@ K pgreduce_(K x0, int *quiet) {
           else if(0x44==s(b)) { b=r44(b); if(E(b)||EXIT) { _k(f); *pA++=b; break; } }
           valence=val(f);
           if(valence==1) {
+            if(0x85==s(b)) { _k(f); _k(b); *pA++=KERR_TYPE; break; }
             xx=params[paramsi++]; pxk=px(xx); pxk[0]=b; n(xx)=1;
             *pA++=fne(f,k_(xx),0);
             _k(b); --paramsi;
           }
           else if(valence==2) {
             if(0==pA-A) {
+              if(0x85==s(b)) { _k(f); _k(b); *pA++=KERR_TYPE; break; }
               xx=params[paramsi++]; pxk=px(xx); pxk[0]=b; n(xx)=1;
               *pA++=fne(f,k_(xx),0);
               _k(b); --paramsi;
@@ -1043,6 +1046,7 @@ K pgreduce_(K x0, int *quiet) {
               a=*--pA;
               if(0x40==s(a)&&i+1<nx&&64==ik(px[i+1])&&pA==A) { /* f:lin 1 2 3 */
                 ++i;
+                if(0x85==s(b)) { _k(f); _k(b); *pA++=KERR_TYPE; break; }
                 xx=params[paramsi++]; pxk=px(xx); pxk[0]=b; n(xx)=1;
                 t=fne(f,k_(xx),0);
                 _k(b); --paramsi;
@@ -1057,6 +1061,7 @@ K pgreduce_(K x0, int *quiet) {
               if(s(a)) { a=reduce(a); if(E(a)||EXIT) { _k(f); _k(b); *pA++=a; break; } }
               if(!VST(b)) { _k(f); _k(a); _k(b); *pA++=KERR_TYPE; break; }
               if(!VST(a)) { _k(f); _k(a); _k(b); *pA++=KERR_TYPE; break; }
+              if(0x85==s(a)||0x85==s(b)) { _k(f); _k(a); _k(b); *pA++=KERR_TYPE; break; }
               xx=params[paramsi++]; pxk=px(xx); pxk[0]=a; pxk[1]=b; n(xx)=2;
               *pA++=fne(f,k_(xx),0);
               _k(a); _k(b); --paramsi;
@@ -1076,6 +1081,17 @@ K pgreduce_(K x0, int *quiet) {
           if(s(b)) { b=reduce(b); if(E(b)||EXIT) { *pA++=b; break; } }
           kprint(k_(b),"","\n","");
           *pA++=b;
+        }
+        break;
+      case 0xdb:  /* draw/2 3 4 */
+        if(pA>A+1) {
+          --pA;
+          b=*--pA;
+          if(s(b)) { b=reduce(b); if(E(b)||EXIT) { *pA++=b; break; } }
+          if(T(b)==0 && n(b)==1) { K *pb=px(b); p=k_(pb[0]); _k(b); b=p; }
+          else if(T(b)==0 && n(b)==0) { _k(b); b=null; }
+          else if(!VST(b)) { _k(b); *pA++=KERR_TYPE; break; }
+          *pA++=builtin(v,0,b);
         }
         break;
       default: k_(v);
@@ -1338,14 +1354,15 @@ K pgreduce_(K x0, int *quiet) {
               else { _k(f); _k(b); _k(t); *pA++=KERR_TYPE; break; }
             }
             else if(!strcmp(favp,"'")&&0==ik(val(a))) {
-              K f=kcp(a); _k(a);
-              if(E(f)) { _k(b); *pA++=f; break; }
+              K f=kcp(a);
+              if(E(f)) { _k(a); _k(b); *pA++=f; break; }
               K *pf=px(f);
               if(0xc3==s(f)) { _k(pf[3]); pf[3]=null; }
               else if(0xc4==s(f)) { _k(pf[2]); pf[2]=null; }
               char av2[256];
               snprintf(av2,256,"%s%s",favp,av?av:"");
               *pA++=avdo(f,0,b,av2);
+              _k(a);
             }
             else if(0x45==s(b)) {
               pb=px(b);
@@ -1877,6 +1894,33 @@ K list19(pgs *s, pn *a) {
   return r;
 }
 
+static int hasav(pn *a) {
+  K *pf;
+  char *pc;
+  if(a->t==2 && 0xc3==s(a->n)) {
+    pf=px(a->n);
+    pc=px(pf[0]);
+    if(strchr("'/\\",pc[strlen(pc)-1])) return 1;
+    if(pf[3]!=null) {
+      pc=px(pf[3]);
+      if(strlen(pc)) return 1;
+    }
+  }
+  else if(a->t==2 && 0x40==s(a->n) && 4==T(a->n)) {
+    pc=sk(a->n);
+    if(strchr("'/\\",pc[strlen(pc)-1])) return 1;
+  }
+  else if(a->t==1 && 0xc7==s(a->v)) {
+    pc=sk(a->v);
+    if(strpbrk(pc,"/\\")) return 1;
+  }
+  else if(a->t==1 && 0xca==s(a->v)) {
+    pc=sk(a->v);
+    if(strpbrk(pc,"/\\")) return 1;
+  }
+  return 0;
+}
+
 static void bc(pgs *s, pn *a, K values, K index, K line, int *vm) {
   char *t;
   pn **s0,**s1;
@@ -1908,17 +1952,25 @@ static void bc(pgs *s, pn *a, K values, K index, K line, int *vm) {
     pindex[j]=a->i;
     pline[j]=a->line;
     if(a->t==1) {
-      if(0xc1==s(a->v)||0xc2==s(a->v)) {
-        if(0xc1==s(a->v)&&a->a[0]) a->v=(a->v&~((K)0xff<<48))|(K)0xc2<<48;
+      if(0xc1==s(a->v)) {
+        if(a->a[0]) a->v=(a->v&~((K)0xff<<48))|(K)0xc2<<48;  /* 1 +/ 2 3 4 */
+        pvalues[j++]=k_(a->v);
+      }
+      else if(0xc7==s(a->v)) {
+        if(a->a[1]&&!a->a[0]&&hasav(a)) a->v=(a->v&~((K)0xff<<48))|(K)0xdb<<48;  /* draw/2 3 4 */
+        pvalues[j++]=k_(a->v);
+      }
+      else if(0xca==s(a->v)) {
+        if(a->a[1]&&!a->a[0]&&hasav(a)) a->v=(a->v&~((K)0xff<<48))|(K)0xc9<<48;  /* mul/x */
         pvalues[j++]=k_(a->v);
       }
       else if(0xce==s(a->v)) {
         if(a->a[0]&&!a->a[1]) a->v=(a->v&~((K)0xff<<48))|(K)0xcf<<48;
         pvalues[j++]=k_(a->v);
       }
-      else if(0xc6==s(a->v)||0xc7==s(a->v)||0xd1==s(a->v)||0xd2==s(a->v)
-            ||0xd3==s(a->v)||0xcc==s(a->v)||0xcd==s(a->v)||0xca==s(a->v)
-            ||0xc9==s(a->v)||0xcb==s(a->v)||0x85==s(a->v)||0x82==s(a->v)
+      else if(0xc2==s(a->v)||0xc6==s(a->v)||0xc7==s(a->v)||0xc9==s(a->v)
+            ||0xd1==s(a->v)||0xd2==s(a->v)||0xd3==s(a->v)||0xcc==s(a->v)
+            ||0xcd==s(a->v)||0xcb==s(a->v)||0x85==s(a->v)||0x82==s(a->v)
             ||0xd8==s(a->v)) {
         pvalues[j++]=k_(a->v);
       }
@@ -2041,23 +2093,6 @@ static K listbc(pgs *s, pn *a, int t) {
     return st(0x81,r);
   }
   else return st(t,z);
-}
-
-static int hasav(pn *a) {
-  if(a->t==2 && 0xc3==s(a->n)) {
-    K *pf=px(a->n);
-    char *pc=px(pf[0]);
-    if(strchr("'/\\",pc[strlen(pc)-1])) return 1;
-    if(pf[3]!=null) {
-      pc=px(pf[3]);
-      if(strlen(pc)) return 1;
-    }
-  }
-  else if(a->t==2 && 0x40==s(a->n) && 4==T(a->n)) {
-    char *pc=sk(a->n);
-    if(strchr("'/\\",pc[strlen(pc)-1])) return 1;
-  }
-  return 0;
 }
 
 /* parse node allocation with global tracking for memory management */

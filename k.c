@@ -384,6 +384,7 @@ const char* kprint_(K x, char *s, char *e, char *s0) {
       mprintf("]");
       mprintf(e);
       break;
+    case 0xdb: mprintf("%s%s%s",s,sk(x),e); break;
     case 0x80:
       mprintf("%s.",s);
       s2=xmalloc(2+strlen(s0));
@@ -2450,6 +2451,7 @@ u64 khashcb(K x) {
   case 0xd7: r=r+khash(x&(K)0xff00ffffffffffff); break;
   case 0xd8: r=r+khash(x&(K)0xff00ffffffffffff); break;
   case 0xd9: r=r+khash(x&(K)0xff00ffffffffffff); break;
+  case 0xdb: r=r+khash(x&(K)0xff00ffffffffffff); break;
   default:
     fprintf(stderr,"error: unsupported type in khashcb()\n");
     exit(1);
@@ -2512,6 +2514,7 @@ K kcpcb(K x) {
   case 0xd7: p=kcp(x&(K)0xff00ffffffffffff); if(E(p)) r=p; else r=set_sx(p,0xd7); break;
   case 0xd8: p=kcp(x&(K)0xff00ffffffffffff); if(E(p)) r=p; else r=set_sx(p,0xd8); break;
   case 0xd9: p=kcp(x&(K)0xff00ffffffffffff); if(E(p)) r=p; else r=set_sx(p,0xd9); break;
+  case 0xdb: p=kcp(x&(K)0xff00ffffffffffff); if(E(p)) r=p; else r=set_sx(p,0xdb); break;
   }
   --d;
   return r;

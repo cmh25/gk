@@ -54,7 +54,8 @@ K builtin(K f, K a, K x) {
   a2=sp(a2);
   if(av&&*av&&x) {
     if(a2==sp("exit")) { --d; _k(x); return KERR_PARSE; }
-    r=avdo(t(4,st(s(f),a2)),k_(a),k_(x),av);
+    if(0xdb==s(f)) r=avdo(t(4,st(0xc7,a2)),k_(a),k_(x),av);  /* draw/2 3 4 */
+    else r=avdo(t(4,st(s(f),a2)),k_(a),k_(x),av);
   }
   else if(0xc8==s(f)) { /* projection */
     if(a) { --d; _k(a); _k(x); return KERR_VALENCE; }
