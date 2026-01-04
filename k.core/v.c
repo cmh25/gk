@@ -544,6 +544,7 @@ K find(K a, K x) {
   case -3: if(tx!=3) break; PAC; i(na,if(pac[i]==ck(x)){r=t(1,i); break;}) break;
   case -4: if(tx!=4) break; PAS; i(na,if(!strcmp(pas[i],sk(x))){r=t(1,i); break;}) break;
   case  0: PAK; i(na,if(!kcmpr(pak[i],x)){r=t(1,i); break;}) break;
+  default: r=KERR_TYPE;
   }
   return r;
 }
@@ -565,6 +566,7 @@ static K take_(K a, K x) {
     case -2: if(nx) r=t2(((double*)px(x))[0]); else r=null; break;
     case -3: if(nx) r=t(3,(u8)(((char*)px(x))[0])); else r=t(3,' '); break;
     case -4: if(nx) r=t(4,((char**)px(x))[0]); else r=t(4,sp("")); break;
+    default: r=KERR_TYPE;
     }
     return r;
   }
@@ -1202,6 +1204,7 @@ K first(K x) {
   case -3: PXC; r=nx?t(3,(u8)*pxc):t(3,' '); break;
   case -4: PXS; r=nx?t(4,*pxs):t(4,""); break;
   case  0: PXK; r=nx?k_(*pxk):null; break;
+  default: return KERR_TYPE;
   }
   return r;
 }
@@ -1771,6 +1774,7 @@ K enlist(K x) {
   case  4: PRS(1); *prs=sk(x); break;
   case  6: PRK(1); *prk=x; break;
   case -1: case -2: case -3: case -4: case 0: PRK(1); *prk=k_(x); break;
+  default: r=KERR_TYPE;
   }
   return r;
 }
