@@ -52,7 +52,7 @@ void scope_init(int argc, char **argv) {
   K *pk=px(ktree); char **pkk=px(pk[0]); K *pkv=px(pk[1]);
   pkk[0]=sp("k"); pkv[0]=k_(pgs[1]);
   pkk[1]=sp("z"); pkv[1]=k_(Z);
-  n(pk[0])=2; n(pk[1])=2; pk[2]=t(1,2);
+  n(pk[0])=2; n(pk[1])=2;
   C=dnew();
   D=t(4,sp(".k"));
 #ifdef _WIN32
