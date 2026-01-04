@@ -669,10 +669,7 @@ K overmonadn(K f, K a, K x, char *av) {
   _k(f); _k(a); _k(x);
   return knorm(r);
 cleanup:
-  _k(f);
-  _k(r);
-  _k(a);
-  if(r!=x) _k(x);
+  _k(f); _k(r); _k(a); _k(x);
   return e;
 }
 

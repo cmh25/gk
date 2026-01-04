@@ -608,19 +608,11 @@ static K take_(K a, K x) {
       else if(nx) i(c,*prk++=k_(pxk[(i+TJ)%nx]))
       else i(c,*prk++=null)
       break;
+    default: r=KERR_TYPE;
     } break;
   case -1: {
     i32 *pa=px(a);
     i32 n=1;
-    if(!na) {
-      switch(tx) {
-      case -1: case 1: return tn(1,0);
-      case -2: case 2: return tn(2,0);
-      case -3: case 3: return tn(3,0);
-      case -4: case 4: return tn(4,0);
-      default: return tn(0,0);
-      }
-    }
     /* 0N # x -> return x as-is */
     if(na==1 && pa[0]==INT32_MIN) return k_(x);
     /* 0N k # x -> chunk into k-tuples with remainder */
@@ -632,12 +624,13 @@ static K take_(K a, K x) {
       rows=((i64)nx+kk-1)/kk;
       if(rows>INT32_MAX) return KERR_WSFULL;
       PRK((i32)rows);
-      switch(tx) {
+      switch(Tx) {
       case -1: PXI; i(rows, st=i*kk; ln=(i==(u64)rows-1)?(i32)(nx-st):kk; prk[i]=tn(1,ln); pri=px(prk[i]); j(ln,pri[j]=pxi[st+j])) break;
       case -2: PXF; i(rows, st=i*kk; ln=(i==(u64)rows-1)?(i32)(nx-st):kk; prk[i]=tn(2,ln); prf=px(prk[i]); j(ln,prf[j]=pxf[st+j])) break;
       case -3: PXC; i(rows, st=i*kk; ln=(i==(u64)rows-1)?(i32)(nx-st):kk; prk[i]=tn(3,ln); prc=px(prk[i]); j(ln,prc[j]=pxc[st+j])) break;
       case -4: PXS; i(rows, st=i*kk; ln=(i==(u64)rows-1)?(i32)(nx-st):kk; prk[i]=tn(4,ln); prs=px(prk[i]); j(ln,prs[j]=pxs[st+j])) break;
       case  0: PXK; i(rows, st=i*kk; ln=(i==(u64)rows-1)?(i32)(nx-st):kk; prk[i]=tn(0,ln); K*pc=px(prk[i]); j(ln,pc[j]=k_(pxk[st+j]))) break;
+      default: r=KERR_TYPE;
       }
       return knorm(r);
     }
@@ -1011,7 +1004,7 @@ K form(K a, K x) {
   K r=0,e,*prk;
   i32 l,m,xx,y,*pai;
   char t[2048],*s=t,*prc,*pxc,*p;
-  double f;
+  double f,g;
   if(s(a)||s(x)) return formcb(a,x);
   if(ta<=0 && tx<=0 && na!=nx && ta!=-3 && tx!=-3) return KERR_LENGTH;
   switch(ta) {
@@ -1054,8 +1047,10 @@ K form(K a, K x) {
       f=tx==1?fi(ik(x)):fk(x);
       sprintf(t,"%g",round(fk(a)*10)/10); s=strchr(t,'.');
       y=s?s[1]-48:0;
-      xx=fk(a);
-      VSIZE(abs(xx));
+      g=fk(a);
+      VSIZE(fabs(g));
+      xx=g;
+      //VSIZE(abs(xx));
       m=abs(xx);
       if(xx<0||*t=='-') sprintf(t,"%s%0.*e",f<0?"":" ",y,f);
       else if(isinf(f)) *t=0;
