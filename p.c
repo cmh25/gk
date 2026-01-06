@@ -743,12 +743,10 @@ K pgreduce_(K x0, int *quiet) {
           }
           if(s(a)) { a=reduce(a); if(E(a)||EXIT) { _k(v); _k(b); *pA++=a; break; } }
           if(!VST(a)||!VST(b)) { _k(a); _k(b); *pA++=KERR_TYPE; break; }
-          if(0x85==s(a)||0x85==s(b)) { _k(a); _k(b); *pA++=KERR_TYPE; break; }
           else *pA++=builtin(v,a,b);
         }
         else {
           if(!VST(b)) { _k(b); *pA++=KERR_TYPE; break; }
-          if(0x85==s(b)) { _k(b); *pA++=KERR_TYPE; break; }
           t=builtin(v,0,b);
           *pA++=t;
         }
@@ -838,7 +836,7 @@ K pgreduce_(K x0, int *quiet) {
           /* resolve index */
           if(0x41==s(i_)) {
             if(n(i_)) {
-              i_=r41(i_); if(E(i_)) { _k(a_); _k(b); *pA++=i_; break; }
+              i_=r41(i_); if(E(i_)||EXIT) { _k(a_); _k(b); *pA++=i_; break; }
               if(0x81==s(i_)) i_=b(48)&i_;
             }
             else { _k(i_); i_=null; }
@@ -1833,6 +1831,12 @@ K pgreduce(K x, int p) {
     if(RETURN) {
       if(!REPL) RETURN=0;
       if(cs!=gs) break;
+      /* at global scope: handle r and stop */
+      if(opencode) {
+        if(REPL && r) { if(quiet) _k(r); else kprint(r,"","\n",""); r=null; }
+        RETURN=0;
+        break;
+      }
     }
   }
   return r;

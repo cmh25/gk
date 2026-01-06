@@ -802,7 +802,7 @@ K kamendi3(K d, K i, K f) {
     prk[0]=g;
     prk[1]=kcp(d); if(E(prk[1])) { e=prk[1]; _k(r); goto cleanup; }
     prk[2]=kcp(i); if(E(prk[2])) { e=prk[2]; _k(r); goto cleanup; }
-    prk[3]=kcp(f); if(E(prk[3])) { e=prk[3]; _k(r); goto cleanup; }
+    if(f) { prk[3]=kcp(f); if(E(prk[3])) { e=prk[3]; _k(r); goto cleanup; } }
     _k(d); _k(i); _k(f);
     return st(0xd5,r);
   }
@@ -1354,7 +1354,7 @@ K kamendi4(K d, K i, K f, K y) {
     prk[0]=g;
     prk[1]=kcp(d); if(E(prk[1])) { e=prk[1]; _k(r); goto cleanup; }
     prk[2]=kcp(i); if(E(prk[2])) { e=prk[2]; _k(r); goto cleanup; }
-    prk[3]=kcp(f); if(E(prk[3])) { e=prk[3]; _k(r); goto cleanup; }
+    if(f) { prk[3]=kcp(f); if(E(prk[3])) { e=prk[3]; _k(r); goto cleanup; } }
     prk[4]=kcp(y); if(E(prk[4])) { e=prk[4]; _k(r); goto cleanup; }
     _k(d); _k(i); _k(f); _k(y);
     return st(0xd6,r);
@@ -1780,7 +1780,7 @@ K kamend3(K d, K i, K f) {
     prk[0]=g;
     prk[1]=kcp(d); if(E(prk[1])) { e=prk[1]; _k(r); goto cleanup; }
     prk[2]=kcp(i); if(E(prk[2])) { e=prk[2]; _k(r); goto cleanup; }
-    prk[3]=kcp(f); if(E(prk[3])) { e=prk[3]; _k(r); goto cleanup; }
+    if(f) { prk[3]=kcp(f); if(E(prk[3])) { e=prk[3]; _k(r); goto cleanup; } }
     _k(d); _k(i); _k(f);
     return st(0xd5,r);
   }
@@ -2287,7 +2287,7 @@ K kamend4(K d, K i, K f, K y) {
     prk[0]=g;
     prk[1]=kcp(d); if(E(prk[1])) { e=prk[1]; _k(r); goto cleanup; }
     prk[2]=kcp(i); if(E(prk[2])) { e=prk[2]; _k(r); goto cleanup; }
-    prk[3]=kcp(f); if(E(prk[3])) { e=prk[3]; _k(r); goto cleanup; }
+    if(f) { prk[3]=kcp(f); if(E(prk[3])) { e=prk[3]; _k(r); goto cleanup; } }
     prk[4]=kcp(y); if(E(prk[4])) { e=prk[4]; _k(r); goto cleanup; }
     _k(d); _k(i); _k(f); _k(y);
     return st(0xd6,r);

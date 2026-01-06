@@ -527,7 +527,8 @@ K avdo(K f, K a, K x, char *av) {
   K r=0;
   int w,n=strlen(av);
   char av2[256];
-  if(n>32) { _k(f); _k(a); _k(x); r=kerror("length"); }
+  if(0x85==s(a)||0x85==s(x)) { _k(f); _k(a); _k(x); r=kerror("type"); }
+  else if(n>32) { _k(f); _k(a); _k(x); r=kerror("length"); }
   else if(0xd1==s(f)||0xd2==s(f)||0xd3==s(f)) { _k(f); _k(a); _k(x); r=kerror("type"); }
   else if(n==1) {
     if(a) {

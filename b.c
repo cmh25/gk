@@ -41,6 +41,7 @@ K builtin(K f, K a, K x) {
   char avb[256],a2b[256],*av=avb,*a2=a2b;
   static i32 d=0;
 
+  if(0x85==s(a)||0x85==s(x)) { _k(a); _k(x); return KERR_TYPE; }
   if(s(a)==0x40) if(4==(a=vlookup(a))) { _k(x); return KERR_VALUE; }
   if(s(x)==0x40) if(4==(x=vlookup(x))) { _k(a); return KERR_VALUE; }
   if(255<strlen(cf)) { _k(a); _k(x); return KERR_VALUE; }
