@@ -10,7 +10,6 @@ d . `a
 d @ `a`a
 d . `a`b
 d . (`a;`b`c)
-d . 0#`
 d . nul
 d @ nul
 d[nul]

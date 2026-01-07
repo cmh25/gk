@@ -370,10 +370,20 @@ cleanup:
 }
 K dot(K a, K x) {
   K r=0,e,q;
-  if(a==null&&x==null) return tn(0,0);
-  if(!ax&&!s(x)&&nx==0) return k_(a);
-  if(s(a)||s(x)) return dotcb(a,x);
-  if(ta==4||ta==3||ta==-3) { r=dotcb(a,x); if(r) return r; }
+  int b=0;
+  if(!s(x)&&!ax&&!nx) {  /* a[] = a[nul] = a . () = a@nul = a nul */
+    switch(tx) {
+    case -1: x=t(1,0); break;        /* a[*0#0] = a . 0#0 */
+    case -2: x=t2(0.0); b=1; break;  /* a[*0#0.0] = a . 0#0.0 */
+    case -3: x=t(3,' '); break;      /* a[*0#""] = a . 0#"" */
+    case -4: x=t(4,sp("")); break;   /* a[*0#`] = a . 0#` */
+    case  0: x=null; break;          /* a[*()] = a . () */
+    }
+  }
+  if(a==null&&x==null) { r=tn(0,0); if(b) _k(x); return r; }
+  if(s(a)||s(x)) { r=dotcb(a,x); if(b) _k(x); return r; }
+  if(!ax&&nx==0) { r=k_(a); if(b) _k(x); return r; }
+  if(ta==4||ta==3||ta==-3) { r=dotcb(a,x); if(r) { if(b) _k(x); return r; } }
   switch(ta) {
   case -1: case -2: case -3: case -4:
     switch(tx) {
@@ -405,8 +415,10 @@ K dot(K a, K x) {
     break;
   default: r=KERR_RANK;
   }
+  if(b) _k(x);
   return knorm(r);
 cleanup:
+  if(b) _k(x);
   if(r) _k(r);
   return e;
 }

@@ -583,7 +583,7 @@ K val(K x) {
   case 0xc0: r=t(1,2); break;
   case 0xc1: r=t(1,2); break;
   case 0xc2: r=t(1,2); break;
-  case 0xc3: px=px(b(48)&x); n=ik(px[4]); r=t(1,n); break;
+  case 0xc3: px=px(b(48)&x); n=ik(px[4]); r=t(1,n?n:1); break;  /* val[{}] = 1 */
   case 0xc4:
     px=px(b(48)&x);
     n=val(px[0]);
