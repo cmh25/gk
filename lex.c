@@ -276,6 +276,8 @@ static int reserved(pgs *pgs, char *p, char *q) {
   if(p==R_SVD) { push(pgs,T015,t(4,st(0xc6,q))); return 1; }
   if(p==R_LU) { push(pgs,T015,t(4,st(0xc6,q))); return 1; }
   if(p==R_QR) { push(pgs,T015,t(4,st(0xc6,q))); return 1; }
+  if(p==R_LDU) { push(pgs,T015,t(4,st(0xc6,q))); return 1; }
+  if(p==R_RREF) { push(pgs,T015,t(4,st(0xc6,q))); return 1; }
   if(p==R_EXIT) { push(pgs,T015,t(4,st(0xc6,q))); return 1; }
   if(p==R_DEL) { push(pgs,T015,t(4,st(0xc6,q))); return 1; }
   if(p==R_DO) { push(pgs,T015,t(4,st(0xd1,q))); return 1; }

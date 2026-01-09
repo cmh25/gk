@@ -107,6 +107,8 @@ void help(int a) {
 "      inv A (inverse A, I~A mul inv A)\n"
 "      svd A (singular value decomposition (U;S;+V), A~mul/svd A)\n"
 "      lu A (lower/upper decomposition (+P;L;U), A~mul/lu A)\n"
+"      ldu A (lower/diag/upper decomposition (+P;L;D;U), A~mul/ldu A)\n"
+"      rref A (reduced row echelon form)\n"
 "      qr A (qr decomposition (Q;R), A~mul/qr A\n"
 "\n"
 "rand: x draw y (from !y); x draw -y (deal from !y); x draw 0 (from (0,1))\n"

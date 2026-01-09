@@ -915,3 +915,180 @@ K qr_(K x) {
   xfree(Q0); xfree(Q);
   return r;
 }
+
+/* ldu decomposition: A = L*D*U where L,U have 1s on diagonal */
+K ldu_(K x) {
+  K lu = lu_(x);
+  if(E(lu)) return lu;
+
+  K *pr = px(lu);
+  K P = pr[0];  /* P' */
+  K L = pr[1];  /* L (already has 1s on diagonal) */
+  K U = pr[2];  /* U */
+
+  u32 m = n(U);
+  if(m == 0) {
+    /* empty: return (P';L;D;U) with empty D */
+    K r = tn(0,4);
+    K *rp = px(r);
+    rp[0] = k_(P);
+    rp[1] = k_(L);
+    rp[2] = tn(0,0);  /* empty D */
+    rp[3] = k_(U);
+    _k(lu);
+    return r;
+  }
+
+  K *pU = px(U);
+  u32 ncols = n(pU[0]);
+
+  /* extract diagonal into D (as diagonal matrix), normalize U rows */
+  K D = tn(0, m);
+  K *pDrows = px(D);
+
+  for(u32 i = 0; i < m; i++) {
+    double *Urow = px(pU[i]);
+    double d = Urow[i];
+
+    /* build diagonal matrix row */
+    K Drow = tn(2, m);
+    double *pDrow = px(Drow);
+    for(u32 j = 0; j < m; j++)
+      pDrow[j] = (i == j) ? d : 0.0;
+    pDrows[i] = Drow;
+
+    if(fabs(d) > 1e-12) {
+      /* normalize U row i */
+      for(u32 j = i; j < ncols; j++)
+        Urow[j] /= d;
+    }
+  }
+
+  /* return (P';L;D;U) */
+  K r = tn(0,4);
+  K *rp = px(r);
+  rp[0] = k_(P);
+  rp[1] = k_(L);
+  rp[2] = D;
+  rp[3] = k_(U);
+  _k(lu);
+  return r;
+}
+
+/* rref: reduced row echelon form */
+K rref_(K x) {
+  K r = 0;
+  double *a0 = 0, **a = 0;
+  u32 m, n, i, j, kk;
+  int bad = 0;
+
+  /* 1) validate rectangular numeric matrix */
+  if(s(x) || tx) return kerror("type");
+  if(!nx) return kerror("length");
+  K *pxk = px(x);
+  m = n(x);
+  if(s(pxk[0]) || (T(pxk[0])!=0 && T(pxk[0])!=-1 && T(pxk[0])!=-2))
+    return kerror("type");
+  n = n(pxk[0]);
+  for(i = 0; i < m; i++) {
+    K row = pxk[i];
+    if(s(row) || (T(row)!=0 && T(row)!=-1 && T(row)!=-2))
+      return kerror("type");
+    if(n(row) != n) return kerror("length");
+  }
+
+  /* 2) copy into a[m][n] */
+  a0 = xmalloc((size_t)m * n * sizeof(double));
+  a = xmalloc(m * sizeof(*a));
+  for(i = 0; i < m; i++)
+    a[i] = a0 + (size_t)i * n;
+
+  for(i = 0; i < m; i++) {
+    K row = k_(pxk[i]);
+    if(T(row) == 0) row = k(3, t2(1.0), row);
+    if(E(row)) { xfree(a); xfree(a0); return kerror("type"); }
+    int isf = (T(row) == -2);
+    for(j = 0; j < n; j++) {
+      double v = isf ? ((double*)px(row))[j] : fi(((int*)px(row))[j]);
+      if(!isfinite(v)) bad = 1;
+      a[i][j] = v;
+    }
+    _k(row);
+  }
+
+  /* 2.5) if non-finite input, return NaN matrix */
+  if(bad) {
+    r = tn(0, m);
+    for(i = 0; i < m; i++) {
+      K row = tn(2, n);
+      double *p = px(row);
+      for(j = 0; j < n; j++) p[j] = NAN;
+      ((K*)px(r))[i] = row;
+    }
+    xfree(a0); xfree(a);
+    return r;
+  }
+
+  /* 3) gaussian elimination with partial pivoting -> RREF */
+  const double eps = 1e-12;
+  u32 piv_row = 0;
+
+  for(kk = 0; kk < n && piv_row < m; kk++) {
+    /* find pivot in column kk */
+    u32 piv = piv_row;
+    double maxv = fabs(a[piv_row][kk]);
+    for(i = piv_row + 1; i < m; i++) {
+      double v = fabs(a[i][kk]);
+      if(v > maxv) { maxv = v; piv = i; }
+    }
+
+    if(maxv < eps) {
+      /* no pivot in this column, zero it out */
+      for(i = piv_row; i < m; i++) a[i][kk] = 0.0;
+      continue;
+    }
+
+    /* swap rows */
+    if(piv != piv_row) {
+      double *tmp = a[piv]; a[piv] = a[piv_row]; a[piv_row] = tmp;
+    }
+
+    /* normalize pivot row */
+    double pivot = a[piv_row][kk];
+    for(j = kk; j < n; j++)
+      a[piv_row][j] /= pivot;
+
+    /* eliminate column kk in ALL other rows (above and below) */
+    for(i = 0; i < m; i++) {
+      if(i == piv_row) continue;
+      double factor = a[i][kk];
+      if(fabs(factor) > eps) {
+        for(j = kk; j < n; j++)
+          a[i][j] -= factor * a[piv_row][j];
+      }
+      a[i][kk] = 0.0;  /* exact zero */
+    }
+
+    piv_row++;
+  }
+
+  /* 4) zero-clamp tiny noise */
+  double EPS = DBL_EPSILON * 1e6;
+  for(i = 0; i < m; i++)
+    for(j = 0; j < n; j++)
+      if(fabs(a[i][j]) < EPS) a[i][j] = 0.0;
+
+  /* 5) build result matrix */
+  r = tn(0, m);
+  for(i = 0; i < m; i++) {
+    K row = tn(2, n);
+    double *p = px(row);
+    for(j = 0; j < n; j++)
+      p[j] = a[i][j];
+    ((K*)px(r))[i] = row;
+  }
+
+  xfree(a0);
+  xfree(a);
+  return r;
+}

@@ -34,6 +34,7 @@ static K avdoi(K f, K a, K x, int ai, int xi, char *av) {
     case -3: PXC; r=avdo(k_(f),a_,t(3,(u8)pxc[xi]),av); break;
     case -4: PXS; r=avdo(k_(f),a_,t(4,pxs[xi]),av); break;
     case  0: PXK; r=avdo(k_(f),a_,k_(pxk[xi]),av); break;
+    default: r=kerror("type");
     }
   }
   --d;

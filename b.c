@@ -147,6 +147,8 @@ K builtin(K f, K a, K x) {
     else if(a2==R_SVD) r=svd_(x);
     else if(a2==R_LU) r=lu_(x);
     else if(a2==R_QR) r=qr_(x);
+    else if(a2==R_LDU) r=ldu_(x);
+    else if(a2==R_RREF) r=rref_(x);
     else if(a2==R_GETENV) r=getenv_(x);
     else if(a2==R_EXIT) r=exit_(x);
     else r=KERR_VALUE;
