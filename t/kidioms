@@ -1870,9 +1870,9 @@ r2:r~(1 2 3
 if[~r2;`0:,"failed";exit 1]
 
 "155. greatest common divisor of list x"
-gcd:{*|1+&&/'0=x!/1+!&/x}
+ugcd:{*|1+&&/'0=x!/1+!&/x}
 x:6 9 12
-r:gcd x
+r:ugcd x
 r2:r~3
 if[~r2;`0:,"failed";exit 1]
 r:&/x
@@ -7169,9 +7169,9 @@ if[~r2;`0:,"failed";exit 1]
 
 "1009. Great circle distance"
 /gcd:{cos?(*/sin x)+(*/cos x)*cos[-/y]}  / e doesn't like the ?2 (?atom), rank error
-gcd:{cos (*/sin x)+(*/cos x)*cos[-/y]}   / this works
+ugcd2:{cos (*/sin x)+(*/cos x)*cos[-/y]}   / this works
 /The great circle distance in radians between two points on a sphere whose latitudes in radians are in x and longitudes in radians are in y.
-r:$gcd[2;5]
+r:$ugcd2[2;5]
 r2:r~$0.7029552
 if[~r2;`0:,"failed";exit 1]
 

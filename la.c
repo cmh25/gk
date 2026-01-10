@@ -1092,3 +1092,61 @@ K rref_(K x) {
   xfree(a);
   return r;
 }
+
+/* mag: vector magnitude (L2 norm) */
+K mag_(K x) {
+  if(s(x)) return kerror("type");
+
+  switch(tx) {
+  case 1: {
+    /* int scalar: return fabs as float */
+    double v = fi(ik(x));
+    return t2(fabs(v));
+  }
+  case 2: {
+    /* float scalar: return fabs */
+    return t2(fabs(fk(x)));
+  }
+  case -1: {
+    /* int vector: sqrt(sum of squares) */
+    u64 len = nx;
+    i32 *p = px(x);
+    double sum = 0.0;
+    for(u64 i = 0; i < len; i++) {
+      double v = fi(p[i]);
+      sum += v * v;
+    }
+    return t2(sqrt(sum));
+  }
+  case -2: {
+    /* float vector: sqrt(sum of squares) */
+    u64 len = nx;
+    double *p = px(x);
+    double sum = 0.0;
+    for(u64 i = 0; i < len; i++) {
+      double v = p[i];
+      sum += v * v;
+    }
+    return t2(sqrt(sum));
+  }
+  case 0: {
+    /* list (matrix): apply row-wise */
+    u64 len = nx;
+    if(len == 0) return tn(2, 0);  /* empty -> empty float vector */
+    K *pk = px(x);
+    K r = tn(2, len);
+    double *pr = px(r);
+    for(u64 i = 0; i < len; i++) {
+      K row = pk[i];
+      K m = mag_(row);
+      if(E(m)) { _k(r); return m; }
+      /* m should be a scalar (float) */
+      pr[i] = fk(m);
+      _k(m);
+    }
+    return r;
+  }
+  default:
+    return kerror("type");
+  }
+}

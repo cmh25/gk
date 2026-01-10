@@ -24,6 +24,7 @@
 #include "io.h"
 #include "irecur.h"
 #include "la.h"
+#include "nt.h"
 #include "repl.h"
 
 #ifdef _WIN32
@@ -84,7 +85,10 @@ K builtin(K f, K a, K x) {
     else if(a2==R_AND) r=and_(a,x);
     else if(a2==R_OR) r=or_(a,x);
     else if(a2==R_XOR) r=xor_(a,x);
-    else if(a2==R_EUCLID) r=euclid_(a,x);
+    else if(a2==R_HYPOT) r=hypot_(a,x);
+    else if(a2==R_GCD) r=gcd_(a,x);
+    else if(a2==R_LCM) r=lcm_(a,x);
+    else if(a2==R_MODINV) r=modinv_(a,x);
     else if(a2==R_ROT) r=rot_(a,x);
     else if(a2==R_SHIFT) r=shift_(a,x);
     else if(a2==R_DOT) r=dotp(a,x);
@@ -149,6 +153,9 @@ K builtin(K f, K a, K x) {
     else if(a2==R_QR) r=qr_(x);
     else if(a2==R_LDU) r=ldu_(x);
     else if(a2==R_RREF) r=rref_(x);
+    else if(a2==R_MAG) r=mag_(x);
+    else if(a2==R_PRIME) r=prime_(x);
+    else if(a2==R_FACTOR) r=factor_(x);
     else if(a2==R_GETENV) r=getenv_(x);
     else if(a2==R_EXIT) r=exit_(x);
     else r=KERR_VALUE;
@@ -1062,7 +1069,7 @@ MC2IO(and_,and,&,0)
 MC2IO(or_,or,|,0)
 MC2IO(xor_,xor,^,0)
 
-K euclid_(K a,K x) {
+K hypot_(K a,K x) {
   K r=0;
   double af,xf,*prf,*paf,*pxf;
   i32 *pai,*pxi;
@@ -1077,7 +1084,7 @@ K euclid_(K a,K x) {
     case  2: af=fi(ik(a)); xf=fk(x); r=t2(sqrt(af*af+xf*xf)); break;
     case -1: PRF(nx); PXI; xf=fi(ik(a)); af=xf*xf; i(nx,xf=fi(pxi[i]);prf[i]=sqrt(af+xf*xf)) break;
     case -2: PRF(nx); PXF; xf=fi(ik(a)); af=xf*xf; i(nx,xf=pxf[i];prf[i]=sqrt(af+xf*xf)) break;
-    case  0: r=irecur2(euclid_,a,x); break;
+    case  0: r=irecur2(hypot_,a,x); break;
     default: r=KERR_TYPE;
     } break;
   case  2:
@@ -1086,7 +1093,7 @@ K euclid_(K a,K x) {
     case  2: af=fk(a); xf=fk(x); r=t2(sqrt(af*af+xf*xf)); break;
     case -1: PRF(nx); PXI; af=fk(a)*fk(a); i(nx, xf=fi(pxi[i]); prf[i]=sqrt(af+xf*xf)) break;
     case -2: PRF(nx); PXF; af=fk(a)*fk(a); i(nx, xf=pxf[i]; prf[i]=sqrt(af+xf*xf)) break;
-    case  0: r=irecur2(euclid_,a,x); break;
+    case  0: r=irecur2(hypot_,a,x); break;
     default: r=KERR_TYPE;
     } break;
   case -1:
@@ -1095,7 +1102,7 @@ K euclid_(K a,K x) {
     case  2: PRF(na); PAI; xf=fk(x)*fk(x); i(na, af=fi(pai[i]); prf[i]=sqrt(af*af+xf)); break;
     case -1: PRF(na); PAI; PXI; i(na, af=fi(pai[i]); xf=fi(pxi[i]); prf[i]=sqrt(af*af+xf*xf)) break;
     case -2: PRF(na); PAI; PXF; i(na, af=fi(pai[i]); xf=pxf[i]; prf[i]=sqrt(af*af+xf*xf)) break;
-    case  0: r=avdo(t(4,st(0xc7,"euclid")),k_(a),k_(x),"'"); break;
+    case  0: r=avdo(t(4,st(0xc7,"hypot")),k_(a),k_(x),"'"); break;
     default: r=KERR_TYPE;
     } break;
   case -2:
@@ -1104,16 +1111,16 @@ K euclid_(K a,K x) {
     case  2: PRF(na); PAF; xf=fk(x)*fk(x); i(na, af=paf[i]; prf[i]=sqrt(af*af+xf)); break;
     case -1: PRF(na); PAF; PXI; i(na, af=paf[i]; xf=fi(pxi[i]); prf[i]=sqrt(af*af+xf*xf)) break;
     case -2: PRF(na); PAF; PXF; i(na, af=paf[i]; xf=pxf[i]; prf[i]=sqrt(af*af+xf*xf)) break;
-    case  0: r=avdo(t(4,st(0xc7,"euclid")),k_(a),k_(x),"'"); break;
+    case  0: r=avdo(t(4,st(0xc7,"hypot")),k_(a),k_(x),"'"); break;
     default: r=KERR_TYPE;
     } break;
   case  0:
     switch(tx) {
-    case  1: r=irecur2(euclid_,a,x); break;
-    case  2: r=irecur2(euclid_,a,x); break;
-    case -1: r=avdo(t(4,st(0xc7,"euclid")),k_(a),k_(x),"'"); break;
-    case -2: r=avdo(t(4,st(0xc7,"euclid")),k_(a),k_(x),"'"); break;
-    case  0: r=irecur2(euclid_,a,x); break;
+    case  1: r=irecur2(hypot_,a,x); break;
+    case  2: r=irecur2(hypot_,a,x); break;
+    case -1: r=avdo(t(4,st(0xc7,"hypot")),k_(a),k_(x),"'"); break;
+    case -2: r=avdo(t(4,st(0xc7,"hypot")),k_(a),k_(x),"'"); break;
+    case  0: r=irecur2(hypot_,a,x); break;
     default: r=KERR_TYPE;
     } break;
   default: r=KERR_TYPE;

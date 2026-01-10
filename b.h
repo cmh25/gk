@@ -16,7 +16,7 @@ K div_(K a, K x);
 K and_(K a, K x);
 K or_(K a, K x);
 K xor_(K a, K x);
-K euclid_(K a, K x);
+K hypot_(K a, K x);
 K rot_(K a, K x);
 K shift_(K a, K x);
 K encrypt_(K a, K x);

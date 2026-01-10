@@ -220,7 +220,7 @@ static int reserved(pgs *pgs, char *p, char *q) {
   if(p==R_SHIFT) { push(pgs,T015,t(4,st(0xc7,q))); return 1; }
   if(p==R_ROT) { push(pgs,T015,t(4,st(0xc7,q))); return 1; }
   if(p==R_XOR) { push(pgs,T015,t(4,st(0xc7,q))); return 1; }
-  if(p==R_EUCLID) { push(pgs,T015,t(4,st(0xc7,q))); return 1; }
+  if(p==R_HYPOT) { push(pgs,T015,t(4,st(0xc7,q))); return 1; }
   if(p==R_ENCRYPT) { push(pgs,T015,t(4,st(0xc7,q))); return 1; }
   if(p==R_DECRYPT) { push(pgs,T015,t(4,st(0xc7,q))); return 1; }
   if(p==R_SETENV) { push(pgs,T015,t(4,st(0xc7,q))); return 1; }
@@ -278,6 +278,12 @@ static int reserved(pgs *pgs, char *p, char *q) {
   if(p==R_QR) { push(pgs,T015,t(4,st(0xc6,q))); return 1; }
   if(p==R_LDU) { push(pgs,T015,t(4,st(0xc6,q))); return 1; }
   if(p==R_RREF) { push(pgs,T015,t(4,st(0xc6,q))); return 1; }
+  if(p==R_MAG) { push(pgs,T015,t(4,st(0xc6,q))); return 1; }
+  if(p==R_PRIME) { push(pgs,T015,t(4,st(0xc6,q))); return 1; }
+  if(p==R_FACTOR) { push(pgs,T015,t(4,st(0xc6,q))); return 1; }
+  if(p==R_GCD) { push(pgs,T015,t(4,st(0xc7,q))); return 1; }
+  if(p==R_LCM) { push(pgs,T015,t(4,st(0xc7,q))); return 1; }
+  if(p==R_MODINV) { push(pgs,T015,t(4,st(0xc7,q))); return 1; }
   if(p==R_EXIT) { push(pgs,T015,t(4,st(0xc6,q))); return 1; }
   if(p==R_DEL) { push(pgs,T015,t(4,st(0xc6,q))); return 1; }
   if(p==R_DO) { push(pgs,T015,t(4,st(0xd1,q))); return 1; }
