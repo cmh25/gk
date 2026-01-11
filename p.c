@@ -342,6 +342,24 @@ static K rl(K x, K t) {
   else if(0x42==s(x) && 1==nx) { /* (1) -> 1 */
     r=pgreduce_(px[0],&q);
     _k(x);
+    if(!r&&t==0) r=null;
+    else if(!r&&t==0x81) r=inull;
+    if(r && E(r)&&!strcmp(sk(r),"value")) {
+      if(EFLAG&&!SIGNAL&&strcmp(sk(r),"abort")) {
+        printerror(r,px[0],0);
+        ++ecount;
+        r=repl();
+      }
+    } // note: when running like "./gk < file", repl() can return anything
+    if(E(r)||EXIT) return r;
+    if(s(r)&&T(r)==0&&((ko*)(b(48)&r))->r) {
+      p=kcp(r); _k(r); r=p;
+    }
+    if(r<EMAX) r=kerror(E[r]);
+    //if(r && E(r)) {
+    //  _k(x); _k(r);
+    //  return a;
+    //}
     RETURN=0;
     return r;
   }

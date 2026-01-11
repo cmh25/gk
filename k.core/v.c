@@ -756,6 +756,7 @@ K drop(K a, K x) {
   if(s(a)) return KERR_TYPE;
   switch(ta) {
   case -1:
+    if(s(x)) return KERR_TYPE;
     PAI;
     switch(tx) {
     case -1: PXI;
@@ -830,6 +831,7 @@ K drop(K a, K x) {
       break;
     } break;
   case 2:
+    if(s(x)) return KERR_TYPE;
     f=fk(a);
     switch(tx) {
     case 1:
@@ -859,6 +861,7 @@ K drop(K a, K x) {
     default: return KERR_TYPE;
     } break;
   case 3:
+    if(s(x)) return KERR_TYPE;
     switch(tx) {
     case -3: s=xstrndup((char*)px(x),nx); b[0]=ck(a); b[1]=0; r=ksplit(s,b); xfree(s); break;
     case  4: s=xstrdup(sk(x)); b[0]=ck(a); b[1]=0; r=ksplit(s,b); xfree(s); break;
