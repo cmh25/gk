@@ -1423,6 +1423,8 @@ static K kamend3_(K d, K i, K f) {
     --dd;
     return r;
   }
+  /* if not amend entire, must be a list or dict */
+  if(s(d)&&0x80!=s(d)) { e=KERR_TYPE; goto cleanup; }
 
   stack = xmalloc(sizeof(sf)*sm);
   stack[sp++] = (sf){k_(d), k_(i), 0, 0, 0, 0};
@@ -1859,6 +1861,8 @@ static K kamend4_(K d, K i, K f, K y) {
     --dd;
     return r;
   }
+  /* if not amend entire, must be a list or dict */
+  if(s(d)&&0x80!=s(d)) { e=KERR_TYPE; goto cleanup; }
 
   stack = xmalloc(sizeof(sf)*sm);
   stack[sp++] = (sf){k_(d), k_(i), k_(y), 0, 0, 0, 0};
