@@ -103,8 +103,8 @@ With this model, `[]` is not a special case—it's just the general instance of 
 This explains why `{x}[]` returns `nul` rather than being a projection:
 
 ```
-  {x}[]
-nul
+  nul~{x}[]
+1
   {1,x}[]
 (1;)
 ```
