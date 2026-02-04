@@ -1093,6 +1093,89 @@ K rref_(K x) {
   return r;
 }
 
+/* det: determinant of square matrix via LU */
+K det_(K x) {
+  double *a0 = 0, **a = 0;
+  u32 m, i, j, kk;
+  int swaps = 0;
+  double det = 1.0;
+  const double eps = 1e-12;
+
+  /* 1) validate square numeric matrix */
+  if(s(x) || tx) return kerror("type");
+  if(!nx) return t2(1.0);  /* empty matrix: det = 1 */
+  K *pxk = px(x);
+  m = n(x);
+  if(s(pxk[0]) || (T(pxk[0])!=0 && T(pxk[0])!=-1 && T(pxk[0])!=-2))
+    return kerror("type");
+  if(n(pxk[0]) != m) return kerror("length");  /* must be square */
+  for(i = 0; i < m; i++) {
+    K row = pxk[i];
+    if(s(row) || (T(row)!=0 && T(row)!=-1 && T(row)!=-2))
+      return kerror("type");
+    if(n(row) != m) return kerror("length");
+  }
+
+  /* 2) copy into a[m][m] */
+  a0 = xmalloc((size_t)m * m * sizeof(double));
+  a = xmalloc(m * sizeof(*a));
+  for(i = 0; i < m; i++)
+    a[i] = a0 + (size_t)i * m;
+
+  for(i = 0; i < m; i++) {
+    K row = k_(pxk[i]);
+    if(T(row) == 0) row = k(3, t2(1.0), row);
+    if(E(row)) { xfree(a); xfree(a0); return kerror("type"); }
+    int isf = (T(row) == -2);
+    for(j = 0; j < m; j++) {
+      double v = isf ? ((double*)px(row))[j] : fi(((int*)px(row))[j]);
+      if(!isfinite(v)) { _k(row); xfree(a); xfree(a0); return t2(NAN); }
+      a[i][j] = v;
+    }
+    _k(row);
+  }
+
+  /* 3) LU with partial pivoting, tracking swaps and diagonal product */
+  for(kk = 0; kk < m; kk++) {
+    /* find pivot */
+    u32 piv = kk;
+    double maxv = fabs(a[kk][kk]);
+    for(i = kk + 1; i < m; i++) {
+      double v = fabs(a[i][kk]);
+      if(v > maxv) { maxv = v; piv = i; }
+    }
+
+    /* singular check */
+    if(maxv < eps) {
+      xfree(a0); xfree(a);
+      return t2(0.0);
+    }
+
+    /* swap rows */
+    if(piv != kk) {
+      double *tmp = a[piv]; a[piv] = a[kk]; a[kk] = tmp;
+      swaps++;
+    }
+
+    /* accumulate diagonal */
+    det *= a[kk][kk];
+
+    /* eliminate below pivot */
+    for(i = kk + 1; i < m; i++) {
+      double lik = a[i][kk] / a[kk][kk];
+      for(j = kk + 1; j < m; j++)
+        a[i][j] -= lik * a[kk][j];
+    }
+  }
+
+  xfree(a0);
+  xfree(a);
+
+  /* apply sign from row swaps */
+  if(swaps & 1) det = -det;
+  return t2(det);
+}
+
 /* mag: vector magnitude (L2 norm) */
 K mag_(K x) {
   if(s(x)) return kerror("type");

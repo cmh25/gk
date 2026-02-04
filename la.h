@@ -9,6 +9,7 @@ K lu_(K x);
 K qr_(K x);
 K ldu_(K x);
 K rref_(K x);
+K det_(K x);
 K mag_(K x);
 
 #endif /* LA_H */

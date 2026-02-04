@@ -4151,7 +4151,7 @@ r2:r~4
 if[~r2;`0:,"failed";exit 1]
 
 "313. value of two-by-two determinant"
-det: {-/y*|x}
+det2: {-/y*|x}
 x:(13 21;34 55)
 r:x
 r2:r~(13 21
@@ -4167,7 +4167,7 @@ r:-/13 21 * 55 34
 r2:r~1
 if[~r2;`0:,"failed";exit 1]
 / TODO wrong answer? doesn't even work in e.
-/r:det x
+/r:det2 x
 /r2:r~,1
 /if[~r2;`0:,"failed";exit 1]
 

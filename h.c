@@ -111,6 +111,7 @@ void help(int a) {
 "      ldu A (lower/diag/upper decomposition (+P;L;D;U), A~mul/ldu A)\n"
 "      qr A (qr decomposition (Q;R), A~mul/qr A\n"
 "      rref A (reduced row echelon form)\n"
+"      det A (determinant)\n"
 "\n"
 "rand: x draw y (from !y); x draw -y (deal from !y); x draw 0 (from (0,1))\n"
 "\n"
