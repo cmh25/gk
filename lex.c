@@ -86,7 +86,7 @@ static int gn_(void) {
       if(p==q) return 0;
       c=*--p; *p=0;
       /* handle special int literals 0N, 0I, -0N, -0I */
-      if(!strcmp(q,"0N")||!strcmp(q,"-0N")) iii=INT32_MIN;
+      if(!strcmp(q,"0N")||!strcmp(q,"-0N")) { iii=INT32_MIN; *p=c; return 3; }  /* 3 = null int literal */
       else if(!strcmp(q,"0I")) iii=INT32_MAX;
       else if(!strcmp(q,"-0I")) iii=INT32_MIN+1;
       else iii=strtoll(q,NULL,10);  /* 64-bit, no clamp - defer to gn() */
@@ -110,6 +110,7 @@ static int gn_(void) {
 static int gn(pgs *pgs) {
   int r0,r,i;
   int64_t *iv=0;  /* collect in 64-bit space */
+  char *nl=0;     /* nl[i]=1 if iv[i] was 0N/-0N literal */
   int ic=0,fc=0,imm=1,fm=1;
   double *fv=0;
   char *q;
@@ -118,8 +119,9 @@ static int gn(pgs *pgs) {
     q=p;
     while(*p&&isblank(*p))++p;
     if((*p&&isdigit(*p))||(S2(p)&&(*p=='.'||*p=='-')&&isdigit(p[1]))) { /* convert to vector */
-      if(r0==1) { imm<<=1; iv=xrealloc(iv,imm*sizeof(int64_t)); iv[ic++]=iii; }
+      if(r0==1) { imm<<=1; iv=xrealloc(iv,imm*sizeof(int64_t)); nl=xrealloc(nl?nl:0,imm); nl[ic]=0; iv[ic++]=iii; }
       else if(r0==2) { fm<<=1; fv=xrealloc(fv,fm*sizeof(double)); fv[fc++]=fff; }
+      else if(r0==3) { imm<<=1; iv=xrealloc(iv,imm*sizeof(int64_t)); nl=xrealloc(nl?nl:0,imm); nl[ic]=1; iv[ic++]=INT32_MIN; }
     }
     p=q;
     if(iv) {
@@ -128,20 +130,25 @@ static int gn(pgs *pgs) {
         while(*p&&isblank(*p))++p;
         r=gn_();
         if(r==1) {
-          if(ic==imm) { imm<<=1; iv=xrealloc(iv,imm*sizeof(int64_t)); }
-          iv[ic++]=iii;
+          if(ic==imm) { imm<<=1; iv=xrealloc(iv,imm*sizeof(int64_t)); nl=xrealloc(nl,imm); }
+          nl[ic]=0; iv[ic++]=iii;
+        }
+        else if(r==3) {
+          if(ic==imm) { imm<<=1; iv=xrealloc(iv,imm*sizeof(int64_t)); nl=xrealloc(nl,imm); }
+          nl[ic]=1; iv[ic++]=INT32_MIN;
         }
         else if(r==2) {
           fm=imm;
           fv=xrealloc(fv,fm*sizeof(double));
           for(i=0;i<ic;i++) {
-            /* preserve null/inf when promoting int64 to double */
-            if(iv[i]==INT32_MIN) fv[fc++]=NAN;
+            /* preserve null/inf when promoting int64 to double; 0N literal -> NAN, underflow -> -inf */
+            if(nl && nl[i]) fv[fc++]=NAN;
+            else if(iv[i]==INT32_MIN) fv[fc++]=-INFINITY;  /* numeric underflow */
             else if(iv[i]==INT32_MAX) fv[fc++]=INFINITY;
             else if(iv[i]==INT32_MIN+1) fv[fc++]=-INFINITY;
             else fv[fc++]=(double)iv[i];
           }
-          xfree(iv); iv=0; ic=0;
+          xfree(iv); iv=0; ic=0; if(nl) { xfree(nl); nl=0; }
           if(fc==fm) { fm<<=1; fv=xrealloc(fv,fm*sizeof(double)); }
           fv[fc++]=fff;
           break;
@@ -167,6 +174,11 @@ static int gn(pgs *pgs) {
           if(fc==fm) { fm<<=1; fv=xrealloc(fv,fm*sizeof(double)); }
           fv[fc++]=fff;
         }
+        else if(r==3) {
+          /* 0N/-0N in float vector -> NAN (same as 0n) */
+          if(fc==fm) { fm<<=1; fv=xrealloc(fv,fm*sizeof(double)); }
+          fv[fc++]=NAN;
+        }
         else { p=q; break; }
       }
     }
@@ -174,10 +186,11 @@ static int gn(pgs *pgs) {
   if(ic) {
     K x=tn(1,ic);
     int *pi=px(x);
-    /* clamp int64 to int32 here */
+    /* clamp int64 to int32 here; underflow -> -0I, 0N literal preserved */
     for(i=0;i<ic;i++) {
-      if(iv[i]>INT32_MAX) pi[i]=INT32_MAX;
-      else if(iv[i]<INT32_MIN) pi[i]=INT32_MIN;
+      if(nl && nl[i]) pi[i]=INT32_MIN;
+      else if(iv[i]>INT32_MAX) pi[i]=INT32_MAX;
+      else if(iv[i]<=INT32_MIN) pi[i]=INT32_MIN+1;  /* underflow -> -0I */
       else pi[i]=(int)iv[i];
     }
     push(pgs,T014,x);
@@ -189,15 +202,17 @@ static int gn(pgs *pgs) {
     push(pgs,T014,x);
   }
   else if(r0==1) {
-    /* scalar int - clamp here too */
+    /* scalar int - clamp; underflow -> -0I */
     int v;
     if(iii>INT32_MAX) v=INT32_MAX;
-    else if(iii<INT32_MIN) v=INT32_MIN;
+    else if(iii<=INT32_MIN) v=INT32_MIN+1;
     else v=(int)iii;
     push(pgs,T014,t(1,(u32)v));
   }
+  else if(r0==3) push(pgs,T014,t(1,(u32)INT32_MIN));  /* 0N / -0N literal */
   else if(r0==2) push(pgs,T014,t2(fff));
   if(iv) xfree(iv);
+  if(nl) xfree(nl);
   if(fv) xfree(fv);
   return r0;
 }
