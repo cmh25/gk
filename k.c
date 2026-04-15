@@ -2410,10 +2410,12 @@ void kdump(i32 l) {
   if(n(keys)!=n(vals)) return;
   char **pkeys=px(keys);
   K *pvals=px(vals);
-  char *s,*p;
+  char *p;
   if(l) {
     i(n(keys),n=strlen(pkeys[i]);if(m<n)m=n);
     for(i=0;i<n(keys);i++) {
+      enum { kdump_show=30 };
+      char buf[kdump_show+10]; /* prefix + "..." + NUL */
       c=nn=refcount=0;
       v=pvals[i];
       t=T(v);
@@ -2423,16 +2425,14 @@ void kdump(i32 l) {
       if(T(v)<=0&&!s(v)&&n(v)>100) { c=n(v); n(v)=100; }
       const char *s0=kprint_(v,"","","");
       if(T(v)<=0&&!s(v)&&c) n(v)=c;
-      s=xstrdup(s0);
-      s=xrealloc(s,strlen(s)+3);
-      if(strlen(s)>30) { s[30]=0; snprintf(s+strlen(s),sizeof(s)-strlen(s),"..."); }
-      if(t==5||t==0) i(strlen(s),if(s[i]=='\n')s[i]=';');
-      if((p=strchr(s,'\n'))) { *p=0; snprintf(s+strlen(s),sizeof(s)-strlen(s),"..."); }
+      snprintf(buf,sizeof(buf),"%s",s0);
+      if(strlen(buf)>kdump_show) { buf[kdump_show]=0; snprintf(buf+kdump_show,sizeof(buf)-kdump_show,"..."); }
+      if(t==5||t==0) i(strlen(buf),if(buf[i]=='\n')buf[i]=';');
+      if((p=strchr(buf,'\n'))) { *p=0; snprintf(buf+strlen(buf),sizeof(buf)-strlen(buf),"..."); }
       if(t<=0&&!s(v)) nn=n(v);
       if(t<=0||t==2) refcount=((ko*)(b(48)&v))->r;
       if(t==6) printf("%-*s t:[%2d] c:[%10d] r:[%2d]\n",m,pkeys[i],t,nn,refcount);
-      else printf("%-*s t:[%2d] c:[%10d] r:[%2d] %s\n",m,pkeys[i],t,nn,refcount,s);
-      xfree(s);
+      else printf("%-*s t:[%2d] c:[%10d] r:[%2d] %s\n",m,pkeys[i],t,nn,refcount,buf);
     }
   }
   else {

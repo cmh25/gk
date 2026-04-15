@@ -150,7 +150,8 @@ static K vlookupav(K x) {
       u64 n=strlen(pfav)+strlen(av);
       if(n > 255) return KERR_LENGTH;
       char av2[256];
-      snprintf(av2,256,"%s%s",pfav,av);
+      memcpy(av2,pfav,strlen(pfav));
+      memcpy(av2+strlen(pfav),av,strlen(av)+1);
       _k(pr[1]);
       pr[1]=tnv(3,n,xmemdup(av2,1+strlen(av2)));
       break;
@@ -1376,7 +1377,9 @@ K pgreduce_(K x0, int *quiet) {
               if(0xc3==s(f)) { _k(pf[3]); pf[3]=null; }
               else if(0xc4==s(f)) { _k(pf[2]); pf[2]=null; }
               char av2[256];
-              snprintf(av2,256,"%s%s",favp,av?av:"");
+              if(strlen(favp)+strlen(av?av:"")>255) { _k(f); _k(a); _k(b); *pA++=KERR_LENGTH; break; }
+              memcpy(av2,favp,strlen(favp));
+              memcpy(av2+strlen(favp),av?av:"",strlen(av?av:"")+1);
               *pA++=avdo(f,0,b,av2);
               _k(a);
             }
@@ -1634,7 +1637,8 @@ K pgreduce_(K x0, int *quiet) {
           u64 n=strlen(pav0)+strlen(pav1);
           if(n > 255) { _k(a); _k(b); *pA++=KERR_LENGTH; break; }
           char av2[256];
-          snprintf(av2,256,"%s%s",pav0,pav1);
+          memcpy(av2,pav0,strlen(pav0));
+          memcpy(av2+strlen(pav0),pav1,strlen(pav1)+1);
           _k(pa[1]);
           pa[1]=tnv(3,n,xmemdup(av2,1+strlen(av2)));
           _k(b);
