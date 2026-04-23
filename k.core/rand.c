@@ -70,3 +70,17 @@ void deal(int *s, int n, int m) {
   for(i=0;i<n;i++) s[i]=deck[i];
   xfree(deck);
 }
+
+/* Re-seed the xorshift state. Used by ipc.c after fork() so each child
+ * gets a distinct stream; without this every forked child would produce
+ * the same "random" sequence. Mixes the caller-supplied value into all
+ * three state words and ensures none end up zero (xorshift would lock
+ * to zero forever). */
+void rand_reseed(unsigned long s) {
+  x = 123456789UL ^ s;
+  y = 362436069UL ^ (s * 2654435761UL);
+  z = 521288629UL ^ (s + 0x9e3779b9UL);
+  if(!x) x = 1;
+  if(!y) y = 1;
+  if(!z) z = 1;
+}

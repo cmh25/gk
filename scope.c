@@ -75,8 +75,31 @@ void scope_init(int argc, char **argv) {
   pzk[3]=spt; pzv[3]=null;
   pzk[4]=spT; pzv[4]=null;
   pzk[5]=sp("f"); pzv[5]=null;
-  n(pz[0])=6; n(pz[1])=6; pz[2]=t(1,6);
+  pzk[6]=sp("w"); pzv[6]=t(1,0);
+  n(pz[0])=7; n(pz[1])=7; pz[2]=t(1,7);
   i(LOCALSMAX,locals[i]=tn(0,DMAX))
+}
+
+/* Slot 1 of .z is the "P" (pid) entry; this matches the layout written by
+ * scope_init() above. After fork() the child inherited the parent's value,
+ * so callers (currently only ipc.c's forking-listener child path) must
+ * refresh it. We overwrite the int K in-place; if the runtime allocates
+ * a fresh K for t(1,...) we leak ~16 bytes per fork, which is negligible
+ * for a per-connection cost. */
+void scope_refresh_pid(void) {
+  K *pz = px(Z);
+  K *pzv = px(pz[1]);
+  pzv[1] = t(1, (u32)getpid());
+}
+
+/* .z.w = fd of the peer whose message is currently being dispatched to
+ * .m.s / .m.g / .m.c. Zero outside handler context. Stored as a scalar
+ * int K (t(1,...)), which is pointer-tagged and never heap-allocated,
+ * so overwriting in place is leak-free. */
+void scope_set_z_w(int fd) {
+  K *pz = px(Z);
+  K *pzv = px(pz[1]);
+  pzv[6] = t(1, (u32)fd);
 }
 
 static K scope_new_(K p, K k) {
@@ -291,7 +314,7 @@ static K scope_set_(K s, char *n, K v) {
     kd=(ko*)(b(48)&v); if(kd->r>1) gcopy=1;  // only if refcount > 1 (shared)
   }
   if(v==ktree) gcopy=1; // d.c:.`
-  if(s==ks && strlen(n)==1 && *n!='k') { // top level, single letters reserved, except k
+  if(s==ks && strlen(n)==1 && *n!='k' && *n!='m') { // top level, single letters reserved, except k and m (.m is the ipc namespace)
     fprintf(stderr,"reserved: %s\n",n);
     _k(v); return KERR_RESERVED;
   }
@@ -304,6 +327,11 @@ static K scope_set_(K s, char *n, K v) {
       // cannot change current directory path
       char *skd=sk(D);
       if(skd==strstr(skd,n)) { _k(v); return KERR_DOMAIN; }
+      // .m is a reserved top-level namespace (ipc); .m.x can still be set
+      if(n[1]=='m' && n[2]==0) {
+        fprintf(stderr,"reserved: %s\n",n);
+        _k(v); return KERR_RESERVED;
+      }
       es=ks;
     }
     if(!scope_vktp(n)) { _k(v); return KERR_DOMAIN; }

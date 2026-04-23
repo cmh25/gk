@@ -97,6 +97,7 @@ void help(int a) {
 "      .z.T  days since 2035 (float)\n"
 "      .z.t  seconds since 2035 (int)\n"
 "      .z.f  self reference to current function\n"
+"      .z.w  handle of ipc peer\n"
 "\n"
 "math: log exp abs sqr sqrt floor ceil dot mul\n"
 "      sin cos tan asin acos atan sinh cosh tanh x atan2 y\n"
@@ -181,7 +182,25 @@ void help(int a) {
   }
   else if(a=='-') {
     fprintf(stderr,""
-"coming soon...\n");
+"client:\n"
+" w:3:(h;p)    open     host: sym or string; returns int handle\n"
+" w 3:msg      async    send msg, do not wait for a reply\n"
+" w 4:msg      sync     send msg, block for the remote response\n"
+" 3:w          close    close handle w\n"
+" (h;p) 3:msg  async with implicit open\n"
+" (h;p) 4:msg  sync  with implicit open\n"
+"\n"
+"server:\n"
+" \\m i PORT  start inline listener on PORT (PORT 0 to stop)\n"
+" \\m f PORT  start forking listener on PORT (POSIX only)\n"
+" \\m i       show inline  listen port (0 if not listening)\n"
+" \\m f       show forking listen port (0 if not listening)\n"
+" \\m         show both on separate lines, tagged 'i' / 'f'\n"
+"\n"
+"server-side dispatch (overridable globals):\n"
+" .m.s   {. x}  handler for w 3:msg  (async)  result discarded\n"
+" .m.g   {. x}  handler for w 4:msg  (sync)   result returned\n"
+" .m.c   \"\"     string evaluated on close\n");
   }
   else if(a=='`') {
     fprintf(stderr,""
@@ -194,6 +213,7 @@ void help(int a) {
 "\\d [d|^]  k directory [go to]\n"
 "\\e [0|1]  error flag [off|on]\n"
 "\\l f      load script f\n"
+"\\m [i|f n] ipc listen port (i: inline, f: forking; \\- for more)\n"
 "\\p [n]    print precision\n"
 "\\t x      time in milliseconds to execute x\n"
 "\\v        variables\n"

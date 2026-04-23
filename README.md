@@ -1,6 +1,6 @@
 # gk
 
-[v1 release notes](doc/v1.md)
+[v1 release notes](doc/v1.md) | [ipc](doc/ipc.md)
 
 ***note:*** v1 is a full rewrite of gk. It has breaking changes from v0. The [v0 branch](https://github.com/cmh25/gk/tree/v0) remains available.
 
@@ -9,6 +9,21 @@ gk is an implementation of the k programming language, originally invented by [A
 It's loosely based on k3, but with some changes suggested by [Stevan Apter](https://nsl.com/).
 
 Other notable open source implementations of k or k-like array [languages](doc/implementations.md).
+
+A taste of the REPL:
+```
+  $ gk
+  gk-v1.1.0 Copyright (c) 2023-2026 Charles Hall
+
+    "hello, world"
+  "hello, world"
+    +/!10                  / sum of 0..9
+  45
+    f:{x*x}
+    f'1 2 3 4              / square each
+  1 4 9 16
+    \\
+```
 
 ## build instructions
 linux/mac:

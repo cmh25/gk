@@ -9,6 +9,7 @@
 #include <unistd.h>
 #include <sys/wait.h>
 #include <sys/mman.h>
+#include <signal.h>
 #endif
 #include <stdio.h>
 #include <errno.h>
@@ -18,6 +19,7 @@
 #include <ctype.h>
 #include "b.h"
 #include "ms.h"
+#include "ipc.h"
 
 static K ferr(char *f, i32 e) {
   K r;
@@ -36,14 +38,6 @@ static K ferr(char *f, i32 e) {
   return r;
 }
 
-#ifdef _WIN32
-#define FUZZ_ROOT "C:\\Temp\\gk-fuzz-io"
-#define PATH_SEP  '\\'
-#else
-#define FUZZ_ROOT "/tmp/gk-fuzz-io"
-#define PATH_SEP  '/'
-#endif
-
 static FILE* fopen__(FILE **fp, const char *p, const char *m) {
 #ifdef _WIN32
   if(fopen_s(fp, p, m)) *fp = 0;
@@ -54,60 +48,22 @@ static FILE* fopen__(FILE **fp, const char *p, const char *m) {
 }
 
 #ifdef FUZZING
-static const char* fuzz_root(void) {
-  const char *env = getenv("GK_FUZZ_IO_DIR");
-  return (env && *env) ? env : FUZZ_ROOT;
-}
-static i32 contains_dotdot(const char *path) { return strstr(path, "..") != 0; }
-static void needs_dirs(const char *path) {
-  char tmp[1024];
-  size_t len = strlen(path);
-  if(len >= sizeof(tmp)) return;
-  strcpy(tmp, path);
-  for(char *p = tmp + 1; *p; p++) {
-    if(*p == '/' || *p == '\\') {
-      char saved = *p;
-      *p = 0;
-#ifdef _WIN32
-      _mkdir(tmp);
-#else
-      mkdir(tmp, 0700);
-#endif
-      *p = saved;
-    }
-  }
-}
-static i32 join_sandbox(char *buf, size_t bufsz, const char *filename) {
-  if(contains_dotdot(filename)) {
-    return -1; // reject unsafe path
-  }
-  if(filename[0] == '/' || filename[0] == '\\' ||
-     (isalpha(filename[0]) && filename[1] == ':' &&
-     (filename[2] == '/' || filename[2] == '\\'))) {
-    return -1; // reject absolute path
-  }
-  const char *root = fuzz_root();
-  i32 n = snprintf(buf, bufsz, "%s%c%s", root, PATH_SEP, filename);
-  if (n < 0 || (size_t)n >= bufsz) return -1; // overflow
-  return 0;
-}
+/* Under FUZZING, all filesystem-touching verbs are stubbed. Rationale: we're
+ * not trying to fuzz libc fopen/fread/stat; we want to fuzz the interpreter.
+ * Sandboxing real FS calls caused sporadic SEGVs across parallel afl-fuzz
+ * workers racing on shared state (unlink/rename/stat interleaving), and those
+ * crashes never reproduced in single-process replay. Stubbing eliminates the
+ * whole race surface with negligible coverage loss. */
 static K fopen_(K x, const char *m, FILE **fp) {
-  char b[2]={0},*s=b;
-  char pathbuf[1024];
-  if(tx==4) s = sk(x);
-  else if(tx==3) b[0] = ck(x);
-  else if(tx==-3) s = px(x);
-  else return KERR_TYPE;
-  if(join_sandbox(pathbuf, sizeof(pathbuf), s) < 0) {
-    return KERR_DOMAIN; // invalid path
-  }
-  needs_dirs(pathbuf);
-  *fp = fopen__(fp,pathbuf,m);
-  if(!*fp) {
-    K err=ferr(s,errno);
-    return err;
-  }
-  return null;
+  (void)m;
+  if(tx!=3 && tx!=-3 && tx!=4) return KERR_TYPE;
+  *fp = 0;
+  return KERR_DOMAIN;
+}
+static K fsize_(K x, size_t *bs) {
+  (void)bs;
+  if(tx!=3 && tx!=-3 && tx!=4) return KERR_TYPE;
+  return KERR_DOMAIN;
 }
 #else
 static K fopen_(K x, char *m, FILE **fp) {
@@ -123,39 +79,7 @@ static K fopen_(K x, char *m, FILE **fp) {
   }
   return null;
 }
-#endif
 
-#ifdef FUZZING
-#ifdef _WIN32
-static K fsize_(K x, size_t *bs) {
-  K r=null;
-  char b[2]={0},*s=b,pathbuf[1024];
-  struct _stat64 t;
-  if(tx==4) s=sk(x);
-  else if(tx==3) b[0]=ck(x);
-  else if(tx==-3) s=px(x);
-  else return KERR_TYPE;
-  if(join_sandbox(pathbuf, sizeof(pathbuf), s) < 0) r=6;
-  else if(_stat64(pathbuf, &t) == -1) r=ferr(pathbuf, errno);
-  else *bs = t.st_size;
-  return r;
-}
-#else
-static K fsize_(K x, size_t *bs) {
-  K r=null;
-  char b[2]={0},*s=b,pathbuf[1024];
-  struct stat t;
-  if(tx==4) s=sk(x);
-  else if(tx==3) b[0]=ck(x);
-  else if(tx==-3) s=px(x);
-  else return KERR_TYPE;
-  if(join_sandbox(pathbuf, sizeof(pathbuf), s) < 0) r=6;
-  else if(stat(pathbuf, &t) == -1) r=ferr(pathbuf, errno);
-  else *bs = t.st_size;
-  return r;
-}
-#endif
-#else
 #ifdef _WIN32
 static K fsize_(K x, size_t *bs) {
   K r=null;
@@ -267,7 +191,7 @@ static K zerocolon2(K a, K x) {
   FILE *fp=0;
   size_t B=0,N=0,NN=0;
   u32 i,j,k,n,m,L=0,u;
-  char *pxc,*ppc,*z,*pz,*z0=0,g;
+  char *ppc,*z,*pz,*z0=0,g;
   i32 *pqi;
 
   if((ta==4&&!strlen(sk(a))) || (ta==-3&&!na)) return b0colon(x);
@@ -278,17 +202,19 @@ static K zerocolon2(K a, K x) {
     case 0:  /* mixed list of lines */
       EC(fopen_(a,"wb",&fp));
       pxk=px(x);
+      /* fwrite the whole string + \n in one or two calls instead of
+       * fputc per byte. Cuts the syscall count dramatically when stdout
+       * is _IONBF (interactive case), which in turn reduces interleaving
+       * between forked-server children sharing the same tty. */
       for(i=0;i<nx;i++) {
         if(T(pxk[i])!=-3) { fclose(fp); return KERR_TYPE; }
-        ppc=px(pxk[i]);
-        j(n(pxk[i]),fputc(ppc[j],fp))
+        fwrite(px(pxk[i]),1,n(pxk[i]),fp);
         fputc('\n',fp);
       }
       break;
     case -3:  /* single string */
       EC(fopen_(a,"wb",&fp));
-      pxc=px(x);
-      i(nx,fputc(pxc[i],fp))
+      fwrite(px(x),1,nx,fp);
       fputc('\n',fp);
       break;
     default: return KERR_TYPE;
@@ -856,15 +782,9 @@ K sixcolon(K a, K x) {
 
 #ifdef FUZZING
 K del_(K x) {
-  K r=null;
-  char *s,pathbuf[1024];
-  if(tx==4) s=sk(x);
-  else if(tx==-3) s=px(x);
-  else return KERR_TYPE;
+  if(tx!=4 && tx!=-3) return KERR_TYPE;
   if((tx==4&&!strlen(sk(x))) || (tx==-3&&!nx)) return KERR_LENGTH;
-  if(join_sandbox(pathbuf, sizeof(pathbuf), s) < 0) r=KERR_TYPE;
-  else if((remove(pathbuf)==-1)) r=ferr(s,errno);
-  return r;
+  return KERR_DOMAIN;
 }
 #else
 K del_(K x) {
@@ -881,27 +801,11 @@ K del_(K x) {
 
 #ifdef FUZZING
 K rename_(K a, K x) {
-  K r=null;
-  char *p=0,*q=0,pathbufp[1024],pathbufq[1024];
-  if(ta==4) p=sk(a);
-  else if(ta==-3) p=px(a);
-  else return KERR_TYPE;
-  if(tx==4) q=sk(x);
-  else if(tx==-3) q=px(x);
-  else return KERR_TYPE;
+  if(ta!=4 && ta!=-3) return KERR_TYPE;
+  if(tx!=4 && tx!=-3) return KERR_TYPE;
   if((ta==4&&!strlen(sk(a))) || (ta==-3&&!na)) return KERR_LENGTH;
   if((tx==4&&!strlen(sk(x))) || (tx==-3&&!nx)) return KERR_LENGTH;
-  if(join_sandbox(pathbufp, sizeof(pathbufp), p) < 0) r=KERR_TYPE;
-  else if(join_sandbox(pathbufq, sizeof(pathbufq), q) < 0) r=KERR_TYPE;
-  else if((rename(pathbufp,pathbufq)==-1)) {
-#ifdef _WIN32
-    char b[256]; strerror_s(b,sizeof(b),errno);
-    r=kerror(b);
-#else
-    r=kerror(strerror(errno));
-#endif
-  }
-  return r;
+  return KERR_DOMAIN;
 }
 #else
 K rename_(K a, K x) {
@@ -1193,6 +1097,12 @@ static K b4colon(K x) {
   argv[1]="-c";
   argv[2]=xstrndup(px(x),nx);
   argv[3]=0;
+  /* Block SIGCHLD across fork+waitpid so a SIGCHLD reaper installed
+   * elsewhere (e.g. ipc.c's fork-mode listener) cannot race in and
+   * reap our shell child before our explicit waitpid sees its status. */
+  sigset_t blk, prev;
+  sigemptyset(&blk); sigaddset(&blk, SIGCHLD);
+  sigprocmask(SIG_BLOCK, &blk, &prev);
   if(!(p=fork())) { /* child */
     close(out[0]);
     dup2(out[1],1);
@@ -1200,6 +1110,7 @@ static K b4colon(K x) {
     execvp(argv[0],argv);
   }
   waitpid(p,&status,0);
+  sigprocmask(SIG_SETMASK, &prev, NULL);
   close(out[1]);
   buf=read_(out[0]);
   close(out[0]);
@@ -1231,6 +1142,10 @@ static K b8colon(K x) {
   argv[1]="-c";
   argv[2]=xstrndup((char*)px(x),nx);
   argv[3]=0;
+  /* See b4colon for why we block SIGCHLD across fork+waitpid. */
+  sigset_t blk, prev;
+  sigemptyset(&blk); sigaddset(&blk, SIGCHLD);
+  sigprocmask(SIG_BLOCK, &blk, &prev);
   if(!(p=fork())) { /* child */
     close(out[0]); close(err[0]);
     dup2(out[1],1); dup2(err[1],2);
@@ -1238,6 +1153,7 @@ static K b8colon(K x) {
     execvp(argv[0],argv);
   }
   waitpid(p,&status,0);
+  sigprocmask(SIG_SETMASK, &prev, NULL);
   if(WIFEXITED(status)) status = WEXITSTATUS(status);
   else if(WIFSIGNALED(status)) status = 128 + WTERMSIG(status);
   else status = -1;
@@ -1257,13 +1173,38 @@ static K b8colon(K x) {
 }
 #endif
 
+/* `a` looks like (host;port): 2-elt mixed list of sym|chars + int atom. */
+static int is_hostport(K a) {
+  if(ta != 0 || n(a) != 2) return 0;
+  K *pk = px(a);
+  K host = pk[0], port = pk[1];
+  return (T(host)==4 || T(host)==-3) && T(port)==1;
+}
+
+/* monadic 3:
+ *   3:(host;port)   -> ipc_open  (returns int handle)
+ *   3:w             -> ipc_close (w is an int handle from a prior open)
+ *   else            -> null      (existing nop) */
 static K threecolon1(K x) {
-  (void)x;
+  if(tx==1) return ipc_close((int)ik(x));
+  if(is_hostport(x)) return ipc_open(x);
   return null;
 }
 
+/* dyadic a 3: x
+ *   ""        3: cmd -> b3colon (shell, existing)
+ *   w         3: msg -> ipc_send_async (w is an int handle)
+ *   (host;p)  3: msg -> ipc_open + ipc_send_async (handle stays open,
+ *                       dedup'd next time; user closes via 3:h if wanted)
+ *   else              -> null (existing nop) */
 static K threecolon2(K a, K x) {
   if((ta==4&&sp("")==sk(a)) ||(ta==-3&&sp("")==sp(px(a)))) return b3colon(x);
+  if(ta==1) return ipc_send_async((int)ik(a), x);
+  if(is_hostport(a)) {
+    K h = ipc_open(a);
+    if(E(h)) return h;
+    return ipc_send_async((int)ik(h), x);
+  }
   return null;
 }
 
@@ -1281,8 +1222,20 @@ static K fourcolon1(K x) {
   return r;
 }
 
+/* dyadic a 4: x
+ *   ""        4: cmd -> b4colon (shell-with-output, existing)
+ *   w         4: msg -> ipc_send_sync (blocks for response)
+ *   (host;p)  4: msg -> ipc_open + ipc_send_sync (handle stays open,
+ *                       dedup'd next time; user closes via 3:h if wanted)
+ *   else              -> null (existing nop) */
 static K fourcolon2(K a, K x) {
   if((ta==4&&sp("")==sk(a)) ||(ta==-3&&sp("")==sp(px(a)))) return b4colon(x);
+  if(ta==1) return ipc_send_sync((int)ik(a), x);
+  if(is_hostport(a)) {
+    K h = ipc_open(a);
+    if(E(h)) return h;
+    return ipc_send_sync((int)ik(h), x);
+  }
   return null;
 }
 

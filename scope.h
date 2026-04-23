@@ -11,6 +11,16 @@ extern K locals[LOCALSMAX];
 extern int localsi;
 
 void scope_init(int argc, char **argv);
+
+/* Refresh .z.P with the current process pid. .z.P is captured once during
+ * scope_init, so anyone who forks (e.g. ipc.c's forking server) needs to
+ * call this in the child or the pid will lie. */
+void scope_refresh_pid(void);
+
+/* Set .z.w to `fd` for the duration of a handler dispatch. Call with
+ * `fd` set before invoking .m.s / .m.g / .m.c, and call with 0 after,
+ * so outside-handler reads of .z.w see 0. */
+void scope_set_z_w(int fd);
 K scope_new(K p);
 K scope_newk(K p, K k);
 void scope_free(K s);

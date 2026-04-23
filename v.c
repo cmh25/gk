@@ -425,6 +425,7 @@ static K form2w(char *t, i32 w, i32 z) {
   K r=0;
   i32 i,n,l,m;
   char *prc;
+  if(w==INT32_MIN) return KERR_DOMAIN; /* abs(INT32_MIN) is UB */
   l=strlen(t); m=abs(w); n=abs(l-m);
   if(m>l) {
     PRC(m);
@@ -451,7 +452,8 @@ K formcb(K a, K x) {
   else if(!s(a)&&s(x)) {
     switch(ta) {
     case  1:
-      VSIZE(abs(ik(a)));
+      if(ik(a)==INT32_MIN) return KERR_DOMAIN; /* abs(INT32_MIN) is UB; also consistent w/ASAN build */
+      VSIZE(llabs((i64)ik(a)));
       switch(s(x)) {
       case 0x80:
       case 0xc3:
@@ -464,7 +466,7 @@ K formcb(K a, K x) {
       case 0xc3:
       case 0xc4:
         PAI;
-        i(na,VSIZE(abs(pai[i])))
+        i(na,if(pai[i]==INT32_MIN)return KERR_DOMAIN; VSIZE(llabs((i64)pai[i])))
         PRK(na);
         i(na,t=formatcb(x); p=form2w(px(t),pai[i],1); _k(t); prk[i]=p)
         break;

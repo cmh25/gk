@@ -32,7 +32,10 @@ K dset(K d, char *key, K val) {
   u32 i;
   u64 n;
   gcache_clear();  /* conservative: invalidate cache on any dict modification */
-  if(d==ktree && strlen(key)==1 && (*key!='k'||0x80!=s(val))) return kerror("reserved");
+  /* top-level single-letter keys are reserved, except 'k' (.k namespace)
+   * and 'm' (.m ipc namespace), each of which must be a dict. */
+  if(d==ktree && strlen(key)==1
+     && ((*key!='k' && *key!='m') || 0x80!=s(val))) return kerror("reserved");
   pd=px(d);
   k=pd[0]; v=pd[1]; m=ik(pd[2]);
   pk=px(k); pv=px(v);

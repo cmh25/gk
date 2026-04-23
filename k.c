@@ -2371,7 +2371,7 @@ K kslide(K f, K a, K x, char *av) {
     else r=fe(k_(ff),k_(x),k_(x),av);
   }
   else {
-    s=abs(ik(a));
+    s=llabs((i64)ik(a));
     m=(nx-v+s)/s;
     if((m-1)*s+v!=n(xm)) { e=7; goto cleanup; }
     PRK(m);

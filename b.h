@@ -64,6 +64,8 @@ K kv_(K x);
 K vk_(K x);
 K val_(K x);
 K bd_(K x);
+K bd_into(K x, char **buf, u64 *cap, u64 *len);
+K db_buf(const char *buf, u64 nbytes);
 K db_(K x);
 K hb_(K x);
 K bh_(K x);

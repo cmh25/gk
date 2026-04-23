@@ -693,6 +693,37 @@ static int gback(pgs *pgs, int load) {
       }
     }
   }
+  /* \m              report both listen ports (token 243)
+   * \m i            report inline listen port      (token 245, null arg)
+   * \m f            report forking listen port     (token 244, null arg)
+   * \m i PORT       start/stop inline listener     (token 245, int  arg)
+   * \m f PORT       start/stop forking listener    (token 244, int  arg)
+   *
+   * The sub-letter terminator check accepts end-of-input (!p[1]) as well
+   * as whitespace, so a bare '\m i' at buffer end is recognized. */
+  else if(S3(p)&&p[1]=='m'&&p[2]&&strchr(" \n\t",p[2])) {
+    p+=2;
+    while(*p&&isblank(*p))++p;
+    int sub=0;                                    /* 'i' or 'f', 0 if none */
+    if((*p=='i'||*p=='f') && (!p[1] || strchr(" \n\t",p[1]))) {
+      sub=*p;
+      ++p;                                        /* consume sub letter only;
+                                                     leave '\n' for outer loop */
+      while(*p&&isblank(*p))++p;
+    }
+    push(pgs,T015, sub=='f' ? 244 : sub=='i' ? 245 : 243);
+    if(sub && *p && isdigit(*p)) {
+      q=p;
+      while(*p&&isdigit(*p))++p;
+      if(*p) {
+        c=*p; *p=0;
+        int port=xatoi(q);
+        push(pgs,T014,t(1,(u32)port));
+        *p=c;
+      }
+    }
+    else push(pgs,T014,null);                     /* no port -> query */
+  }
   else return 0;
   return 1;
 }

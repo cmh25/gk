@@ -523,6 +523,7 @@ static K draw(K a, K x) {
   K r=0;
   if(s(x)||s(a)) return KERR_TYPE;
   if(ta!=0 && ta!=1 && ta!=-1) return KERR_TYPE;
+  if(ta==1 && tx==1 && ik(x)==INT32_MIN) return KERR_WSFULL;
   if(ta==1 && tx==1 && ik(x)<0 && ik(a)>abs(ik(x))) return KERR_LENGTH;
   switch(ta) {
   case 1:
@@ -531,7 +532,7 @@ static K draw(K a, K x) {
     switch(tx) {
     case 1:
       if(ik(x)>0) { r=tn(1,ik(a)); drawi((i32*)px(r),ik(a),ik(x)); }
-      else if(ik(x)<0) { r=tn(1,ik(a)); deal((i32*)px(r),ik(a),abs(ik(x))); }
+      else if(ik(x)<0) { VSIZE(abs(ik(x))); r=tn(1,ik(a)); deal((i32*)px(r),ik(a),abs(ik(x))); }
       else { r=tn(2,ik(a)); drawf((double*)px(r),ik(a),1.0); }
       break;
     case 2: r=tn(2,ik(a)); drawf((double*)px(r),ik(a),fk(x)); break;
@@ -800,31 +801,31 @@ K drop(K a, K x) {
     if(ax||s(x)) { r=k_(x); break; }
     switch(tx) {
     case -1:
-      if((u64)abs(ik(a))>=nx) r=tn(1,0);
+      if((u64)llabs((i64)ik(a))>=nx) r=tn(1,0);
       else if(ik(a)>0) { PRI(nx-ik(a)); PXI; i(nx-ik(a),*pri++=pxi[i+ik(a)]) }
       else if(ik(a)<0) { PRI(nx+ik(a)); PXI; i(nx+ik(a),*pri++=*pxi++) }
       else r=k_(x);
       break;
     case -2:
-      if((u64)abs(ik(a))>=nx) r=tn(2,0);
+      if((u64)llabs((i64)ik(a))>=nx) r=tn(2,0);
       else if(ik(a)>0) { PRF(nx-ik(a)); PXF; i(nx-ik(a),*prf++=pxf[i+ik(a)]) }
       else if(ik(a)<0) { PRF(nx+ik(a)); PXF; i(nx+ik(a),*prf++=*pxf++) }
       else r=k_(x);
       break;
     case -3:
-      if((u64)abs(ik(a))>=nx) r=tn(3,0);
+      if((u64)llabs((i64)ik(a))>=nx) r=tn(3,0);
       else if(ik(a)>0) { PRC(nx-ik(a)); PXC; i(nx-ik(a),*prc++=pxc[i+ik(a)]) }
       else if(ik(a)<0) { PRC(nx+ik(a)); PXC; i(nx+ik(a),*prc++=*pxc++) }
       else r=k_(x);
       break;
     case -4:
-      if((u64)abs(ik(a))>=nx) r=tn(4,0);
+      if((u64)llabs((i64)ik(a))>=nx) r=tn(4,0);
       else if(ik(a)>0) { PRS(nx-ik(a)); PXS; i(nx-ik(a),*prs++=pxs[i+ik(a)]) }
       else if(ik(a)<0) { PRS(nx+ik(a)); PXS; i(nx+ik(a),*prs++=*pxs++) }
       else r=k_(x);
       break;
     case  0:
-      if((u64)abs(ik(a))>=nx) r=tn(0,0);
+      if((u64)llabs((i64)ik(a))>=nx) r=tn(0,0);
       else if(ik(a)>0) { PRK(nx-ik(a)); PXK; i(nx-ik(a),*prk++=k_(pxk[i+ik(a)])) }
       else if(ik(a)<0) { PRK(nx+ik(a)); PXK; i(nx+ik(a),*prk++=k_(*pxk++)) }
       else r=k_(x);
@@ -1001,6 +1002,7 @@ static K form2w(char *t, i32 w, i32 z) {
   K r=0;
   i32 i,n,l,m;
   char *prc;
+  if(w==INT32_MIN) return KERR_DOMAIN; /* abs(INT32_MIN) is UB */
   l=strlen(t); m=abs(w); n=abs(l-m);
   if(m>l) {
     PRC(m);
@@ -1035,7 +1037,7 @@ K form(K a, K x) {
       break;
     case  4:
       p=xstrdup(sk(x));
-      if(strlen(p)>(K)abs(ik(a))) { PRC(abs(ik(a))); i(n(r),prc[i]='*'); }
+      if(strlen(p)>(K)llabs((i64)ik(a))) { PRC(llabs((i64)ik(a))); i(n(r),prc[i]='*'); }
       else r=form2w(p,ik(a),0);
       xfree(p);
       break;

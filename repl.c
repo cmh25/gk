@@ -11,11 +11,69 @@
 #define STDIN_FILENO 0
 #else
 #include <unistd.h>
+#include <poll.h>
 #endif
 #include "timer.h"
 #include "scope.h"
 #include "h.h"
 #include "b.h"
+#include "ipc.h"
+
+#ifdef _WIN32
+#define repl_getc() ipc_stdin_getc()
+#else
+/* poll_getc()
+ *
+ * One-byte reader for the interactive repl. Polls stdin plus any fds the
+ * ipc layer is currently interested in (listen socket + active connections),
+ * then does a 1-byte raw read(2) on stdin once it's ready. Bypassing stdio
+ * is required so we don't over-read past a newline while ipc fds are also
+ * in the poll set.
+ *
+ * EOF is reported as the literal value EOF (-1), matching fgetc().
+ *
+ * NOTE: stdio buffering on stdin must remain empty across calls. The only
+ * other stdin reader in the tree is readstdin() in io.c (used by 0:""),
+ * which is called from the evaluator *after* the repl has consumed the
+ * trailing '\n', so stdio's buffer starts empty there. If anything else
+ * starts pulling bytes from stdin, this comment needs revisiting.
+ */
+#define POLL_MAX 258                       /* 1 stdin + 1 listen + 256 conns */
+static int poll_getc(void) {
+  struct pollfd pfd[POLL_MAX];
+  for(;;) {
+    pfd[0].fd      = STDIN_FILENO;
+    pfd[0].events  = POLLIN;
+    pfd[0].revents = 0;
+    int n_extra = ipc_extra_pollfds(pfd + 1, POLL_MAX - 1);
+    int n_total = 1 + n_extra;
+
+    int n = poll(pfd, n_total, -1);
+    if(n < 0) {
+      if(errno == EINTR) continue;
+      return EOF;
+    }
+
+    /* dispatch any ipc events first; they don't affect stdin state */
+    for(int i = 1; i < n_total; i++) {
+      if(pfd[i].revents) ipc_handle_pollfd(pfd[i].fd, pfd[i].revents);
+    }
+
+    if(pfd[0].revents & (POLLIN|POLLHUP|POLLERR)) {
+      unsigned char c;
+      ssize_t r = read(STDIN_FILENO, &c, 1);
+      if(r == 0) return EOF;
+      if(r < 0) {
+        if(errno == EINTR) continue;
+        return EOF;
+      }
+      return (int)c;
+    }
+    /* no stdin yet; loop and poll again (ipc events were dispatched above) */
+  }
+}
+#define repl_getc() poll_getc()
+#endif
 
 int ecount;
 static int pcount,scount,ccount,qcount;
@@ -160,7 +218,7 @@ static K repl_(void) {
     j=i;
     i(ecount+pcount+scount+ccount+qcount,putc('>',stderr))
     fputs(prompt,stderr);
-    while((c=fgetc(stdin))!=EOF&&c!='\n') {
+    while((c=repl_getc())!=EOF&&c!='\n') {
       if(c=='\r') continue;
       if(i==m) { m<<=1; b=xrealloc(b,m+2); }
       b[i++]=c;

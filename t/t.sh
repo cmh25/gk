@@ -15,4 +15,4 @@ for t in `cat tests`; do
   fi
 done
 echo failed: $ec
-exit 0
+exit $ec

@@ -26,6 +26,7 @@
 #include "la.h"
 #include "nt.h"
 #include "repl.h"
+#include "ipc.h"
 
 #ifdef _WIN32
 #define strtok_r strtok_s
@@ -34,6 +35,12 @@
 static K vlookup(K x) {
   K r=scope_get(cs,x);
   return r?r:KERR_VALUE;
+}
+
+/* tnv with size_t input; returns wsfull if n exceeds the i32 K count limit. */
+static inline K tnc(i32 t, u64 n, void *v) {
+  if(n>(u64)INT32_MAX) return KERR_WSFULL;
+  return tnv(t,(i32)n,v);
 }
 
 K builtin(K f, K a, K x) {
@@ -208,6 +215,7 @@ K draw(K a, K x) {
   if(!a||!x) { e=KERR_TYPE; goto cleanup; }
   if(ta!=0 && ta!=1 && ta!=-1) { e=KERR_TYPE; goto cleanup; }
   if(tx!=1 && tx!=2 && ta!=-1) { e=KERR_TYPE; goto cleanup; }
+  if(ta==1 && tx==1 && ik(x)==INT32_MIN) { e=KERR_WSFULL; goto cleanup; }
   if(ta==1 && tx==1 && ik(x)<0 && ik(a)>abs(ik(x))) { e=KERR_LENGTH; goto cleanup; }
   switch(ta) {
   case  0: if(na) { e=KERR_TYPE; goto cleanup; } r=k(14,t(1,(u32)n),t(1,(u32)m)); /* n?m */ break;
@@ -1273,13 +1281,15 @@ static K crypt_(char*(*f)(const char*,size_t,unsigned char*,unsigned char*,size_
     PXC;
     e=f(pxc,nx,(u8*)px(iv),(u8*)px(key),&m);
     if(!e) { ee=KERR_DOMAIN; goto cleanup; }
-    r=tnv(3,m,e);
+    r=tnc(3,m,e);
+    if(E(r)) { xfree(e); ee=r; r=0; goto cleanup; }
     break;
   case  4:
     pxc=sk(x);
     e=f(pxc,strlen(pxc),(u8*)px(iv),(u8*)px(key),&m);
     if(!e) { ee=KERR_DOMAIN; goto cleanup; }
-    r=tnv(3,m,e);
+    r=tnc(3,m,e);
+    if(E(r)) { xfree(e); ee=r; r=0; goto cleanup; }
     break;
   case -4:
     PRK(nx);
@@ -1287,7 +1297,8 @@ static K crypt_(char*(*f)(const char*,size_t,unsigned char*,unsigned char*,size_
     for(u64 i=0;i<nx;++i) {
       e=f(pxs[i],strlen(pxs[i]),(u8*)px(iv),(u8*)px(key),&m);
       if(!e) { ee=KERR_DOMAIN; goto cleanup; }
-      p=tnv(3,m,e);
+      p=tnc(3,m,e);
+      if(E(p)) { xfree(e); ee=p; goto cleanup; }
       prk[i]=p;
     }
     break;
@@ -1308,14 +1319,15 @@ noerr:
 K encrypt_(K a, K x) { return crypt_(aes256e,a,x); }
 K decrypt_(K a, K x) { return crypt_(aes256d,a,x); }
 
-static K serialize(K x, char **b, char **v, i32 *n, i32 *m) {
+static K serialize(K x, char **b, char **v, i64 *n, i64 *m) {
   K p;
   char **pxs,*pxc,cc;
   double *pxf;
   static int d;
   if(!x) return KERR_TYPE;
   if(++d>maxr) { --d; return KERR_STACK; }
-  i32 t=tx,st=s(x),si=sizeof(i32),sd=sizeof(double),sn=sizeof(u64),dv,ii,*pxi;
+  i32 t=tx,st=s(x),si=sizeof(i32),sd=sizeof(double),sn=sizeof(u64),ii,*pxi;
+  i64 dv;
   *n+=3*sizeof(i32);
   K *pxk;
   switch(t) {
@@ -1325,14 +1337,20 @@ static K serialize(K x, char **b, char **v, i32 *n, i32 *m) {
   case  4: *n+=1+strlen(sk(x)); break;
   case  6: case 10: break;
   case -4: PXS; *n+=sn; i(nx,*n+=1+strlen(pxs[i])); break;
-  case -3: *n+=sn; *n+=nx; break;
-  case -2: *n+=sn; *n+=nx*sd; break;
-  case -1: *n+=sn; *n+=nx*si; break;
+  case -3: *n+=sn; *n+=(i64)nx; break;
+  case -2: *n+=sn; *n+=(i64)nx*sd; break;
+  case -1: *n+=sn; *n+=(i64)nx*si; break;
   case  0: *n+=sn; break;
   default: --d; return KERR_TYPE;
   }
   dv=*v-*b;
-  while(dv+*n>*m) { *m<<=1; *b=xrealloc(*b,*m); *v=*b+dv; dv=*v-*b; }
+  /* bd output is a K char vector; total must fit in an i32 count */
+  if(dv+*n>(i64)INT32_MAX) { --d; return KERR_WSFULL; }
+  while(dv+*n>*m) {
+    i64 nm=*m<<1;
+    if(nm>(i64)INT32_MAX) nm=(i64)INT32_MAX;
+    *m=nm; *b=xrealloc(*b,(size_t)*m); *v=*b+dv; dv=*v-*b;
+  }
   memcpy(*v,&t,si); *v+=si;
   memcpy(*v,&st,si); *v+=si;
   memset(*v,0,si); *v+=si; /* pad to 8 byte alignment for double */
@@ -1385,33 +1403,37 @@ static K deserialize(char **b,u64 *m) {
     if(n<sn) return KERR_LENGTH;
     memcpy(&count,*b,sn);
     *b+=sn; n-=sn;
+    /* min 1 byte/elem (the trailing nul); guards i32 overflow in PRS too */
+    if(count>n||count>(u64)INT32_MAX) return KERR_LENGTH;
     PRS(count);
     i(nr,size_t len=strnlen(*b,n); if(n<len) return KERR_LENGTH; prs[i]=sp(*b); n-=1+len; *b+=1+len) break;
   case -3:
     if(n<sn) return KERR_LENGTH;
     memcpy(&count,*b,sn);
     *b+=sn; n-=sn;
+    if(count>n||count>(u64)INT32_MAX) return KERR_LENGTH;
     PRC(count);
-    if(n<nr) return KERR_LENGTH;
     memcpy(prc,*b,nr); *b+=nr; break;
   case -2:
     if(n<sn) return KERR_LENGTH;
     memcpy(&count,*b,sn);
     *b+=sn; n-=sn;
+    if(count>n/sd||count>(u64)INT32_MAX) return KERR_LENGTH;
     PRF(count);
-    if(n<nr*sd) return KERR_LENGTH;
     memcpy(prf,*b,nr*sd); *b+=nr*sd; break;
   case -1:
     if(n<sn) return KERR_LENGTH;
     memcpy(&count,*b,sn);
     *b+=sn; n-=sn;
+    if(count>n/si||count>(u64)INT32_MAX) return KERR_LENGTH;
     PRI(count);
-    if(n<nr*si) return KERR_LENGTH;
     memcpy(pri,*b,nr*si); *b+=nr*si; break;
   case  0:
     if(n<sn) return KERR_LENGTH;
     memcpy(&count,*b,sn);
     *b+=sn; n-=sn;
+    /* every nested element occupies at least 3*sizeof(i32) bytes (header) */
+    if(count>n/(3*si)||count>(u64)INT32_MAX) return KERR_LENGTH;
     PRK(count);
     i(nr,p=deserialize(b,&n); if(E(p)) { _k(r); return p; } prk[i]=p)
     break;
@@ -1421,34 +1443,49 @@ static K deserialize(char **b,u64 *m) {
   return r|(K)st<<48;
 }
 
+/* Serialize x into a caller-provided growable buffer. *buf may be NULL
+ * (then *cap must be 0); on return *buf is non-NULL and *len is the
+ * total bytes written (including the 4-byte stream header). *cap is the
+ * current backing-allocation size (>= *len). *cap and *buf may be reused
+ * across calls to amortize the alloc + page-fault cost on hot paths.
+ * Returns 0 on success, an error K on failure (buffer state preserved
+ * but contents undefined on error). */
+K bd_into(K x, char **buf, u64 *cap, u64 *len) {
+  i64 m = (i64)*cap, n = 4;
+  if(m < 4) { m = 4; *buf = xrealloc(*buf, (size_t)m); }
+  char *b = *buf, *v = b, h[4] = {2,0,0,0};
+  memcpy(v, h, 4); v += 4;
+  K t = serialize(x, &b, &v, &n, &m);
+  *buf = b; *cap = (u64)m; *len = (u64)(v - b);
+  return t;  /* `null` on success, error K on failure */
+}
+
 K bd_(K x) {
-  K r=0,t;
-  i32 n=4,m=4;
-  char *b=xcalloc(m,1),*v=b,h[4]={2,0,0,0};
-  memcpy(v,h,4); v+=4;
-  t=serialize(x,&b,&v,&n,&m);
-  if(E(t)) { xfree(b); return t; }
-  r=tnv(3,(i32)(v-b),b);
+  K r;
+  char *b = NULL;
+  u64 cap = 0, len = 0;
+  K e = bd_into(x, &b, &cap, &len);
+  if(E(e)) { xfree(b); return e; }
+  r = tnc(3, len, b);
+  if(E(r)) { xfree(b); return r; }
   return r;
 }
 
+/* Deserialize directly from a raw byte buffer. Lets callers (the IPC
+ * recv path) skip wrapping the receive buffer in a K char vector, which
+ * matters because that wrapper would force the receive buffer to be
+ * adopted by the K vector and re-allocated on every message. */
+K db_buf(const char *buf, u64 nbytes) {
+  if(nbytes < 4) return KERR_LENGTH;
+  if(buf[0] != 2) return KERR_TYPE;
+  char *b = (char*)buf + 4;
+  u64 n = nbytes - 4;
+  return deserialize(&b, &n);
+}
+
 K db_(K x) {
-  K r;
-  char h[4],*b,*pxc;
-  u64 n;
-  if(tx!=-3) return KERR_TYPE;
-  if(4>nx) return KERR_LENGTH;
-  pxc=px(x);
-  memcpy(h,pxc,4);
-  if(h[0]!=2) {
-    fprintf(stderr,"error: db_(): invalid serialization version\n");
-    return KERR_TYPE;
-  }
-  if(nx<4) return KERR_LENGTH;
-  b=4+pxc;
-  n=nx-4;
-  r=deserialize(&b,&n);
-  return r;
+  if(tx != -3) return KERR_TYPE;
+  return db_buf((const char*)px(x), nx);
 }
 
 K hb_(K x) {
@@ -1457,7 +1494,9 @@ K hb_(K x) {
   if(s(x)) return KERR_TYPE;
   switch(tx) {
   //case  3: PRC(2); sprintf(prc,"%02x",ck(x)); break; /* breaks round trip */
-  case -3: PRC(1+2*nx); PXC; i(nx,sprintf(prc,"%02x",(u8)pxc[i]);prc+=2); nr--; break;
+  case -3:
+    if(nx>((u64)INT32_MAX-1)/2) return KERR_WSFULL;
+    PRC(1+2*nx); PXC; i(nx,sprintf(prc,"%02x",(u8)pxc[i]);prc+=2); nr--; break;
   case  0: r=irecur1(hb_,x); break;
   default: r=KERR_TYPE;
   }
@@ -1502,7 +1541,8 @@ K zb_(K x) {
   memcpy(b,&z->c,sizeof(size_t)); b+=sizeof(size_t);
   memcpy(b,z->b,n);
   lzwfree(z);
-  r=tnv(3,total,pb);
+  r=tnc(3,total,pb);
+  if(E(r)) { xfree(pb); return r; }
   ((char*)px(r))[nr]=0; /* zero terminate */
   return r;
 }
@@ -1540,7 +1580,8 @@ K bz_(K x) {
   q=lzwd(p);
   lzwfree(p);
   if(!q) return KERR_DOMAIN;
-  r=tnv(3,q->n,q->b);
+  r=tnc(3,q->n,q->b);
+  if(E(r)) { xfree(q->b); xfree(q); return r; }
   ((char*)px(r))[nr]=0; /* zero terminate */
   xfree(q);
   return r;
@@ -1704,6 +1745,10 @@ K dvl_(K a, K x) {
 
 K exit__(K x) {
   if(tx!=1) return KERR_TYPE;
+  /* Tear down IPC before K state: ipc_shutdown closes any live conns
+   * (fires .m.c handlers, which need K state alive) and frees the
+   * persistent send-scratch buffer. */
+  ipc_shutdown();
   scope_free(cs);
   scope_free(gs);
   scope_free(ks);

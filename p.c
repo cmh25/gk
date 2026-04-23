@@ -13,6 +13,7 @@
 #include "b.h"
 #include "av.h"
 #include "fe.h"
+#include "ipc.h"
 
 /*
 s > e se | se
@@ -1792,7 +1793,6 @@ K pgreduce(K x, int p) {
         if(ta==1) { precision=ik(a); if(precision>17) precision=17; if(precision<0) precision=0; }
         else if(ta==6) printf("%d\n",precision);
         else { r=kerror("parse"); continue; }
-        _k(a);
         r=null;
         continue;
       }
@@ -1811,7 +1811,6 @@ K pgreduce(K x, int p) {
         if(ta==1) { zeroclamp=ik(a); if(zeroclamp!=0) zeroclamp=1; }
         else if(ta==6) printf("%d\n",zeroclamp);
         else { r=kerror("parse"); continue; }
-        _k(a);
         r=null;
         continue;
       }
@@ -1820,7 +1819,6 @@ K pgreduce(K x, int p) {
         if(ta==1) EFLAG=ik(a);
         else if(ta==6) printf("%d\n",EFLAG);
         else { r=kerror("parse"); continue; }
-        _k(a);
         r=null;
         continue;
       }
@@ -1828,6 +1826,33 @@ K pgreduce(K x, int p) {
         a=k_(values[0]);
         if(!a) { r=null; continue; }
         r=dir_(a);
+        continue;
+      }
+      else if(ck(values[1])==245) { /* \m i [PORT] */
+        a=values[0];
+        if(ta==1) {
+          K e=ipc_listen(ik(a),IPC_MODE_ITER);
+          r = e ? e : null;
+        }
+        else if(ta==6) { printf("%d\n",ipc_listen_port_for(IPC_MODE_ITER)); r=null; }
+        else { r=kerror("parse"); continue; }
+        continue;
+      }
+      else if(ck(values[1])==244) { /* \m f [PORT] */
+        a=values[0];
+        if(ta==1) {
+          K e=ipc_listen(ik(a),IPC_MODE_FORK);
+          r = e ? e : null;
+        }
+        else if(ta==6) { printf("%d\n",ipc_listen_port_for(IPC_MODE_FORK)); r=null; }
+        else { r=kerror("parse"); continue; }
+        continue;
+      }
+      else if(ck(values[1])==243) { /* \m (bare): both ports */
+        printf("i %d\nf %d\n",
+               ipc_listen_port_for(IPC_MODE_ITER),
+               ipc_listen_port_for(IPC_MODE_FORK));
+        r=null;
         continue;
       }
     }
@@ -1853,9 +1878,8 @@ K pgreduce(K x, int p) {
     if(RETURN) {
       if(!REPL) RETURN=0;
       if(cs!=gs) break;
-      /* at global scope: handle r and stop */
-      if(opencode) {
-        if(REPL && r) { if(quiet) _k(r); else kprint(r,"","\n",""); r=null; }
+      /* at global scope during file load: r already printed above; stop */
+      if(!REPL && opencode) {
         RETURN=0;
         break;
       }
