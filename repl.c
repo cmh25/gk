@@ -18,6 +18,7 @@
 #include "h.h"
 #include "b.h"
 #include "ipc.h"
+#include "tmr.h"
 
 #ifdef _WIN32
 #define repl_getc() ipc_stdin_getc()
@@ -48,7 +49,7 @@ static int poll_getc(void) {
     int n_extra = ipc_extra_pollfds(pfd + 1, POLL_MAX - 1);
     int n_total = 1 + n_extra;
 
-    int n = poll(pfd, n_total, -1);
+    int n = poll(pfd, n_total, tmr_timeout_ms());
     if(n < 0) {
       if(errno == EINTR) continue;
       return EOF;
@@ -58,6 +59,10 @@ static int poll_getc(void) {
     for(int i = 1; i < n_total; i++) {
       if(pfd[i].revents) ipc_handle_pollfd(pfd[i].fd, pfd[i].revents);
     }
+
+    /* fire the recurring timer if its slot has come up. No-op if
+     * disabled, in a sub-repl, or already inside a tick. */
+    tmr_maybe_fire();
 
     if(pfd[0].revents & (POLLIN|POLLHUP|POLLERR)) {
       unsigned char c;

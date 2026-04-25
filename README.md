@@ -1,6 +1,6 @@
 # gk
 
-[v1 release notes](doc/v1.md) | [ipc](doc/ipc.md)
+[v1 release notes](doc/v1.md) | [ipc](doc/ipc.md) | [timer](doc/timer.md)
 
 ***note:*** v1 is a full rewrite of gk. It has breaking changes from v0. The [v0 branch](https://github.com/cmh25/gk/tree/v0) remains available.
 

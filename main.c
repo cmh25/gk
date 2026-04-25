@@ -15,6 +15,7 @@
 #endif
 #include "b.h"
 #include "ipc.h"
+#include "tmr.h"
 
 #ifdef FUZZING
 #define EAL 1
@@ -74,6 +75,7 @@ int main(int argc, char **argv) {
   if(ipc_init()<0) { fprintf(stderr,"gk: ipc_init failed\n"); exit(1); }
   if(ipc_stdin_init()<0) { fprintf(stderr,"gk: ipc_stdin_init failed\n"); exit(1); }
   ipc_init_ns();
+  tmr_init();
   if(iter_port) {
     K e=ipc_listen(iter_port,IPC_MODE_ITER);
     if(e) {
@@ -100,5 +102,6 @@ int main(int argc, char **argv) {
   }
   repl();
   ipc_shutdown();
+  tmr_shutdown();
   return 0;
 }

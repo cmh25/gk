@@ -301,6 +301,7 @@ static int reserved(pgs *pgs, char *p, char *q) {
   if(p==R_LCM) { push(pgs,T015,t(4,st(0xc7,q))); return 1; }
   if(p==R_MODINV) { push(pgs,T015,t(4,st(0xc7,q))); return 1; }
   if(p==R_EXIT) { push(pgs,T015,t(4,st(0xc6,q))); return 1; }
+  if(p==R_TIMER) { push(pgs,T015,t(4,st(0xc6,q))); return 1; }
   if(p==R_DEL) { push(pgs,T015,t(4,st(0xc6,q))); return 1; }
   if(p==R_DO) { push(pgs,T015,t(4,st(0xd1,q))); return 1; }
   if(p==R_WHILE) { push(pgs,T015,t(4,st(0xd2,q))); return 1; }

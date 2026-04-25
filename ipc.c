@@ -39,6 +39,7 @@
 #include "fn.h"
 #include "p.h"
 #include "b.h"
+#include "tmr.h"
 
 /* ===== platform shim ===================================================== */
 
@@ -351,8 +352,16 @@ int ipc_stdin_getc(void) {
     sock_t  socks  [STDIN_WAIT_BUDGET];
     handles[0]  = stdin_event;
     int n_socks = build_socket_events((WSAEVENT*)(handles + 1), socks);
+    int    tms  = tmr_timeout_ms();
+    DWORD  wms  = (tms < 0) ? INFINITE : (DWORD)tms;
     DWORD wr = WaitForMultipleObjects((DWORD)(1 + n_socks), handles,
-                                       FALSE, INFINITE);
+                                       FALSE, wms);
+
+    if(wr == WAIT_TIMEOUT) {
+      teardown_socket_events((WSAEVENT*)(handles + 1), socks, n_socks);
+      tmr_maybe_fire();
+      continue;
+    }
 
     if(wr >= WAIT_OBJECT_0 && wr < WAIT_OBJECT_0 + (DWORD)(1 + n_socks)) {
       DWORD idx = wr - WAIT_OBJECT_0;
@@ -369,6 +378,7 @@ int ipc_stdin_getc(void) {
         }
       }
       teardown_socket_events((WSAEVENT*)(handles + 1), socks, n_socks);
+      tmr_maybe_fire();
     } else {
       teardown_socket_events((WSAEVENT*)(handles + 1), socks, n_socks);
       return -1;
@@ -680,6 +690,10 @@ static void handle_accept(int lfd, int lmode) {
     if(listen_fork_fd >= 0) { sock_close(listen_fork_fd); listen_fork_fd = -1; listen_fork_port = 0; }
     for(int i = 0; i < conn_count; i++) sock_close(conns[i].fd);
     conn_count = 0;
+    /* drop any inherited timer schedule. We don't want a child
+     * staying alive past its work just because the parent had a
+     * recurring timer set. */
+    tmr_fork_clear();
     /* Drop any other fds the parent had open (script files mid-\l, any
      * io.c FILE* still live at fork time, etc). Keeps the new cfd. */
     close_inherited_fds((int)cfd);

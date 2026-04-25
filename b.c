@@ -27,6 +27,7 @@
 #include "nt.h"
 #include "repl.h"
 #include "ipc.h"
+#include "tmr.h"
 
 #ifdef _WIN32
 #define strtok_r strtok_s
@@ -166,6 +167,7 @@ K builtin(K f, K a, K x) {
     else if(a2==R_FACTOR) r=factor_(x);
     else if(a2==R_GETENV) r=getenv_(x);
     else if(a2==R_EXIT) r=exit_(x);
+    else if(a2==R_TIMER) r=timer_(x);
     else r=KERR_VALUE;
   }
   else if(0xcc==s(f)) {
@@ -1749,6 +1751,7 @@ K exit__(K x) {
    * (fires .m.c handlers, which need K state alive) and frees the
    * persistent send-scratch buffer. */
   ipc_shutdown();
+  tmr_shutdown();
   scope_free(cs);
   scope_free(gs);
   scope_free(ks);
