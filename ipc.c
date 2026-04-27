@@ -881,6 +881,31 @@ static K get_handler(const char *name) {
  * a trap handler. We still save+restore EFLAG so a handler that toggles
  * \e itself can't persistently change it. */
 static K apply1(K h, K arg) {
+  /* Guard against non-callable handlers. The user can put any K
+   * value in .m.{s,g} (`.m.g:"{1+x}"` is a real footgun: the default
+   * .m.g is `{. x}` which evals string *args*, but a string in the
+   * handler slot itself isn't callable). fne() on a non-callable
+   * crashes -- val() returns an error K for the same set, so we
+   * use that as a fast and uniform check. Note: callable-but-wrong-
+   * valence handlers (e.g. `.m.g:{x+y}`) project rather than crash;
+   * we let those through and the peer receives the projection. */
+  K vv = val(h);
+  if(E(vv)) {
+    _k(h);
+    _k(arg);
+    /* Match the post-fne print rule below: under \e 0, surface the
+     * problem on the server too. Under \e 1 we stay silent (no
+     * sub-repl: the offending dispatch was driven by an inbound
+     * message, not a top-level expression, and we still need to
+     * answer the peer with SYNC_ERR before unwinding). */
+    if(!EFLAG) {
+      K p = (vv < EMAX) ? kerror(E[vv]) : k_(vv);
+      kprint(p, "", "\n", "");
+    }
+    return vv;
+  }
+  _k(vv);
+
   K args  = tn(0, 1);
   K *pa   = px(args);
   pa[0]   = arg;
@@ -936,6 +961,18 @@ static void dispatch_sync(int fd, K msg) {
   K r = apply1(h, msg);
   scope_set_z_w(0);
   mark_in_dispatch(fd, 0);
+  /* "abort" out of the handler means the user typed `\` to exit a
+   * debug sub-REPL that was opened (under \e 1) for an error inside
+   * the handler. The error itself was already printed and dismissed
+   * by the user; forwarding the literal "abort" string would land
+   * on the peer's top-level REPL where an abort-as-expression-value
+   * fires help(0) (see repl.c). Treat it as "discarded" and answer
+   * the peer with null instead. */
+  if(E(r) && r >= EMAX && sk(r) == sp("abort")) {
+    _k(r);
+    send_value(fd, MSG_SYNC_RSP, null);
+    return;
+  }
   if(E(r)) {
     send_error(fd, r);
     if(r >= EMAX) _k(r);
