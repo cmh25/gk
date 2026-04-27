@@ -1,0 +1,43 @@
+f:{g`}
+g:{h`}
+h:{5*1+`}
+f`
+\\
+
+\
+
+cmh@ubuntu22:~/gk$ rlwrap ./gk errortest/z03
+gk-v1.0.0 Copyright (c) 2023-2025 Charles Hall
+
+in errortest/z03:3
+type error
+{5*1+`}
+    ^
+>  '
+in errortest/z03:2
+
+{h`}
+ ^
+>  '
+in errortest/z03:1
+
+{g`}
+ ^
+>  '
+in errortest/z03:4
+
+f`
+^
+>  '
+load: errortest/z03 ... + 4
+
+cmh@ubuntu22:~/gk$ rlwrap ./gk errortest/z03
+gk-v1.0.0 Copyright (c) 2023-2025 Charles Hall
+
+in errortest/z03:3
+type error
+{5*1+`}
+    ^
+>  :5
+5
+cmh@ubuntu22:~/gk$

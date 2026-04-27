@@ -1,0 +1,43 @@
+/ verify line number and opencode console suspension
+f:{x+y}
+f[1;2+`]
+\\
+
+\
+
+cmh@ubuntu22:~/gk$ rlwrap ./gk errortest/z10
+gk-v1.0.0 Copyright (c) 2023-2025 Charles Hall
+
+in errortest/z10:3
+type error
+f[1;2+`]
+     ^
+>  '
+in errortest/z10:3
+
+f[1;2+`]
+^
+>  '
+load: errortest/z10 ... + 3
+
+cmh@ubuntu22:~/gk$ rlwrap ./gk errortest/z10
+gk-v1.0.0 Copyright (c) 2023-2025 Charles Hall
+
+in errortest/z10:3
+type error
+f[1;2+`]
+     ^
+>  :`a
+in errortest/z10:2
+type error
+{x+y}
+  ^
+>  '
+in errortest/z10:3
+
+f[1;2+`]
+^
+>  '
+load: errortest/z10 ... + 3
+
+cmh@ubuntu22:~/gk$

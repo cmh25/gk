@@ -1,0 +1,35 @@
+a:(1 2
+   3+`
+   4 5)
+a
+\\
+
+\
+
+cmh@ubuntu22:~/gk$ rlwrap ./gk errortest/z08
+gk-v1.0.0 Copyright (c) 2023-2025 Charles Hall
+
+a:(1 2 ... +1 in errortest/z08:2
+type error
+   3+`
+    ^
+>  '
+in errortest/z08:1
+
+a:(1 2
+ ^
+>  '
+load: errortest/z08 ... + 3
+
+cmh@ubuntu22:~/gk$ rlwrap ./gk errortest/z08
+gk-v1.0.0 Copyright (c) 2023-2025 Charles Hall
+
+a:(1 2 ... +1 in errortest/z08:2
+type error
+   3+`
+    ^
+>  :3
+(1 2
+ 3
+ 4 5)
+cmh@ubuntu22:~/gk$

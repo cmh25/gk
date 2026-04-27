@@ -1,0 +1,34 @@
+f:{ / this is a comment
+  1+2
+  1+2;3*`
+  5}
+f`
+\\
+
+\
+
+cmh@ubuntu22:~/gk$ rlwrap ./gk errortest/z02
+gk-v1.0.0 Copyright (c) 2023-2025 Charles Hall
+
+{ / this is a comment ... + 2 in errortest/z02:3
+type error
+  1+2;3*`
+       ^
+>  '
+in errortest/z02:5
+
+f`
+^
+>  '
+load: errortest/z02 ... + 5
+
+cmh@ubuntu22:~/gk$ rlwrap ./gk errortest/z02
+gk-v1.0.0 Copyright (c) 2023-2025 Charles Hall
+
+{ / this is a comment ... + 2 in errortest/z02:3
+type error
+  1+2;3*`
+       ^
+>  :3
+5
+cmh@ubuntu22:~/gk$

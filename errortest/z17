@@ -1,0 +1,19 @@
+f:{[a;b]
+  r:!10
+  1+)  / comment
+  r}
+f`
+\\
+
+\
+
+cmh@ubuntu22:~/gk$ rlwrap ./gk errortest/z17
+gk-v1.0.0 Copyright (c) 2023-2025 Charles Hall
+
+f:{[a;b] ... + 2 in errortest/z17:3
+unmatched error
+  1+)  / comment
+    ^
+load: errortest/z17 ... + 3
+domain error
+cmh@ubuntu22:~/gk$

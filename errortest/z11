@@ -1,0 +1,43 @@
+/ error in klist within plist
+f:{x+y}
+f[1;(1;2+`)]
+\\
+
+\
+
+cmh@ubuntu22:~/gk$ rlwrap ./gk errortest/z11
+gk-v1.0.0 Copyright (c) 2023-2025 Charles Hall
+
+in errortest/z11:3
+type error
+f[1;(1;2+`)]
+        ^
+>  '
+in errortest/z11:3
+
+f[1;(1;2+`)]
+^
+>  '
+load: errortest/z11 ... + 3
+
+cmh@ubuntu22:~/gk$ rlwrap ./gk errortest/z11
+gk-v1.0.0 Copyright (c) 2023-2025 Charles Hall
+
+in errortest/z11:3
+type error
+f[1;(1;2+`)]
+        ^
+>  :`a
+in errortest/z11:2
+type error
+{x+y}
+  ^
+>  '
+in errortest/z11:3
+
+f[1;(1;2+`)]
+^
+>  '
+load: errortest/z11 ... + 3
+
+cmh@ubuntu22:~/gk$

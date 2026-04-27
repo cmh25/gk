@@ -1,0 +1,380 @@
+#
+# parse errors
+#
+
+  (1;{([])})
+parse error
+(1;{([])})
+^
+  ([])
+parse error
+([])
+^
+  1ea
+parse error
+1ea
+^
+  +]
+unmatched error
++]
+ ^
+  +}
+unmatched error
++}
+ ^
+  +)
+unmatched error
++)
+ ^
+
+#
+# stop (ctrl-c)
+#
+
+  {1+x}/1
+stop
+{1+x}/1
+^
+>  '
+
+  {1+x}\1
+stop
+{1+x}\1
+^
+>  '
+
+  sin/2
+stop
+sin/2
+^
+>  '
+
+  sin\2
+stop
+sin\2
+^
+>  '
+
+
+#
+# signal, abort, return
+#
+
+gk invokes a sub-repl when there's an error and the error flag is enabled (\e 1), which is the default.
+While in this sub-repl, you can do anything you can do in the top level repl, plus these options
+are available to exit the sub-repl. 
+
+# signal
+Returns a signal to the caller.
+
+# abort
+If you're in a sub-repl that's the direct result of an error in a lambda function,
+the whole call stack is aborted.
+If you're in a sub-repl that's the result of an immediate error, the sub-repl is just closed.
+
+# return
+Retrun result to caller.
+
+
+/ top level handling
+  '"error"
+error
+  '
+parse error
+  \
+\0 data
+\+ verbs
+\' adverbs
+\_ reserved verbs/nouns
+\. assign define control debug
+\: input/output
+\- client/server
+\` os commands
+\? commands
+  :5
+5
+  :
+:
+  \\
+
+
+
+/ top level error
+  1/1
+rank error
+1/1
+^
+>  '"error"
+error
+  1/1
+rank error
+1/1
+^
+>  '
+
+  1/1
+rank error
+1/1
+^
+>  \
+  1/1
+rank error
+1/1
+^
+>  :5
+5
+  1/1
+rank error
+1/1
+^
+>  :
+  \
+\0 data
+\+ verbs
+\' adverbs
+\_ reserved verbs/nouns
+\. assign define control debug
+\: input/output
+\- client/server
+\` os commands
+\? commands
+  \\
+
+
+  {1+`}`
+type error
+{1+`}
+  ^
+>  '"error"
+error
+{1+`}`
+^
+>  '"error"
+error
+  {1+`}`
+type error
+{1+`}
+  ^
+>  '
+
+{1+`}`
+^
+>  '
+
+  {1+`}`
+type error
+{1+`}
+  ^
+>  \
+  {1+`}`
+type error
+{1+`}
+  ^
+>  :5
+5
+  {1+`}`
+type error
+{1+`}
+  ^
+>  :
+  \
+\0 data
+\+ verbs
+\' adverbs
+\_ reserved verbs/nouns
+\. assign define control debug
+\: input/output
+\- client/server
+\` os commands
+\? commands
+  \\
+
+
+/ signal up from deep stack frame
+  {g:{g0:`g0;h:{h0:`h0;(g0;h0;z0)};h`};g`}`
+value error
+{h0:`h0;(g0;h0;z0)}
+               ^
+>  '"error"
+error
+{g0:`g0;h:{h0:`h0;(g0;h0;z0)};h`}
+                              ^
+>  '"error"
+error
+{g:{g0:`g0;h:{h0:`h0;(g0;h0;z0)};h`};g`}
+                                     ^
+>  '"error"
+error
+{g:{g0:`g0;h:{h0:`h0;(g0;h0;z0)};h`};g`}`
+^
+>  '"error"
+error
+  {g:{g0:`g0;h:{h0:`h0;(g0;h0;z0)};h`};g`}`
+value error
+{h0:`h0;(g0;h0;z0)}
+               ^
+>  '
+
+{g0:`g0;h:{h0:`h0;(g0;h0;z0)};h`}
+                              ^
+>  '
+
+{g:{g0:`g0;h:{h0:`h0;(g0;h0;z0)};h`};g`}
+                                     ^
+>  '
+
+{g:{g0:`g0;h:{h0:`h0;(g0;h0;z0)};h`};g`}`
+^
+>  '
+
+
+
+/ abort stack frame
+  {g:{g0:`g0;h:{h0:`h0;(g0;h0;z0)};h`};g`}`
+value error
+{h0:`h0;(g0;h0;z0)}
+               ^
+>  \
+
+
+/ return from in stack frame
+  {g:{g0:`g0;h:{h0:`h0;(g0;h0;z0)};h`};g`}`
+value error
+{h0:`h0;(g0;h0;z0)}
+               ^
+>  :`z0
+`g0 `h0 `z0
+
+
+/ signal, abort, return from error only, while in stack frame
+  {1+`}`
+type error
+{1+`}
+  ^
+>  1/1
+rank error
+1/1
+^
+>>  '"error"
+error
+>  '"error"
+error
+{1+`}`
+^
+>  '"error"
+error
+  {1+`}`
+type error
+{1+`}
+  ^
+>  1/1
+rank error
+1/1
+^
+>>  '
+
+>  '
+
+{1+`}`
+^
+>  '
+
+  {1+`}`
+type error
+{1+`}
+  ^
+>  1/1
+rank error
+1/1
+^
+>>  \
+>  \
+  {1+`}`
+type error
+{1+`}
+  ^
+>  1/1
+rank error
+1/1
+^
+>>  :5
+5
+>  :5
+5
+  {1+`}`
+type error
+{1+`}
+  ^
+>  1/1
+rank error
+1/1
+^
+>>  :
+>  :
+
+
+/ signal, abort, return from stack frame while in error
+  1/1
+rank error
+1/1
+^
+>  {1+`}`
+type error
+{1+`}
+  ^
+>>  '"error"
+error
+{1+`}`
+^
+>>  '"error"
+error
+>  '"error"
+error
+  1/1
+rank error
+1/1
+^
+>  {1+`}`
+type error
+{1+`}
+  ^
+>>  '
+
+{1+`}`
+^
+>>  '
+
+>  '
+
+  1/1
+rank error
+1/1
+^
+>  {1+`}`
+type error
+{1+`}
+  ^
+>>  \
+>  \
+  1/1
+rank error
+1/1
+^
+>  {1+`}`
+type error
+{1+`}
+  ^
+>>  :5
+5
+>  :5
+5
+  1/1
+rank error
+1/1
+^
+>  {1+`}`
+type error
+{1+`}
+  ^
+>>  :
+>  :

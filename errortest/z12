@@ -1,0 +1,40 @@
+f:{
+  5}
+g:{
+  1+2
+  1+`}
+f`
+g`
+!10
+\\
+
+\
+
+cmh@ubuntu22:~/gk$ rlwrap ./gk errortest/z12
+gk-v1.0.0 Copyright (c) 2023-2025 Charles Hall
+
+5
+{ ... + 2 in errortest/z12:5
+type error
+  1+`}
+   ^
+>  '
+in errortest/z12:7
+
+g`
+^
+>  '
+load: errortest/z12 ... + 7
+
+cmh@ubuntu22:~/gk$ rlwrap ./gk errortest/z12
+gk-v1.0.0 Copyright (c) 2023-2025 Charles Hall
+
+5
+{ ... + 2 in errortest/z12:5
+type error
+  1+`}
+   ^
+>  :5
+5
+0 1 2 3 4 5 6 7 8 9
+cmh@ubuntu22:~/gk$

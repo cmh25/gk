@@ -1,0 +1,39 @@
+/ verify line numbers in opencode and load error
+{1+`}`
+{2+`}`
+{3+`}`
+{4+`}`
+
+\
+
+cmh@ubuntu22:~/gk$ rlwrap ./gk errortest/z00
+gk-v1.0.0 Copyright (c) 2023-2025 Charles Hall
+
+in errortest/z00:2
+type error
+{1+`}
+  ^
+>  :
+in errortest/z00:3
+type error
+{2+`}
+  ^
+>  :
+in errortest/z00:4
+type error
+{3+`}
+  ^
+>  :
+in errortest/z00:5
+type error
+{4+`}
+  ^
+>  '
+in errortest/z00:5
+
+{4+`}`
+^
+>  '
+load: errortest/z00 ... + 5
+
+cmh@ubuntu22:~/gk$

@@ -1,0 +1,18 @@
+1+2
+3+)  / comment
+4+5+6
+\\
+
+\
+
+cmh@ubuntu22:~/gk$ rlwrap ./gk errortest/z16
+gk-v1.0.0 Copyright (c) 2023-2025 Charles Hall
+
+3
+in errortest/z16:2
+unmatched error
+3+)  / comment
+  ^
+load: errortest/z16 ... + 2
+domain error
+cmh@ubuntu22:~/gk$

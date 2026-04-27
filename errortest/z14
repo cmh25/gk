@@ -1,0 +1,52 @@
+f:{a:1
+  g:{b:2
+    h:{c:3
+      (A;a;B;b;c)}
+    h`}
+  g`}
+f`
+\\
+
+\
+
+cmh@cmh01:~/gk$ rlwrap ./gk errortest/z14
+gk-v1.0.0 Copyright (c) 2023-2026 Charles Hall
+
+{c:3 ... + 1 in errortest/z14:4
+value error
+      (A;a;B;b;c)}
+       ^
+>  '
+{b:2 ... + 3 in errortest/z14:5
+
+    h`}
+    ^
+>  '
+{a:1 ... + 5 in errortest/z14:6
+
+  g`}
+  ^
+>  '
+in errortest/z14:7
+
+f`
+^
+>  '
+load: errortest/z14 ... + 7
+
+  \\
+cmh@cmh01:~/gk$ rlwrap ./gk errortest/z14
+gk-v1.0.0 Copyright (c) 2023-2026 Charles Hall
+
+{c:3 ... + 1 in errortest/z14:4
+value error
+      (A;a;B;b;c)}
+       ^
+>  :3
+{c:3 ... + 1 in errortest/z14:4
+value error
+      (A;a;B;b;c)}
+           ^
+>  :5
+3 1 5 2 3
+cmh@cmh01:~/gk$
