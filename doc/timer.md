@@ -18,8 +18,9 @@ The timer is a single monadic builtin, `timer`. It has two forms:
 
 ```
 timer (t;f)        SET. t is seconds (int or float, 0 disables);
-                   f is a 1-valence fn called as f[nul] each tick.
-                   Returns nul.
+                   f is a 1-valence fn called as f[nul] each tick,
+                   OR a sym `g referring to a global g (resolved at
+                   every tick). Returns nul.
 timer x            QUERY (anything that isn't a 2-element value:
                    timer[], timer nul, timer`, timer 1, ...).
                    Returns the current (t;f). Before any set,
@@ -55,8 +56,8 @@ type error
 domain error
   timer(1;5)                / fn not callable
 type error
-  timer(1;`f)               / sym is not callable here
-type error
+  timer(1;`undefined)       / sym doesn't resolve
+value error
   timer(1;{x+y})            / valence != 1
 valence error
   timer 1 2                 / same: 2-element int vector
@@ -66,6 +67,29 @@ type error
 Valence is checked strictly: the fn must have valence exactly 1.
 `{x+y}` would just project on `nul` rather than fire, which is never
 what you want.
+
+## pass by reference (sym)
+
+The fn can be a sym referring to a global function, mirroring
+``` `f . ` ``` (apply by reference). The sym is resolved at *every*
+tick, so redefinitions are picked up live:
+
+```
+  f:{!3}
+  timer(0.5;`f)             / fires {!3}
+0 1 2
+0 1 2
+  f:{!7}                    / next tick fires the new f
+0 1 2 3 4 5 6
+0 1 2 3 4 5 6
+  timer[]
+(0.5;`f)                    / query returns the sym, not the fn
+```
+
+If the sym stops resolving (deleted, rebound to a non-callable, or
+rebound to a non-1-valence fn), the corresponding error prints at
+the next tick and the timer stays armed -- restoring the global
+resumes ticking on the following interval.
 
 ## tick output
 

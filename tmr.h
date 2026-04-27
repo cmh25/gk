@@ -6,8 +6,10 @@
  * User surface (single monadic builtin):
  *
  *   timer (t;f)   SET: t is seconds (int or float; 0 disables); f is
- *                 a 1-valence fn called as f[nul] each tick. Returns
- *                 nul.
+ *                 a 1-valence fn called as f[nul] each tick, OR a
+ *                 sym `g referring to a global g (resolved at every
+ *                 tick, so redefinitions are picked up live).
+ *                 Returns nul.
  *   timer x       QUERY (any non-2-list argument: timer[], timer nul,
  *                 timer`, timer 1, ...). Returns the current (t;f).
  *                 Before any set, returns (0.0;{}).
