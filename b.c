@@ -213,21 +213,21 @@ K builtin(K f, K a, K x) {
 
 K draw(K a, K x) {
   K r=0,e,p,q;
-  i32 n=1,m=ik(x),*pai;
+  i32 n=1,*pai;
   if(!a||!x) { e=KERR_TYPE; goto cleanup; }
   if(ta!=0 && ta!=1 && ta!=-1) { e=KERR_TYPE; goto cleanup; }
   if(tx!=1 && tx!=2 && ta!=-1) { e=KERR_TYPE; goto cleanup; }
   if(ta==1 && tx==1 && ik(x)==INT32_MIN) { e=KERR_WSFULL; goto cleanup; }
   if(ta==1 && tx==1 && ik(x)<0 && ik(a)>abs(ik(x))) { e=KERR_LENGTH; goto cleanup; }
   switch(ta) {
-  case  0: if(na) { e=KERR_TYPE; goto cleanup; } r=k(14,t(1,(u32)n),t(1,(u32)m)); /* n?m */ break;
-  case  1: n=ik(a); r=k(14,t(1,(u32)n),t(1,(u32)m)); /* n?m */ break;
+  case  0: if(na) { e=KERR_TYPE; goto cleanup; } r=k(14,t(1,(u32)n),k_(x)); /* n?x */ break;
+  case  1: n=ik(a); r=k(14,t(1,(u32)n),k_(x)); /* n?x */ break;
   case -1:
     switch(tx) {
     case 1: case 2:
       PAI; i(na,if(pai[i]<0){e=KERR_DOMAIN;goto cleanup;})
       p=k(21,3,k_(a)); EC(p); // */a
-      q=k(14,p,t(1,(u32)m)); EC(q); // p?m
+      q=k(14,p,k_(x)); EC(q); // p?x
       r=k(15,k_(a),q); // a#q
       break;
     case -1:
