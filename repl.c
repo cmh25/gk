@@ -191,6 +191,7 @@ K load(char *fn, int load) {
   D=d0;
   _k(gs); gs=gs0;
   _k(cs); cs=cs0;
+  gcache_clear(); /* gs may have changed during load */
   pfile=pfile0;
   if(EXIT) { e=kerror("abort"); goto cleanup; }
   if(pcount||scount||ccount||qcount) {

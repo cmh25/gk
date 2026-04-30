@@ -1797,6 +1797,7 @@ K dir_(K x) {
       _k(gs); gs=k_(pgs[0]);
       pgs=px(gs);
       D=pgs[2];
+      gcache_clear(); /* gs changed: cache keys aren't scope-qualified */
     }
   }
   else {
@@ -1847,6 +1848,7 @@ K dir_(K x) {
     _k(cs); cs=k_(es);
     D=t(4,sp(ss)); /* set global D */
     xfree(s); xfree(ss); xfree(pp);
+    gcache_clear(); /* gs changed: cache keys aren't scope-qualified */
   }
   return null;
 }

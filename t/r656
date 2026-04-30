@@ -1,0 +1,5 @@
+.k
+.k.permix
+{$[2>x;x#,0;,/gi[x]@\0,'1+permix[x-1]]}
+{$[2>x;x#,0;,/gi[x]@\0,'1+permix[x-1]]}
+{$[2>x;x#,0;,/gi[x]@\0,'1+permix[x-1]]}
