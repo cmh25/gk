@@ -1,5 +1,7 @@
 # tradeoffs related to removal of digraphs
 
+Notation: this page mirrors **k3** with `f`, `x`, `y` in patterns. **Primitive** dyads in [ref.md](ref.md) are written **`a`**, **`x`**.
+
 gk got rid of the digraphs for each-prior, each-right, each-left, and force monad:
 `': /: \: +:`
 

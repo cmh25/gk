@@ -1,5 +1,7 @@
 # valence in gk
 
+This page talks about **user-defined functions** (`f`, `g`, …) and their parameters (`x`, `y`, `z`, …). For **primitive verbs**, the [reference manual](ref.md) uses **`a`** and **`x`** for dyadic left and right operands.
+
 ## what is valence?
 
 Valence is the number of parameters a function expects. 
@@ -11,7 +13,7 @@ Valence is the number of parameters a function expects.
 2
   val {x,y,z}
 3
-  val {[a;b;c;d;e]a,b,c,d,e}
+  val {[x;y;z;u;v]x,y,z,u,v}
 5
 ```
 

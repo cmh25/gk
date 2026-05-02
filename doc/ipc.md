@@ -26,7 +26,7 @@ client (in another gk):
 ```
   h:3:("localhost";5555)
   h 4:"2+2"            / sync: -> 4
-  h 4:(`f;1 2 3)       / sync: apply server-side f to 1 2 3 -> 6
+  h 4:(`g;1 2 3)       / sync: apply server-side g to 1 2 3 -> 6
   h 3:"a::42"          / async: no reply
   3:h                  / close
 ```
@@ -190,14 +190,14 @@ Three overridable globals control dispatch:
 The default handler for `.m.s` and `.m.g` is `{. x}`:
 
 - `. "!10"` — if `x` is a char vector, treat it as K source and evaluate.
-- `. (`f;1 2 3)` — if `x` is a `(fn;args)` pair, apply `f` to the args.
+- `. (`g;1 2 3)` — if `x` is a `(fn;args)` pair, apply the function to the args.
 
 So out of the box, a freshly started gk server handles both raw code
 strings and typed function calls:
 
 ```
   h 4:"!10"           / -> 0 1 2 3 4 5 6 7 8 9
-  h 4:(`f;1 2 3)      / -> f[1;2;3]
+  h 4:(`g;1 2 3)      / -> g[1;2;3]
 ```
 
 ### `.m.c` is a string, not a lambda

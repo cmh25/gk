@@ -1,149 +1,66 @@
 # gk
 
-[v1 release notes](doc/v1.md) | [ipc](doc/ipc.md) | [timer](doc/timer.md)
+**gk** is an interpreter for an array programming language in the tradition of [k](https://en.wikipedia.org/wiki/K_(programming_language)) (Arthur Whitney).
 
-***note:*** v1 is a full rewrite of gk. It has breaking changes from v0. The [v0 branch](https://github.com/cmh25/gk/tree/v0) remains available.
+If you know **APL**, **J**, or **q**, much of the feel will be familiar. If you are new to array languages, work through the **[tutorial](doc/tutorial.md)** first, then use the [reference manual](doc/ref.md) for complete detail.
 
-gk is an implementation of the k programming language, originally invented by [Arthur Whitney](https://en.wikipedia.org/wiki/Arthur_Whitney_(computer_scientist)).
+The design of gk is inspired by k3, with additional ideas from [Stevan Apter](https://nsl.com/). Other open-source **k**-like languages are listed in [implementations](doc/implementations.md).
 
-It's loosely based on k3, but with some changes suggested by [Stevan Apter](https://nsl.com/).
+## Documentation
 
-Other notable open source implementations of k or k-like array [languages](doc/implementations.md).
+| Doc | What it is |
+|-----|----------------|
+| [doc/tutorial.md](doc/tutorial.md) | Short hands-on REPL tour for newcomers |
+| [doc/ref.md](doc/ref.md) | Language reference (types, primitives, builtins, syntax) |
+| [doc/valence.md](doc/valence.md) | How many arguments functions take; projections |
+| [doc/ipc.md](doc/ipc.md) | Built-in client/server IPC |
+| [doc/timer.md](doc/timer.md) | Recurring `timer` builtin |
+| [doc/v1.md](doc/v1.md) | v1 changes and migration from v0 |
+| [doc/k3.md](doc/k3.md) | If you already know k3: main dialect differences |
+| [doc/digraphs.md](doc/digraphs.md) | k3 digraphs removed |
 
-A taste of the REPL:
-```
-  $ gk
-  gk-v1.1.0 Copyright (c) 2023-2026 Charles Hall
+## Build
 
-    "hello, world"
-  "hello, world"
-    +/!10                  / sum of 0..9
-  45
-    f:{x*x}
-    f'1 2 3 4              / square each
-  1 4 9 16
-    \\
-```
+From the repository root, on **Linux**, **macOS**, or **Windows**:
 
-## build instructions
-linux/mac:
 ```
 make
 make test
 ```
-win: (requires visual studio cli)
-```
-make.bat
-```
 
-## gk differences from k3
+**Note:** On **Windows**, use a **Visual Studio Developer Command Prompt** so the MSVC toolchain is on `PATH`.
 
-### verbs
-The verbs are all like k3. However, there is no "force monadic" (ex: #:'). The valence of primitive verbs (including composition) is always determined from context. A few examples:
-```
-  #'(1 2;3 4 5)
-2 3
-  !'2 3 4
-(0 1
- 0 1 2
- 0 1 2 3)
-  *'("ab";"cd";"ef")
-"ace"
-  (%-)'1 2 3
--1 -0.5 -0.3333333
-```
-### adverbs
-The adverbs are similar to k3, but `/: \: ':` are gone. The only adverbs are `/ \ '`. How they operate depends on the context and the valence of the modified verb. Here's a quick synopsis:
-```
-each       f'x
-each       x f'y
-each       f'[x;y]
-each       f'[x;y;z]
+## A taste of the REPL
 
-scanm      f\x
-do         n f\x
-while      b f\x
-eachleft   x f\y
-eachleft   f\[x;y]
-scand      f\x
-scan       f\[x;y;z]
+```
+$ ./gk
+gk-v1.1.0 Copyright (c) 2023-2026 Charles Hall
 
-overm      f/x
-do         n f/x
-while      b f/x
-eachright  x f/y
-eachright  f/[x;y]
-overd      f/x
-over       f/[x;y;z]
+  1+2
+3
+  1+2 3 4                 / scalar + vector
+3 4 5
+  1 2 3+4 5 6             / vector + vector
+5 7 9
 
-eachprior  ep[f;x]
-```
+  !10                     / first n, 0-based
+0 1 2 3 4 5 6 7 8 9
+  +/!10                   / + over: sum
+45
 
-### slide
-slide is an enhanced version of eachprior from k3 (aka eachpair).
-```
-_[n;f;a]
-```
+  s:"asdfasdfasdf"        / assign string to variable
+  |s                      / reverse
+"fdsafdsafdsa"
+  <s                      / grade up: indices that sort ascending
+0 4 8 2 6 10 3 7 11 1 5 9
+  s@<s                    / index by grade up: sorted ascending
+"aaadddfffsss"
+  ?s@<s                   / unique of sorted
+"adfs"
 
-The first argument is a positive or negative integer. Its sign indicates the order the arguments are passed to the modified verb. Its absolute value indicates the number of steps the sliding window moves each time arguments are taken. The second argument is a verb. The third argument is a vector or list. These examples should make clear how it works:
-```
-  _[1;,;"abcd"]
-("ab"
- "bc"
- "cd")
-  _[-1;,;"abcd"]
-("ba"
- "cb"
- "dc")
-  _[2;,;"abcd"]
-("ab"
- "cd")
-  _[-2;,;"abcd"]
-("ba"
- "dc")
-```
-The case of `_[-1;f;a]` in gk is equivalent to `f': a` in k3. gk also has a builtin for eachprior.
-```
-  ep[,]"asdf"
-("sa"
- "ds"
- "fd")
-```
+  f:{x+y*z}               / function definition
+  f[1;2;3]                / function execution
+7
 
-### no underscore in names
-Underscores are not allowed in variable names. It makes things cleaner since there is no longer a need to have space around the drop/cut verb.
-```
-  a:1
-  b:1 2 3
-  a_b
-2 3
-```
-Most of the reserved names from k3 are still there, but with the _ removed.
-```
-  draw[10;10]
-7 2 7 6 6 3 6 2 5 8
-  1 2 3 dv 2
-1 3
-  2 vs 5
-1 0 1
-```
-Some single-letter names have changed.
-```
-k3     gk
----    ----
- _n    nul
- _P    .z.P
- _T    .z.T
- _f    .z.f
- _h    .z.h
- _i    .z.i
- _t    .z.t
-```
-
-### $ replaces : in cond
-```
-  $[0;`a;`b]
-`b
-  $[1;`a;`b]
-`a
+  \\                      / exit
 ```
