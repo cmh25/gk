@@ -100,6 +100,7 @@ K builtin(K f, K a, K x) {
     else if(a2==R_ROT) r=rot_(a,x);
     else if(a2==R_SHIFT) r=shift_(a,x);
     else if(a2==R_DOT) r=dotp(a,x);
+    else if(a2==R_MUL) r=mul_(a,x);
     else if(a2==R_AT) r=at_(a,x);
     else if(a2==R_SM) r=sm(a,x);
     else if(a2==R_SS) r=ss(a,x);

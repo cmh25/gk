@@ -1,6 +1,10 @@
 #include "la.h"
 #include <float.h>
+#include <stdlib.h>
+#include <string.h>
 #include "av.h"
+#include "b.h"
+#include "k.h"
 
 /* svd stuff based on numerical recipes */
 static K svdcmp(double **a, int m, int n, double *w, double **v, double *t) {
@@ -1232,4 +1236,226 @@ K mag_(K x) {
   default:
     return kerror("type");
   }
+}
+
+/* mul_ fast-path helpers.
+ *
+ * The "rectangular" check accepts a type-0 boxed list whose every element is
+ * a numeric vector (F64 = type -2, or I32 = type -1) with the same length.
+ * any_f64 reports whether at least one row is F64; we use it to gate the
+ * fast path so that all-I32 inputs stay on the generic path and keep their
+ * I32 result type.
+ */
+static int mul_rect_dims(K v, u64 *rows_out, u64 *cols_out, int *any_f64_out) {
+  if(!v || s(v) || T(v) != 0) return 0;
+  u64 rows = n(v);
+  if(rows == 0) { *rows_out = 0; *cols_out = 0; *any_f64_out = 0; return 1; }
+  K *pv = (K*)px(v);
+  K r0 = pv[0];
+  i32 t0 = T(r0);
+  if(t0 != -1 && t0 != -2) return 0;
+  u64 cols = n(r0);
+  int any_f64 = (t0 == -2);
+  for(u64 i = 1; i < rows; i++) {
+    K r = pv[i];
+    i32 t = T(r);
+    if(t != -1 && t != -2) return 0;
+    if(n(r) != cols) return 0;
+    if(t == -2) any_f64 = 1;
+  }
+  *rows_out = rows;
+  *cols_out = cols;
+  *any_f64_out = any_f64;
+  return 1;
+}
+
+/* Pack rows of v (each F64 or I32) into a contiguous double[rows*cols],
+ * row-major. Converts I32 to double on the fly. */
+static void mul_pack_rows(K v, double *out, u64 rows, u64 cols) {
+  K *pv = (K*)px(v);
+  for(u64 i = 0; i < rows; i++) {
+    K row = pv[i];
+    double *dst = out + i * cols;
+    if(T(row) == -2) {
+      memcpy(dst, (double*)px(row), cols * sizeof(double));
+    } else {
+      i32 *src = (i32*)px(row);
+      for(u64 j = 0; j < cols; j++) dst[j] = (double)src[j];
+    }
+  }
+}
+
+/* Attempt the rectangular F64/I32 fast path. Returns 0 if inputs aren't
+ * eligible so the caller falls through to the generic path; otherwise
+ * returns a K result (possibly an error K).
+ *
+ * Kernel structure (3 levels of blocking):
+ *
+ *   outer jj (BN=128)  - L2: keeps B[*][jj..jj+BN] (K*BN doubles ~ 1MB at
+ *                              K=1024) resident across the M/BM ii-sweep
+ *   middle ii (BM=8)   - selects a BM-row strip of A
+ *   inner  jr (NR=16)  - register-tile micro-kernel: BM*NR accumulators
+ *                              (8 rows x 2 ZMM each = 16 registers) live in
+ *                              ZMM regs across the full K loop
+ *
+ * A is pre-packed in BM-row strips with k-major-then-i layout so the BM A
+ * values needed at one k iteration sit in a single cache line. The full
+ * 8x16 micro-tile compiles into 16 vfmadd*pd register-accumulating FMAs
+ * per k iteration with all 16 row accumulators (8 rows x 2 vectors each)
+ * held in vector registers across the entire k loop. Vector width follows
+ * what -march=native picks: AVX-512 chips run 8-wide ZMM FMAs only when
+ * GCC is told to prefer 512-bit vectors (-mprefer-vector-width=512), which
+ * is left off here for portability; default behaviour is 4-wide YMM FMAs
+ * via the EVEX-encoded 32-register file on AVX-512 hardware. */
+static K mul_try_f64_fast(K a, K x) {
+  u64 M, Ka, Kb, N;
+  int a_f64, x_f64;
+  if(!mul_rect_dims(a, &M, &Ka, &a_f64))   return 0;
+  if(!mul_rect_dims(x, &Kb, &N, &x_f64))   return 0;
+  if(M == 0 || Ka == 0 || N == 0)          return 0;
+  if(Ka != Kb)                             return 0;
+  if(!a_f64 && !x_f64)                     return 0;
+
+  enum { BM = 8, BN = 128, NR = 16 };
+  #define MICRO_8x16(c_rows_, a_strip_, b_panel_, K_, N_, jr_) do {        \
+    double c0[NR] = {0}, c1[NR] = {0}, c2[NR] = {0}, c3[NR] = {0};         \
+    double c4[NR] = {0}, c5[NR] = {0}, c6[NR] = {0}, c7[NR] = {0};         \
+    for(u64 k_ = 0; k_ < (K_); k_++) {                                     \
+      const double *b_ = (b_panel_) + k_ * (N_);                           \
+      const double *a_ = (a_strip_) + k_ * BM;                             \
+      for(u64 j_ = 0; j_ < NR; j_++) c0[j_] += a_[0] * b_[j_];             \
+      for(u64 j_ = 0; j_ < NR; j_++) c1[j_] += a_[1] * b_[j_];             \
+      for(u64 j_ = 0; j_ < NR; j_++) c2[j_] += a_[2] * b_[j_];             \
+      for(u64 j_ = 0; j_ < NR; j_++) c3[j_] += a_[3] * b_[j_];             \
+      for(u64 j_ = 0; j_ < NR; j_++) c4[j_] += a_[4] * b_[j_];             \
+      for(u64 j_ = 0; j_ < NR; j_++) c5[j_] += a_[5] * b_[j_];             \
+      for(u64 j_ = 0; j_ < NR; j_++) c6[j_] += a_[6] * b_[j_];             \
+      for(u64 j_ = 0; j_ < NR; j_++) c7[j_] += a_[7] * b_[j_];             \
+    }                                                                      \
+    for(u64 j_ = 0; j_ < NR; j_++) (c_rows_)[0][(jr_) + j_] = c0[j_];      \
+    for(u64 j_ = 0; j_ < NR; j_++) (c_rows_)[1][(jr_) + j_] = c1[j_];      \
+    for(u64 j_ = 0; j_ < NR; j_++) (c_rows_)[2][(jr_) + j_] = c2[j_];      \
+    for(u64 j_ = 0; j_ < NR; j_++) (c_rows_)[3][(jr_) + j_] = c3[j_];      \
+    for(u64 j_ = 0; j_ < NR; j_++) (c_rows_)[4][(jr_) + j_] = c4[j_];      \
+    for(u64 j_ = 0; j_ < NR; j_++) (c_rows_)[5][(jr_) + j_] = c5[j_];      \
+    for(u64 j_ = 0; j_ < NR; j_++) (c_rows_)[6][(jr_) + j_] = c6[j_];      \
+    for(u64 j_ = 0; j_ < NR; j_++) (c_rows_)[7][(jr_) + j_] = c7[j_];      \
+  } while(0)
+
+  /* Pack A into BM-row strips, k-major within each strip:
+   *   Ap[strip * BM * Ka + k * BM + i_local] = A[strip*BM + i_local][k]
+   * This makes the BM A values needed at a single k iteration adjacent in
+   * memory (one cache line) instead of stride-Ka apart.
+   *
+   * Done in two phases (row-pack A from the K boxed list, then re-pack to
+   * the BM-strip layout) rather than directly from the boxed list, because
+   * a direct pack scatters writes across stride-BM cache lines and thrashes
+   * L1; the two-phase version has both phases sequentially friendly. */
+  u64 M_pad = ((M + BM - 1) / BM) * BM;
+  double *A  = (double*)malloc(M     * Ka * sizeof(double));
+  double *Ap = (double*)malloc(M_pad * Ka * sizeof(double));
+  double *B  = (double*)malloc(Kb    * N  * sizeof(double));
+  double **C = (double**)malloc(M * sizeof(double*));
+  if(!A || !Ap || !B || !C) {
+    free(A); free(Ap); free(B); free(C);
+    return KERR_WSFULL;
+  }
+
+  mul_pack_rows(a, A, M,  Ka);
+  mul_pack_rows(x, B, Kb, N);
+  for(u64 ii = 0; ii < M; ii += BM) {
+    u64 bm = ii + BM > M ? M - ii : BM;
+    double *strip = Ap + ii * Ka;
+    for(u64 i = 0; i < bm; i++)
+      for(u64 k = 0; k < Ka; k++)
+        strip[k * BM + i] = A[(ii + i) * Ka + k];
+  }
+
+  K r = tn(0, M);
+  K *pr = (K*)px(r);
+  for(u64 i = 0; i < M; i++) {
+    pr[i] = tn(2, N);
+    C[i] = (double*)px(pr[i]);
+  }
+
+  for(u64 jj = 0; jj < N; jj += BN) {
+    u64 jend = jj + BN < N ? jj + BN : N;
+    for(u64 ii = 0; ii < M; ii += BM) {
+      u64 iend = ii + BM < M ? ii + BM : M;
+      u64 bm = iend - ii;
+      const double *a_strip = Ap + ii * Ka;
+
+      for(u64 jr = jj; jr < jend; jr += NR) {
+        u64 jrend = jr + NR < jend ? jr + NR : jend;
+        u64 nri = jrend - jr;
+
+        if(bm == BM && nri == NR) {
+          /* Hot path: full-size BM x NR micro-tile. Compile-time dims let
+           * the compiler unroll the inner loops and keep all 16 row
+           * accumulator pairs live in ZMM registers across the k loop. */
+          MICRO_8x16(C + ii, a_strip, B + jr, Ka, N, jr);
+        } else {
+          /* Edge tile: variable bm x nri, falls back to a scalar-ish loop. */
+          double cc[BM][NR];
+          for(u64 i = 0; i < bm; i++)
+            for(u64 j = 0; j < nri; j++) cc[i][j] = 0.0;
+          for(u64 k = 0; k < Ka; k++) {
+            const double *b_row = B + k * N + jr;
+            const double *a_col = a_strip + k * BM;
+            for(u64 i = 0; i < bm; i++) {
+              double a_ik = a_col[i];
+              for(u64 j = 0; j < nri; j++) cc[i][j] += a_ik * b_row[j];
+            }
+          }
+          for(u64 i = 0; i < bm; i++) {
+            double *c_row = C[ii + i] + jr;
+            for(u64 j = 0; j < nri; j++) c_row[j] = cc[i][j];
+          }
+        }
+      }
+    }
+  }
+
+  free(C); free(B); free(Ap); free(A);
+  return r;
+  #undef MICRO_8x16
+}
+
+/* a mul x: matrix multiply. semantically identical to {x dot\y}.
+ *
+ *   - boxed-list left (the matrix-shaped case): for each row of a, dotp(row, x).
+ *     this is the hot path most callers hit; dispatching it here in C skips
+ *     the K-level eachleft loop.
+ *
+ *   - when both inputs are rectangular F64/I32 matrices and at least one is
+ *     F64, we additionally pack into flat double buffers (with B transposed)
+ *     and run a tight ijk kernel, skipping the per-row dotp + boxed list
+ *     arithmetic + +/ machinery. result is F64.
+ *
+ *   - all-I32 inputs stay on the generic path to preserve the I32 result type.
+ *
+ *   - any other left: fall through to the existing each-left adverb on dot,
+ *     preserving the K function's exact behavior (including its rank errors
+ *     for shapes the K version doesn't handle).
+ */
+K mul_(K a, K x) {
+  K r=0,e,*prk;
+  if(!a || !x) return KERR_TYPE;
+  if(s(a) || s(x)) return KERR_TYPE;
+
+  if(ta == 0) {
+    K fast = mul_try_f64_fast(a, x);
+    if(fast) return fast;
+
+    K *pa = px(a);
+    PRK(na);
+    i(na, prk[i] = dotp(pa[i], x); EC(prk[i]))
+    return knorm(r);
+  }
+
+  return avdo(t(4, st(0xc7, R_DOT)), k_(a), k_(x), "\\");
+
+cleanup:
+  if(r) _k(r);
+  return e;
 }

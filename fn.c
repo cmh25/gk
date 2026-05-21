@@ -17,7 +17,6 @@ void fninit(void) {
   f=fnnew("{(dj _ x%86400;100 sv 24 60 60 vs x!86400)}"); dset(C,sp("gtime"),f); fnfree(f);
   f=fnnew("{gtime lt x}"); dset(C,sp("ltime"),f); fnfree(f);
   f=fnnew("{t+x-lt t:x+x-lt x}"); dset(C,sp("tl"),f); fnfree(f);
-  f=fnnew("{x dot\\y}"); dset(C,sp("mul"),f); fnfree(f);
   f=fnnew("{((2##*x)#1,&#*x) lsq x}"); dset(C,sp("inv"),f); fnfree(f);
   f=fnnew("{rint exp lgamma[1+x]-lgamma[1+y]+lgamma[1+x-y]}"); dset(C,sp("choose"),f); fnfree(f);
   f=fnnew("{x*rint y%x}"); dset(C,sp("round"),f); fnfree(f);

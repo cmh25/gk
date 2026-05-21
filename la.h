@@ -4,6 +4,7 @@
 #include "k.h"
 
 K lsq_(K a, K x);
+K mul_(K a, K x);
 K svd_(K x);
 K lu_(K x);
 K qr_(K x);

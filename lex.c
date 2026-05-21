@@ -309,7 +309,7 @@ static int reserved(pgs *pgs, char *p, char *q) {
   if(p==R_LIN) { push(pgs,T015,t(4,st(0xca,q))); return 1; }
   if(p==R_DV) { push(pgs,T015,t(4,st(0xca,q))); return 1; }
   if(p==R_DI) { push(pgs,T015,t(4,st(0xca,q))); return 1; }
-  if(p==R_MUL) { push(pgs,T015,t(4,st(0xca,q))); return 1; }
+  if(p==R_MUL) { push(pgs,T015,t(4,st(0xc7,q))); return 1; }
   if(p==R_EP) { push(pgs,T015,t(4,st(0xca,q))); return 1; }
   if(p==R_CHOOSE) { push(pgs,T015,t(4,st(0xca,q))); return 1; }
   if(p==R_ROUND) { push(pgs,T015,t(4,st(0xca,q))); return 1; }
