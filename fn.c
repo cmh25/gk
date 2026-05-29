@@ -4,6 +4,8 @@
 #include <stdio.h>
 #include "p.h"
 #include "av.h"
+#include "repl.h"
+#include "fe.h"
 
 K fnestack[1024];
 int fnestacki=-1;
@@ -25,17 +27,21 @@ void fninit(void) {
   spf=sp("f");
 }
 
+/* Issue #2 Pass 6 cleanup: 0xc3 lambda layout shrunk from 5 to 4
+   slots.  The legacy pf[3] av slot is gone (post-pass-6 the lexer
+   never produces lambdas with embedded adverbs, and composition
+   happens at the AST level via 0xda(0xc3, av)).  Valence migrates
+   from pf[4] to pf[3]. */
 K fnnew(char *s) {
   K f,*pf;
   char *pd;
   if(!s||*s!='{') return null;
-  f=tn(0,5);
+  f=tn(0,4);
   pf=px(f);
   pf[0]=tn(3,strlen(s)); /* definition */
   pf[1]=null;            /* parse result */
   pf[2]=null;            /* scope */
-  pf[3]=null;            /* av */
-  pf[4]=t(1,0);          /* valence */
+  pf[3]=t(1,0);          /* valence */
   pd=px(pf[0]);
   i(strlen(s),pd[i]=s[i])
   K p=fnd(f);
@@ -48,34 +54,21 @@ void fnfree(K f) {
 }
 
 static K fncp_(K x) {
-  K p,e;
-  K f=tn(0,5);
+  K p;
+  K f=tn(0,4);
   K *pf=px(f);
   K *px=px(x);
   pf[0]=kcp(px[0]); /* definition */
-  if(E(pf[0])) {  e=pf[0]; _k(f); return e; }
+  if(E(pf[0])) { K e=pf[0]; _k(f); return e; }
   pf[1]=null;       /* parse result */
   pf[2]=null;       /* scope */
-  pf[3]=kcp(px[3]); /* av */
-  pf[4]=t(1,0);     /* valence */
+  pf[3]=t(1,0);     /* valence */
   if((p=fnd(f))) { fnfree(f); return p; }
   return st(0xc3,f);
 }
-static K fncpproj_(K x) {
-  K f=tn(0,3),e;
-  K *pf=px(f);
-  K *px=px(x);
-  pf[0]=kcp(px[0]); /* lambda */
-  if(E(pf[0])) {  e=pf[0]; _k(f); return e; }
-  pf[1]=kcp(px[1]); /* pargs */
-  if(E(pf[1])) {  e=pf[1]; _k(f); return e; }
-  pf[2]=kcp(px[2]); /* av */
-  if(E(pf[1])) {  e=pf[1]; _k(f); return e; }
-  return st(0xc4,f);
-}
+/* fncpproj_ retired in Pass 4 -- 0xc4 replaced by 0xd9. */
 K fncp(K x) {
   if(0xc3==s(x)) return fncp_(x);
-  if(0xc4==s(x)) return fncpproj_(x);
   return KERR_TYPE;
 }
 
@@ -87,7 +80,7 @@ K fncp(K x) {
 K fnd(K f) {
   K p,r=0,*pf;
   char *ff=0,*b,**v,*g,*h;
-  int i,j,s,n,q,vx,vy,vz,ffq=0,first=1,params=1;
+  int j,s,n,q,vx,vy,vz,ffq=0,first=1,params=1;
   int bm=32,vm=32;
   pf=px(f);
   ff=px(pf[0]);
@@ -128,19 +121,11 @@ K fnd(K f) {
       else s=1;
       break;
     case 2:
-      if(*ff&&strchr(" '/\\",*ff)) {
-        char avb[256];
-        i=0;
-        while(*ff&&strchr("'/\\",*ff)) {
-          avb[i++]=*ff++;
-          if(i==256) { r=KERR_LENGTH; goto cleanup; }
-        }
-        avb[i]=0;
-        pf[3]=tnv(3,i,xmemdup(avb,1+strlen(avb)));
-        ff-=i; *ff=0; ff--;
-        break;
-      }
-      else { r=KERR_PARSE; goto cleanup; }
+      /* Issue #2 Pass 6: trailing adverbs no longer reach fnd --
+         lex.c terminates the lambda string at `}`, and ipc/tmr/v.c
+         pass bare `{...}` definitions.  Anything after `}` is a
+         parse error. */
+      r=KERR_PARSE; goto cleanup;
     case 3:
       if(isalpha(*ff)) { s=4; SB(b,bm,j,*ff); j++; ffq=1; }
       else if(*ff==']') s=5;
@@ -247,7 +232,7 @@ K fnd(K f) {
   if(vz&&q<3) { SB(v,vm,q,sp("y")); q++; }
   if(vz&&q<3) { SB(v,vm,q,sp("x")); q++; }
   if(vy&&q<2) { SB(v,vm,q,sp("x")); q++; }
-  pf[4]=t(1,q);
+  pf[3]=t(1,q);
   i(q,p=scope_set(pf[2],t(4,sp(v[i])),null);if(E(p)) { r=p; goto cleanup; })
   if(q!=(int)n(((K*)px(((K*)((K*)px(pf[2])))[1]))[0])) { r=KERR_PARSE; goto cleanup; }  // {[a;b;b]a,b}
   K locals=tn(4,q); K *plocals=px(locals);
@@ -279,141 +264,54 @@ cleanup:
 // can't create a closure like this:
 // f:{i+x}
 // g:{i:0;f}
-static K closure(K x, K s0, K closurescope) {
-  K r=3,*px,s,*fs,*pr;
-  if(0xc3==s(x)) {
-    px=px(x);
-    s=px[2];
-    if(s==null) return x;
-    fs=px(s);
-    if(fs[0]!=s0) return x;
-    r=fncp(x);
-    if(E(r)) { _k(x); return r; }
-    _k(x);
-    pr=px(r);
-    s=pr[2];
-    fs=px(s);
-    _k(fs[0]);
-    fs[0]=k_(closurescope);
-  }
-  // too complicated. may circle back later.
-  //else if(0xc4==s(x)) {
-  //  px=px(x);
-  //  f=px[0];
-  //  if(0xc3!=s(f)) return x; // TODO: support projection of projection in closures?
-  //  pf=px(f);
-  //  s=pf[2];
-  //  fs=px(s);
-  //  if(fs[0]!=s0) return x;
-  //  r=fncp(x);
-  //  if(E(r)) { _k(x); return r; }
-  //  closurescope=scope_cp(fs[0]);
-  //  pc=px(closurescope);
-  //  pc[3]=t(1,1);
-  //  _k(x);
-  //  pr=px(r);
-  //  f=pr[0];
-  //  pf=px(f);
-  //  s=pf[2];
-  //  fs=px(s);
-  //  _k(fs[0]);
-  //  fs[0]=closurescope;
-  //}
-  return r;
-}
+// closure() moved to fn.h as a static inline so the hot lambda-return
+// path can inline it.  The 0xc4 branch was retired in Pass 4; the
+// projection-of-projection closure case is left for a future pass.
 
-static char av2_[1024][256];
 K fne_(K f, K x, char *av) {
-  K r=0,e,*pd,*ps,*pf,cs0,*px,*pr,t,g,q,*pq,*pt,v;
-  u32 j=0,xi=0;
+  K r=0,*pd,*ps,*pf,cs0,*px,t;
   static int d=0;
-  char *av2=av2_[d],*fav;
   u64 n,nn;
 
   if(++d>maxr) { r=KERR_STACK; --d; goto cleanup; }
 
-  if(0xc4==s(f)) {
-    if(av&&*av) {
-      px=px(x);
-      n=ik(val(f));
-      if(n==0) r=avdo(f,0,k_(x),av);
-      else if(n==1) {
-        if(nx==1) r=avdo(f,0,k_(px[0]),av);
-        else if(0x81==s(x)) r=avdo(f,0,k_(x),av);
-        else if(!strcmp(av,"'")) r=avdo(f,0,k_(x),av);
-        else { r=KERR_VALENCE; goto cleanup; }
-      }
-      else if(n==2) {
-        if(nx==2) r=avdo(f,k_(px[0]),k_(px[1]),av);
-        else if(nx==1) r=avdo(f,0,k_(px[0]),av);
-        else if(0x81==s(x)) r=avdo(f,0,k_(x),av);
-        else { r=KERR_VALENCE; goto cleanup; }
-      }
-      else if(0x81==s(x)) r=avdo(f,0,k_(x),av);
-      else { r=KERR_VALENCE; --d; goto cleanup; }
-      _k(x);
-      return r;
-    }
-    pf=px(f);
-    g=k_(pf[0]);
-    q=pf[1]; pq=px(q);
-    px=px(x);
-    v=val(f);
-    if(nx<(u64)ik(v)) {
-      r=tn(0,3); pr=px(r);
-      pr[0]=fncp(f); /* lambda projection */
-      if(E(pr[0])) {  e=pr[0]; _k(r); _k(f); _k(x); _k(g); return e; }
-      pr[1]=kcp(x);  /* pargs */
-      if(E(pr[1])) {  e=pr[1]; _k(r); _k(f); _k(x); _k(g); return e; }
-      pr[2]=null;    /* av */
-      _k(f); _k(x); _k(g);
-      --d;
-      return st(0xc4,r);
-    }
-
-    u64 inc=0; i(n(q),if(pq[i]==inull)++inc)
-    nn=n(q)-inc; //  if there are inulls, number of inulls must less than or equal to nx
-    if(inc && inc>nx) { _k(f); _k(x); _k(g); return KERR_VALENCE; }
-    t=tn(0,nn+nx); pt=px(t);
-    i(n(q),pt[j++]=pq[i]==inull?k_(px[xi++]):k_(pq[i]))
-    // now, use up the rest of px
-    while(j<n(t)) pt[j++]=k_(px[xi++]);
-
-    _k(x); x=t;
-    _k(f); f=g;
-
-    av2[0]=0;
-    pf=px(f);
-    if(0xc3==s(f)) g=pf[3];
-    else if(0xc4==s(f)) g=pf[2];
-    else { _k(f); _k(x); --d; return KERR_PARSE; }
-    if(6!=T(g)) {
-      fav=px(g);
-      snprintf(av2+strlen(av2),sizeof(av2)-strlen(av2),"%s",fav);
-    }
-    if(av&&*av) snprintf(av2+strlen(av2),sizeof(av2)-strlen(av2),"%s",av);
-    r=fne_(f,x,av2);
-    --d;
-    return r;
-  }
+  /* 0xc4 retired in Pass 4 -- replaced by 0xd9 (handled in fapply()). */
 
   pf=px(f);
   px=px(x);
-  n=(u64)ik(pf[4]);
+  n=(u64)ik(pf[3]);
 
   u64 inc=0; i(nx,if(px[i]==inull)++inc)
   nn=nx-inc; //  if there are inulls, number of inulls must less than or equal to nx
-  if((nx<n||nn<n) && (!av||!*av)) { /* project */
+  /* Project condition.  Without av, project on any short-fill.
+     With av, project only when av is exactly "'" (each) -- "/"/"\\"
+     and friends consume args (over/scan with optional seed take 1 or
+     2 args regardless of inner valence) and let avdo handle valence
+     itself.  The each case is what enables stacked partial-apply of
+     an adverbed lambda, e.g. {x+y*z}'[2]'[3]'[4]. */
+  int proj_av = av && *av && av[0]=='\'' && av[1]==0;
+  if((nx<n||nn<n) && (!av||!*av||proj_av)) { /* project */
+    /* Issue #2 Pass 3b-5: produce 0xd9(lambda, pargs) projection
+       wrapper instead of legacy 0xc4 3-tuple.  Pass 4 extension:
+       when av is "'" we lift it to an outer 0xda wrapper, giving
+         0xd9(0xda(lambda, "'"), pargs)
+       so subsequent applies merge args naturally. */
+    K args=kcp(x);
+    if(E(args)) { _k(f); _k(x); --d; return args; }
+    _k(x);
+    if(proj_av) {
+      K w=tn(0,2); K *pw=px(w);
+      pw[0]=f;  /* ownership transfers into 0xda */
+      pw[1]=tnv(3,strlen(av),xmemdup(av,1+strlen(av)));
+      K wrapped=st(0xda,w);
+      --d;
+      return wrap_proj(wrapped, args);
+    }
     t=fncp(f);
-    if(E(t)) { _k(f); _k(x); --d; return t; }
-    r=tn(0,3); pr=px(r);
-    pr[0]=t;       /* lambda */
-    pr[1]=kcp(x);  /* pargs */
-    if(E(pr[1])) {  e=pr[1]; _k(r); _k(f); _k(x); return e; }
-    pr[2]=null;    /* av */
-    _k(f); _k(x);
+    if(E(t)) { _k(f); _k(args); --d; return t; }
+    _k(f);
     --d;
-    return st(0xc4,r);
+    return wrap_proj(t, args);
   }
   if(nx!=n && nx!=1 && n!=0 && (!av||!*av)) { r=KERR_VALENCE; goto cleanup; }
   if(av&&*av) {
@@ -426,7 +324,20 @@ K fne_(K f, K x, char *av) {
       else { r=KERR_VALENCE; goto cleanup; }
     }
     else if(n==2) {
-      if(nx==2) r=avdo(k_(f),k_(px[0]),k_(px[1]),av);
+      /* Issue #2 Pass 9: dyadic avdo on `'` zips two args (eachfe
+         dyadic).  For chained-each av (all `'` chars, length>1)
+         that's wrong -- we need Cartesian iteration, which only
+         happens in the monadic multi-char avdo path on a 0x81
+         plist.  Route accordingly.  Other multi-char avs (e.g.
+         `'/`, `\\`) keep their dyadic dispatch. */
+      int chained_each=0;
+      if(av && av[0]) {
+        chained_each=1;
+        for(char *p=av; *p; ++p) if(*p!='\'') { chained_each=0; break; }
+        if(av[0] && !av[1]) chained_each=0; /* single ' is dyadic-eachfe-OK */
+      }
+      if(nx==2 && !chained_each) r=avdo(k_(f),k_(px[0]),k_(px[1]),av);
+      else if(nx==2) r=avdo(k_(f),0,k_(x),av);
       else if(nx==1) r=avdo(k_(f),0,k_(px[0]),av);
       else if(0x81==s(x)) r=avdo(k_(f),0,k_(x),av);
       else { r=KERR_VALENCE; goto cleanup; }
@@ -497,27 +408,277 @@ cleanup:
   _k(x);
   return r;
 }
-K fne(K f, K x, char *av) {
-  K *pf,g;
-  char av2[256],*fav;
+/* Fast lambda apply: skips fne/fne_ function-call boundaries and the
+   pgreduce() wrapper. Only valid when:
+     - f is 0xc3 (not 0xc4 projection)
+     - no adverbs on f
+     - x is 0x81 plist with size matching valence and no inulls
+     - f's scope dict isn't closure-pending (T==6)
+   Caller must verify these. Consumes f and x. */
+K fne_fast(K f, K x) {
+  K *pf=px(f);
+  K *ps=px(pf[2]);
+  K *pd=px(ps[1]);
+  u64 nval=(u64)ik(pf[3]);
 
-  if(0xc4==s(f)) return fne_(f,x,av);
+  K cs0=cs; cs=k_(pf[2]);
+  K pd1save=pd[1];
+  u64 NX=nx;
+  pd[1]=x;
+  K ps5save=ps[5];
+  ps[5]=t(1,1);
+  n(pd[0])=nval; n(pd[1])=nval;
+  fnestack[++fnestacki]=f;
+  int opencode0=opencode;
+  opencode=0;
+  RETURN=0;
 
-  pf=px(f);
-  g=pf[3];
-
-  /* fast path: no adverbs on f, no av passed */
-  if(6==T(g) && (!av || !*av)) return fne_(f,x,"");
-
-  av2[0]=0;
-  if(6!=T(g)) {
-    fav=px(g);
-    snprintf(av2+strlen(av2),sizeof(av2)-strlen(av2),"%s",fav);
-    K f2=kcp(f); if(E(f)) { _k(x); return f; }
-    K *pf2=px(f2);
-    _k(pf2[3]); pf2[3]=null;
-    _k(f); f=f2;
+  /* drive body statements directly; lambda bodies don't have \t/\l/etc.
+     mirror pgreduce()'s RETURN handling: clear RETURN on early return
+     in non-REPL mode so do_/while_/etc. don't see it leak from the
+     lambda. */
+  K body=pf[1];
+  K *pbody=px(body);
+  u64 body_n=n(body);
+  K r=null;
+  for(u64 i=0;i<body_n;++i) {
+    int q;
+    K p=pgreduce_(pbody[i],&q);
+    if(E(p)) { _k(r); r=p; break; }
+    if(EXIT) { _k(p); _k(r); r=null; break; }
+    _k(r); r=p;
+    if(RETURN) { if(!REPL) RETURN=0; break; }
   }
-  if(av&&*av)  snprintf(av2+strlen(av2),sizeof(av2)-strlen(av2),"%s",av);
-  return fne_(f,x,av2);
+
+  opencode=opencode0;
+  --fnestacki;
+
+  /* closure detection: a returned lambda or dict-of-lambdas captures
+     this scope's locals. */
+  if(0xc3==s(r)) {
+    K closurescope=scope_cp(cs);
+    if(E(closurescope)) {
+      pd=px(ps[1]); pd[1]=pd1save;
+      _k(cs); cs=cs0;
+      _k(r); _k(f); _k(x);
+      return closurescope;
+    }
+    K *pc=px(closurescope); pc[3]=t(1,1);
+    r=closure(r,cs,closurescope);
+    _k(closurescope);
+  }
+  else if(0x80==s(r)) {
+    K *pr=px(r);
+    K v=pr[1];
+    K *pvv=px(v);
+    u32 c=0;
+    i(n(v),if(0xc3==s(pvv[i]))++c)
+    if(c&&c==n(v)) {
+      K closurescope=scope_cp(cs);
+      if(E(closurescope)) {
+        pd=px(ps[1]); pd[1]=pd1save;
+        _k(cs); cs=cs0;
+        _k(r); _k(f); _k(x);
+        return closurescope;
+      }
+      K *pc=px(closurescope); pc[3]=t(1,1);
+      i(n(v),pvv[i]=closure(pvv[i],cs,closurescope))
+      _k(closurescope);
+    }
+  }
+
+  if(ik(ps[5])==0) _k(pd[1]);
+  pd[1]=pd1save;
+  ps[5]=ps5save;
+  nx=NX;
+  n(pd[0])=n(pd[1]);
+  _k(cs); cs=cs0;
+  _k(f); _k(x);
+  return r;
+}
+
+K fne(K f, K x, char *av) {
+  if(0xd9==s(f)) {
+    /* Issue #2 Pass 9: (f;args) projection wrapper.  Always route
+       through fapply.  fapply merges bound args with new args
+       and recurses; eventual lambda dispatch sees a single fully
+       conformable plist with the projection's stored adverbs as
+       av.  Pre-Pass-9 fne had a direct-avdo shortcut that
+       treated `v x` (juxt) as iterate-over-x and gave different
+       answers than `v[x]` (bracket via r44 -> fapply).  Multi-
+       char av (chained explicit `'`) is handled at avdo's
+       multi-char peel using pxk[nx-1] as the iteration target
+       (Pass 9: newest-arg-first), so iterating projection wraps
+       still works after merge. */
+    return fapply(f,x,av);
+  }
+  if(0xda==s(f)) return fapply(f,x,av); /* same: route 0xda(c3,av) here
+                                            so callers don't need to peel.
+                                            Pre-pass-3b-5 some callers
+                                            passed bare 0xc3 only; with
+                                            the 0xc4->0xd9 migration the
+                                            same callers may now pass a
+                                            wrapper. */
+
+  /* Issue #2 Pass 6 cleanup: bare 0xc3 has no pf[3] av slot anymore --
+     just forward to fne_ with the caller's av. */
+  return fne_(f, x, (av && *av) ? av : "");
+}
+
+/* Issue #2 Pass 2b-step-1.
+   Single-entry-point dispatcher for "apply lambda+av to args".
+   Accepts either bare 0xc3/0xc4 or 0xda(c3/c4, av_inner) wrapper
+   and combines the wrapper's av_inner with the caller's av_outer
+   before delegating to fne(). Takes ownership of f and x.
+
+   Until consumers in pgreduce_/fe.c are migrated through this in
+   2b-step-2 and 2b-step-3, this helper is unused at runtime.
+   Adding it first keeps 2b-step-1 a pure-additive commit. */
+K fapply(K f, K x, char *av_outer) {
+  if(0xda==s(f)) {
+    K *pw=px(f);
+    K wf=k_(pw[0]);
+    K wav=pw[1];
+    char av2[256];
+    av2[0]=0;
+    if(T(wav)==-3 && n(wav)>0) {
+      char *p=px(wav);
+      snprintf(av2+strlen(av2),sizeof(av2)-strlen(av2),"%s",p);
+    }
+    if(av_outer && *av_outer) {
+      snprintf(av2+strlen(av2),sizeof(av2)-strlen(av2),"%s",av_outer);
+    }
+    _k(f);
+    return fapply(wf,x,av2);
+  }
+  if(0xd9==s(f)) {
+    /* Issue #2 Pass 3a / 3b-5: (f;args) projection wrapper.
+       Two cases:
+         1. lx >= val(f): we have enough args to either complete
+            this projection or partially apply the inner -- merge
+            inline and recurse fapply on the inner.
+         2. lx < val(f): not enough new args -> nest as
+            0xd9(f, new_args). This matches legacy 0xc4 nested
+            projection semantics (fne_'s nx<val branch) and the
+            way printers like k3 render f[;;2][1] as `f[;;2][1]`
+            and f[1][1][1] with one bracket per partial apply,
+            rather than flattening. */
+    K vf2=val(f);
+    if(E(vf2)) { _k(f); _k(x); return vf2; }
+    i32 vn2=ik(vf2); _k(vf2);
+    u64 lx=(0x81==s(x))?n(x):1;
+    if(vn2>0 && lx<(u64)vn2) {
+      /* Nest: build 0xd9(f, new_args).  Issue #2 Pass 5 step 3:
+         if av_outer is non-empty (e.g. a chained `'` from
+         eachfe/avdo dispatch), preserve it by lifting onto an
+         outer 0xda wrapper around the nested projection.
+         Without this, `f'[2]'[3]` would lose the outer each
+         between partial-apply steps.  Issue #2 Pass 9 fix:
+         x may be a borrowed params[] pool plist (c3_apply's
+         `xx=params[paramsi++]` pattern -- the K is reused
+         across statements with slot[0] overwritten on next
+         borrow).  Copy the elements into a fresh 0x81 list so
+         the long-lived projection owns its own args storage. */
+      K args_new;
+      if(0x81==s(x)) {
+        K *pxk=px(x);
+        u64 ln=n(x);
+        K t=tn(0,ln); K *pt=px(t);
+        i(ln, pt[i]=k_(pxk[i]))
+        _k(x);
+        args_new=st(0x81,t);
+      }
+      else { K t=tn(0,1); ((K*)px(t))[0]=x; args_new=st(0x81,t); }
+      K nested=wrap_proj(f, args_new);
+      if(av_outer && *av_outer) {
+        K w=tn(0,2); K *pw=px(w);
+        pw[0]=nested;
+        pw[1]=tnv(3,strlen(av_outer),xmemdup(av_outer,1+strlen(av_outer)));
+        return st(0xda,w);
+      }
+      return nested;
+    }
+    K *pw=px(f);
+    K wf=pw[0];
+    K wargs=pw[1];
+    K merged=merge_args(wargs,x);
+    if(E(merged)) { _k(f); return merged; }
+    K wf_owned=k_(wf);
+    _k(f);
+    return fapply(wf_owned,merged,av_outer);
+  }
+  /* For 0xc3 lambdas: fne() is the canonical entry.
+     0xc4 retired in Pass 4 -- replaced by 0xd9 above. */
+  if(0xc3==s(f)) return fne(f,x,av_outer);
+  /* For everything else (primitive verbs, builtins, etc.) route
+     through fe() which already knows how to unpack a 0x81 plist. */
+  if(0x81==s(x)) {
+    if(n(x)==1) {
+      K *pxk=px(x); K x0=k_(pxk[0]); _k(x);
+      return fe(f,0,x0,av_outer);
+    }
+    if(n(x)==2) {
+      K *pxk=px(x); K a=k_(pxk[0]); K x1=k_(pxk[1]); _k(x);
+      return fe(f,a,x1,av_outer);
+    }
+    /* 3+ args: leave the plist intact for fe()'s primitive
+       3/4-arg dispatch (kamendi3/4 etc.). */
+    return fe(f,0,x,av_outer);
+  }
+  return fe(f,0,x,av_outer);
+}
+
+/* Issue #2 Pass 3a.
+   Merge new args x into a projection's bound args plist p:
+   - If p contains any inull slots, fill them left-to-right from x.
+     Excess x elements (beyond the count of inulls in p) are an
+     error (KERR_VALENCE).
+   - If p has no inull slots, append x's elements (legacy
+     projection-collapse semantics: f[1][2] -> f[1;2]).
+   x may be either an 0x81 plist or a single K (treated as a
+   1-element plist). The result is always an 0x81 plist.
+   Takes ownership of x. p remains untouched (caller owns it). */
+K merge_args(K p, K x) {
+  K xa;
+  if(0x81==s(x)) xa=x;
+  else { K t=tn(0,1); ((K*)px(t))[0]=x; xa=st(0x81,t); }
+  K *pp=px(p); K *pxa=px(xa);
+  u64 lp=n(p), lx=n(xa);
+  u64 ni=0, nn=0;
+  for(u64 i=0;i<lp;++i) if(pp[i]==inull) ++ni; else ++nn;
+  /* Legacy projection-collapse semantics (matches fne_ at the
+     0xc4 inner-apply path): fill any inulls in p from xa
+     left-to-right, then append remaining xa elements past the
+     end of p. If lx < ni, return KERR_VALENCE (not enough new
+     args to fill all open slots -- legacy 0xc4 behavior).
+     A partial-fill projection should be built upstream as a
+     fresh wrap_proj instead of trying to merge here. */
+  if(lx<ni) { _k(xa); return KERR_VALENCE; }
+  u64 lr=nn+lx;
+  K r=tn(0,lr); K *pr=px(r);
+  u64 xi=0, j=0;
+  for(u64 i=0;i<lp;++i) {
+    if(pp[i]==inull) pr[j++]=k_(pxa[xi++]);
+    else pr[j++]=k_(pp[i]);
+  }
+  while(xi<lx) pr[j++]=k_(pxa[xi++]);
+  _k(xa);
+  return st(0x81,r);
+}
+
+/* Issue #2 Pass 3a.
+   Build an 0xd9(f, args) projection wrapper. f and args are
+   incorporated by ownership transfer (caller transfers refs in).
+   args must be an 0x81 plist (may contain inulls).
+
+   If f is itself an 0xd9 wrapper, this is a partial-of-partial
+   application -- the canonical shape is to flatten by merging
+   the new args into f's existing args. We do NOT flatten here;
+   that's fapply's job. Producers that need flattening should call
+   fapply(f, args, 0) instead. */
+K wrap_proj(K f, K args) {
+  K w=tn(0,2); K *pw=px(w);
+  pw[0]=f;
+  pw[1]=args;
+  return st(0xd9,w);
 }

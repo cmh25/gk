@@ -331,7 +331,10 @@ static int gname(pgs *pgs) {
     else { if(isalnum(*p)) ++p; else if(*p=='.') { ++p; s=0; } else break; }
   }
   if(*p) { c=*p; *p=0; q0=sp(q); *p=c; }
-  while(*p&&strchr("'/\\",*p)) ++p;
+  /* Issue #2 Pass 6: name no longer slurps trailing adverbs --
+     they emit as standalone 0x85 tokens via the regular adverb
+     branch in lex(), and the parser's postfix-restructure folds
+     them onto the value at AST level. */
   if(*p) { c=*p; *p=0; q=sp(q); *p=c; }
   else { q=sp(q); }
   if(pgs->locals) {
@@ -506,9 +509,13 @@ static int gf(pgs *pgs) {
   gline=fileline;
   q=p;
   while(1) {
-     /* skip comments */
-    if(first && *p=='/') { ++p; while(*p&&*p!='\n') ++p; continue; }
-    if(*p== ' ' && p[1] && p[1]=='/') { p+=2; while(*p&&*p!='\n') ++p; continue; }
+     /* skip comments (but not once we've decided to accept -- otherwise
+        a `/` immediately after `}` in `{...} / comment` would gobble the
+        rest of the line before case 2 can null-terminate q at the space) */
+    if(s!=2) {
+      if(first && *p=='/') { ++p; while(*p&&*p!='\n') ++p; continue; }
+      if(*p== ' ' && p[1] && p[1]=='/') { p+=2; while(*p&&*p!='\n') ++p; continue; }
+    }
     first=0;
 
     switch(s) {
@@ -516,12 +523,12 @@ static int gf(pgs *pgs) {
       if(!*p) return 0;
       if(*p=='\n') { ++line; first=1; }
       if(*p=='"') { p=xeqs(p); --p; }
-      else if(*p=='}'&&fc==1) s=1;
+      /* Issue #2 Pass 6: lambda no longer slurps trailing adverbs --
+         standalone 0x85 tokens from the regular adverb branch are
+         folded onto the lambda by the parser's postfix-restructure. */
+      else if(*p=='}'&&fc==1) s=2;
       else if(*p=='}') fc--;
       else if(*p=='{') fc++;
-      break;
-    case 1:
-      if(!*p||!strchr("'/\\",*p)) { --p; s=2; }
       break;
     case 2: /* accept */
       c=*p; *p=0;
@@ -836,10 +843,9 @@ K lex(pgs *pgs, int load) {
       if(!gback(pgs,load)) {
         if(opencode) {
 #ifdef FUZZING
-          if(system("echo fuzz_sandbox_stubbed")) return 0;
-          while(*p&&*p!='\n')++p;
+          if(system("echo fuzz_sandbox_stubbed")){} /* rc ignored: shell errors do not break lex */
 #else
-          if(system(p+1)) return 0;
+          if(system(p+1)){} /* rc ignored: shell errors do not break lex */
 #endif
         }
         else { /* trace in lambda */

@@ -45,7 +45,7 @@ static inline K tnc(i32 t, u64 n, void *v) {
 }
 
 K builtin(K f, K a, K x) {
-  K r=0,*pr,t;
+  K r=0,t;
   char *cf=sk(f);
   char avb[256],a2b[256],*av=avb,*a2=a2b;
   static i32 d=0;
@@ -64,26 +64,27 @@ K builtin(K f, K a, K x) {
   a2=sp(a2);
   if(av&&*av&&x) {
     if(a2==sp("exit")) { --d; _k(x); return KERR_PARSE; }
-    if(0xdb==s(f)) r=avdo(t(4,st(0xc7,a2)),k_(a),k_(x),av);  /* draw/2 3 4 */
-    else r=avdo(t(4,st(s(f),a2)),k_(a),k_(x),av);
+    /* 0xdb retired in Pass 1b -- draw/2 3 4 routes through 0xda
+       directly, never re-enters builtin() with a 0xdb subtype */
+    r=avdo(t(4,st(s(f),a2)),k_(a),k_(x),av);
   }
-  else if(0xc8==s(f)) { /* projection */
-    if(a) { --d; _k(a); _k(x); return KERR_VALENCE; }
-    K *pf=px(f);
-    K g=k_(pf[0]);
-    K q=kcp(pf[1]);
-    if(E(q)) { --d; _k(a); _k(x); return q; }
-    r=builtin(g,q,k_(x));
-  }
+  /* 0xc8 retired in Pass 4 -- replaced by 0xd9. */
   else if(0xc7==s(f)) {
     if(!x) r=KERR_TYPE;
     else if(!a) { /* project */
-      r=st(0xc8,tn(0,3)); pr=px(r);
-      pr[0]=t(4,st(0xc7,sp(a2)));
+      /* Issue #2 Pass 3b-3: produce 0xd9(verb, (x,)) builtin
+         projection wrapper instead of legacy 0xc8 3-tuple. The
+         args plist has no inull -- fapply's merge_args treats
+         it as "append" so subsequent apply gives builtin(verb,
+         bound, new_x). Print renders as verb[bound] (legacy
+         0xc8 format) since no inull placeholder is emitted. */
+      K verb_k=t(4,st(0xc7,sp(a2)));
       t=kcp(x);
-      if(E(t)) { --d; _k(r); _k(a); _k(x); return t; }
-      pr[1]=t;
-      pr[2]=null; /* TODO: prevent crash for now until we have adverb support here */
+      if(E(t)) { --d; _k(verb_k); _k(a); _k(x); return t; }
+      K args=tn(0,1); K *pa=px(args);
+      pa[0]=t;
+      args=st(0x81,args);
+      r=wrap_proj(verb_k, args);
     }
     else if(a2==R_DRAW) r=draw(a,x);
     else if(a2==R_VS) r=vs(a,x);
@@ -186,10 +187,13 @@ K builtin(K f, K a, K x) {
   else if(0xcd==s(f)) {
     if(!x) r=KERR_TYPE;
     else if(!a) { /* project */
-      r=st(0xc8,tn(0,3)); pr=px(r);
-      pr[0]=t(4,st(0xcd,sp(a2)));
-      pr[1]=x;
-      pr[2]=null; /* TODO: prevent crash for now until we have adverb support here */
+      /* Issue #2 Pass 3b-3: 0xd9 wrapper (was 0xc8). */
+      K verb_k=t(4,st(0xcd,sp(a2)));
+      K args=tn(0,1); K *pa=px(args);
+      pa[0]=x;
+      args=st(0x81,args);
+      r=wrap_proj(verb_k, args);
+      x=0; /* args plist took ownership of x; _k(x) at exit no-ops */
     }
     else if(a2==sp("0:")) r=zerocolon(a,x);
     else if(a2==sp("1:")) r=onecolon(a,x);
@@ -1384,6 +1388,98 @@ static K serialize(K x, char **b, char **v, i64 *n, i64 *m) {
   return null;
 }
 
+/* Pre-Pass-3b-1 IPC/serialize encoded a primitive 2-arg projection
+   as 0xd4 (verb, args). Pass 3b-1 / Pass 4 replaced these with 0xd9
+   which has the same shape -- so the legacy fixup is just a subtype
+   rebrand. */
+static K bd_legacy_d4_to_d9(K r) { return r|(K)0xd9<<48; }
+
+/* Pre-Pass-3b-3 IPC/serialize encoded a builtin projection as 0xc8
+   with shape (verb_sym_K, bound_arg, null).  Pass 3b-3 / Pass 4
+   replaced these with 0xd9(verb_sym_K, [bound_arg]) -- the av slot
+   was always null on legacy 0xc8 producers and is dropped. */
+static K bd_legacy_c8_to_d9(K r) {
+  K *pr=px(r);
+  if(n(r)<2) { _k(r); return KERR_PARSE; }
+  K verb=k_(pr[0]);
+  K bound=k_(pr[1]);
+  _k(r);
+  K args=tn(0,1); ((K*)px(args))[0]=bound;
+  args=st(0x81,args);
+  K w=tn(0,2); K *pw=px(w);
+  pw[0]=verb; pw[1]=args;
+  return st(0xd9,w);
+}
+
+/* Pre-Pass-3b-2 IPC/serialize encoded primitive arity-3/4 projections
+   as 0xd5/0xd6 with a flat (verb, arg0, arg1, arg2[, arg3]) tuple.
+   Pass 3b-2 / Pass 4 replaced these with 0xd9(verb, [arg0, arg1,
+   arg2[, arg3]]) -- same args, but wrapped in an extra plist. */
+static K bd_legacy_d5d6_to_d9(K r) {
+  K *pr=px(r);
+  u64 arity=n(r)-1;
+  if(arity<3) { _k(r); return KERR_PARSE; }
+  K verb=k_(pr[0]);
+  K args=tn(0,arity); K *pa=px(args);
+  for(u64 i=0;i<arity;++i) pa[i]=k_(pr[1+i]);
+  args=st(0x81,args);
+  _k(r);
+  K w=tn(0,2); K *pw=px(w);
+  pw[0]=verb; pw[1]=args;
+  return st(0xd9,w);
+}
+
+/* Pre-Pass-3b-5 IPC/serialize encoded a lambda projection as a t==0
+   plist with subtype 0xc4 holding (lambda, pargs, av). Pass 3b-5
+   replaced them with 0xd9 (f;args), with the av (if any) lifted to an
+   outer 0xda(0xd9, av) wrapper. Any disk file written via 1: or IPC
+   payload received from a pre-Pass-3b-5 peer still has the old
+   encoding, so transform the legacy 3-tuple on read.  Returns the new
+   K, freeing the legacy. */
+static K bd_legacy_c4_to_d9(K r) {
+  K *pr=px(r);
+  if(n(r)<3) { _k(r); return KERR_PARSE; }
+  K lam=k_(pr[0]);
+  K pargs=k_(pr[1]);
+  K av=k_(pr[2]);
+  _k(r);
+  K w=tn(0,2); K *pw=px(w);
+  pw[0]=lam; pw[1]=pargs;
+  K d9=st(0xd9,w);
+  if(T(av)==-3 && n(av)>0) {
+    K w2=tn(0,2); K *pw2=px(w2);
+    pw2[0]=d9; pw2[1]=av;
+    return st(0xda,w2);
+  }
+  _k(av);
+  return d9;
+}
+
+/* Backward-compat fixup for the Issue #2 pass 1a wrapper migration:
+   0xc1 (+/x) and 0xc2 (a+/x) modified-verb K's used to be plain -3
+   strings carrying "verb_char + adverbs" (e.g. "+/'"). Pass 1a
+   replaced them with 0xda (f;av) tuples. Any disk file written via
+   1: or IPC payload received from a pre-Pass-1a peer still has the
+   old encoding, so peel the legacy string into the new wrapper on
+   read. New writes serialize as 0xda directly so this only ever
+   triggers for legacy data. Returns the new K, freeing the legacy. */
+static K bd_legacy_mv_to_da(K r, int dyad) {
+  static const char *P=":+-*%&|<>=~.!@?#_^,$'/\\";
+  char *mv=(char*)px(r);
+  if(!*mv) { _k(r); return KERR_PARSE; }
+  const char *vp=strchr(P,*mv);
+  if(!vp || vp-P>20) { _k(r); return KERR_PARSE; }
+  int vi=(int)(vp-P);
+  K f=t(1,st(0xc0,(K)((dyad?64:32)+vi)));
+  int alen=(int)strlen(mv+1);
+  K av=tn(3,alen);
+  if(alen) memcpy((char*)px(av),mv+1,alen);
+  K w=tn(0,2); K *pw=px(w);
+  pw[0]=f; pw[1]=av;
+  _k(r);
+  return st(0xda,w);
+}
+
 static K deserialize(char **b,u64 *m) {
   K r=0,*prk,p;
   i32 t=0,st=0,*pri,ii;
@@ -1443,6 +1539,27 @@ static K deserialize(char **b,u64 *m) {
   default: return KERR_TYPE;
   }
   *m=n;
+  if(t==-3 && (st==0xc1 || st==0xc2)) {
+    /* legacy modified-verb K (see bd_legacy_mv_to_da above) */
+    *m=n;
+    return bd_legacy_mv_to_da(r, st==0xc2);
+  }
+  if(t==0 && st==0xc4) {
+    /* legacy lambda projection (see bd_legacy_c4_to_d9 above) */
+    return bd_legacy_c4_to_d9(r);
+  }
+  if(t==0 && st==0xc8) {
+    /* legacy builtin projection (see bd_legacy_c8_to_d9 above) */
+    return bd_legacy_c8_to_d9(r);
+  }
+  if(t==0 && st==0xd4) {
+    /* legacy primitive arity-2 projection (see bd_legacy_d4_to_d9) */
+    return bd_legacy_d4_to_d9(r);
+  }
+  if(t==0 && (st==0xd5 || st==0xd6)) {
+    /* legacy primitive arity-3/4 projection (bd_legacy_d5d6_to_d9) */
+    return bd_legacy_d5d6_to_d9(r);
+  }
   return r|(K)st<<48;
 }
 
@@ -1644,11 +1761,23 @@ cleanup:
   return e;
 }
 
+/* Caller must xfree() (or free()) the result. NULL if unset. */
 static char* ge(char *k) {
 #ifdef _WIN32
-  char *p; _dupenv_s(&p,0,k); return p;
+  /* _dupenv_s mallocs; caller frees with free() */
+  char *p=0; _dupenv_s(&p,0,k); return p;
 #else
-  return getenv(k);
+  char *p=getenv(k);
+  return p ? xstrndup(p,strlen(p)) : 0;
+#endif
+}
+
+static void ge_free(char *p) {
+  if(!p) return;
+#ifdef _WIN32
+  free(p);
+#else
+  xfree(p);
 #endif
 }
 
@@ -1657,8 +1786,8 @@ K getenv_(K x) {
   char *p,**pxs;
   if(s(x)) return KERR_TYPE;
   switch(tx) {
-  case -3: p=ge((char*)px(x)); if(p)r=tnv(3,strlen(p),xstrndup(p,strlen(p))); break;
-  case  4: p=ge(sk(x)); if(p)r=tnv(3,strlen(p),xstrndup(p,strlen(p))); break;
+  case -3: p=ge((char*)px(x)); if(p){r=tnv(3,strlen(p),xstrndup(p,strlen(p))); ge_free(p);} break;
+  case  4: p=ge(sk(x));        if(p){r=tnv(3,strlen(p),xstrndup(p,strlen(p))); ge_free(p);} break;
   case -4: PRK(nx); PXS; i(nx,prk[i]=getenv_(t(4,pxs[i])); EC(prk[i])) break;
   case  0: r=irecur1(getenv_,x); break;
   default: r=KERR_TYPE;

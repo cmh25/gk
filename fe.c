@@ -6,19 +6,6 @@
 #include "b.h"
 #include "fn.h"
 
-static char avb[256];
-static K stripav(K x, char **av) {
-  char a2[256];
-  u8 t=tx;
-  u8 st=s(x);
-  **av=0;
-  if(strlen(sk(x))>255) return KERR_LENGTH;
-  snprintf(a2,sizeof(a2),"%s",sk(x));
-  char *p=strpbrk(a2,"'/\\");
-  if(p) { snprintf(*av,256,"%s",p); *p=0; }
-  return t(t,st(st,sp(a2)));
-}
-
 K fc(K f, K a, K x, char *av) {
   K r=0,e,p,f2,*pf,*pf2;
   if(av&&*av) r=avdo(k_(f),k_(a),k_(x),av);
@@ -43,10 +30,9 @@ cleanup:
 }
 
 K fe(K f, K a, K x, char *av) {
-  K r=3,f0,f1,*pf,*pf1,*pr,t,*pt,xx,*pxx,fav;
+  K r=3,f0,f1,*pf,*pr,t,*pt,xx,*pxx,fav=0;
   char *P=":+-*%&|<>=~.!@?#_^,$'/\\";
   char ff=f;
-  char *mv,*s;
 
   if(0x45==s(a)||0x45==s(x)) { _k(f); _k(a); _k(x); return KERR_TYPE; }
 
@@ -69,14 +55,40 @@ K fe(K f, K a, K x, char *av) {
 
   if(!a) {
     switch(s(f)) {
-    case 0xc1: case 0xc2:
-      mv=px(f);
-      s=strchr(P,*mv);
-      if(0x81==s(x)) { _k(a); _k(x); r=KERR_TYPE; }  /* TODO */
-      else if(*++mv && s-P<=20) r=avdo(s-P,a,x,mv);
-      else { _k(a); _k(x); r=KERR_PARSE; }
+    case 0xda: { /* (f;av) modified-verb wrapper, replaces 0xc1/0xc2/0xdb */
+      K *pw=px(f); K wf=pw[0]; K wav=pw[1];
+      char *avp=(T(wav)==-3 && n(wav)>0) ? (char*)px(wav) : "";
+      if(0xc0==s(wf)) {
+        if(0x81==s(x)) { _k(x); r=KERR_TYPE; }
+        else {
+          u32 c=ck(wf); int vi=c%32;
+          if(vi<=20 && *avp) r=avdo(vi,a,x,avp);
+          else { _k(x); r=KERR_PARSE; }
+        }
+      }
+      else if(0xc7==s(wf)) {
+        /* draw/x and friends -- builtin-dyad-as-modified-monad,
+           replaces the old 0xdb monad path (b.c:67). */
+        if(0x81==s(x)) { _k(x); r=KERR_TYPE; }
+        else if(*avp) r=avdo(k_(wf),0,x,avp);
+        else { _k(x); r=KERR_PARSE; }
+      }
+      else if(0xc3==s(wf) || 0xc5==s(wf) || 0xd9==s(wf)) {
+        /* Pass 2a / 3b-5 / Pass 4: 0xda(lambda/proj/composition,
+           av).  0xc4 retired -- only 0xc3 / 0xc5 / 0xd9 inners
+           can appear here.  Wrap x into a 0x81 plist if not
+           already, then dispatch
+           through fne with the wrapper's av (fne routes 0xd9 via
+           fapply, which peels the projection wrapper). */
+        K xx;
+        if(0x81==s(x)) xx=x;
+        else { xx=tn(0,1); ((K*)px(xx))[0]=x; xx=st(0x81,xx); }
+        r=fne(k_(wf),xx,avp);
+      }
+      else { _k(x); r=KERR_TYPE; }
       break;
-    case 0xc3: case 0xc4:
+    }
+    case 0xc3: /* 0xc4 retired in Pass 4 */
       if(0x81==s(x)) r=fne(k_(f),x,av);
       else {
         xx=tn(0,1); pxx=px(xx);
@@ -84,12 +96,24 @@ K fe(K f, K a, K x, char *av) {
         r=fne(k_(f),xx,av);
       }
       break;
+    case 0xd9: { /* Issue #2 Pass 3a: (f;args) projection wrapper.
+                    Route through fapply, which peels the wrapper,
+                    merges new x into args (filling inulls or
+                    appending), and recurses. The 0x81 plist
+                    wrapping convention here matches case 0xc3:
+                    fapply expects the new args as a plist. */
+      K xx2;
+      if(0x81==s(x)) xx2=x;
+      else { xx2=tn(0,1); ((K*)px(xx2))[0]=x; xx2=st(0x81,xx2); }
+      r=fapply(k_(f),xx2,av);
+      break;
+    }
     case 0xc6:
       if(0x81==s(x)&&n(x)==1) { K *px=px(x); r=builtin(f,0,k_(px[0])); _k(x); }
       else if(0x81==s(x)) { _k(x); r=KERR_VALENCE; }
       else r=builtin(f,0,x);
       break;
-    case 0xc7: case 0xc8:
+    case 0xc7: /* 0xc8 retired in Pass 4 -- replaced by 0xd9. */
       if(0x81==s(x)&&n(x)==1) { K *px=px(x); r=builtin(f,0,k_(px[0])); _k(x); }
       else if(0x81==s(x)&&n(x)==2)  { K *px=px(x); r=builtin(f,k_(px[0]),k_(px[1])); _k(x); }
       else if(0x81==s(x)) { _k(x); r=KERR_VALENCE; }
@@ -101,71 +125,7 @@ K fe(K f, K a, K x, char *av) {
     case 0xc5:
       r=fc(f,0,x,av);
       break;
-    case 0xd4:
-      pf=px(f);
-      f1=pf[1]; pf1=px(f1);
-      if(pf1[0]==inull && pf1[1]==inull) {
-        if(0x81==s(x)&&n(x)==1) {
-          r=tn(0,2); pr=px(r);
-          pr[0]=kcp(f); if(E(pr[0])) { r=pr[0]; _k(r); _k(x); break; }
-          pr[1]=kcp(x); if(E(pr[1])) { r=pr[1]; _k(r); _k(x); break; }
-          r=st(0xd9,r);
-          _k(x);
-        }
-        else if(0x81==s(x)) { _k(x); r=KERR_VALENCE; }
-        else {
-          r=tn(0,2); pr=px(r);
-          t=tn(0,1); pt=px(t);
-          pt[0]=kcp(x); if(E(pt[0])) { r=pt[0]; _k(t); _k(r); _k(x); break; }
-          pr[0]=kcp(f); if(E(pr[0])) { r=pr[0]; _k(t); _k(r); _k(x); break; }
-          pr[1]=st(0x81,t);
-          r=st(0xd9,r);
-          _k(x);
-        }
-        break;
-      }
-      switch(s(pf[0])) {
-      case 0xc5:
-        if(pf1[0]==inull) {
-          if(0x81==s(x)&&n(x)==1) { K *px=px(x); r=fc(pf[0],k_(px[0]),k_(pf1[1]),av); _k(x); }
-          else if(0x81==s(x)) { _k(x); r=KERR_VALENCE; }
-          else r=fc(pf[0],x,k_(pf1[1]),av);
-        }
-        else if(pf1[1]==inull) {
-          if(0x81==s(x)&&n(x)==1) { K *px=px(x); r=fc(pf[0],k_(pf1[0]),k_(px[0]),av); _k(x); }
-          else if(0x81==s(x)) { _k(x); r=KERR_VALENCE; }
-          else r=fc(pf[0],k_(pf1[0]),x,av);
-        }
-        else { _k(f); _k(x); return KERR_VALENCE; }
-        break;
-      case 0xc7:
-        if(pf1[0]==inull) {
-          if(0x81==s(x)&&n(x)==1) { K *px=px(x); r=builtin(pf[0],k_(px[0]),k_(pf1[1])); _k(x); }
-          else if(0x81==s(x)) { _k(x); r=KERR_VALENCE; }
-          else r=builtin(pf[0],x,k_(pf1[1]));
-        }
-        else if(pf1[1]==inull) {
-          if(0x81==s(x)&&n(x)==1) { K *px=px(x); r=builtin(pf[0],k_(pf1[0]),k_(px[0])); _k(x); }
-          else if(0x81==s(x)) { _k(x); r=KERR_VALENCE; }
-          else r=builtin(pf[0],k_(pf1[0]),x);
-        }
-        else { _k(f); _k(x); return KERR_VALENCE; }
-        break;
-      default:
-        ff=ck(pf[0])%32;
-        if(pf1[0]==inull) {
-          if(0x81==s(x)&&n(x)==1) { K *px=px(x); r=k(ff,k_(px[0]),k_(pf1[1])); _k(x); }
-          else if(0x81==s(x)) { _k(x); r=KERR_VALENCE; }
-          else r=k(ff,x,k_(pf1[1]));
-        }
-        else if(pf1[1]==inull) {
-          if(0x81==s(x)&&n(x)==1) { K *px=px(x); r=k(ff,k_(pf1[0]),k_(px[0])); _k(x); }
-          else if(0x81==s(x)) { _k(x); r=KERR_VALENCE; }
-          else r=k(ff,k_(pf1[0]),x);
-        }
-        else { _k(f); _k(x); return KERR_VALENCE; }
-      }
-      break;
+    /* 0xd4/0xd5/0xd6 retired in Pass 4 -- replaced by 0xd9. */
     case 0xd0:
       r=avdo(k_(f),0,x,av);
       break;
@@ -173,60 +133,31 @@ K fe(K f, K a, K x, char *av) {
       pf=px(f);
       f0=k_(pf[0]);
       f1=k_(pf[1]);
-      pf1=px(f1);
-      if(0xc3==s(f1)) fav=pf1[3];
-      else if(0xc4==s(f1)) fav=pf1[2];
+      /* Pass 2b-step-4: peel 0xda(c3/c4, av) inner. Replace f1 with
+         the bare inner lambda (taking ownership), set fav from the
+         wrapper. */
+      if(0xda==s(f1)) {
+        K *pw=px(f1);
+        fav=pw[1];
+        K wf_owned=k_(pw[0]);
+        _k(f1); f1=wf_owned;
+      }
+      else if(0xc3==s(f1)) ; /* Pass 6 cleanup: no inner av slot anymore */
+      else if(0xd9==s(f1)) ; /* Pass 3b-5: fav already set from 0xda peel above */
       else { _k(x); r=KERR_PARSE; break; }
+      /* 0xc4 retired in Pass 4 */
       char *favp=-3==T(fav)?(char*)px(fav):"";
       if((!strcmp(favp,"/") || !strcmp(favp,"\\"))) {
         K f1_=kcp(f1); _k(f1); f1=f1_;
         if(E(f1)) { _k(f0); _k(x); r=f1; break; }
-        K *pf1=px(f1);
-        if(0xc3==s(f1)) { _k(pf1[3]); pf1[3]=null; }
-        else if(0xc4==s(f1)) { _k(pf1[2]); pf1[2]=null; }
         if(s(f0)==0 && T(f0)==1 && !strcmp(favp,"/")) { r=overmonadn(f1,f0,x,""); quiet=0; }
-        else if(s(f0)==0xc3 && !strcmp(favp,"/")) { r=overmonadb(f1,f0,x,""); quiet=0; }
+        else if(ISF(f0) && ik(val(f0))==1 && !strcmp(favp,"/")) { r=overmonadb(f1,f0,x,""); quiet=0; }
         else if(s(f0)==0 && T(f0)==1 && !strcmp(favp,"\\")) { r=scanmonadn(f1,f0,x,""); quiet=0; }
-        else if(s(f0)==0xc3 && !strcmp(favp,"\\")) { r=scanmonadb(f1,f0,x,""); quiet=0; }
+        else if(ISF(f0) && ik(val(f0))==1 && !strcmp(favp,"\\")) { r=scanmonadb(f1,f0,x,""); quiet=0; }
         else { _k(f0); _k(f1); _k(x); r=KERR_TYPE; break; }
       }
       break;
-    case 0xd5:;
-      K f2=kcp(f); if(E(f2)) { _k(f); _k(x); return f2; }
-      _k(f); f=f2;
-      pf=px(f);
-      if(0x81==s(x)) {
-        _k(x);
-        r=KERR_TYPE; // TODO
-      }
-      else {
-        if(pf[1]==inull) pf[1]=x;
-        else if(pf[2]==inull) pf[2]=x;
-        else if(pf[3]==inull) pf[3]=x;
-        if(ck(pf[0])%32==13) r=kamendi3(k_(pf[1]),k_(pf[2]),k_(pf[3]));
-        else if(ck(pf[0])%32==11) r=kamend3(k_(pf[1]),k_(pf[2]),k_(pf[3]));
-        else if(ck(pf[0])%32==16) r=kslide(k_(pf[2]),k_(pf[1]),k_(pf[3]),"");
-        else { _k(x); r=KERR_TYPE; }
-      }
-      break;
-    case 0xd6:
-      f2=kcp(f); if(E(f2)) { _k(f); _k(x); return f2; }
-      _k(f); f=f2;
-      pf=px(f);
-      if(0x81==s(x)) {
-        _k(x);
-        r=KERR_TYPE; // TODO
-      }
-      else {
-        if(pf[1]==inull) pf[1]=x;
-        else if(pf[2]==inull) pf[2]=x;
-        else if(pf[3]==inull) pf[3]=x;
-        else if(pf[4]==inull) pf[4]=x;
-        if(ck(pf[0])%32==13) r=kamendi4(k_(pf[1]),k_(pf[2]),k_(pf[3]),k_(pf[4]));
-        else if(ck(pf[0])%32==11) r=kamend4(k_(pf[1]),k_(pf[2]),k_(pf[3]),k_(pf[4]));
-        else { _k(x); r=KERR_TYPE; }
-      }
-      break;
+    /* 0xd5/0xd6 retired in Pass 4 -- replaced by 0xd9. */
     default:
       if(!ff) {
         if(0x81==s(x)) { _k(f); _k(x); return KERR_TYPE; }
@@ -266,8 +197,97 @@ K fe(K f, K a, K x, char *av) {
   }
   else {
     switch(s(f)) {
-    case 0xc1: case 0xc2:
+    case 0xda: { /* (f;av) modified-verb wrapper, replaces 0xc1/0xc2/0xdb */
       if(a==inull || x==inull) {
+        /* avdo / mv-string parsing consumes elided slots before
+           reaching here, so elision is a type error. Pass 3 will
+           reroute elision through a 0xd9 projection. */
+        _k(a); _k(x);
+        r=KERR_TYPE;
+      }
+      else {
+        K *pw=px(f); K wf=pw[0]; K wav=pw[1];
+        char *avp=(T(wav)==-3 && n(wav)>0) ? (char*)px(wav) : "";
+        if(0xc0==s(wf)) {
+          u32 c=ck(wf); int vi=c%32;
+          if(vi<=20 && *avp) r=avdo(vi,a,x,avp);
+          else { _k(a); _k(x); r=KERR_PARSE; }
+        }
+        else if(0xc7==s(wf)) {
+          /* dyadic juxtaposition through a draw/-style wrapper
+             (a (draw/) x). Pass 1b doesn't normally produce this
+             shape since bc only wraps when no left is present, but
+             plumbing exists for completeness so juxtaposition
+             routes don't trip the type-error fallback. */
+          if(*avp) r=avdo(k_(wf),a,x,avp);
+          else { _k(a); _k(x); r=KERR_PARSE; }
+        }
+        else if(0xc6==s(wf)) {
+          /* Issue #2 Pass 6: dyadic juxt through 0xda(0xc6,"/"|"\\")
+             -- e.g. `5 sin/ 2` or peeled f=0xd0(5,0xda(sin,"/"))
+             monadic apply.  do-n-times (atom int seed) or do-while
+             (monadic-function seed), with sin as the inner monad. */
+          if(!strcmp(avp,"/") || !strcmp(avp,"\\")) {
+            if(s(a)==0 && T(a)==1 && !strcmp(avp,"/")) r=overmonadn(k_(wf),a,x,"");
+            else if(s(a)==0xc3 && !strcmp(avp,"/")) r=overmonadb(k_(wf),a,x,"");
+            else if(s(a)==0 && T(a)==1 && !strcmp(avp,"\\")) r=scanmonadn(k_(wf),a,x,"");
+            else if(s(a)==0xc3 && !strcmp(avp,"\\")) r=scanmonadb(k_(wf),a,x,"");
+            else { _k(a); _k(x); r=KERR_TYPE; }
+          }
+          else { _k(a); _k(x); r=KERR_PARSE; }
+        }
+        else if(0xc3==s(wf) || 0xc5==s(wf) || 0xd9==s(wf)) {
+          /* Pass 2a / 3b-5 / Pass 4: dyadic apply of
+             (lambda/proj/composition/projection, av).
+             Pack a,x into a 2-elt plist and dispatch through fne
+             (fne routes 0xd9 through fapply for projection peel).
+             Wrap as 0x81 so fne's `0x81==s(x) && n(x)==2` dyadic
+             dispatch fires; without the subtype tag fne falls to
+             monadic avdo with the whole pair, losing the
+             each-pair / each-param semantics for a 2-arg lambda
+             or projection (e.g. `f[;2;]'[3 4;5 6]`). */
+          K xx=tn(0,2); K *pxx=px(xx);
+          pxx[0]=a; pxx[1]=x;
+          xx=st(0x81,xx);
+          r=fne(k_(wf),xx,avp);
+        }
+        else { _k(a); _k(x); r=KERR_TYPE; }
+      }
+      break;
+    }
+    case 0xc3: /* 0xc4 retired in Pass 4 */
+      xx=tn(0,2); pxx=px(xx);
+      pxx[0]=a; pxx[1]=x;
+      r=fne(k_(f),xx,av);
+      break;
+    case 0xd9: { /* Issue #2 Pass 3a dyadic apply: (f;args) wrapper.
+                    Pack {a,x} into 0x81 plist and route through
+                    fapply for inull-fill / append. */
+      K xx2=tn(0,2); K *pxx2=px(xx2);
+      pxx2[0]=a; pxx2[1]=x;
+      xx2=st(0x81,xx2);
+      r=fapply(k_(f),xx2,av);
+      break;
+    }
+    case 0xc7: case 0xcd:
+      if(a==inull || x==inull) {
+        /* Issue #2 Pass 3b-1: produce 0xd9(verb, args_w_inulls).
+           Replaces legacy 0xd4 with the canonical (f;args)
+           projection wrapper. fapply()'s 0xd9 peel handles
+           inull-fill on subsequent application. */
+        r=tn(0,2); pr=px(r);
+        t=tn(0,2); pt=px(t);
+        pt[0]=a;
+        pt[1]=x;
+        pr[0]=f;
+        pr[1]=st(0x81,t);
+        r=st(0xd9,r);
+      }
+      else r=builtin(f,a,x);
+      break;
+    case 0xc5:
+      if(a==inull || x==inull) {
+        /* Issue #2 Pass 3b-1: produce 0xd9 (was 0xd4). */
         r=tn(0,2); pr=px(r);
         t=tn(0,2); pt=px(t);
         pt[0]=a;
@@ -276,63 +296,27 @@ K fe(K f, K a, K x, char *av) {
         pr[1]=st(0x81,t);
         r=st(0xd9,r);
       }
-      else {
-        mv=px(f);
-        s=strchr(P,*mv);
-        if(*++mv && s-P<=20) r=avdo(s-P,a,x,mv);
-        else { _k(a); _k(x); r=KERR_PARSE; }
-      }
-      break;
-    case 0xc3: case 0xc4:
-      xx=tn(0,2); pxx=px(xx);
-      pxx[0]=a; pxx[1]=x;
-      r=fne(k_(f),xx,av);
-      break;
-    case 0xc7: case 0xcd:
-      if(a==inull || x==inull) {
-        r=tn(0,2); pr=px(r);
-        t=tn(0,2); pt=px(t);
-        pt[0]=a;
-        pt[1]=x;
-        pr[0]=f;
-        pr[1]=st(0x81,t);
-        r=st(0xd4,r);
-      }
-      else r=builtin(f,a,x);
-      break;
-    case 0xc5:
-      if(a==inull || x==inull) {
-        r=tn(0,2); pr=px(r);
-        t=tn(0,2); pt=px(t);
-        pt[0]=a;
-        pt[1]=x;
-        pr[0]=k_(f);
-        pr[1]=st(0x81,t);
-        r=st(0xd4,r);
-      }
       else r=fc(f,a,x,av);
       break;
-    case 0xc6: { /* 5 sin\2 */
-      char *av=avb;
-      K f2=stripav(f,&av);
-      if(s(a)==0 && T(a)==1 && !strcmp(av,"/")) r=overmonadn(f2,a,x,"");
-      else if(s(a)==0xc3 && !strcmp(av,"/")) r=overmonadb(f2,a,x,"");
-      else if(s(a)==0 && T(a)==1 && !strcmp(av,"\\")) r=scanmonadn(f2,a,x,"");
-      else if(s(a)==0xc3 && !strcmp(av,"\\")) r=scanmonadb(f2,a,x,"");
-      else { _k(a); _k(x); r=KERR_TYPE; }
-      break;
-      }
+    /* Issue #2 Pass 6: 0xc6 (5 sin\2) retired -- post-pass-6 the
+       lexer never produces 0xc6 names with embedded adverbs, so the
+       (sin,"/") pair lands as 0xda(0xc6,"/") and is handled by the
+       case 0xda block above instead of falling through here. */
     default:
       if(!ff) { _k(a); r=x; }
       else if(ff>0&&ff<32) {
         if(a==inull || x==inull) {
+          /* Issue #2 Pass 3b-1: produce 0xd9 (was 0xd4). The verb
+             is a 1-byte primitive; encode as t(1,...) of a 0xc0
+             tagged scalar so the projection wrapper's f slot is
+             a real K (and val/print cases work). */
           r=tn(0,2); pr=px(r);
           t=tn(0,2); pt=px(t);
           pt[0]=a;
           pt[1]=x;
           pr[0]=t(1,st(0xc0,(u32)ff+32));
           pr[1]=st(0x81,t);
-          r=st(0xd4,r);
+          r=st(0xd9,r);
         }
         else r=k(ff,a,x);
       }

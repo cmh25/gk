@@ -101,76 +101,12 @@ static int RC[22]={1,2,1,2,1,1,1,1,1,0,1,1,3,4,0,1,1,2,0,3,0,1};
 
 #define Vvi s->V[s->vi]
 
-static K stripav(K x, char **av) {
-  char a2[256];
-  u8 t=tx;
-  u8 st=s(x);
-  **av=0;
-  if(strlen(sk(x))>255) return KERR_LENGTH;
-  snprintf(a2,sizeof(a2),"%s",sk(x));
-  char *p=strpbrk(a2,"'/\\");
-  if(p) { snprintf(*av,256,"%s",p); *p=0; }
-  return t(t,st(st,sp(a2)));
-}
-
-static K vlookupav(K x) {
-  K *pr,fav;
-  ko *kr;
-  char a2[256],avb[256],*av=avb;
-  *av=0;
-  if(strlen(sk(x))>255) return KERR_LENGTH;
-  snprintf(a2,sizeof(a2),"%s",sk(x));
-  char *p=strpbrk(a2,"'/\\");
-  if(p) { snprintf(av,sizeof(avb),"%s",p); *p=0; }
-  K r=scope_get(cs,t(4,sp(a2)));
-  if(r&&*av) {
-    switch(s(r)) {
-    case 0xc3:
-      kr=(ko*)(b(48)&r);
-      kr->r--;
-      r=kcp(r); if(E(r)) return r;
-      pr=px(r);
-      fav=pr[3];
-      if(T(fav)==6) {
-        pr[3]=tnv(3,strlen(av),xmemdup(av,1+strlen(av)));
-      }
-      else {
-        u64 n0=n(fav);
-        fav=kresize(fav,n(fav)+1+strlen(av));
-        char *pfav=px(fav);
-        snprintf(pfav+n0,1+strlen(av),"%s",av);
-      }
-      break;
-    case 0xc5:
-      kr=(ko*)(b(48)&r);
-      kr->r--;
-      r=kcp(r); if(E(r)) return r;
-      pr=px(r);
-      fav=pr[1];
-      char *pfav=px(fav);
-      u64 n=strlen(pfav)+strlen(av);
-      if(n > 255) return KERR_LENGTH;
-      char av2[256];
-      memcpy(av2,pfav,strlen(pfav));
-      memcpy(av2+strlen(pfav),av,strlen(av)+1);
-      _k(pr[1]);
-      pr[1]=tnv(3,n,xmemdup(av2,1+strlen(av2)));
-      break;
-    }
-  }
-  return r?r:4;
-}
+/* Issue #2 Pass 6: name+adverb lookup is gone -- the lexer no longer
+   emits names with embedded `'`/`/`/`\` and the parser composes adverbs
+   onto values via the postfix-restructure path.  vlookup is now a thin
+   scope_get wrapper.  vlookupav and wrap_lambda_av retired. */
 static K vlookup(K x) {
-  K r;
-  /* fast path: indexed locals (type 1) go directly to scope_get */
-  if(4!=T(x)) {
-    r=scope_get(cs,x);
-    return r?r:KERR_VALUE;
-  }
-  char *n=sk(x);
-  /* fast path: empty or single-char names can't have adverbs */
-  if(n[0] && n[1] && strpbrk(n,"'/\\")) return vlookupav(x);
-  r=scope_get(cs,x);
+  K r=scope_get(cs,x);
   return r?r:KERR_VALUE;
 }
 static K vlookuprs(K x, K *rs) {
@@ -329,6 +265,7 @@ static void printerror(K v, K x0, int i) {
   }
 }
 
+static inline K reduce(K x);
 static K rl(K x, K t) {
   K r,a,*pr,*px,p;
   int q;
@@ -370,12 +307,37 @@ static K rl(K x, K t) {
     if(nx) {
       pr=px(r);
       for(i=nx-1;i>=0;--i) {
-        a=pgreduce_(px[i],&q);
+        K stmt=px[i];
+        K *pstmt=px(stmt);
+        K vals=pstmt[0];
+        /* fast path: single-token sub-statement avoids pgreduce_ recursion.
+           handles the common f[a;b;c] / f[1;2;3] / f[c] cases inline. */
+        if(n(vals)==1) {
+          K v=((K*)px(vals))[0];
+          if(0==s(v)) { a=k_(v); q=0; }
+          else if(0x40==s(v)) {
+            a=vlookup(v);
+            if(a && s(a)) a=reduce(a);
+            if(a && a<EMAX) a=kerror(E[a]);
+            if(a && E(a) && EFLAG && !SIGNAL && strcmp(sk(a),"abort")) {
+              printerror(a,stmt,0);
+              ++ecount;
+              a=repl();
+            }
+            q=0;
+          }
+          else {
+            a=pgreduce_(stmt,&q);
+          }
+        }
+        else {
+          a=pgreduce_(stmt,&q);
+        }
         if(!a&&t==0) a=null;
         else if(!a&&t==0x81) a=inull;
         if(a && E(a)&&!strcmp(sk(a),"value")) {
           if(EFLAG&&!SIGNAL&&strcmp(sk(a),"abort")) {
-            printerror(a,px[i],0);
+            printerror(a,stmt,0);
             ++ecount;
             a=repl();
           }
@@ -416,7 +378,7 @@ static K assign(K d, K i, K y) {
   if(s(d)!=0x80 && T(d)>0) { _k(d); d=KERR_TYPE; goto cleanup; }
   if(0x40==s(i)) { i=vlookup(i); if(E(i)) { _k(d); d=i; goto cleanup; } }
   if(0x40==s(y)) { y=vlookup(y); if(E(y)) { _k(d); d=y; goto cleanup; } }
-  if(s(y)&&s(y)!=0x80&&s(y)!=0xc3&&s(y)!=0xc4) { _k(d); d=KERR_TYPE; goto cleanup; }
+  if(s(y)&&s(y)!=0x80&&s(y)!=0xc3) { _k(d); d=KERR_TYPE; goto cleanup; } /* 0xc4 retired */
   if(s(i)&&0x81!=s(i)) { _k(d); d=KERR_TYPE; goto cleanup; }
   ko *kd=(ko*)(b(48)&d);
   if(kd->r>1) { /* copy on write */
@@ -439,22 +401,18 @@ cleanup:
   return d;
 }
 
-/* resolve predefined */
+/* resolve predefined.
+   Issue #2 Pass 6: post-pass-6 names never carry adverb suffixes, so
+   the av-split path is gone -- look up the name verbatim, copy the
+   lambda, and stamp valence for monad-promoted entries.  The legacy
+   pf[3] av slot has been removed; pf[3] now holds valence. */
 static K rpd(K x) {
   K f,*pf;
-  char *cf=sk(x);
-  char avb[256],a2[256],*av=avb;
-  *av=0;
-  if(strlen(cf)>255) return KERR_LENGTH;
-  snprintf(a2,sizeof(a2),"%s",cf);
-  char *p=strpbrk(a2,"'/\\");
-  if(p) { snprintf(av,sizeof(avb),"%s",p); *p=0; }
-  if(!(f=dget(C,sp(a2)))) return KERR_VALUE;
+  if(!(f=dget(C,sk(x)))) return KERR_VALUE;
   K f2=kcp(f); _k(f); if(E(f2)) return f2;
   f=f2;
   pf=px(f);
-  pf[3]=tnv(3,strlen(av),xmemdup(av,1+strlen(av)));
-  if(0xc9==s(x)) pf[4]=t(1,1);
+  if(0xc9==s(x)) pf[3]=t(1,1);
   return f;
 }
 
@@ -462,12 +420,59 @@ static inline K r41(K x);
 static K rc5(K x);
 static K r44(K x) {
   K r,t;
-  char avb[256],f2[256],*av=avb;
-  *av=0;
+  char avb[256],*av=avb;
 
   K *px=px(x);
-  K f=k_(px[0]);
-  K x1=k_(px[1]);
+  K f0=px[0];
+  K x1_=px[1];
+
+  /* fast path: f[a;b;...] where f is a simple variable resolving to a
+     0xc3 lambda, 0xd9 projection, or 0xda wrapper, and the param list
+     is 0x41 or 0x81.  Bypasses avb/strlen/strchr/snprintf and the
+     fe() dispatch.  0xc4 retired in Pass 4. */
+  if(0x40==s(f0) && 4==T(f0) && (0x41==s(x1_) || 0x81==s(x1_))) {
+    char *skf=sk(f0);
+    if(skf[0]) {
+      K f=scope_get(cs,f0);
+      if(f && !E(f) && (0xc3==s(f) || 0xd9==s(f) || 0xda==s(f))) {
+        K x2;
+        if(0x41==s(x1_)) {
+          x2=r41(k_(x1_));
+          if(E(x2)||EXIT) { _k(f); _k(x); return x2; }
+        }
+        else x2=k_(x1_);
+        /* fast lambda apply: skip fne/fne_/pgreduce wrappers when:
+           f is 0xc3, no adverbs, valence matches, no inulls,
+           and scope dict isn't closure-pending. fne_fast gate
+           is intentionally 0xc3-only -- 0xda (post-Pass-2b
+           producer flip) and 0xd9 (post-Pass-3b-5) take the
+           fapply slow path. */
+        K *pf=px(f);
+        u64 nx2=n(x2);
+        if(0xc3==s(f) && 0x81==s(x2)) {
+          u64 nval=(u64)ik(pf[3]);
+          if(nx2==nval && 6!=T(pf[2])) {
+            K *pxk=px(x2);
+            int has_inull=0;
+            for(u64 i=0;i<nx2;++i) if(pxk[i]==inull) { has_inull=1; break; }
+            if(!has_inull) {
+              r=fne_fast(f,x2);
+              _k(x);
+              return r;
+            }
+          }
+        }
+        r=fapply(f,x2,0);
+        _k(x);
+        return r;
+      }
+      if(f && !E(f)) _k(f);
+    }
+  }
+
+  *av=0;
+  K f=k_(f0);
+  K x1=k_(x1_);
   K x2=0,*px2;
 
   if(0x40==s(x1)) {
@@ -495,22 +500,9 @@ static K r44(K x) {
     if(E(f)||EXIT) { _k(x1); _k(x2); _k(x); return f; }
   }
 
-  /* consolidate adverbs and resolve f */
+  /* Issue #2 Pass 6: names never carry adverbs.  Just resolve. */
   if(0x40==s(f)) {
-    if(4==T(f)) {
-      char *skf=sk(f);
-      if(strlen(skf)>255) { _k(x1); _k(x2); _k(x); return KERR_LENGTH; }
-      if(!strchr("'/\\",*skf)) {
-        f=vlookup(f);
-      }
-      else {
-        snprintf(f2,sizeof(f2),"%s",skf);
-        char *p=strpbrk(f2,"'/\\");
-        if(p) { snprintf(av,sizeof(avb),"%s",p); *p=0; }
-        f=vlookup(t(4,sp(f2)));
-      }
-    }
-    else f=vlookup(f);
+    f=vlookup(f);
     if(E(f)) { _k(x1); _k(x2); _k(x); return f; }
   }
   else if(0xc5==s(f)) {
@@ -735,6 +727,10 @@ K pgreduce_(K x0, int *quiet) {
       case 0xc3: case 0: case 0x40: case 0x41: case 0x81: k_(v); continue;
       case 0xc7: /* builtin dyad */
         if(pA<=A+1) { k_(v); continue; }
+        /* Issue #2 Pass 6: lexer no longer slurps adverbs onto names.
+           If a postfix adverb token follows, defer to case 7 so the
+           juxt step wraps draw + 0x85 into 0xda(draw, av). */
+        if(i<nx-1 && 0x85==s(px[i+1])) { k_(v); break; }
         --pA;
         b=*--pA;
         if(0x40==s(b)&&i+1<nx&&64==ik(px[i+1])&&pA==A) { /* f:draw */
@@ -742,6 +738,52 @@ K pgreduce_(K x0, int *quiet) {
           p=scope_set(cs,b,k_(v));  /* add ref since v is borrowed from parse tree */
           if(E(p)) { *pA++=p; }
           else { *pA++=p; *quiet=1; }
+          break;
+        }
+        /* Issue #2 Pass 6: builtin with postfix adverb produces 0x45
+           as `b` (e.g. `5 draw/ 10 10 10` -> stack=[5,0x45('/, vec)]).
+           Build a name K with the av suffix appended and call
+           builtin() with it -- builtin() splits the av out and routes
+           through avdo. */
+        if(0x45==s(b)) {
+          K *pb=px(b);
+          K bav=pb[1]; K bv=pb[2];
+          char *bavp=(T(bav)==-3)?(char*)px(bav):"";
+          char *vname=sk(v);
+          char buf[256];
+          if(strlen(vname)+strlen(bavp)>=sizeof(buf)) { _k(b); _k(v); *pA++=KERR_LENGTH; break; }
+          snprintf(buf,sizeof(buf),"%s%s",vname,bavp);
+          K vav=t(4,st(0xc7,sp(buf)));
+          if(s(bv)) { bv=reduce(k_(bv)); if(E(bv)||EXIT) { _k(b); _k(vav); *pA++=bv; break; } }
+          else bv=k_(bv);
+          /* Issue #2 Pass 6: don't consume a left value from the stack
+             if the next token is a dyadic operator AND the stack only
+             has one value -- that value belongs to the next op, not
+             to us (e.g. `A - mul/B`: stack=[A] when mul runs, A is
+             the left arg of `-`, not mul).  When two or more values
+             are on the stack, pop the top one (it's our left arg)
+             and leave the rest for outer ops (e.g. `1 + 2 sv' +|tt`:
+             stack=[1,2] when sv runs, 2 is sv's left arg, 1 is +'s).
+             Always pop for JUXT, ASSIGN, monadic, or end-of-stream. */
+          int next_is_dyad_op = (i<nx-1 && 0xc0==s(px[i+1])
+                                 && ik(px[i+1])>=64 && ik(px[i+1])<96
+                                 && ik(px[i+1])!=0xff
+                                 && ik(px[i+1])!=64
+                                 && (pA-A)<=1);
+          if(0x81==s(bv) && n(bv)==2) {
+            K *pbv=px(bv); *pA++=builtin(vav,k_(pbv[0]),k_(pbv[1])); _k(bv); _k(b);
+          }
+          else if(0x81==s(bv)) { _k(bv); _k(b); _k(vav); *pA++=KERR_VALENCE; }
+          else if(pA>A && !next_is_dyad_op) {
+            a=*--pA;
+            if(s(a)) { a=reduce(a); if(E(a)||EXIT) { _k(bv); _k(b); _k(vav); *pA++=a; break; } }
+            if(!VST(a)||!VST(bv)) { _k(a); _k(bv); _k(b); _k(vav); *pA++=KERR_TYPE; break; }
+            *pA++=builtin(vav,a,bv); _k(b);
+          }
+          else {
+            if(!VST(bv)) { _k(bv); _k(b); _k(vav); *pA++=KERR_TYPE; break; }
+            *pA++=builtin(vav,0,bv); _k(b);
+          }
           break;
         }
         if(s(b)) { b=reduce(b); if(E(b)||EXIT) { _k(v); *pA++=b; break; } }
@@ -775,6 +817,10 @@ K pgreduce_(K x0, int *quiet) {
         if(pA<=A+1) { k_(v); break; } // no argument available
         if(pA<=A+2&&i<nx-1&&ik(px[i+1])==0xff) { k_(v); break; } // {x} abs 2
         if(pA>A+2&&strpbrk(sk(v),"/\\")) { k_(v); break; }  // 5 sin/2; 5 sin\2
+        /* Issue #2 Pass 6: lexer no longer slurps adverbs onto names,
+           so a postfix adverb token may follow.  Defer sin to case 7
+           (juxtaposition) where sin + 0x85 becomes 0xda(sin,av). */
+        if(i<nx-1 && 0x85==s(px[i+1])) { k_(v); break; }
         --pA;
         a=*--pA;
         if(0x40==s(a)&&i+1<nx&&64==ik(px[i+1])&&pA==A) { /* f:+ */
@@ -782,6 +828,57 @@ K pgreduce_(K x0, int *quiet) {
           p=scope_set(cs,a,k_(v));  /* add ref since v is borrowed from parse tree */
           if(E(p)) { _k(a); *pA++=p; }
           else { *pA++=p; *quiet=1; }
+          break;
+        }
+        /* Issue #2 Pass 6: monadic builtin with postfix adverb produces
+           0x45 as `a` (e.g. `abs'' (-2 -3;-4 -5.0)` -> stack=[0x45('',
+           plist)]).  Build a name K with the av suffix appended and
+           call builtin() with it -- builtin() splits the av out and
+           routes through avdo. */
+        if(0x45==s(a)) {
+          K *pav=px(a);
+          K aav=pav[1]; K av_v=pav[2];
+          char *aavp=(T(aav)==-3)?(char*)px(aav):"";
+          char *vname=sk(v);
+          char buf[256];
+          if(strlen(vname)+strlen(aavp)>=sizeof(buf)) { _k(a); _k(v); *pA++=KERR_LENGTH; break; }
+          snprintf(buf,sizeof(buf),"%s%s",vname,aavp);
+          K vav=t(4,st(0xc6,sp(buf)));
+          if(s(av_v)) { av_v=reduce(k_(av_v)); if(E(av_v)||EXIT) { _k(a); _k(vav); *pA++=av_v; break; } }
+          else av_v=k_(av_v);
+          /* Issue #2 Pass 6: dyadic-juxt detection -- `5 sin/ 2` means
+             "do sin 5 times starting from 2" (overmonadn) when next
+             token is JUXT and a left seed is on stack.  Mirrors the
+             dispatch in case 0xda (around line 1770-1786). */
+          if(pA>A && i<nx-1 && 0xc0==s(px[i+1]) && ik(px[i+1])==0xff
+             && (!strcmp(aavp,"/")||!strcmp(aavp,"\\"))) {
+            ++i;
+            K t0=*--pA;
+            if(s(t0)) { t0=reduce(t0); if(E(t0)||EXIT) { _k(a); _k(vav); _k(av_v); *pA++=t0; break; } }
+            if(!VST(t0)) { _k(a); _k(vav); _k(av_v); _k(t0); *pA++=KERR_TYPE; break; }
+            K f=t(4,st(0xc6,sp(vname))); /* bare sin (no av) for over/scan */
+            _k(vav);
+            if(s(t0)==0 && T(t0)==1 && !strcmp(aavp,"/")) { *pA++=overmonadn(f,t0,av_v,""); *quiet=0; }
+            else if(ISF(t0) && ik(val(t0))==1 && !strcmp(aavp,"/")) { *pA++=overmonadb(f,t0,av_v,""); *quiet=0; }
+            else if(s(t0)==0 && T(t0)==1 && !strcmp(aavp,"\\")) { *pA++=scanmonadn(f,t0,av_v,""); *quiet=0; }
+            else if(ISF(t0) && ik(val(t0))==1 && !strcmp(aavp,"\\")) { *pA++=scanmonadb(f,t0,av_v,""); *quiet=0; }
+            else { _k(f); _k(t0); _k(av_v); *pA++=KERR_TYPE; }
+            _k(a);
+            break;
+          }
+          if(0x81==s(av_v) && n(av_v)==1) {
+            K *pavv=px(av_v); *pA++=builtin(vav,0,k_(pavv[0])); _k(av_v); _k(a);
+          }
+          else if(0x81==s(av_v)) {
+            /* multi-arg list to monadic builtin -- treat as the single
+               argument (e.g. abs'' on (-2 -3;-4 -5.0) gets the whole
+               packed list). */
+            *pA++=builtin(vav,0,av_v); _k(a);
+          }
+          else {
+            if(!VST(av_v)) { _k(av_v); _k(a); _k(vav); *pA++=KERR_TYPE; break; }
+            *pA++=builtin(vav,0,av_v); _k(a);
+          }
           break;
         }
         if(s(a)) { a=reduce(a); if(E(a)||EXIT) { *pA++=a; break; } }
@@ -974,43 +1071,60 @@ K pgreduce_(K x0, int *quiet) {
         }
         else { _k(a); _k(b); *pA++=KERR_TYPE; break; }
         break;
-      case 0xc1: /* +/x */
-        if(pA<=A+1) { k_(v); break; }
-        --pA;
-        b=*--pA;
-        if(0x42==s(b)) { b=r42(b); if(E(b)||EXIT) { *pA++=b; break; } }
-        if(0x40==s(b)&&i+1<nx&&64==ik(px[i+1])) {
-          if(pA<=A) { /* b:+' */
-            ++i;
-            p=scope_set(cs,b,k_(v));  /* add ref since v is borrowed from parse tree */
-            if(E(p)) *pA++=p;
-            else { *pA++=p; *quiet=1; }
-          }
-          else { /* +'b */
-            if(s(b)) { b=reduce(b); if(E(b)||EXIT) { *pA++=b; break; } }
-            t=fe(k_(v),0,b,"");
-            *pA++=t;
-          }
+      case 0xda: { /* (f;av) modified-verb wrapper. Inner f's encoding
+                     records monad (code in [32,63]) vs dyad ([64,95])
+                     intent, replacing the old 0xc1 / 0xc2 cases.
+                     0xc7 inner = builtin-dyad-as-modified-monad
+                     (e.g. draw/), replacing the old 0xdb case. */
+        K *pw=px(v); K wf=pw[0];
+        /* Pass 2b-step-4 / 3b-5 / Pass 4: 0xc3/0xd9 inner -- treat
+           like a bare push: keep on stack and wait for more tokens
+           (the 0xff dyad-juxt marker or args). Eager fe() here
+           would skip dyadic-juxt detection in case 7 / line 1812.
+           0xc4 retired in Pass 4. */
+        if(0xc3==s(wf) || 0xd9==s(wf)) { k_(v); continue; }
+        int dyad=0;
+        if(0xc0==s(wf)) { u32 c=ck(wf); dyad=(c>=64); }
+        /* 0xc7 inner is always monadic in Pass 1b (bc only wraps when
+           a->a[0]==NULL); leave dyad=0. */
+        if(dyad) {
+          if(pA<=A+2) { k_(v); *pA++=KERR_PARSE; break; }
+          --pA;
+          b=*--pA;
+          a=*--pA;
+          if(!a||!b) { _k(a); _k(b); *pA++=KERR_PARSE; break; }
+          if(s(b)) { b=reduce(b); if(E(b)||EXIT) { _k(a); *pA++=b; break; } }
+          if(s(a)) { a=reduce(a); if(E(a)||EXIT) { _k(b); *pA++=a; break; } }
+          *pA++=fe(k_(v),a,b,"");
         }
         else {
-          if(s(b)) { b=reduce(b); if(E(b)||EXIT) { *pA++=b; break; } }
-          *pA++=fe(k_(v),0,b,"");
+          if(pA<=A+1) { k_(v); break; }
+          --pA;
+          b=*--pA;
+          if(0x42==s(b)) { b=r42(b); if(E(b)||EXIT) { *pA++=b; break; } }
+          /* The b:+' assignment lookahead from the old 0xc1 case --
+             if next token is the dyad-juxt marker (0xc0 ik 64) and
+             stack has only this name on it, we're assigning. */
+          if(0x40==s(b)&&i+1<nx&&64==ik(px[i+1])) {
+            if(pA<=A) {
+              ++i;
+              p=scope_set(cs,b,k_(v));
+              if(E(p)) *pA++=p;
+              else { *pA++=p; *quiet=1; }
+            }
+            else {
+              if(s(b)) { b=reduce(b); if(E(b)||EXIT) { *pA++=b; break; } }
+              t=fe(k_(v),0,b,"");
+              *pA++=t;
+            }
+          }
+          else {
+            if(s(b)) { b=reduce(b); if(E(b)||EXIT) { *pA++=b; break; } }
+            *pA++=fe(k_(v),0,b,"");
+          }
         }
         break;
-      case 0xc2: /* a+/x */
-        if(pA<=A+2) {
-          k_(v);
-          *pA++=KERR_PARSE; /* parse */
-          break;
-        }
-        --pA;
-        b=*--pA;
-        a=*--pA;
-        if(!a||!b) { _k(a); _k(b); *pA++=KERR_PARSE; break; } /* parse */
-        if(s(b)) { b=reduce(b); if(E(b)||EXIT) { _k(a); *pA++=b; break; } }
-        if(s(a)) { a=reduce(a); if(E(a)||EXIT) { _k(b); *pA++=a; break; } }
-        *pA++=fe(k_(v),a,b,"");
-        break;
+      }
       case 0xca: /* predefined dyad (in lin dv dvl ...) */
       case 0xc9: /* predefined monad (gtime ltime ...) */
       case 0xcb: /* predefined triad (ssr) */
@@ -1026,6 +1140,40 @@ K pgreduce_(K x0, int *quiet) {
             else { *pA++=p; *quiet=1; }
             break;
           }
+          /* Issue #2 Pass 6: predefined function with postfix adverb
+             produces 0x45 as `b` (e.g. `q dv\ 0` -> stack=[q,0x45('\\,
+             0)]).  Extract av and value, then call fne with av.  fne
+             handles av propagation into pf[3]/avdo. */
+          if(0x45==s(b)) {
+            K *pb45=px(b);
+            K bav=pb45[1]; K bv=pb45[2];
+            char *bavp=(T(bav)==-3)?(char*)px(bav):"";
+            if(s(bv)) { bv=reduce(k_(bv)); if(E(bv)||EXIT) { _k(f); _k(b); *pA++=bv; break; } }
+            else bv=k_(bv);
+            if(0x81==s(bv) && n(bv)==2) {
+              *pA++=fne(f,bv,bavp); _k(b);
+            }
+            else if(0x81==s(bv)) {
+              valence=val(f);
+              if((u32)valence==(u32)n(bv)) { *pA++=fne(f,bv,bavp); _k(b); }
+              else { _k(bv); _k(b); _k(f); *pA++=KERR_VALENCE; }
+            }
+            else if(pA>A) {
+              a=*--pA;
+              if(s(a)) { a=reduce(a); if(E(a)||EXIT) { _k(f); _k(bv); _k(b); *pA++=a; break; } }
+              if(!VST(a)||!VST(bv)) { _k(a); _k(bv); _k(b); _k(f); *pA++=KERR_TYPE; break; }
+              xx=params[paramsi++]; pxk=px(xx); pxk[0]=a; pxk[1]=bv; n(xx)=2;
+              *pA++=fne(f,k_(xx),bavp);
+              _k(a); _k(bv); _k(b); --paramsi;
+            }
+            else {
+              if(!VST(bv)) { _k(bv); _k(b); _k(f); *pA++=KERR_TYPE; break; }
+              xx=params[paramsi++]; pxk=px(xx); pxk[0]=bv; n(xx)=1;
+              *pA++=fne(f,k_(xx),bavp);
+              _k(bv); _k(b); --paramsi;
+            }
+            break;
+          }
           if(0x40==s(b)) { b=r40(b); if(E(b)||EXIT) { _k(f); *pA++=b; break; } }
           if(0x42==s(b)) { b=r42(b); if(E(b)||EXIT) { _k(f); *pA++=b; break; } }
           if(0x41==s(b)) { b=r41(b); if(E(b)||EXIT) { _k(f); *pA++=b; break; } }
@@ -1037,7 +1185,7 @@ K pgreduce_(K x0, int *quiet) {
             if(0x41==s(b0)) { b0=r41(b0); if(E(b0)||EXIT) { *pA++=b0; _k(f); _k(b); break; } }
             if(0==n(b0)) { t=tn(0,1); pt=px(t); pt[0]=null; p=fne(f,t,0); }
             else p=fne(f,b0,0);
-            if(0xc3==s(p) || 0xc4==s(p)) *pA++=avdo(p,0,k_(b2),(char*)px(b1));
+            if(0xc3==s(p)) *pA++=avdo(p,0,k_(b2),(char*)px(b1)); /* 0xc4 retired */
             else { _k(p); *pA++=KERR_TYPE; }
             _k(b);
             break;
@@ -1101,17 +1249,159 @@ K pgreduce_(K x0, int *quiet) {
           *pA++=b;
         }
         break;
-      case 0xdb:  /* draw/2 3 4 */
-        if(pA>A+1) {
-          --pA;
-          b=*--pA;
-          if(s(b)) { b=reduce(b); if(E(b)||EXIT) { *pA++=b; break; } }
-          if(T(b)==0 && n(b)==1) { K *pb=px(b); p=k_(pb[0]); _k(b); b=p; }
-          else if(T(b)==0 && n(b)==0) { _k(b); b=null; }
-          else if(!VST(b)) { _k(b); *pA++=KERR_TYPE; break; }
-          *pA++=builtin(v,0,b);
+      /* 0xdb retired in Pass 1b -- replaced by 0xda(0xc7,"...") */
+      case 0xb0: { /* APPLY_N: f + N args are on the eval stack (from inline
+                      RPN). The big win vs the old 0x44 path is that args
+                      were evaluated in this same pgreduce_ frame -- no
+                      recursive pgreduce_ entry per param, no
+                      rl()/r41() unreduced-plist pass. To avoid making the
+                      common-case slower than the old path, we use the
+                      pre-allocated params[] pool (so no per-call tuple
+                      allocation) and inline the f=0xc3-lambda fast path
+                      (so no r44/fe/fne_/pgreduce wrapper overhead). */
+        int N=ik(v);
+        --pA; /* drop the just-pushed APPLY token (transient) */
+        if(pA-A < N+1) { *pA++=KERR_PARSE; break; }
+        pA -= N+1;
+        K f_raw=pA[0];
+
+        /* Borrow a pre-allocated 0x81 plist to hold reduced args.
+           IMPORTANT: bump paramsi BEFORE entering the reduce loop --
+           reduce(a) below can recursively trigger another APPLY_N
+           that would re-borrow the same params[paramsi] slot and
+           clobber our pxk entries (fuzz-found by afl).  Bumping
+           paramsi first reserves our slot for the duration of the
+           arg-reduce loop. */
+        if(paramsi >= PARAMSMAX || N > 32) goto apply_n_fallback;
+        K xx=params[paramsi]; K *pxk=px(xx);
+        ++paramsi;
+        K err=0;
+        for(int j=0;j<N;j++) {
+          K a=pA[1+j];
+          if(s(a)) {
+            a=reduce(a);
+            if(a && a<EMAX) a=kerror(E[a]);
+          }
+          /* Args may already be bare error K's pushed by an earlier
+             token in this same frame (e.g. KERR_TYPE=3 from `2+\``).
+             Errors have s==0, so the s(a) block above misses them.
+             Detect unconditionally so the call propagates the error
+             rather than feeding the lambda a malformed arg list. */
+          if(a && E(a)) {
+            err=a;
+            for(int k=j+1;k<N;k++) _k(pA[1+k]);
+            for(int k=0;k<j;k++) _k(pxk[k]);
+            break;
+          }
+          pxk[j]=a;
+        }
+        if(err) { --paramsi; _k(f_raw); *pA++=err; break; }
+        n(xx)=N;
+
+        /* Resolve f. If f is a 0x40 var that resolves to a 0xc3 lambda
+           with matching valence and no special-case markers, dispatch
+           via fne_fast directly. Else release params[] borrow and fall
+           through to a regular r44 with a fresh 0x81. */
+        K f=0;
+        if(0x40==s(f_raw) && 4==T(f_raw)) {
+          char *skf=sk(f_raw);
+          if(skf[0]) {
+            f=scope_get(cs,f_raw);
+            if(f && E(f)) { --paramsi; *pA++=f; _k(f_raw); break; }
+          }
+        }
+        else if(0xc3==s(f_raw) || 0xd9==s(f_raw) || 0xda==s(f_raw)) {
+          /* 0xc4 retired in Pass 4 */
+          f=k_(f_raw);
+        }
+        if(f && (0xc3==s(f) || 0xd9==s(f) || 0xda==s(f))) {
+          if(0xc3==s(f)) {
+            K *pf=px(f);
+            if(6!=T(pf[2]) && (u64)ik(pf[3])==(u64)N) {
+              int has_inull=0;
+              for(int j=0;j<N;j++) if(pxk[j]==inull) { has_inull=1; break; }
+              if(!has_inull) {
+                K args_borrow=k_(xx);
+                K r=fne_fast(f,args_borrow);
+                _k(f_raw);
+                /* args_borrow refcount goes from 2 to 1 inside fne_fast
+                   (it _k's x but skips _k(pd[1]) since ps[5]=1). xx
+                   stays alive in the pool, but its entries still hold
+                   our +1 refs from reduce() -- release them now or
+                   they leak. Inline the heap-K branch of _k to skip
+                   the call overhead for atom args (T>0,T!=2). */
+                for(int j=0;j<N;j++) {
+                  K a=pxk[j];
+                  if(!E(a) && (T(a)<=0 || T(a)==2)) {
+                    ko *kk=(ko*)(b(48)&a);
+                    if(kk->r>0) --kk->r;
+                    else _k(a);
+                  }
+                }
+                n(xx)=0;          /* return params[] entry to pool */
+                --paramsi;
+                *pA++=r;
+                break;
+              }
+            }
+          }
+          /* projection / 0xda wrapped / non-fne_fast lambda: build a
+             fresh 0x81 from the borrowed buffer (so r44/fne can take
+             ownership) and dispatch through fapply (handles 0xda peel). */
+          K xs=tn(0,N); K *pxs=px(xs);
+          for(int j=0;j<N;j++) pxs[j]=k_(pxk[j]);
+          K args=st(0x81,xs);
+          for(int j=0;j<N;j++) _k(pxk[j]);
+          n(xx)=0;
+          --paramsi;
+          K r=fapply(f,args,0);
+          _k(f_raw);
+          *pA++=r;
+          break;
+        }
+
+        /* Generic fallback: build a 0x44 and let r44 dispatch. */
+        if(f) _k(f);
+        K xs=tn(0,N); K *pxs=px(xs);
+        for(int j=0;j<N;j++) pxs[j]=k_(pxk[j]);
+        K args_plist=st(0x81,xs);
+        for(int j=0;j<N;j++) _k(pxk[j]);
+        n(xx)=0;
+        --paramsi;
+        {
+          K w=tn(0,2); K *pw=px(w);
+          pw[0]=f_raw;
+          pw[1]=args_plist;
+          *pA++=r44(st(0x44,w));
         }
         break;
+
+apply_n_fallback: {
+        /* Old path: build the 0x44 from heap buffers. */
+        K xs=tn(0,N); K *pxs=px(xs);
+        K err2=0;
+        for(int j=0;j<N;j++) {
+          K a=pA[1+j];
+          if(s(a)) a=reduce(a);
+          if(a && E(a)) {  /* errors have s==0; check unconditionally */
+            err2=a;
+            for(int k=j+1;k<N;k++) _k(pA[1+k]);
+            n(xs)=j;
+            _k(xs);
+            _k(f_raw);
+            break;
+          }
+          pxs[j]=a;
+        }
+        if(err2) { *pA++=err2; break; }
+        K args_plist=st(0x81,xs);
+        K w=tn(0,2); K *pw=px(w);
+        pw[0]=f_raw;
+        pw[1]=args_plist;
+        *pA++=r44(st(0x44,w));
+        break;
+        }
+      } break;
       default: k_(v);
       }
       break;
@@ -1220,6 +1510,54 @@ K pgreduce_(K x0, int *quiet) {
       char avb[256],*av=avb;
       *av=0;
 
+      /* Issue #2 Pass 6: postfix adverb wrap. The parser's postfix-
+         restructure left-folds adverb chains so a naked 0x85 always
+         lands as `b` immediately after its target value. Reduce a if
+         needed (0x44/0xd0/name), then wrap into 0xda(a, av) -- or
+         extend an existing 0xda's av string -- so subsequent
+         juxtaposition steps see a proper adverbed K.  Skip 0xc5
+         verb-composition; it has its own internal av slot which the
+         case-0xc5 switch branch below extends directly. */
+      if(0x85==s(b) && a && 0x85!=s(a) && 0x41!=s(a) && 0x81!=s(a)
+         && 0x43!=s(a) && 0x45!=s(a) && 0xc5!=s(a)) {
+        char *bav=(T(b)==-3)?(char*)px(b):"";
+        if(0x40==s(a)) {
+          /* resolve name -- post-pass-6 names never carry adverbs */
+          a=vlookup(a);
+          if(E(a)) { _k(b); *pA++=a; break; }
+        }
+        if(0x44==s(a)) { a=r44(a); if(E(a)||EXIT) { _k(b); *pA++=a; break; } }
+        if(0xc5==s(a)) { a=rc5(a); if(E(a)||EXIT) { _k(b); *pA++=a; break; } }
+        if(0xd0==s(a)) { a=rd0(a); if(E(a)||EXIT) { _k(b); *pA++=a; break; } }
+        if(!VST(a)) { _k(a); _k(b); *pA++=KERR_TYPE; break; }
+        if(0xda==s(a)) {
+          /* extend the existing 0xda's av string in-place */
+          K *pa=px(a);
+          K oldav=pa[1];
+          char *pav=(T(oldav)==-3)?(char*)px(oldav):"";
+          int la=strlen(pav), lb=strlen(bav);
+          if(la+lb>=256) { _k(a); _k(b); *pA++=KERR_LENGTH; break; }
+          char av2[256];
+          memcpy(av2,pav,la);
+          memcpy(av2+la,bav,lb+1);
+          K newav=tnv(3,la+lb,xmemdup(av2,la+lb+1));
+          _k(oldav);
+          pa[1]=newav;
+          _k(b);
+          *pA++=a;
+        }
+        else {
+          int lb=strlen(bav);
+          K newav=tnv(3,lb,xmemdup(bav,lb+1));
+          K w=tn(0,2); K *pw=px(w);
+          pw[0]=a;
+          pw[1]=newav;
+          _k(b);
+          *pA++=st(0xda,w);
+        }
+        break;
+      }
+
       if(0x41==s(b)||0x81==s(b)) {
         if(0x85==s(a)) { t=tn(0,3); pt=px(t); pt[1]=a; pt[2]=b; *pA++=st(0x45,t); }
         else { K jn=tn(0,2); K *pjn=px(jn); pjn[0]=a; pjn[1]=b; *pA++=st(0x44,jn); }
@@ -1227,19 +1565,9 @@ K pgreduce_(K x0, int *quiet) {
       }
 
       if(s(b)) { b=reduce(b); if(E(b)||EXIT) { _k(a); *pA++=b; break; } }
+      /* Issue #2 Pass 6: names never carry adverbs.  Just resolve. */
       if(0x40==s(a)) {
-        if(4==T(a)) {
-          if(strlen(sk(a))>255) { _k(b); *pA++=KERR_LENGTH; break; }
-          char *p=strpbrk(sk(a),"'/\\");
-          if(p) {
-            snprintf(av,sizeof(avb),"%s",p);
-            char c=*p; *p=0;
-            a=vlookup(t(4,sp(sk(a))));
-            *p=c;
-          }
-          else a=vlookup(a);
-        }
-        else a=vlookup(a);
+        a=vlookup(a);
         if(E(a)) { _k(b); *pA++=a; break; }
       }
       if(!*av) av=0;
@@ -1250,39 +1578,51 @@ K pgreduce_(K x0, int *quiet) {
         if(!VST(a)) { _k(b); _k(a); *pA++=KERR_TYPE; break; }
       }
 
-      if(0xc6==s(b)) { /* 5 sin\2 */
-        char *pav=avb; /* TODO: this block is a mess */
-        K b2=stripav(b,&pav);
-        if((!strcmp(pav,"/") || !strcmp(pav,"\\"))
-           &&pA>A&&i<nx&&0xc0==s(px[i])&&ik(px[i])==0xff) {  /* dyadic juxtaposition */
-          t=*--pA;
-          if(i<nx&&0xc0==s(px[i+1])&&ik(px[i+1])==64&&pA==A) {  /* f:{x>0.5}sin/ */
-            if(0x40!=s(t)) { _k(t); _k(a); _k(b); *pA++=KERR_TYPE; break; }
-            ++i;
-            K d0=tn(0,2); K *pd0=px(d0);
-            pd0[0]=a; pd0[1]=b;
-            p=scope_set(cs,t,st(0xd0,d0));
-            if(E(p)) { *pA++=p; }  /* st(0xd0,d0) already freed by scope_set */
-            else { *pA++=p; *quiet=1; }
-          }
-          else {
-            /* primitive do/while */
-            if(s(t)) { t=reduce(t); if(E(t)||EXIT) { _k(a); *pA++=t; break; } }
-            if(!VST(t)) { _k(a); *pA++=KERR_TYPE; break; }
-            if(s(t)==0 && T(t)==1 && !strcmp(pav,"/")) { *pA++=overmonadn(b2,t,a,""); *quiet=0; }
-            else if(s(t)==0xc3 && !strcmp(pav,"/")) { *pA++=overmonadb(b2,t,a,""); *quiet=0; }
-            else if(s(t)==0 && T(t)==1 && !strcmp(pav,"\\")) { *pA++=scanmonadn(b2,t,a,""); *quiet=0; }
-            else if(s(t)==0xc3 && !strcmp(pav,"\\")) { *pA++=scanmonadb(b2,t,a,""); *quiet=0; }
-            else { _k(a); _k(t); *pA++=KERR_TYPE; }
-          }
+      /* Issue #2 Pass 6: 0xda(0xc6,av) -- post-pass-6 the lexer no longer
+         slurps adverbs onto sin/abs/etc., so the (sin,"/") pair lands
+         here as 0xda after case 7's postfix-wrap (replaces the old
+         0xc6==s(b) + stripav path that pulled adverbs out of the name).
+         At this point a is the seed (e.g. 5 in `5 sin/2` or `f:5 sin/`)
+         and the assign target `f` is one slot below on the stack. */
+      if(0xda==s(b)) {
+        K *pwb=px(b); K wfb=pwb[0]; K wavb=pwb[1];
+        char *pavb_str=(T(wavb)==-3 && n(wavb)>0)?(char*)px(wavb):"";
+        if(0xc6==s(wfb) && a
+           && (!strcmp(pavb_str,"/")||!strcmp(pavb_str,"\\"))
+           && i+1<nx && 0xc0==s(px[i+1]) && ik(px[i+1])==64
+           && pA>A) {
+          /* f:5 sin/ -- assign 0xd0(seed, 0xda(sin,av)) to name f.
+             The 0xd0 second slot holds the adverbed verb; rd0/fe
+             understand 0xda(0xc6,av) via the case 0xda blocks. */
+          K target=*--pA;
+          if(0x40!=s(target)) { _k(target); _k(a); _k(b); *pA++=KERR_TYPE; break; }
+          ++i;
+          K d0=tn(0,2); K *pd0=px(d0);
+          pd0[0]=a; pd0[1]=b;  /* b is the 0xda(sin,av) wrapper; transfer ownership */
+          p=scope_set(cs,target,st(0xd0,d0));
+          if(E(p)) { *pA++=p; }
+          else { *pA++=p; *quiet=1; }
           break;
         }
       }
 
+      /* Issue #2 Pass 3b-5: 0xd9 with av set must follow c3_apply
+         dispatch (for n f/x primitive do, etc.). Bare 0xd9 (no av)
+         keeps simple fe path below. */
+      if(0xd9==s(a) && av && *av) goto c3_apply;
       switch(s(a)) {
-      case 0xc3: case 0xc4:
+      case 0xc3: /* 0xc4 retired in Pass 4 */
+c3_apply:
+        /* 0xd9 also lands here via `goto c3_apply` from the 0xda
+           wrapper case below when an adverb is involved (val-1/2
+           projection scan/over with optional left seed). Bare
+           0xd9 juxtaposition (no adverb) goes through the simple
+           fe-based case below. */
         if(0x81==s(b)) { *pA++=fne(a,b,av); } /* f[x] */
-        else if(ISF(b)&&0xc3!=s(b)&&0xc4!=s(b)&&(!av||!*av)) {  /* {x} val */
+        else if(ISF(b)&&0xc3!=s(b)&&0xd9!=s(b)&&0xda!=s(b)&&(!av||!*av)) {  /* {x} val */
+          /* Pass 2b-step-4 / Pass 4: exclude 0xda(c3,...) and 0xd9
+             projection from compose -- they belong in the lambda-
+             RHS branch below (0xd7 wrap).  0xc4 retired. */
           p=tn(0,2); pp=px(p);
           pp[0]=a; pp[1]=b;
           K q=tn(0,2); K *pq=px(q);
@@ -1295,12 +1635,51 @@ K pgreduce_(K x0, int *quiet) {
           K b1=k_(pb[1]);
           K b2=k_(pb[2]);
           char *pb1=px(b1);
+          /* Issue #2 Pass 6: combine peeled outer av (from a 0xda peel)
+             with the 0x45's own av so f={,x}' followed by ' yields
+             "''" (each-of-each), not just "'". */
+          char comb[256];
+          {
+            int la=(av&&*av)?strlen(av):0;
+            int lb=strlen(pb1);
+            if(la+lb>=256) { _k(b1); _k(a); _k(b); *pA++=KERR_LENGTH; break; }
+            if(la) memcpy(comb,av,la);
+            memcpy(comb+la,pb1,lb+1);
+          }
+          char *cav=comb;
           if(0x44==s(b2)) { b2=r44(b2); if(E(b2)||EXIT) { _k(b1); _k(a); _k(b); *pA++=b2; break; } }
           if(0x41==s(b2)) { b2=r41(b2); if(E(b2)||EXIT) { _k(b1); _k(a); _k(b); *pA++=b2; break; } }
-          if(0x81==s(b2)) *pA++=fne(a,b2,pb1);
+          if(0x81==s(b2)) *pA++=fne(a,b2,cav);
           else {
             if(!VST(b2)) { _k(b1); _k(b2); _k(a); _k(b); *pA++=KERR_TYPE; break; }
-            if(strlen(pb1)) *pA++=avdo(a,0,b2,pb1);
+            /* Issue #2 Pass 6: dyadic-juxt detection.  When the next
+               token is JUXT (0xff) and there's a left-seed on the
+               stack, treat as dyadic each: 1 g'!5 -> 1 2 3 4 5.
+               Mirrors the analogous detection in case 0xda. */
+            if(strlen(cav) && pA>A && i<nx-1 && 0xc0==s(px[i+1]) && ik(px[i+1])==0xff) {
+              ++i;
+              t=*--pA;
+              if(s(t)) { t=reduce(t); if(E(t)||EXIT) { _k(a); _k(b); _k(b1); _k(b2); *pA++=t; break; } }
+              if(!VST(t)) { _k(a); _k(b); _k(b1); _k(b2); _k(t); *pA++=KERR_TYPE; break; }
+              /* Issue #2 Pass 6: primitive do/while.  When the lambda
+                 is monadic (val=1) and av is "/" or "\\", `n f/ x`
+                 means do-n-times (atom int) or do-while (monadic
+                 function).  Mirrors the dispatch in case 0xda below. */
+              if(0xc3==s(a) && ik(val(a))==1
+                 && (!strcmp(cav,"/")||!strcmp(cav,"\\"))) {
+                K f=kcp(a);
+                if(E(f)) { _k(a); _k(b); _k(b1); _k(b2); _k(t); *pA++=f; break; }
+                if(s(t)==0 && T(t)==1 && !strcmp(cav,"/")) { *pA++=overmonadn(f,t,b2,""); *quiet=0; }
+                else if(ISF(t) && ik(val(t))==1 && !strcmp(cav,"/")) { *pA++=overmonadb(f,t,b2,""); *quiet=0; }
+                else if(s(t)==0 && T(t)==1 && !strcmp(cav,"\\")) { *pA++=scanmonadn(f,t,b2,""); *quiet=0; }
+                else if(ISF(t) && ik(val(t))==1 && !strcmp(cav,"\\")) { *pA++=scanmonadb(f,t,b2,""); *quiet=0; }
+                else { _k(f); _k(t); _k(b2); *pA++=KERR_TYPE; }
+                _k(a); _k(b); _k(b1);
+                break;
+              }
+              *pA++=avdo(a,t,b2,cav);
+            }
+            else if(strlen(cav)) *pA++=avdo(a,0,b2,cav);
             else {
               xx=params[paramsi++]; pxk=px(xx); pxk[0]=b2; n(xx)=1;
               *pA++=fne(a,k_(xx),0);
@@ -1309,11 +1688,15 @@ K pgreduce_(K x0, int *quiet) {
           }
           _k(b1); _k(b);
         }
-        else if(0xc3==s(b)||0xc4==s(b)) {
+        else if(0xc3==s(b)||0xda==s(b)) {
+          /* Pass 2b-step-4 / Pass 4: 0xda(c3,av) RHS -- read av
+             from wrapper instead of inner pf[3]. Used by 0xd7
+             (over/scan-with-seed) and similar constructions.
+             0xc4 retired. */
           K *pb=px(b);
           K fav=0;
           if(0xc3==s(b)) fav=pb[3];
-          else fav=pb[2];
+          else /* 0xda */ fav=pb[1];
           char *favp=-3==T(fav)?(char*)px(fav):"";
           if((!strcmp(favp,"/") || !strcmp(favp,"\\"))) {
             t=tn(0,2); pt=px(t);
@@ -1345,11 +1728,11 @@ K pgreduce_(K x0, int *quiet) {
           if(0x43==s(b)) { _k(a); _k(b); *pA++=KERR_PARSE; break; }  /* TODO */
           valence=val(a);
           if(valence==0||valence==1) { /* f x */
-            K *pa=px(a);
             K fav=0;
-            if(0xc3==s(a)) fav=pa[3];
-            else if(0xc4==s(a)) fav=pa[2];
-            else { _k(a); _k(b); *pA++=KERR_PARSE; break; }
+            /* Issue #2 Pass 6: bare 0xc3 has no av slot; 0xd9 wraps
+               leave av (if any) on the outer 0xda wrapper. */
+            if(0xc3==s(a) || 0xd9==s(a)) fav=0;
+            else { _k(a); _k(b); *pA++=KERR_PARSE; break; } /* 0xc4 retired */
             char *favp=-3==T(fav)?(char*)px(fav):"";
             if(av && *av) favp=av;
             if((!strcmp(favp,"/") || !strcmp(favp,"\\"))
@@ -1362,21 +1745,15 @@ K pgreduce_(K x0, int *quiet) {
               if(!VST(t)) { _k(a); _k(b); _k(t); *pA++=KERR_TYPE; break; }
               K f=kcp(a); _k(a);
               if(E(f)) { _k(b); _k(t); *pA++=f; break; }
-              K *pf=px(f);
-              if(0xc3==s(f)) { _k(pf[3]); pf[3]=null; }
-              else if(0xc4==s(f)) { _k(pf[2]); pf[2]=null; }
               if(s(t)==0 && T(t)==1 && !strcmp(favp,"/")) { *pA++=overmonadn(f,t,b,""); *quiet=0; }
-              else if(s(t)==0xc3 && !strcmp(favp,"/")) { *pA++=overmonadb(f,t,b,""); *quiet=0; }
+              else if(ISF(t) && ik(val(t))==1 && !strcmp(favp,"/")) { *pA++=overmonadb(f,t,b,""); *quiet=0; }
               else if(s(t)==0 && T(t)==1 && !strcmp(favp,"\\")) { *pA++=scanmonadn(f,t,b,""); *quiet=0; }
-              else if(s(t)==0xc3 && !strcmp(favp,"\\")) { *pA++=scanmonadb(f,t,b,""); *quiet=0; }
+              else if(ISF(t) && ik(val(t))==1 && !strcmp(favp,"\\")) { *pA++=scanmonadb(f,t,b,""); *quiet=0; }
               else { _k(f); _k(b); _k(t); *pA++=KERR_TYPE; break; }
             }
             else if(!strcmp(favp,"'")&&0==ik(val(a))) {
               K f=kcp(a);
               if(E(f)) { _k(a); _k(b); *pA++=f; break; }
-              K *pf=px(f);
-              if(0xc3==s(f)) { _k(pf[3]); pf[3]=null; }
-              else if(0xc4==s(f)) { _k(pf[2]); pf[2]=null; }
               char av2[256];
               if(strlen(favp)+strlen(av?av:"")>255) { _k(f); _k(a); _k(b); *pA++=KERR_LENGTH; break; }
               memcpy(av2,favp,strlen(favp));
@@ -1479,7 +1856,7 @@ K pgreduce_(K x0, int *quiet) {
           else t=k(11,a,k_(b(48)&b0)); /* a[;1] */
 
           if(E(t)||EXIT) *pA++=t;
-          else if(0xc3==s(t) || 0xc4==s(t)) {
+          else if(0xc3==s(t) || 0xd9==s(t)) { /* 0xc4 retired */
             K xx;
             char *pb1=px(b1);
             if(0x81==s(b2)) *pA++=fne(t,k_(b2),pb1);
@@ -1516,11 +1893,13 @@ K pgreduce_(K x0, int *quiet) {
           }
           _k(b);
         }
-        else if(0xc3==s(b)||0xc4==s(b)) {
+        else if(0xc3==s(b)||0xda==s(b)) {
+          /* Pass 2b-step-4 / Pass 4: 0xda(c3,av) RHS -- read av
+             from wrapper.  0xc4 retired. */
           K *pb=px(b);
           K fav=0;
           if(0xc3==s(b)) fav=pb[3];
-          else fav=pb[2];
+          else /* 0xda */ fav=pb[1];
           char *favp=-3==T(fav)?(char*)px(fav):"";
           if((!strcmp(favp,"/") || !strcmp(favp,"\\"))) {
             t=tn(0,2); pt=px(t);
@@ -1543,11 +1922,55 @@ K pgreduce_(K x0, int *quiet) {
           else *pA++=k(13,a,b); /* a b */
         }
         break;
-      case 0xc1: /* +/x */
-        mv=px(a);
-        s=strchr(P,*mv);
+      case 0xda: { /* (f;av) modified-verb wrapper, juxtaposition path */
+        K *pw=px(a); K wf=pw[0]; K wav=pw[1];
+        char *avp=(T(wav)==-3 && n(wav)>0) ? (char*)px(wav) : "";
+        /* Issue #2 Pass 2b-step-3 / Pass 4: 0xc3/0xd9 inner -- peel
+           and replay through case 0xc3 with combined av. Avoids
+           duplicating the ~140-line case 0xc3 body. After Pass
+           2b-step-4 flips producers, an adverbed lambda K is
+           0xda(c3,av) and lands here instead of case 0xc3.  0xc4
+           retired in Pass 4. */
+        if(0xc3==s(wf) || 0xd9==s(wf)) {
+          /* Pass 3b-5: 0xd9 projection inner -- treat like 0xc3
+             for pgreduce_'s c3_apply: val(0xd9) is well-defined,
+             and overmonadn/scanmonadn use fe() which routes 0xd9
+             through fapply for projection peel. */
+          if(0x40==s(b)) { b=r40(b); if(E(b)||EXIT) { _k(a); *pA++=b; break; } }
+          int la=strlen(avp);
+          int lb=(av && *av)?strlen(av):0;
+          if(la+lb>=256) { _k(a); _k(b); *pA++=KERR_LENGTH; break; }
+          memcpy(avb,avp,la);
+          if(lb) memcpy(avb+la,av,lb);
+          avb[la+lb]=0;
+          av=avb;
+          K wf_owned=k_(wf);
+          _k(a);
+          a=wf_owned;
+          goto c3_apply;
+        }
+        int vi=-1;
+        if(0xc0==s(wf)) { u32 c=ck(wf); vi=c%32; }
+        /* Issue #2 Pass 6: 0xc7 builtin-dyad inner (draw/, mul/, etc.) --
+           fe()'s case 0xda routes these through avdo for fold/scan
+           semantics.  Without this, juxtaposition reports type error
+           because the c3_apply branch only handles 0xc0/0xc3/0xd9. */
+        if(0xc7==s(wf)) {
+          if(0x40==s(b)) { b=r40(b); if(E(b)||EXIT) { _k(a); *pA++=b; break; } }
+          if(pA>A && i<nx-1 && 0xc0==s(px[i+1]) && ik(px[i+1])==0xff) {  /* dyadic juxtaposition */
+            ++i;
+            t=*--pA;
+            if(s(t)) { t=reduce(t); if(E(t)||EXIT) { _k(a); _k(b); *pA++=t; break; } }
+            if(!VST(t)) { _k(a); _k(b); _k(t); *pA++=KERR_TYPE; break; }
+            *pA++=fe(k_(a),t,b,avp);
+          }
+          else *pA++=fe(k_(a),0,b,avp);
+          _k(a);
+          break;
+        }
+        if(vi<0 || vi>20) { _k(a); _k(b); *pA++=KERR_TYPE; break; }
         if(0x40==s(b)) { b=r40(b); if(E(b)||EXIT) { _k(a); *pA++=b; break; } }
-        if(*++mv && s-P<=20) {
+        if(*avp) {
           if(0x45==s(b)) { /* adverbs with args, '1 2 */
             if(pA>A&&i<nx-1&&0xc0==s(px[i+1])&&ik(px[i+1])==0xff) {  /* dyadic juxtaposition */
               ++i;
@@ -1555,23 +1978,22 @@ K pgreduce_(K x0, int *quiet) {
               if(s(t)) { t=reduce(t); if(E(t)||EXIT) { _k(a); _k(b); *pA++=t; break; } }
               if(!VST(t)) { _k(a); _k(b); _k(t); *pA++=KERR_TYPE; break; }
               pb=px(b);
-              p=k(18,k_(a)&0xff00ffffffffffff,k_(pb[1])&0xff00ffffffffffff); /* join */
-              if(E(p)) { _k(a); _k(b); _k(t); *pA++=p; break; }
-              mv=px(p);
-              ++mv;
+              /* Build a compound av string by concatenating avp + pb[1] */
+              int la=strlen(avp); char *pbav=(T(pb[1])==-3)?(char*)px(pb[1]):"";
+              int lb=strlen(pbav);
+              if(la+lb>=255) { _k(a); _k(b); _k(t); *pA++=KERR_LENGTH; break; }
+              char buf[256]; memcpy(buf,avp,la); memcpy(buf+la,pbav,lb); buf[la+lb]=0;
               if(!VST(pb[2])) { _k(a); _k(b); _k(t); *pA++=KERR_TYPE; break; }
-              *pA++=avdo(s-P,t,k_(pb[2]),mv);
-              _k(p);
+              *pA++=avdo(vi,t,k_(pb[2]),buf);
             }
             else {
               pb=px(b);
-              p=k(18,k_(a)&0xff00ffffffffffff,k_(pb[1])&0xff00ffffffffffff); /* join */
-              if(E(p)) { _k(a); _k(b); *pA++=p; break; }
-              mv=px(p);
-              ++mv;
-              if(!VST(pb[2])) { _k(a); _k(b); _k(p); *pA++=KERR_TYPE; break; }
-              *pA++=avdo(s-P,0,k_(pb[2]),mv);
-              _k(p);
+              int la=strlen(avp); char *pbav=(T(pb[1])==-3)?(char*)px(pb[1]):"";
+              int lb=strlen(pbav);
+              if(la+lb>=255) { _k(a); _k(b); *pA++=KERR_LENGTH; break; }
+              char buf[256]; memcpy(buf,avp,la); memcpy(buf+la,pbav,lb); buf[la+lb]=0;
+              if(!VST(pb[2])) { _k(a); _k(b); *pA++=KERR_TYPE; break; }
+              *pA++=avdo(vi,0,k_(pb[2]),buf);
             }
           }
           else if(pA>A&&i<nx-1&&0xc0==s(px[i+1])&&ik(px[i+1])==0xff) {  /* dyadic juxtaposition */
@@ -1579,16 +2001,38 @@ K pgreduce_(K x0, int *quiet) {
             t=*--pA;
             if(s(t)) { t=reduce(t); if(E(t)||EXIT) { _k(a); _k(b); *pA++=t; break; } }
             if(!VST(t)) { _k(a); _k(b); _k(t); *pA++=KERR_TYPE; break; }
-            *pA++=avdo(s-P,t,k_(b),mv);
+            *pA++=avdo(vi,t,k_(b),avp);
           }
           else if(s(b)) *pA++=KERR_TYPE;
-          else *pA++=avdo(s-P,0,k_(b),mv);
+          else *pA++=avdo(vi,0,k_(b),avp);
         }
         else { *pA++=KERR_PARSE; }
         _k(a); _k(b);
         break;
+      }
       case 0x85: /* adverbs alone */
         if(0x43==s(b)) { _k(a); _k(b); *pA++=KERR_TYPE; break; }
+        /* Issue #2 Pass 6: combine nested adverbs.  When b is already
+           a 0x45, fold the outer adverb 'a' into b's av string instead
+           of nesting 0x45-in-0x45 -- e.g. ' + 0x45('/, args) becomes
+           0x45("'/", args), so subsequent juxtaposition with a head
+           value sees a flat (av, args) pair. */
+        if(0x45==s(b)) {
+          K *pb=px(b);
+          char *pav_a=(T(a)==-3)?(char*)px(a):"";
+          char *pav_b=(T(pb[1])==-3)?(char*)px(pb[1]):"";
+          int la=strlen(pav_a), lb=strlen(pav_b);
+          if(la+lb>=256) { _k(a); _k(b); *pA++=KERR_LENGTH; break; }
+          char comb[256];
+          memcpy(comb,pav_a,la);
+          memcpy(comb+la,pav_b,lb+1);
+          K newav=tnv(3,la+lb,xmemdup(comb,la+lb+1));
+          _k(pb[1]);
+          pb[1]=newav;
+          _k(a);
+          *pA++=b;
+          break;
+        }
         t=tn(0,3); pt=px(t);
         pt[1]=a; pt[2]=b;
         *pA++=st(0x45,t);
@@ -1656,22 +2100,40 @@ K pgreduce_(K x0, int *quiet) {
           *pA++=fe(a,t,b,"");
         }
         break;
-      case 0xd4:
+      case 0xd9: /* Issue #2 Pass 3b-1: simple bare projection juxt
+                    -- fe() routes 0xd9 through fapply for inull-fill /
+                    nest. Adverbed-projection juxtaposition reaches
+                    c3_apply via the 0xda wrapper case below.
+                    0xd4 retired in Pass 4. */
         if(0x45==s(b)) {
           pb=px(b);
           mv=px(pb[1]);
           if(!VST(pb[2])) { _k(a); _k(b); *pA++=KERR_TYPE; break; }
+          /* Issue #2 Pass 6: dyadic-juxt detection -- `n f/x` and
+             `n f\x` where f is a 0xd9 projection.  Routes through
+             overmonadn/scanmonadn for primitive do/while; otherwise
+             falls back to avdo's monadic dispatch. */
+          if(pA>A && i<nx-1 && 0xc0==s(px[i+1]) && ik(px[i+1])==0xff
+             && (!strcmp(mv,"/")||!strcmp(mv,"\\"))
+             && ik(val(a))==1) {
+            ++i;
+            t=*--pA;
+            if(s(t)) { t=reduce(t); if(E(t)||EXIT) { _k(a); _k(b); *pA++=t; break; } }
+            if(!VST(t)) { _k(a); _k(b); _k(t); *pA++=KERR_TYPE; break; }
+            if(s(t)==0 && T(t)==1 && !strcmp(mv,"/")) { *pA++=overmonadn(a,t,k_(pb[2]),""); *quiet=0; }
+            else if(ISF(t) && ik(val(t))==1 && !strcmp(mv,"/")) { *pA++=overmonadb(a,t,k_(pb[2]),""); *quiet=0; }
+            else if(s(t)==0 && T(t)==1 && !strcmp(mv,"\\")) { *pA++=scanmonadn(a,t,k_(pb[2]),""); *quiet=0; }
+            else if(ISF(t) && ik(val(t))==1 && !strcmp(mv,"\\")) { *pA++=scanmonadb(a,t,k_(pb[2]),""); *quiet=0; }
+            else { _k(a); _k(t); *pA++=KERR_TYPE; }
+            _k(b);
+            break;
+          }
           *pA++=avdo(a,0,k_(pb[2]),mv);
           _k(b);
         }
         else *pA++=fe(a,0,b,"");
         break;
-      case 0xd5:
-        *pA++=fe(a,0,b,"");
-        break;
-      case 0xd6:
-        *pA++=fe(a,0,b,"");
-        break;
+      /* 0xd5/0xd6 retired in Pass 4 -- replaced by 0xd9 (handled above). */
       case 0xd7: *pA++=fe(a,0,b,""); break;
       default: *pA++=k(13,a,b); /* a b */
       } break;
@@ -1681,9 +2143,48 @@ K pgreduce_(K x0, int *quiet) {
       if(pA[-1]<EMAX) pA[-1]=kerror(E[pA[-1]]);
       if(E(pA[-1])) {
         if(EFLAG&&!EXIT&&!SIGNAL&&strcmp(sk(pA[-1]),"abort")) {
+          /* Look ahead: any unexecuted APPLY_N tokens AFTER the
+             failed token? Each one represents a call-site frame
+             that the OLD 0x44 path would have had its own
+             pgreduce_ (and own subrepl) for. APPLY_N's inline
+             arg evaluation collapsed those frames into this one;
+             we emulate them below so `'` walks levels the same
+             way and `:val` continues into the pending call. */
+          int apn_pending=0;
+          for(u64 k=i+1;k<nx;k++) {
+            if(s(px[k])==0xb0) { ++apn_pending; }
+          }
+          /* Faux `inpl` for the arg-eval phase: the OLD path was
+             inside r41()'s inpl=1 region when an arg errored, so
+             printerror chose the multi-line `<line0> ... + N`
+             format. Match that for APPLY_N's inline-arg eval. */
+          int inpl0=inpl;
+          if(apn_pending>0) inpl=1;
           printerror(pA[-1],x0,i);
           ++ecount;
           pA[-1]=repl();
+          /* Walk up each collapsed call-site frame for SIGNAL (`'`). */
+          while(apn_pending>0 && SIGNAL==0 && pA>A && pA[-1]
+                && E(pA[-1]) && !strcmp(sk(pA[-1]),"")  /* SIGNAL */
+                && EFLAG && !EXIT) {
+            --apn_pending;
+            /* Once we cross out of the innermost call-site (no more
+               APPLY_N pending), we are at the statement's open-code
+               level again -- restore inpl for the final caret. */
+            if(apn_pending==0) inpl=inpl0;
+            printerror(pA[-1],x0,0);
+            ++ecount;
+            pA[-1]=repl();
+          }
+          inpl=inpl0;
+          /* If the user substituted a value (`:val`) AND there is a
+             pending call-site (APPLY_N) ahead, continue the loop
+             with `val` in place of the failed token so the call
+             proceeds with the substituted arg. Without a pending
+             APPLY_N the substitute means "this whole frame returns
+             val" (matching the OLD path's per-frame semantics), so
+             fall through to break. */
+          if(apn_pending>0 && pA>A && pA[-1] && !E(pA[-1])) continue;
         }
         break;
       }
@@ -1889,6 +2390,71 @@ K pgreduce(K x, int p) {
 }
 
 static K listbc(pgs *s, pn *b, int t);
+
+/* Wrap a lex-emitted modified-verb K (subtype 0xc1, payload string like
+   "+/'") into the new 0xda 2-tuple representation: pf[0] = primitive verb
+   K t(1, st(0xc0, code)), pf[1] = bare adverb string. The dyad/monad
+   intent (was 0xc2 vs 0xc1 in the old shape) lives in the inner verb
+   K's encoding: code = 32+vi for monad, 64+vi for dyad. Used at every
+   parse-/bc-time site that copies an AST verb K into runtime data so
+   no live 0xc1/0xc2 K's leak past the parser. Steals nothing -- caller
+   still owns mv_k. Returns a fresh K. */
+static K wrap_mv_to_da(K mv_k, int dyad) {
+  char *mv=(char*)px(mv_k);
+  if(!*mv) return KERR_PARSE;
+  char *vp=strchr(P,*mv);
+  if(!vp || vp-P>20) return KERR_PARSE;
+  int vi=vp-P;
+  K f=t(1,st(0xc0,(K)((dyad?64:32)+vi)));
+  int alen=strlen(mv+1);
+  K av=tn(3,alen);
+  if(alen) memcpy((char*)px(av),mv+1,alen);
+  K w=tn(0,2);
+  K *pw=px(w);
+  pw[0]=f;
+  pw[1]=av;
+  return st(0xda,w);
+}
+
+/* k_() if the K is anything other than the lex-emitted 0xc1 modified-verb,
+   otherwise wrap into 0xda. Used at every bc()/list19() site that copies
+   an AST verb K into runtime data (compositions, fixed dyads, the verb
+   list of `(+/#)`, etc.). The dyad parameter records call-site intent
+   (encoded into the inner 0xc0 verb K); fe() ignores it but pgreduce_'s
+   outer 0xda case uses it to decide pop count. For nested storage in
+   0xc5/0xd0 the inner verb is always consumed via fe(), so the encoding
+   choice doesn't affect dispatch -- pass `dyad` if the surrounding
+   construct is dyadic, monad otherwise. */
+static K dupwrap_mv(K v, int dyad) {
+  if(0xc1==s(v)) return wrap_mv_to_da(v,dyad);
+  return k_(v);
+}
+
+/* Pass 1b: wrap a parser-emitted 0xc7 builtin-dyad K whose name has a
+   trailing adverb suffix (e.g. "draw/", "atan2\\") into the 0xda (f;av)
+   shape. This replaces the old 0xc7->0xdb subtype rewrite at parse
+   time so the modified-builtin-dyad value composes the same way as
+   modified primitive verbs (0xc0+adverbs in 0xda). The inner f is a
+   fresh 0xc7 K whose name is the adverb-stripped base; the av string
+   carries the trailing adverb chars. Caller still owns c7_k. */
+static K wrap_c7_to_da(K c7_k) {
+  char *full=sk(c7_k);
+  size_t fn=strlen(full);
+  size_t avstart=fn;
+  while(avstart>0 && strchr("'/\\",full[avstart-1])) --avstart;
+  if(avstart==0 || avstart==fn) return KERR_PARSE; /* shouldn't happen: hasav was true */
+  char base[64];
+  if(avstart>=sizeof(base)) return KERR_PARSE;
+  memcpy(base,full,avstart); base[avstart]=0;
+  K f=t(4,st(0xc7,sp(base)));
+  K av=tn(3,fn-avstart);
+  if(fn>avstart) memcpy((char*)px(av),full+avstart,fn-avstart);
+  K w=tn(0,2); K *pw=px(w);
+  pw[0]=f;
+  pw[1]=av;
+  return st(0xda,w);
+}
+
 K list19(pgs *s, pn *a) {
   K r=0;
   char *t;
@@ -1896,7 +2462,10 @@ K list19(pgs *s, pn *a) {
   if(a->a[1]->t==40) {
     K w=tn(0,a->a[1]->m); K *pw=px(w);
     i(n(w),pw[i]=listbc(s,a->a[1]->a[i],0x41))
-    pv[0]=k_(a->a[0]->t==1?a->a[0]->v:a->a[0]->n);
+    /* f in `f[a;b]...[c]` (40-args). If f is a 0xc1 modified verb,
+       wrap to 0xda so r44/fe see the new shape. */
+    if(a->a[0]->t==1) pv[0]=dupwrap_mv(a->a[0]->v,0);
+    else pv[0]=k_(a->a[0]->n);
     pv[1]=st(0x40,w);
     r=st(0x44,v);
   }
@@ -1911,7 +2480,8 @@ K list19(pgs *s, pn *a) {
           if(q->a[i]->a[0]->t==6) pv2[0]=listbc(s,q->a[i]->a[0],0x42);
           else pv2[0]=k_(q->a[i]->a[0]->n);
           if(s(q->a[i]->v)) {
-            pv2[1]=k_(q->a[i]->v);
+            /* fixed dyad inside 0xc5 -- verb is in dyadic position */
+            pv2[1]=dupwrap_mv(q->a[i]->v,1);
           }
           else {
             t=strchr(P,q->a[i]->v);
@@ -1920,7 +2490,8 @@ K list19(pgs *s, pn *a) {
           pv3[i]=st(0xd0,v2);
         }
         else if(s(q->a[i]->v)) {
-          pv3[i]=k_(q->a[i]->v);
+          /* element of 0xc5 verb composition, e.g. +/ in (+/#) */
+          pv3[i]=dupwrap_mv(q->a[i]->v,0);
         }
         else {
           t=strchr(P,q->a[i]->v);
@@ -1936,7 +2507,9 @@ K list19(pgs *s, pn *a) {
     else if(a->a[0]->t==19) {
       pv[0]=list19(s,a->a[0]);
     }
-    else pv[0]=k_(a->a[0]->t==1?a->a[0]->v:a->a[0]->n);
+    /* f in `f[a;b]` (4-args). Wrap a lex 0xc1 modified verb. */
+    else if(a->a[0]->t==1) pv[0]=dupwrap_mv(a->a[0]->v,0);
+    else pv[0]=k_(a->a[0]->n);
     pv[1]=listbc(s,a->a[1],0x41);
     r=st(0x44,v);
   }
@@ -1945,30 +2518,179 @@ K list19(pgs *s, pn *a) {
 }
 
 static int hasav(pn *a) {
-  K *pf;
-  char *pc;
-  if(a->t==2 && 0xc3==s(a->n)) {
-    pf=px(a->n);
-    pc=px(pf[0]);
-    if(strchr("'/\\",pc[strlen(pc)-1])) return 1;
-    if(pf[3]!=null) {
-      pc=px(pf[3]);
-      if(strlen(pc)) return 1;
-    }
-  }
-  else if(a->t==2 && 0x40==s(a->n) && 4==T(a->n)) {
-    pc=sk(a->n);
-    if(strchr("'/\\",pc[strlen(pc)-1])) return 1;
-  }
-  else if(a->t==1 && 0xc7==s(a->v)) {
-    pc=sk(a->v);
-    if(strpbrk(pc,"/\\")) return 1;
-  }
-  else if(a->t==1 && 0xca==s(a->v)) {
-    pc=sk(a->v);
-    if(strpbrk(pc,"/\\")) return 1;
+  /* Issue #2 Pass 6 cleanup: only 0xda(c3,av) carries an adverb at
+     AST-prep time now -- names and lambdas no longer embed adverb
+     chars in their text, so the legacy `strchr("'/\\",name[-1])`
+     and pf[3] checks are gone. */
+  if(a->t==2 && 0xda==s(a->n)) {
+    K *pw=px(a->n);
+    if(0xc3==s(pw[0])) return 1; /* 0xc4 retired */
   }
   return 0;
+}
+
+/* Returns the inline-arg-count if this f[a;b;c]-style call can be emitted as
+   inline RPN ending in an APPLY_N token, else returns -1.
+   Conditions:
+     - a->t == 19 (call site)
+     - a->a[1]->t == 4 (plist, not 40 = [][])
+     - all sub-stmts of the plist are non-null (no elided slots)
+     - a->a[0]->t == 2 (named/literal callable) or a->a[0]->t == 19 (nested
+       call which itself is inlinable)
+     - arg count fits in the low byte of an APPLY_N token (limit 255)
+     - a->lv == 0 (not an assignment LHS — those need to stay 0x44 so the
+       :/:: dyad case can amend in place). */
+/* A sub-statement is "stack-balanced" iff its emitted RPN tokens push
+   exactly one value to the eval stack with no spillover. This is what
+   APPLY_N's shared frame requires. The OLD 0x44 path runs each sub-stmt
+   in its own pgreduce_ frame so it doesn't care, but we do.
+
+   Conservative rules (errs toward the OLD 0x44 path):
+   - t==2 leaf (literal / var-ref): always pushes one value. OK.
+   - t==19 call: produces one value if it's itself inlineable, otherwise
+     falls back to a single 0x44 token. Either way: net +1.
+   - t==1 with a built-in dyad verb subtype (0xc7) AND both kids
+     populated AND each kid itself balanced: emits kids' tokens then a
+     dyad verb that pops 2 and pushes 1. Net +1, no interaction with
+     prior stack. Covers c-2, 1+2, etc. — the L4 case in t/p005.
+   - All other t==1 forms are rejected. In particular we exclude
+     assignments (':', '::', '+:', etc.), monads, control verbs, and
+     anything where the verb has only one operand on the inline RPN
+     stream — those forms either pull state from the shared stack or
+     have side-effect ordering that the OLD 0x44 path's per-sub-stmt
+     pgreduce_ frame protects (see parse.k / t/t571 for the canonical
+     case that broke). */
+static int is_balanced_substmt(pn *p) {
+  if(!p) return 0;
+  if(p->t==2) return 1;
+  if(p->t==19) return 1;
+  if(p->t==1) {
+    if(p->m!=2 || !p->a[0] || !p->a[1]) return 0;
+    K v = p->v;
+    K vsub = s(v);
+    /* Two flavours of verb token end up emitted into the RPN stream:
+         (a) explicit subtype tokens (0xc7 plain dyad, 0xc2 dyad-with-
+             adverb-ready, etc.) — those have non-zero subtype.
+         (b) "small char" verbs ('+', '-', '*', '%', ',', '!', '#', etc.)
+             stored as the raw byte. bc() emits these as
+             t(1, st(0xc0, code)) and pgreduce_'s case 0xc0 dispatches.
+             They have s(v)==0 and v is in the printable-ASCII range.
+
+       Both forms pop 1 or 2 and push 1 when fully applied. We accept
+       (a)'s 0xc7 (plain builtin dyad) and (b)'s small-char verbs
+       here, but exclude assignment and control tokens explicitly.
+       Note: modified verbs (was 0xc2) are now wrapped in 0xda in
+       bc(), so they never appear here as AST node values either. */
+    if(vsub == 0) {
+      /* small-char verb. Reject ':' (assignment) outright. The remaining
+         small-char dyads/monads are stack-safe when fully applied. */
+      if(v == 58) return 0;          /* ':' */
+      if(v < 32 || v > 127) return 0;
+    }
+    else if(vsub != 0xc7) {
+      return 0;
+    }
+    return is_balanced_substmt(p->a[0]) && is_balanced_substmt(p->a[1]);
+  }
+  return 0;
+}
+
+static int can_inline_call_uncached(pn *a) {
+  if(!a || a->t!=19) return -1;
+  if(a->lv) return -1;
+  if(!a->a[1] || a->a[1]->t!=4) return -1;
+  pn *plist=a->a[1];
+  /* If every arg is a pure literal (t==2 leaf with non-var-ref n), the
+     OLD 0x44 path wins: the parser pre-built a single token holding
+     the full call shape, so r44 fires off the end-of-stmt branch with
+     zero per-arg pgreduce_ iterations. APPLY_N would tokenize each
+     arg and walk the main loop N times for the same result. Skip
+     inlining in that case so L2 (do[t;f[1;2;3]]) keeps the OLD speed.
+     Calls with at least one variable, sub-call, or expression arg
+     still benefit from APPLY_N's shared-frame inlining. */
+  int all_literal = 1;
+  for(int i=0;i<plist->m;i++) {
+    pn *p=plist->a[i];
+    if(!p) return -1;
+    if(p->t==2 && p->n==0) return -1;    /* elided slot (e.g., f[;2]) */
+    if(!is_balanced_substmt(p)) return -1;
+    if(all_literal) {
+      if(p->t!=2) all_literal = 0;
+      else if(s(p->n) == 0x40) all_literal = 0;  /* variable reference */
+    }
+  }
+  if(all_literal && plist->m > 0) return -1;
+  if(plist->m > 255) return -1;
+  pn *fnode=a->a[0];
+  if(!fnode) return -1;
+  /* t==2 leaf: bc() emits the K stored in fnode->n directly (lambda
+     literal, stored 0x40 variable ref, etc.). Always inlinable. */
+  if(fnode->t==2) return plist->m;
+  /* t==1 verb-position: bc() emits K stored in fnode->v. The inline RPN
+     path requires the emitted token to be pushed onto the eval stack
+     unchanged; built-in verbs / stdlib dyads / control tokens are
+     processed inline by pgreduce_ (case 0xc6/0xc7/0xca/...) and would
+     consume operands meant for our APPLY_N. So we only accept the
+     stable-pushable subtypes here. */
+  if(fnode->t==1) {
+    K fv=fnode->v;
+    K sub=s(fv);
+    if(sub==0x40) return plist->m;       /* variable reference */
+    return -1;                           /* builtin verb / control token */
+  }
+  if(fnode->t==19) {
+    if(can_inline_call_uncached(fnode) < 0) return -1;
+    return plist->m;
+  }
+  return -1;
+}
+
+/* Caches the result on the pn so bc()'s second pass can re-query after the
+   children have been emitted (which clobbers their ->n). */
+static int can_inline_call(pn *a) {
+  if(!a || a->t!=19) return -1;
+  if(a->call_n != -2) return a->call_n;
+  a->call_n = can_inline_call_uncached(a);
+  return a->call_n;
+}
+
+/* Mark t==19 nodes that are LHS of an assignment as lvalue, so bc()'s
+   inline path leaves them as a 0x44 token for the assignment dyad. Walks
+   the AST recursively. The lvalue forms we detect:
+     a:1, a[i]:1               -- v is the literal ':' char (58)
+     a::1, d[`a]::1            -- v carries subtype 0x82
+     a+:1, a[i]+:1, etc.       -- v carries subtype 0x85 (amend dyad)
+     0xff wrappers around 0x85 -- the parser sometimes nests an amend
+                                  inside a t==1 with v==0xff
+   In all of these, a->a[0] is the lvalue side. */
+static int is_assign_verb(K v) {
+  if(v==58) return 1;          /* a:1 / a[i]:1 -- raw colon char */
+  if(0x82==s(v)) return 1;     /* a::1 / d[`a]::1 */
+  if(0x85==s(v)) return 1;     /* amend wrapper */
+  if(0x8c==s(v)) return 1;     /* alt amend (just in case the parser uses it) */
+  if(0xce==s(v)) return 1;     /* a+:1 / d[`a]+:1 */
+  if(0xcf==s(v)) return 1;     /* a+: */
+  return 0;
+}
+
+static void mark_lvalues(pn *a) {
+  if(!a) return;
+  if(a->t==1) {
+    int isassign=is_assign_verb(a->v);
+    /* 0xff wraps an amend in some grammars: q=t==1 with v==0xff and the
+       inner amend at q->a[0] (a t==1 with v==0x85). The inner's a[0]
+       remains the lvalue. */
+    if(!isassign && a->v==0xff && a->m>=1 && a->a[0] && a->a[0]->t==1
+       && is_assign_verb(a->a[0]->v)) {
+      pn *inner=a->a[0];
+      if(inner->m>=1 && inner->a[0] && inner->a[0]->t==19)
+        inner->a[0]->lv=1;
+    }
+    if(isassign && a->m>=1 && a->a[0] && a->a[0]->t==19) {
+      a->a[0]->lv=1;
+    }
+  }
+  for(int i=0;i<a->m;i++) mark_lvalues(a->a[i]);
 }
 
 static void bc(pgs *s, pn *a, K values, K index, K line, int *vm) {
@@ -1978,6 +2700,7 @@ static void bc(pgs *s, pn *a, K values, K index, K line, int *vm) {
   K *pvalues=px(values);
   int *pindex=px(index);
   int *pline=px(line);
+  mark_lvalues(a);
   s0=xmalloc(sizeof(pn*)*i0m);
   s1=xmalloc(sizeof(pn*)*i1m);
   s0[++i0]=a;
@@ -1988,7 +2711,29 @@ static void bc(pgs *s, pn *a, K values, K index, K line, int *vm) {
     if(a->t==6) continue; /* klist () */
     if(a->t==4) continue; /* plist [] */
     if(a->t==40) continue; /* [][]... */
-    if(a->t==19) continue; /* f[] */
+    if(a->t==19) {
+      /* Inline RPN for f[args]: push f, then each arg sub-stmt. The plist
+         node itself is NOT pushed; we synthesize an APPLY_N token in the
+         emit pass. Falls back to single-token list19() when not inlinable.
+         gk v1 evaluates parameter lists left-to-right (see doc/v1.md), so
+         we want first-source-arg evaluated first. The parser stores
+         plist->a in reverse-source order, so we iterate it backward here.
+         Net result of bc()'s two passes: emission is
+           f-tokens, first-source-tokens, ..., last-source-tokens, APPLY_N
+         which matches rl()'s convention (plist[0] = first source) that
+         lambda binding (x = plist[0]) expects. */
+      int N=can_inline_call(a);
+      if(N>=0) {
+        if(++i0==i0m) { i0m<<=1; s0=xrealloc(s0,sizeof(pn*)*i0m); }
+        s0[i0]=a->a[0];
+        pn *plist=a->a[1];
+        for(int k=plist->m-1;k>=0;--k) {
+          if(++i0==i0m) { i0m<<=1; s0=xrealloc(s0,sizeof(pn*)*i0m); }
+          s0[i0]=plist->a[k];
+        }
+      }
+      continue;
+    }
     if(a->t==11) continue; /* 1+ */
     if(a->t==7) continue; /* +- */
     for(i=0;i<a->m;i++) {
@@ -2003,12 +2748,19 @@ static void bc(pgs *s, pn *a, K values, K index, K line, int *vm) {
     pline[j]=a->line;
     if(a->t==1) {
       if(0xc1==s(a->v)) {
-        if(a->a[0]) a->v=(a->v&~((K)0xff<<48))|(K)0xc2<<48;  /* 1 +/ 2 3 4 */
-        pvalues[j++]=k_(a->v);
+        /* Wrap into 0xda (f;av) so pgreduce_, fe, etc. see the new
+           composable shape. Dyad intent (was the 0xc1->0xc2 rewrite)
+           is encoded in the inner verb K. */
+        pvalues[j++]=wrap_mv_to_da(a->v,!!a->a[0]);
       }
       else if(0xc7==s(a->v)) {
-        if(a->a[1]&&!a->a[0]&&hasav(a)) a->v=(a->v&~((K)0xff<<48))|(K)0xdb<<48;  /* draw/2 3 4 */
-        pvalues[j++]=k_(a->v);
+        if(a->a[1]&&!a->a[0]&&hasav(a)) {
+          /* draw/2 3 4 -- monadic apply of a builtin dyad with an
+             adverb. Pass 1b: wrap into 0xda (f;av) instead of the
+             old 0xc7->0xdb subtype rewrite. */
+          pvalues[j++]=wrap_c7_to_da(a->v);
+        }
+        else pvalues[j++]=k_(a->v);
       }
       else if(0xca==s(a->v)) {
         if(a->a[1]&&!a->a[0]&&hasav(a)) a->v=(a->v&~((K)0xff<<48))|(K)0xc9<<48;  /* mul/x */
@@ -2018,7 +2770,7 @@ static void bc(pgs *s, pn *a, K values, K index, K line, int *vm) {
         if(a->a[0]&&!a->a[1]) a->v=(a->v&~((K)0xff<<48))|(K)0xcf<<48;
         pvalues[j++]=k_(a->v);
       }
-      else if(0xc2==s(a->v)||0xc6==s(a->v)||0xc7==s(a->v)||0xc9==s(a->v)
+      else if(0xc6==s(a->v)||0xc7==s(a->v)||0xc9==s(a->v)
             ||0xd1==s(a->v)||0xd2==s(a->v)||0xd3==s(a->v)||0xcc==s(a->v)
             ||0xcd==s(a->v)||0xcb==s(a->v)||0x85==s(a->v)||0x82==s(a->v)
             ||0xd8==s(a->v)) {
@@ -2031,13 +2783,18 @@ static void bc(pgs *s, pn *a, K values, K index, K line, int *vm) {
     else if(a->t==2) { pvalues[j++]=a->n; a->n=0; }
     else if(a->t==6) { pvalues[j++]=listbc(s,a,0x42); } /* klist */
     else if(a->t==4) { pvalues[j++]=listbc(s,a,0x41); } /* plist */
-    else if(a->t==19) { pvalues[j++]=list19(s,a); } /* f[x] aka 0x44 subtype */
+    else if(a->t==19) {
+      int N=can_inline_call(a);
+      if(N>=0) pvalues[j++]=t(1,st(0xb0,N)); /* APPLY_N */
+      else pvalues[j++]=list19(s,a); /* f[x] aka 0x44 subtype */
+    }
     else if(a->t==11) {  /* 1+ */
       K v=tn(0,2); K *pv=px(v);
       if(a->a[0]->t==6) pv[0]=listbc(s,a->a[0],0x42);
       else pv[0]=k_(a->a[0]->n);
       if(s(a->v)) {
-        pv[1]=k_(a->v);
+        /* 0xd0 fixed dyad: verb in dyadic position (e.g. 5+/x) */
+        pv[1]=dupwrap_mv(a->v,1);
       }
       else {
         t=strchr(P,a->v);
@@ -2053,7 +2810,8 @@ static void bc(pgs *s, pn *a, K values, K index, K line, int *vm) {
           if(a->a[i]->a[0]->t==6) pv2[0]=listbc(s,a->a[i]->a[0],0x42);
           else pv2[0]=k_(a->a[i]->a[0]->n);
           if(s(a->a[i]->v)) {
-            pv2[1]=k_(a->a[i]->v);
+            /* 0xd0 fixed dyad inside t==7 composition */
+            pv2[1]=dupwrap_mv(a->a[i]->v,1);
           }
           else {
             t=strchr(P,a->a[i]->v);
@@ -2062,7 +2820,8 @@ static void bc(pgs *s, pn *a, K values, K index, K line, int *vm) {
           pv[i]=st(0xd0,v2);
         }
         else if(s(a->a[i]->v)) {
-          pv[i]=k_(a->a[i]->v);
+          /* element of 0xc5 verb-list, e.g. +/ in (+/-) */
+          pv[i]=dupwrap_mv(a->a[i]->v,0);
         }
         else {
           t=strchr(P,a->a[i]->v);
@@ -2154,6 +2913,8 @@ pn* pnnew(pgs *s, int t, K v, K n, int m, int f) {
   r->m=m;
   r->f=f;
   r->i=-1;
+  r->lv=0;
+  r->call_n=-2;
   r->a=m?xcalloc(m,sizeof(pn*)):0;
 
   /* add to the global node array, grow if needed */
@@ -2204,12 +2965,107 @@ static void r001(pgs *s) { /* s > e se */
 static void r002(pgs *s) { /* s > se */
   (void)s;
 }
-static void r003(pgs *s) { /* e > o ez */
-  char *t;
+/* Issue #2 Pass 6: an adverb that follows a value is a postfix
+   modifier on that value -- e.g. `f'`, `f[2]'`, `(f+g)'`. The lexer
+   no longer glues adverbs onto names/lambdas, so the right-leaning
+   juxt tree built by the grammar can have a chain of adverbs and
+   plists in its right spine. Left-fold that spine so each element
+   binds postfix to the previously-built value:
+
+       juxt(a, juxt(',  juxt([3], juxt(', [4]))))
+     ->
+       juxt(juxt(juxt(juxt(a, '), [3]), '), [4])
+
+   Only triggers when the immediate spine head is a 0x85 adverb;
+   value-composition chains like `f g h` (juxt with non-adverb head)
+   are left untouched so they keep their right-leaning, K-style
+   "f@g@h" semantics. */
+static int is_adverb_pn(pn *n) {
+  return n && n->t==1 && 0x85==s(n->v);
+}
+static int is_args_pn(pn *n) {
+  return n && (n->t==4 || n->t==40); /* plist or [][]... */
+}
+/* Pre-check: every spine element is an adverb or plist. */
+static int is_pure_postfix_chain(pn *b) {
+  while(b && b->t==1 && b->v==0xff && b->m>=2 && b->a[0] && b->a[1]) {
+    if(!is_adverb_pn(b->a[0]) && !is_args_pn(b->a[0])) return 0;
+    b=b->a[1];
+  }
+  return b && (is_adverb_pn(b) || is_args_pn(b));
+}
+/* Peel one head element onto a as a juxt. We deliberately build all
+   peels as 0xff juxts (rather than special-casing plists into t=19
+   apply nodes); pgreduce_'s case 7 handles juxt-with-plist via the
+   0x41/0x81 -> 0x44 packing path, which routes through r44/fapply
+   correctly for our 0xda/0xd9-headed left side. */
+static pn *postfix_peel(pgs *s, pn *a, pn *head) {
+  pn *q=pnnewi(s,1,0xff,0,2,1,a->i,a->line);
+  q->a[0]=a;
+  q->a[1]=head;
+  return q;
+}
+/* The chain contains at least one adverb head somewhere down the
+   right-spine.  Pure plist chains (`f[1][2]`) don't need restructure
+   -- their right-leaning juxt already reduces correctly via the
+   r44/fapply path -- but a chain that mixes plists and adverbs
+   (`f[1]'`, `f[1]'[2]'`) does, so the trailing adverb lands on the
+   partial-arg projection rather than on the inner args plist.  */
+static int has_adverb_in_chain(pn *b) {
+  while(b && b->t==1 && b->v==0xff && b->m>=2 && b->a[0] && b->a[1]) {
+    if(is_adverb_pn(b->a[0])) return 1;
+    b=b->a[1];
+  }
+  return is_adverb_pn(b);
+}
+static pn *postfix_restructure(pgs *s, pn *a, pn *b) {
+  /* Only restructure if the entire spine is adverbs and plists.
+     If a verb/value appears mid-chain (e.g. `g'!5`), the chain is
+     mixed and right-leaning semantics must be preserved. */
+  if(!is_pure_postfix_chain(b)) return 0;
+  /* And only if there's actually an adverb in the chain -- a pure
+     plist chain (`f[1][2]`) is already correct under right-lean.
+     This also drops the old "leading head must be adverb" check
+     so plist-first chains like `f[1]'` left-fold too. */
+  if(!has_adverb_in_chain(b)) return 0;
+  while(b && b->t==1 && b->v==0xff && b->m>=2 && b->a[0] && b->a[1]) {
+    a=postfix_peel(s,a,b->a[0]);
+    b=b->a[1];
+  }
+  return postfix_peel(s,a,b);
+}
+static void r003_(pgs *s) { /* body of e > o ez (wrapped by r003) */
   pn *q;
   pn *b=s->V[s->vi--];
   pn *a=s->V[s->vi];
   if(!b) return;
+  /* Postfix-restructure (immediate case): a=value, b=juxt(adverb, ...).
+     Triggered by r003 calls that combine a value with a juxt whose
+     leftmost spine element is an adverb. Other paths in r003 may
+     also build this shape (e.g. line 2810 inserts an apply node into
+     b->a[0]) -- those are handled by the same logic re-applied at
+     each store via the maybe_postfix_store() helper below. */
+  if(is_adverb_pn(b) && a && (V(a) || a->t==2 || a->t==6 || a->t==19)) {
+    q=pnnewi(s,1,0xff,0,2,1,a->i,a->line);
+    q->a[0]=a;
+    q->a[1]=b;
+    s->V[s->vi]=q;
+    return;
+  }
+  if(b->t==1 && b->v==0xff && b->m>=2 && b->a[0] && b->a[1]
+     && (is_adverb_pn(b->a[0]) || is_args_pn(b->a[0]))
+     && has_adverb_in_chain(b)
+     && !is_adverb_pn(a)) {
+    /* Skip when a is itself an adverb (`'[2]'` as a sub-expression):
+       folding here would left-fold the inner chain before the real
+       base value arrives, and the resulting left-folded juxt would
+       break is_pure_postfix_chain at the outer fold (where `f`
+       attaches).  Defer to the V(a) right-leaning juxt path below;
+       postfix_restructure fires at the f-attached level instead. */
+    q=postfix_restructure(s,a,b);
+    if(q) { s->V[s->vi]=q; return; }
+  }
+  if(!a) return; /* postfix-restructure short-circuit may leave a NULL */
   if(a->t==2 && (b->t==4 || b->t==40)) {
     q=pnnewi(s,19,0,0,2,1,a->i,a->line);
     q->a[0]=a;
@@ -2245,6 +3101,17 @@ static void r003(pgs *s) { /* e > o ez */
       q->a[1]=b;
       s->V[s->vi]=q;
     }
+    else if(0x85==s(b->v)) {
+      /* Issue #2 Pass 6: verb followed by adverb -- the lexer no
+         longer slurps adverbs onto verb names, so the parser sees
+         them as separate V nodes here.  Build a juxt(verb, adverb)
+         so postfix-restructure and pgreduce_'s case 7 wrap into
+         0xda(verb, av) on application. */
+      q=pnnewi(s,1,0xff,0,2,1,a->i,a->line);
+      q->a[0]=a;
+      q->a[1]=b;
+      s->V[s->vi]=q;
+    }
     else if(b->v==0xff && b->a[0] && b->a[0]->t==4) {
       q=pnnewi(s,19,0,0,2,1,a->i,a->line);
       q->a[0]=a;
@@ -2259,12 +3126,10 @@ static void r003(pgs *s) { /* e > o ez */
       b->a[0]=q;
       s->V[s->vi]=b;
     }
-    else if(a->t==7 && 0x85==s(b->v)) {
-      q=pnnewi(s,1,0xff,0,2,1,a->i,a->line);
-      q->a[0]=a;
-      q->a[1]=b;
-      s->V[s->vi]=q;
-    }
+    /* Issue #2 Pass 6 cleanup: `a->t==7 && 0x85==s(b->v)` retired
+       (post-pass-6 no path produces this shape -- the lexer emits
+       adverbs as standalone 0x85 leaves which r003 wraps via the
+       earlier `0x85==s(b->v)` branch and postfix-restructure). */
     else if(a->t==7 && 0xff==b->v && b->a[0] && 0x85==s(b->a[0]->v)) {
       q=pnnewi(s,1,0xff,0,2,1,a->i,a->line);
       q->a[0]=a;
@@ -2353,25 +3218,13 @@ static void r003(pgs *s) { /* e > o ez */
       s->V[s->vi]=b;
     }
     else if(b->a[0]) {
-      if(b->v==0x27 && V(b->a[0])) { /* ' */
-        t=strchr(P,b->a[0]->n);
-        b->v=256+t-P;
-        b->a[0]=a;
-        s->V[s->vi]=b;
-      }
-      else if(b->v==0xce && V(b->a[0])) { /* / */
-        t=strchr(P,b->a[0]->n);
-        b->v=512+t-P;
-        b->a[0]=a;
-        s->V[s->vi]=b;
-      }
-      else if(b->v==0x5c && V(b->a[0])) { /* \ */
-        t=strchr(P,b->a[0]->n);
-        b->v=1024+t-P;
-        b->a[0]=a;
-        s->V[s->vi]=b;
-      }
-      else if(b->a[0] && (b->a[0]->t==4||b->a[0]->t==40) && b->v!=58 && b->v!=0xff) { /* d[],1   b->v != : */
+      /* Issue #2 Pass 6 cleanup: `b->v==0x27|0xce|0x5c &&
+         V(b->a[0])` branches retired -- these encoded "value-then-
+         adverbed-verb" (e.g. `1+'`) by mutating b->v into the 256+/
+         512+/1024+ space.  Post-pass-6 the adverb is a standalone
+         leaf and composition happens via the postfix-restructure
+         juxt path, so b->v never carries 0x27/0xce/0x5c here. */
+      if(b->a[0] && (b->a[0]->t==4||b->a[0]->t==40) && b->v!=58 && b->v!=0xff) { /* d[],1   b->v != : */
         q=pnnewi(s,1,0xff,0,2,1,a->i,a->line);
         q->a[0]=a;
         q->a[1]=b->a[0];
@@ -2422,7 +3275,9 @@ static void r003(pgs *s) { /* e > o ez */
         b->a[0]=a;
         s->V[s->vi]=b;
       }
-      else if(0xc3==s(a->n)) {
+      else if(0xc3==s(a->n) || 0xda==s(a->n)) {
+        /* Pass 2b-step-4: 0xda(c3,av) inline lambda also fires the
+           dyad-juxt insertion path. */
         q=pnnewi(s,1,0xff,0,2,1,a->i,a->line);
         q->a[0]=a;
         q->a[1]=b;
@@ -2440,6 +3295,37 @@ static void r003(pgs *s) { /* e > o ez */
     q->a[0]=a;
     q->a[1]=b;
     s->V[s->vi]=q;
+  }
+}
+/* Issue #2 Pass 6: r003 wrapper that runs the LR rule body and then
+   applies postfix-restructure as a post-process. The result tree at
+   s->V[s->vi] may be a juxt (built directly), or a juxt embedded
+   inside a t==1 node (e.g. via line "b->a[0]=q; s->V[s->vi]=b"
+   patterns). For each candidate sub-juxt found at the top of the
+   tree whose right-spine starts with an adverb head, recursively
+   left-fold it. */
+static pn *postfix_restructure_top(pgs *s, pn *r) {
+  if(!r) return r;
+  if(r->t==1 && r->v==0xff && r->m>=2 && r->a[0] && r->a[1]) {
+    pn *b=r->a[1];
+    if(b->t==1 && b->v==0xff && b->m>=2 && b->a[0] && b->a[1]
+       && (is_adverb_pn(b->a[0]) || is_args_pn(b->a[0]))
+       && has_adverb_in_chain(b)
+       && !is_adverb_pn(r->a[0])) {
+      /* Same defer rule as r003_'s pre-fold gate -- if the base
+         is itself an adverb (`'[2]'` as a sub-expression), leave
+         the right-leaning chain alone for the outer fold. */
+      pn *q=postfix_restructure(s,r->a[0],b);
+      if(q) return q;
+    }
+  }
+  return r;
+}
+static void r003(pgs *s) { /* e > o ez */
+  int vi0=s->vi;
+  r003_(s);
+  if(s->vi<=vi0 && s->V[s->vi]) {
+    s->V[s->vi]=postfix_restructure_top(s,s->V[s->vi]);
   }
 }
 static void r004(pgs *s) { /* se > ';' */
@@ -2543,12 +3429,10 @@ static void r013(pgs *s) { /* plist > '[' elist ']' pz */
     b->a[0]=q;
     s->V[s->vi]=b;
   }
-  else if(a->t==4&&0x85==s(b->v)) { /* []' */
-    pn *q=pnnewi(s,104,0,0,2,1,a->i,a->line);
-    q->a[0]=a;
-    q->a[1]=b;
-    s->V[s->vi]=q;
-  }
+  /* Issue #2 Pass 6 cleanup: t=104 `[]'` retired -- the legacy
+     special node for a bracketed apply followed by a single trailing
+     adverb.  Post-pass-6 the adverb folds onto the apply via the
+     standard postfix-restructure path before r013 sees it. */
   else if(b->t==1) { /* [0]:5 */
     if(b->v==0xff) {
       pn *q=pnnewi(s,1,0xff,0,2,1,a->i,a->line);
@@ -2564,6 +3448,23 @@ static void r013(pgs *s) { /* plist > '[' elist ']' pz */
       s->V[s->vi]=b;
     }
     else if(b->a[0]) {
+      pn *q=pnnewi(s,1,0xff,0,2,1,a->i,a->line);
+      q->a[0]=a;
+      q->a[1]=b;
+      s->V[s->vi]=q;
+    }
+    else if(is_adverb_pn(b)) {
+      /* Issue #2: `[args]'` -- the post-list pz is a solo adverb.
+         The old branch stuffed the plist into b->a[0] (making the
+         adverb the outer node with plist as inner), which gave the
+         wrong reduce shape when an `f` arrives in r003_: the parse
+         tree became f juxt adverb(plist) and bc() emitted [f, args,
+         adverb, juxt] -- so case-7 saw (args, adverb) at the top
+         of stack with f stranded one slot below.  Build juxt(plist,
+         adverb) instead so r003_/postfix_restructure see the
+         canonical adverb-in-chain shape and left-fold to
+         juxt(juxt(f, plist), adverb).  Covers `f[1]'`, `f[1;2]'`,
+         and chained variants like `f[1]'[2]'`. */
       pn *q=pnnewi(s,1,0xff,0,2,1,a->i,a->line);
       q->a[0]=a;
       q->a[1]=b;

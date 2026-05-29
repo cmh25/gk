@@ -1248,7 +1248,7 @@ K fourcolon(K a, K x) {
 
 static K eightcolon1(K x) {
   K r=t(1,(u32)tx);
-  if(0xc3==s(x)||0xc4==s(x)) r=t(1,7);
+  if(0xc3==s(x)) r=t(1,7); /* 0xc4 retired in Pass 4 */
   if(0x80==s(x)) r=t(1,5);
   return r;
 }

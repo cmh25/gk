@@ -48,12 +48,7 @@ K atcb(K a,K x) {
     --d;
     return knorm(r);
   }
-  else if(0xc3==s(a)) {
-    t=tn(0,1); pt=px(t);
-    pt[0]=k_(x);
-    r=fne(k_(a),t,0);
-  }
-  else if(0xc4==s(a)) {
+  else if(0xc3==s(a)) { /* 0xc4 retired in Pass 4 */
     t=tn(0,1); pt=px(t);
     pt[0]=k_(x);
     r=fne(k_(a),t,0);
@@ -63,13 +58,18 @@ K atcb(K a,K x) {
     i32 w=c%32;
     r=k(w,0,k_(x));
   }
-  else if(0xc6==s(a) || 0xc8==s(a)) {
+  else if(0xc6==s(a)) { /* 0xc8 retired in Pass 4 -- now 0xd9 */
     r=builtin(a,0,k_(x));
   }
   else if(0xc5==s(a)) {
     r=fc(a,0,k_(x),"");
   }
-  else if(0xc1==s(a)) {
+  else if(0xda==s(a)) { /* (f;av) modified-verb wrapper, replaces 0xc1 */
+    r=fe(k_(a),0,k_(x),"");
+  }
+  else if(0xd9==s(a)) { /* Issue #2 Pass 3b-3: (f;args) projection
+                           wrapper -- route through fe() which peels
+                           the wrapper via fapply. */
     r=fe(k_(a),0,k_(x),"");
   }
   else if(0xd7==s(a)) {
@@ -184,7 +184,7 @@ K dotcb(K a,K x) {
     }
     --d; return knorm(r);
   }
-  else if(0xc3==s(a)||0xc4==s(a)) {
+  else if(0xc3==s(a)) { /* 0xc4 retired in Pass 4 */
     switch(tx) {
     case  0: r=fne(k_(a),k_(x),0); break;
     case -1: case -2: case -3: case -4:
@@ -216,7 +216,7 @@ K dotcb(K a,K x) {
   else if(0xc6==s(a)) {
     r=builtin(a,0,k_(x));
   }
-  else if(0xc7==s(a)||0xc8==s(a)) {
+  else if(0xc7==s(a)) { /* 0xc8 retired in Pass 4 -- now 0xd9 */
     switch(tx) {
     case -1: case -2: case -3: case -4: case 0:
       t=kmix(x); if(E(t)) { --d; return t; }
@@ -246,7 +246,24 @@ K dotcb(K a,K x) {
     default: r=fc(a,0,k_(x),"");
     }
   }
-  else if(0xc1==s(a)) {
+  else if(0xda==s(a)) { /* (f;av) modified-verb wrapper, replaces 0xc1 */
+    switch(tx) {
+    case -1: case -2: case -3: case -4: case 0:
+      t=kmix(x); if(E(t)) { --d; return t; }
+      pt=px(t);
+      switch(n(t)) {
+      case 1: r=fe(k_(a),0,k_(pt[0]),""); break;
+      case 2: r=fe(k_(a),k_(pt[0]),k_(pt[1]),""); break;
+      default: r=KERR_VALENCE;
+      }
+      _k(t);
+      break;
+    default: r=fe(k_(a),0,k_(x),"");
+    }
+  }
+  else if(0xd9==s(a)) { /* Issue #2 Pass 3b-3: (f;args) projection
+                           wrapper -- fe() routes through fapply,
+                           which peels and merges. */
     switch(tx) {
     case -1: case -2: case -3: case -4: case 0:
       t=kmix(x); if(E(t)) { --d; return t; }
@@ -442,7 +459,9 @@ static K form2w(char *t, i32 w, i32 z) {
 K formcb(K a, K x) {
   K r=0,*prk,t,p;
   i32 *pai;
-  if((s(a)==0xc3||s(a)==0xc4)&&!s(x)) {
+  /* Issue #2 Pass 3b-5 / Pass 4: 0xd9 (f;args) projection joins
+     0xc3 as a callable for $-format.  0xc4 retired. */
+  if((s(a)==0xc3||s(a)==0xd9)&&!s(x)) {
     switch(tx) {
     case -3: r=fnnew(px(x)); break;
     case  0: r=irecur2(formcb,a,x); break;
@@ -457,14 +476,16 @@ K formcb(K a, K x) {
       switch(s(x)) {
       case 0x80:
       case 0xc3:
-      case 0xc4: t=formatcb(x); r=form2w(px(t),ik(a),1); _k(t); break;
+      /* 0xc4 retired in Pass 4 */
+      case 0xd9: t=formatcb(x); r=form2w(px(t),ik(a),1); _k(t); break;
       default: r=KERR_TYPE;
       } break;
     case -1:
       switch(s(x)) {
       case 0x80:
       case 0xc3:
-      case 0xc4:
+      /* 0xc4 retired in Pass 4 */
+      case 0xd9:
         PAI;
         i(na,if(pai[i]==INT32_MIN)return KERR_DOMAIN; VSIZE(llabs((i64)pai[i])))
         PRK(na);
