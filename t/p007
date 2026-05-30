@@ -1,0 +1,36 @@
+/ Adverb fold/scan micro-benchmarks (n=!_1e7, \t expr = ms)
+/ Compare (all n=!_1e7; goal prints ns, others print ms):
+/   ./gk benchmark.k | tee gk.out
+/   ~/e333j/e benchmark.k
+/   ~/ngn/k/k benchmark.k
+/   ~/growler/k/k benchmark.k
+/   ~/goal/goal < ~/goal/benchmark.k   (REPL stdin; rt.time → ns, ÷1e6)
+
+n:!_1e7
+\t +/n
+\t +\n
+\t -/n
+\t -\n
+\t */n
+\t *\n
+\t %/n
+\t %\n
+\t &/n
+\t &\n
+\t |/n
+\t |\n
+
+n:0.0+!_1e7
+\t +/n
+\t +\n
+\t -/n
+\t -\n
+\t */n
+\t *\n
+\t %/n
+\t %\n
+\t &/n
+\t &\n
+\t |/n
+\t |\n
+\\

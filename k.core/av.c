@@ -3,6 +3,13 @@
 
 extern i32 vstcb(K x);
 
+static inline i32 av_isel(i32 a, i32 b, i8 op) {
+  return op < 0 ? (a < b ? a : b) : (a > b ? a : b);
+}
+static inline double av_fsel(double a, double b, i8 op) {
+  return cmpff(a, b) == op ? a : b;
+}
+
 // P=":+-*%&|<>=~.!@?#_^,$'/\\"
 K each(i32 f, K a, K x) {
   K r=0,*prk,e;
@@ -66,6 +73,8 @@ K overd(i32 f, K x) {
   double sf,*pxf;
   if(f<0||f>22) return KERR_TYPE;
   Tx=tx; if(!Tx&&s(x)) { if(!vstcb(x)) return KERR_TYPE; Tx=15; }
+  if(Tx==1||Tx==2||Tx==3||Tx==4) return k_(x);
+  if(Tx==15) return kcp(x);
   if(Tx<=0&&!nx) {
     ff=P[f];
     if(strchr("+*&|",ff)) {
@@ -96,26 +105,54 @@ K overd(i32 f, K x) {
   switch(f) {
   case 1:
     switch(Tx) {
-    case  1: r=k_(x); break;
-    case  2: r=k_(x); break;
     case -1: PXI; { u32 su=0; i(nx,su+=(u32)*pxi++); r=t(1,su); } break;
     case -2: PXF; sf=0; i(nx,sf+=*pxf++); r=t2(sf); break;
     case  0: PXK; r=k_(*pxk++); i1(nx,p=ki(f,r,x,-1,i);_k(r);r=0;EC(p);r=p) break;
     default: return KERR_TYPE;
     } break;
+  case 2:
+    switch(Tx) {
+    case -1: PXI; { i32 su=*pxi++; i(nx-1,su=(i32)((u32)su-(u32)*pxi++)); r=t(1,(u32)su); } break;
+    case -2: PXF; sf=*pxf++; i(nx-1,sf-=*pxf++); r=t2(sf); break;
+    case  0: PXK; r=k_(*pxk++); i1(nx,p=ki(f,r,x,-1,i);_k(r);r=0;EC(p);r=p) break;
+    default: return KERR_TYPE;
+    } break;
   case 3:
     switch(Tx) {
-    case  1: r=k_(x); break;
-    case  2: r=k_(x); break;
     case -1: PXI; { u32 su=1; i(nx,su*=(u32)*pxi++); r=t(1,su); } break;
     case -2: PXF; sf=1; i(nx,sf*=*pxf++); r=t2(sf); break;
     case  0: PXK; r=k_(*pxk++); i1(nx,p=ki(f,r,x,-1,i);_k(r);r=0;EC(p);r=p) break;
     default: return KERR_TYPE;
     } break;
+  case 4:
+    switch(Tx) {
+    case -1: PXI; { sf=fi(*pxi++); i(nx-1,sf/=fi(*pxi++)); r=t2(sf); } break;
+    case -2: PXF; sf=*pxf++; i(nx-1,sf/=*pxf++); r=t2(sf); break;
+    case  0: PXK; r=k_(*pxk++); i1(nx,p=ki(f,r,x,-1,i);_k(r);r=0;EC(p);r=p) break;
+    case -3: PXC; r=t(3,(u8)*pxc++); i1(nx,p=ki(f,r,x,-1,i);_k(r);r=0;EC(p);r=p) break;
+    case -4: PXS; r=t(4,(K)*pxs++); i1(nx,p=ki(f,r,x,-1,i);_k(r);r=0;EC(p);r=p) break;
+    default: return KERR_TYPE;
+    } break;
+  case 5:
+    switch(Tx) {
+    case -1: PXI; { i32 su=*pxi++; i(nx-1,su=av_isel(su,*pxi++,-1)); r=t(1,(u32)su); } break;
+    case -2: PXF; sf=*pxf++; i(nx-1,sf=av_fsel(sf,*pxf++,-1)); r=t2(sf); break;
+    case  0: PXK; r=k_(*pxk++); i1(nx,p=ki(f,r,x,-1,i);_k(r);r=0;EC(p);r=p) break;
+    case -3: PXC; r=t(3,(u8)*pxc++); i1(nx,p=ki(f,r,x,-1,i);_k(r);r=0;EC(p);r=p) break;
+    case -4: PXS; r=t(4,(K)*pxs++); i1(nx,p=ki(f,r,x,-1,i);_k(r);r=0;EC(p);r=p) break;
+    default: return KERR_TYPE;
+    } break;
+  case 6:
+    switch(Tx) {
+    case -1: PXI; { i32 su=*pxi++; i(nx-1,su=av_isel(su,*pxi++,1)); r=t(1,(u32)su); } break;
+    case -2: PXF; sf=*pxf++; i(nx-1,sf=av_fsel(sf,*pxf++,1)); r=t2(sf); break;
+    case  0: PXK; r=k_(*pxk++); i1(nx,p=ki(f,r,x,-1,i);_k(r);r=0;EC(p);r=p) break;
+    case -3: PXC; r=t(3,(u8)*pxc++); i1(nx,p=ki(f,r,x,-1,i);_k(r);r=0;EC(p);r=p) break;
+    case -4: PXS; r=t(4,(K)*pxs++); i1(nx,p=ki(f,r,x,-1,i);_k(r);r=0;EC(p);r=p) break;
+    default: return KERR_TYPE;
+    } break;
   default:
     switch(Tx) {
-    case  1: case 2: case 3: case 4: r=k_(x); break;
-    case 15: r=kcp(x); break;
     case -1: PXI; r=t(1,(u32)*pxi++); i1(nx,p=ki(f,r,x,-1,i);_k(r);r=0;EC(p);r=p) break;
     case -2: PXF; r=t2(*pxf++); i1(nx,p=ki(f,r,x,-1,i);_k(r);r=0;EC(p);r=p) break;
     case -3: PXC; r=t(3,(u8)*pxc++); i1(nx,p=ki(f,r,x,-1,i);_k(r);r=0;EC(p);r=p) break;
@@ -149,24 +186,56 @@ K scand(i32 f, K x) {
     return r;
   }
   if(Tx==-1&&!nx&&ff=='=') return tn(1,0);
-  if(Tx==3||Tx==1||Tx==2||Tx==4) return k_(x);
-  if(Tx==10) return kcp(x);
+  if(Tx==1||Tx==2||Tx==3||Tx==4) return k_(x);
+  if(Tx==15) return kcp(x);
   if(Tx<=0&&!nx) return tn(0,0);
   switch(f) {
   case 1:
     switch(Tx) {
-    case  1: case 2: r=k_(x); break;
     case -1: PRI(nx); PXI; { u32 su=0; i(nx,su+=(u32)*pxi++; *pri++=(i32)su); } break;
     case -2: PRF(nx); PXF; sf=0; i(nx,sf+=*pxf++; *prf++=sf); break;
     case  0: PRK(nx); PXK; *prk++=p=k_(*pxk++); i1(nx,p=ki(f,p,x,-1,i);EC(p);*prk++=p) break;
     default: return KERR_TYPE;
     } break;
+  case 2:
+    switch(Tx) {
+    case -1: PRI(nx); PXI; { i32 su=*pxi++; *pri++=su; i(nx-1,su=(i32)((u32)su-(u32)*pxi++); *pri++=su); } break;
+    case -2: PRF(nx); PXF; sf=*pxf++; *prf++=sf; i(nx-1,sf-=*pxf++; *prf++=sf); break;
+    case  0: PRK(nx); PXK; *prk++=p=k_(*pxk++); i1(nx,p=ki(f,p,x,-1,i);EC(p);*prk++=p) break;
+    default: return KERR_TYPE;
+    } break;
   case 3:
     switch(Tx) {
-    case  1: case 2: r=k_(x); break;
     case -1: PRI(nx); PXI; { u32 su=1; i(nx,su*=(u32)*pxi++; *pri++=(i32)su); } break;
     case -2: PRF(nx); PXF; sf=1.0; i(nx,sf*=*pxf++; *prf++=sf); break;
     case  0: PRK(nx); PXK; *prk++=p=k_(*pxk++); i1(nx,p=ki(f,p,x,-1,i);EC(p);*prk++=p) break;
+    default: return KERR_TYPE;
+    } break;
+  case 4:
+    switch(Tx) {
+    case -1: PRK(nx); PXI; *prk++=p=t(1,(u32)*pxi++); i1(nx,p=ki(f,p,x,-1,i);EC(p);*prk++=p) break;
+    case -2: PRF(nx); PXF; sf=*pxf++; *prf++=sf; i(nx-1,sf/=*pxf++; *prf++=sf); break;
+    case  0: PRK(nx); PXK; *prk++=p=k_(*pxk++); i1(nx,p=ki(f,p,x,-1,i);EC(p);*prk++=p) break;
+    case -3: PRK(nx); PXC; *prk++=p=t(3,(u8)*pxc++); i1(nx,p=ki(f,p,x,-1,i);EC(p);*prk++=p) break;
+    case -4: PRK(nx); PXS; *prk++=p=t(4,(K)*pxs++); i1(nx,p=ki(f,p,x,-1,i);EC(p);*prk++=p) break;
+    default: return KERR_TYPE;
+    } break;
+  case 5:
+    switch(Tx) {
+    case -1: PRI(nx); PXI; { i32 su=*pxi++; *pri++=su; i(nx-1,su=av_isel(su,*pxi++,-1); *pri++=su); } break;
+    case -2: PRF(nx); PXF; sf=*pxf++; *prf++=sf; i(nx-1,sf=av_fsel(sf,*pxf++,-1); *prf++=sf); break;
+    case  0: PRK(nx); PXK; *prk++=p=k_(*pxk++); i1(nx,p=ki(f,p,x,-1,i);EC(p);*prk++=p) break;
+    case -3: PRK(nx); PXC; *prk++=p=t(3,(u8)*pxc++); i1(nx,p=ki(f,p,x,-1,i);EC(p);*prk++=p) break;
+    case -4: PRK(nx); PXS; *prk++=p=t(4,(K)*pxs++); i1(nx,p=ki(f,p,x,-1,i);EC(p);*prk++=p) break;
+    default: return KERR_TYPE;
+    } break;
+  case 6:
+    switch(Tx) {
+    case -1: PRI(nx); PXI; { i32 su=*pxi++; *pri++=su; i(nx-1,su=av_isel(su,*pxi++,1); *pri++=su); } break;
+    case -2: PRF(nx); PXF; sf=*pxf++; *prf++=sf; i(nx-1,sf=av_fsel(sf,*pxf++,1); *prf++=sf); break;
+    case  0: PRK(nx); PXK; *prk++=p=k_(*pxk++); i1(nx,p=ki(f,p,x,-1,i);EC(p);*prk++=p) break;
+    case -3: PRK(nx); PXC; *prk++=p=t(3,(u8)*pxc++); i1(nx,p=ki(f,p,x,-1,i);EC(p);*prk++=p) break;
+    case -4: PRK(nx); PXS; *prk++=p=t(4,(K)*pxs++); i1(nx,p=ki(f,p,x,-1,i);EC(p);*prk++=p) break;
     default: return KERR_TYPE;
     } break;
   default:
