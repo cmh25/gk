@@ -87,7 +87,7 @@ static void __k(K x) {
   while(sp) {
     SF *f=&stack[--sp];
     x=f->x;
-    if(E(x)||(tx>0 && tx!=2)) continue;
+    if(!kh(x)) continue;
     ko *k=(ko*)(b(48)&x);
     if(k->r>0) --k->r;
     else if(f->s==0) {
@@ -113,7 +113,7 @@ static void __k(K x) {
   }
 }
 void _k(K x) {
-  if(E(x)||(tx>0 && tx!=2)) return;
+  if(!kh(x)) return;
   ko *k=(ko*)(b(48)&x);
   if(k->r>0) { --k->r; return; }
   __k(x);

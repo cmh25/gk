@@ -80,10 +80,14 @@ typedef struct {
 #define E(x) ((x)<256||0x84==s(x))
 #define EC(x) do { K t_=(x); if(E(t_)) { e=t_; goto cleanup; } } while(0);
 
+/* kh(x): does x own a heap ko that participates in refcounting? */
+static inline i32 kh(K x) {
+  return (i32)(x>=256) & (i32)((0xFFFF0005u >> ((x>>56)&0x1F)) & 1u);
+}
+
 /* Inline refcount increment */
 static inline K k_(K x) {
-  if(E(x)||(T(x)>0 && T(x)!=2)) return x;
-  ++((ko*)(b(48)&x))->r;
+  if(kh(x)) ++((ko*)(b(48)&x))->r;
   return x;
 }
 
