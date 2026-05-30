@@ -106,6 +106,15 @@ static int RC[22]={1,2,1,2,1,1,1,1,1,0,1,1,3,4,0,1,1,2,0,3,0,1};
    onto values via the postfix-restructure path.  vlookup is now a thin
    scope_get wrapper.  vlookupav and wrap_lambda_av retired. */
 static K vlookup(K x) {
+  /* Fast path: a simple global name at top level (cs==gs) resolves straight
+     from the global cache, skipping the scope_get -> scope_get_ call chain
+     that otherwise only checks the same cache at its bottom. Same guard
+     scope_get_ uses (s==gs, non-dotted). Misses fall through unchanged --
+     scope_get_ still populates the cache on first reference. */
+  if(cs==gs && 4==T(x)) {
+    char *n=sk(x);
+    if(*n!='.') { K r=gcache_get(n); if(r) return r; }
+  }
   K r=scope_get(cs,x);
   return r?r:KERR_VALUE;
 }

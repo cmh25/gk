@@ -32,4 +32,21 @@ K scope_find(char *x);
 int scope_vktp(char *x);
 void gcache_clear(void);
 
+/* Global-variable cache (storage in scope.c). The cache check is exposed
+   here as an inline so name-resolution fast paths can short-circuit a cached
+   global WITHOUT the scope_get -> scope_get_ call chain (scope_get_ only
+   checks the cache at the bottom of that chain). Valid only when the active
+   scope is gs and `n` is a simple (non-dotted) interned name -- the same
+   guard scope_get_ uses. Invalidation is unchanged: gcache_clear() (called on
+   every global assignment and dict modification) zeroes both arrays, so a
+   hit here is exactly as fresh as a hit inside scope_get_. Returns a +1 ref
+   on hit (caller owns it), or 0 on miss. */
+#define GCACHEN 8
+extern char *gcachek[GCACHEN];
+extern K gcachev[GCACHEN];
+static inline K gcache_get(char *n) {
+  i(GCACHEN, if(gcachek[i]==n) return k_(gcachev[i]));
+  return 0;
+}
+
 #endif /* SCOPE_H */

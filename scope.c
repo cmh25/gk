@@ -30,10 +30,10 @@ K ktree,C,Z,D;
 K locals[LOCALSMAX];
 int localsi;
 
-/* global variable cache */
-#define GCACHEN 8
-static char *gcachek[GCACHEN];
-static K gcachev[GCACHEN];
+/* global variable cache (GCACHEN + the inline gcache_get fast path live in
+   scope.h so name-resolution callers can short-circuit before the call chain) */
+char *gcachek[GCACHEN];
+K gcachev[GCACHEN];
 
 void gcache_clear(void) {
   i(GCACHEN,gcachek[i]=0;gcachev[i]=0)
