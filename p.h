@@ -80,7 +80,6 @@ void pgfree(pgs *s);
 pn* pnnew(pgs *s, int t, K v, K n, int m, int f);
 pn* pnnewi(pgs *s, int t, K v, K n, int m, int f, int i, int line);
 void pnfree(pn *n);
-pn* pnappend(pn *n0, pn *n1);
 K pgparse(char *q, int load, K locals);
 K pgreduce_(K x, int *quiet);
 K pgreduce(K x, int p);

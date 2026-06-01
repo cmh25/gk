@@ -44,135 +44,84 @@ static inline K tnc(i32 t, u64 n, void *v) {
   return tnv(t,(i32)n,v);
 }
 
+/* Single source-of-truth tables for the type-1 int-index builtins.  A verb
+   value is t(1, st(0xc6|0xc7, idx)); idx is the position here.  Shared with
+   lex.c (reserved() emits the index) and k.c (print maps index->name via
+   *nm).  &R_X is a compile-time-constant address; R_X is filled at runtime. */
+const binfo2 BDYAD[] = {
+  {&R_DRAW,draw},{&R_VS,vs},{&R_SV,sv},{&R_ATAN2,atan2_},{&R_DIV,div_},
+  {&R_AND,and_},{&R_OR,or_},{&R_XOR,xor_},{&R_HYPOT,hypot_},{&R_GCD,gcd_},
+  {&R_LCM,lcm_},{&R_MODINV,modinv_},{&R_ROT,rot_},{&R_SHIFT,shift_},
+  {&R_DOT,dotp},{&R_MUL,mul_},{&R_AT,at_},{&R_SM,sm},{&R_SS,ss},{&R_LSQ,lsq_},
+  {&R_ENCRYPT,encrypt_},{&R_DECRYPT,decrypt_},{&R_RENAME,rename_},
+  {&R_SETENV,setenv_},{&R_IN,in_},{&R_DVL,dvl_},
+};
+const binfo1 BMONAD[] = {
+  {&R_SLEEP,sleep_},{&R_IC,ic},{&R_CI,ci},{&R_DJ,dj},{&R_JD,jd},{&R_LT,lt},
+  {&R_LOG,log_},{&R_EXP,exp_},{&R_ABS,abs_},{&R_SQR,square},{&R_SQRT,sqrt_},
+  {&R_FLOOR,floor_},{&R_CEIL,ceil_},{&R_SIN,sin_},{&R_COS,cos_},{&R_TAN,tan_},
+  {&R_ASIN,asin_},{&R_ACOS,acos_},{&R_ATAN,atan_},{&R_SINH,sinh_},
+  {&R_COSH,cosh_},{&R_TANH,tanh_},{&R_ERF,erf_},{&R_ERFC,erfc_},
+  {&R_GAMMA,gamma_},{&R_LGAMMA,lgamma_},{&R_RINT,rint_},{&R_TRUNC,trunc_},
+  {&R_NOT,not__},{&R_KV,kv_},{&R_VK,vk_},{&R_VAL,val_},{&R_DEL,del_},
+  {&R_BD,bd_},{&R_DB,db_},{&R_HB,hb_},{&R_BH,bh_},{&R_ZB,zb_},{&R_BZ,bz_},
+  {&R_MD5,md5_},{&R_SHA1,sha1_},{&R_SHA2,sha2_},{&R_SVD,svd_},{&R_LU,lu_},
+  {&R_QR,qr_},{&R_LDU,ldu_},{&R_RREF,rref_},{&R_DET,det_},{&R_MAG,mag_},
+  {&R_PRIME,prime_},{&R_FACTOR,factor_},{&R_GETENV,getenv_},{&R_EXIT,exit_},
+  {&R_TIMER,timer_},
+};
+const int NBDYAD=sizeof(BDYAD)/sizeof(*BDYAD);
+const int NBMONAD=sizeof(BMONAD)/sizeof(*BMONAD);
+int bi_lookup(char *nm, u64 *sub) {
+  for(int i=0;i<NBDYAD;i++)  if(nm==*BDYAD[i].nm)  { *sub=0xc7; return i; }
+  for(int i=0;i<NBMONAD;i++) if(nm==*BMONAD[i].nm) { *sub=0xc6; return i; }
+  return -1;
+}
+/* int-index verb value for a builtin name literal (used by builtins that
+   each-apply themselves over general lists, e.g. hypot/sm/ss/rot/shift). */
+static K biv(char *nm) { u64 sub; int i=bi_lookup(sp(nm),&sub); return t(1,st(sub,i)); }
+
 K builtin(K f, K a, K x) {
   K r=0,t;
-  char *cf=sk(f);
-  char avb[256],a2b[256],*av=avb,*a2=a2b;
+  char *cf,*a2;
   static i32 d=0;
 
   if(0x85==s(a)||0x85==s(x)) { _k(a); _k(x); return KERR_TYPE; }
   if(s(a)==0x40) if(4==(a=vlookup(a))) { _k(x); return KERR_VALUE; }
   if(s(x)==0x40) if(4==(x=vlookup(x))) { _k(a); return KERR_VALUE; }
-  if(255<strlen(cf)) { _k(a); _k(x); return KERR_VALUE; }
 
   if(++d>maxr) { --d; _k(a); _k(x); return KERR_STACK; }
 
-  *av=0;
-  memcpy(a2,cf,1+strlen(cf));
-  char *p=strpbrk(a2,"'/\\");
-  if(p) { memcpy(av,p,1+strlen(p)); *p=0; }
-  a2=sp(a2);
-  if(av&&*av&&x) {
-    if(a2==sp("exit")) { --d; _k(x); return KERR_PARSE; }
-    /* 0xdb retired in Pass 1b -- draw/2 3 4 routes through 0xda
-       directly, never re-enters builtin() with a 0xdb subtype */
-    r=avdo(t(4,st(s(f),a2)),k_(a),k_(x),av);
-  }
-  /* 0xc8 retired in Pass 4 -- replaced by 0xd9. */
-  else if(0xc7==s(f)) {
-    if(!x) r=KERR_TYPE;
-    else if(!a) { /* project */
-      /* Issue #2 Pass 3b-3: produce 0xd9(verb, (x,)) builtin
-         projection wrapper instead of legacy 0xc8 3-tuple. The
-         args plist has no inull -- fapply's merge_args treats
-         it as "append" so subsequent apply gives builtin(verb,
-         bound, new_x). Print renders as verb[bound] (legacy
-         0xc8 format) since no inull placeholder is emitted. */
-      K verb_k=t(4,st(0xc7,sp(a2)));
-      t=kcp(x);
-      if(E(t)) { --d; _k(verb_k); _k(a); _k(x); return t; }
-      K args=tn(0,1); K *pa=px(args);
-      pa[0]=t;
-      args=st(0x81,args);
-      r=wrap_proj(verb_k, args);
+  if(1==T(f)) {
+    /* int-index builtin: 0xc7 dyad / 0xc6 monad, ik(f) = table index */
+    u32 idx=(u32)ik(f);
+    if(0xc7==s(f)) {
+      if(!x) r=KERR_TYPE;
+      else if(!a) { /* project -> 0xd9(verb,(x,)) wrapper (see legacy note) */
+        K verb_k=t(1,st(0xc7,idx));
+        t=kcp(x);
+        if(E(t)) { --d; _k(a); _k(x); return t; }
+        K args=tn(0,1); K *pa=px(args);
+        pa[0]=t; args=st(0x81,args);
+        r=wrap_proj(verb_k, args);
+      }
+      else r=BDYAD[idx].f(a,x);
     }
-    else if(a2==R_DRAW) r=draw(a,x);
-    else if(a2==R_VS) r=vs(a,x);
-    else if(a2==R_SV) r=sv(a,x);
-    else if(a2==R_ATAN2) r=atan2_(a,x);
-    else if(a2==R_DIV) r=div_(a,x);
-    else if(a2==R_AND) r=and_(a,x);
-    else if(a2==R_OR) r=or_(a,x);
-    else if(a2==R_XOR) r=xor_(a,x);
-    else if(a2==R_HYPOT) r=hypot_(a,x);
-    else if(a2==R_GCD) r=gcd_(a,x);
-    else if(a2==R_LCM) r=lcm_(a,x);
-    else if(a2==R_MODINV) r=modinv_(a,x);
-    else if(a2==R_ROT) r=rot_(a,x);
-    else if(a2==R_SHIFT) r=shift_(a,x);
-    else if(a2==R_DOT) r=dotp(a,x);
-    else if(a2==R_MUL) r=mul_(a,x);
-    else if(a2==R_AT) r=at_(a,x);
-    else if(a2==R_SM) r=sm(a,x);
-    else if(a2==R_SS) r=ss(a,x);
-    else if(a2==R_LSQ) r=lsq_(a,x);
-    else if(a2==R_ENCRYPT) r=encrypt_(a,x);
-    else if(a2==R_DECRYPT) r=decrypt_(a,x);
-    else if(a2==R_RENAME) r=rename_(a,x);
-    else if(a2==R_SETENV) r=setenv_(a,x);
-    else if(a2==R_IN) r=in_(a,x);
-    else if(a2==R_DVL) r=dvl_(a,x);
-    else r=KERR_VALUE;
+    else { /* 0xc6 monad */
+      if(!x) r=KERR_TYPE;
+      else r=BMONAD[idx].f(x);
+    }
+    --d; _k(a); _k(x); return r;
   }
-  else if(0xc6==s(f)) {
-    if(!x) r=KERR_TYPE;
-    else if(a2==R_SLEEP) r=sleep_(x);
-    else if(a2==R_IC) r=ic(x);
-    else if(a2==R_CI) r=ci(x);
-    else if(a2==R_DJ) r=dj(x);
-    else if(a2==R_JD) r=jd(x);
-    else if(a2==R_LT) r=lt(x);
-    else if(a2==R_LOG) r=log_(x);
-    else if(a2==R_EXP) r=exp_(x);
-    else if(a2==R_ABS) r=abs_(x);
-    else if(a2==R_SQR) r=square(x);
-    else if(a2==R_SQRT) r=sqrt_(x);
-    else if(a2==R_FLOOR) r=floor_(x);
-    else if(a2==R_CEIL) r=ceil_(x);
-    else if(a2==R_SIN) r=sin_(x);
-    else if(a2==R_COS) r=cos_(x);
-    else if(a2==R_TAN) r=tan_(x);
-    else if(a2==R_ASIN) r=asin_(x);
-    else if(a2==R_ACOS) r=acos_(x);
-    else if(a2==R_ATAN) r=atan_(x);
-    else if(a2==R_SINH) r=sinh_(x);
-    else if(a2==R_COSH) r=cosh_(x);
-    else if(a2==R_TANH) r=tanh_(x);
-    else if(a2==R_ERF) r=erf_(x);
-    else if(a2==R_ERFC) r=erfc_(x);
-    else if(a2==R_GAMMA) r=gamma_(x);
-    else if(a2==R_LGAMMA) r=lgamma_(x);
-    else if(a2==R_RINT) r=rint_(x);
-    else if(a2==R_TRUNC) r=trunc_(x);
-    else if(a2==R_NOT) r=not__(x);
-    else if(a2==R_KV) r=kv_(x);
-    else if(a2==R_VK) r=vk_(x);
-    else if(a2==R_VAL) r=val_(x);
-    else if(a2==R_DEL) r=del_(x);
-    else if(a2==R_BD) r=bd_(x);
-    else if(a2==R_DB) r=db_(x);
-    else if(a2==R_HB) r=hb_(x);
-    else if(a2==R_BH) r=bh_(x);
-    else if(a2==R_ZB) r=zb_(x);
-    else if(a2==R_BZ) r=bz_(x);
-    else if(a2==R_MD5) r=md5_(x);
-    else if(a2==R_SHA1) r=sha1_(x);
-    else if(a2==R_SHA2) r=sha2_(x);
-    else if(a2==R_SVD) r=svd_(x);
-    else if(a2==R_LU) r=lu_(x);
-    else if(a2==R_QR) r=qr_(x);
-    else if(a2==R_LDU) r=ldu_(x);
-    else if(a2==R_RREF) r=rref_(x);
-    else if(a2==R_DET) r=det_(x);
-    else if(a2==R_MAG) r=mag_(x);
-    else if(a2==R_PRIME) r=prime_(x);
-    else if(a2==R_FACTOR) r=factor_(x);
-    else if(a2==R_GETENV) r=getenv_(x);
-    else if(a2==R_EXIT) r=exit_(x);
-    else if(a2==R_TIMER) r=timer_(x);
-    else r=KERR_VALUE;
-  }
-  else if(0xcc==s(f)) {
+
+  /* type-4 symbol verbs: file verbs (0xcc/0xcd) and do/while/if.  Adverb
+     gluing is fully gone (file verbs de-glued in lexer; p.c routes postfix
+     adverbs through avdo via pgreduce_ cases 0xcc/0xcd), so the name never
+     contains '/\\ and no split is needed -- just re-intern for dispatch. */
+  cf=sk(f);
+  if(255<strlen(cf)) { --d; _k(a); _k(x); return KERR_VALUE; }
+  a2=sp(cf);
+  if(0xcc==s(f)) {
     if(!x) r=KERR_TYPE;
     else if(a2==sp("0:")) r=zerocolon(a,x);
     else if(a2==sp("1:")) r=onecolon(a,x);
@@ -373,7 +322,7 @@ K sm(K a, K x) {
     case  4: PRI(na); pxc=sk(x); m=strlen(pxc); i(na,pri[i]=t(1,sm_(pas[i],pxc,strlen(pas[i]),m,0,0))) break;
     case -3: PRI(na); PXC; i(na,pri[i]=t(1,sm_(pas[i],pxc,strlen(pas[i]),nx,0,0))) break;
     case -4: PRI(na); PXS; i(nx,pri[i]=t(1,sm_(pas[i],pxs[i],strlen(pas[i]),strlen(pxs[i]),0,0))) break;
-    case  0: r=avdo(t(4,st(0xc7,"sm")),k_(a),k_(x),"'"); break;
+    case  0: r=avdo(biv("sm"),k_(a),k_(x),"'"); break;
     default: r=KERR_TYPE;
     } break;
   case  0:
@@ -478,17 +427,17 @@ K ss(K a, K x) {
       }
       nr=n;
       break;
-    case -4: r=avdo(t(4,st(0xc7,"ss")),k_(a),k_(x),"/"); break;
-    case  0: r=avdo(t(4,st(0xc7,"ss")),k_(a),k_(x),"/"); break;
+    case -4: r=avdo(biv("ss"),k_(a),k_(x),"/"); break;
+    case  0: r=avdo(biv("ss"),k_(a),k_(x),"/"); break;
     default: r=KERR_TYPE;
     } break;
   case  0:
     switch(tx) {
     case  3: r=irecur2(ss,a,x); break;
     case  4: r=irecur2(ss,a,x); break;
-    case -3: r=avdo(t(4,st(0xc7,"ss")),k_(a),k_(x),"\\"); break;
-    case -4: r=avdo(t(4,st(0xc7,"ss")),k_(a),k_(x),"'"); break;
-    case  0: r=avdo(t(4,st(0xc7,"ss")),k_(a),k_(x),"'"); break;
+    case -3: r=avdo(biv("ss"),k_(a),k_(x),"\\"); break;
+    case -4: r=avdo(biv("ss"),k_(a),k_(x),"'"); break;
+    case  0: r=avdo(biv("ss"),k_(a),k_(x),"'"); break;
     default: r=KERR_TYPE;
     } break;
   default: r=KERR_TYPE;
@@ -865,7 +814,7 @@ K dj(K x) {
     if(ymd64<INT32_MIN || ymd64>INT32_MAX) r=t(1, (u32)INT32_MIN);
     else r=t(1, (u32)(i32)ymd64);
     break;
-  case -1: r=avdo(t(4,st(0xc6,sp("dj"))),0,k_(x),"'"); break;
+  case -1: r=avdo(biv("dj"),0,k_(x),"'"); break;
   case  0: r=irecur1(dj,x); break;
   default: return KERR_TYPE;
   }
@@ -890,7 +839,7 @@ K jd(K x) {
     if(val<INT32_MIN || val>INT32_MAX) r=t(1, (u32)INT32_MIN);
     else r=t(1, (u32)(i32)val);
     break;
-  case -1: r=avdo(t(4,st(0xc6,sp("jd"))),0,k_(x),"'"); break;
+  case -1: r=avdo(biv("jd"),0,k_(x),"'"); break;
   case  0: r=irecur1(jd,x); break;
   default: return KERR_TYPE;
   }
@@ -919,7 +868,7 @@ K lt(K x) {
     q=ik(x)+(i64)o;
     r = t(1,(u32)q);
     break;
-  case -1: r=avdo(t(4,st(0xc6,sp("lt"))),0,k_(x),"'"); break;
+  case -1: r=avdo(biv("lt"),0,k_(x),"'"); break;
   case  0: r=irecur1(lt,x); break;
   default: return KERR_TYPE;
   }
@@ -1006,7 +955,7 @@ K F(K a,K x) { \
     case  2: PRF(na); PAI; i(na,prf[i]=F0(fi(pai[i]),fk(x))) break; \
     case -1: PRF(na); PAI; PXI; i(na,prf[i]=F0(fi(pai[i]),fi(pxi[i]))) break; \
     case -2: PRF(na); PAI; PXF; i(na,prf[i]=F0(fi(pai[i]),pxf[i])) break; \
-    case  0: r=avdo(t(4,st(0xc7,#F0)),k_(a),k_(x),"'"); break; \
+    case  0: r=avdo(biv(#F0),k_(a),k_(x),"'"); break; \
     default: r=KERR_TYPE; break; \
     } break; \
   case -2: \
@@ -1015,15 +964,15 @@ K F(K a,K x) { \
     case  2: PRF(na); PAF; i(na,prf[i]=F0(paf[i],fk(x))) break; \
     case -1: PRF(na); PAF; PXI; i(na,prf[i]=F0(paf[i],fi(pxi[i]))) break; \
     case -2: PRF(na); PAF; PXF; i(na,prf[i]=F0(paf[i],pxf[i])) break; \
-    case  0: r=avdo(t(4,st(0xc7,#F0)),k_(a),k_(x),"'"); break; \
+    case  0: r=avdo(biv(#F0),k_(a),k_(x),"'"); break; \
     default: r=KERR_TYPE; break; \
     } break; \
   case  0: \
     switch(tx) { \
     case  1: r=irecur2(F,a,x); break; \
     case  2: r=irecur2(F,a,x); break; \
-    case -1: r=avdo(t(4,st(0xc7,#F0)),k_(a),k_(x),"'"); break; \
-    case -2: r=avdo(t(4,st(0xc7,#F0)),k_(a),k_(x),"'"); break; \
+    case -1: r=avdo(biv(#F0),k_(a),k_(x),"'"); break; \
+    case -2: r=avdo(biv(#F0),k_(a),k_(x),"'"); break; \
     case  0: r=irecur2(F,a,x); break; \
     default: r=KERR_TYPE; break; \
     } break; \
@@ -1066,13 +1015,13 @@ K F(K a, K x) { \
     switch(tx) { \
     case  1: PRI(na); PAI; i(na,pri[i]=pai[i] O ik(x)) break; \
     case -1: PRI(na); PAI; PXI; i(na,pri[i] = pai[i] O pxi[i]) break; \
-    case  0: r=avdo(t(4,st(0xc7,#F0)),k_(a),k_(x),"'"); break; \
+    case  0: r=avdo(biv(#F0),k_(a),k_(x),"'"); break; \
     default: r=KERR_TYPE; \
     } break; \
   case  0: \
     switch(tx) { \
     case  1: r=irecur2(F,a,x); break; \
-    case -1: r=avdo(t(4,st(0xc7,#F0)),k_(a),k_(x),"'"); break; \
+    case -1: r=avdo(biv(#F0),k_(a),k_(x),"'"); break; \
     case  0: r=irecur2(F,a,x); break; \
     default: r=KERR_TYPE; \
     } break; \
@@ -1118,7 +1067,7 @@ K hypot_(K a,K x) {
     case  2: PRF(na); PAI; xf=fk(x)*fk(x); i(na, af=fi(pai[i]); prf[i]=sqrt(af*af+xf)); break;
     case -1: PRF(na); PAI; PXI; i(na, af=fi(pai[i]); xf=fi(pxi[i]); prf[i]=sqrt(af*af+xf*xf)) break;
     case -2: PRF(na); PAI; PXF; i(na, af=fi(pai[i]); xf=pxf[i]; prf[i]=sqrt(af*af+xf*xf)) break;
-    case  0: r=avdo(t(4,st(0xc7,"hypot")),k_(a),k_(x),"'"); break;
+    case  0: r=avdo(biv("hypot"),k_(a),k_(x),"'"); break;
     default: r=KERR_TYPE;
     } break;
   case -2:
@@ -1127,15 +1076,15 @@ K hypot_(K a,K x) {
     case  2: PRF(na); PAF; xf=fk(x)*fk(x); i(na, af=paf[i]; prf[i]=sqrt(af*af+xf)); break;
     case -1: PRF(na); PAF; PXI; i(na, af=paf[i]; xf=fi(pxi[i]); prf[i]=sqrt(af*af+xf*xf)) break;
     case -2: PRF(na); PAF; PXF; i(na, af=paf[i]; xf=pxf[i]; prf[i]=sqrt(af*af+xf*xf)) break;
-    case  0: r=avdo(t(4,st(0xc7,"hypot")),k_(a),k_(x),"'"); break;
+    case  0: r=avdo(biv("hypot"),k_(a),k_(x),"'"); break;
     default: r=KERR_TYPE;
     } break;
   case  0:
     switch(tx) {
     case  1: r=irecur2(hypot_,a,x); break;
     case  2: r=irecur2(hypot_,a,x); break;
-    case -1: r=avdo(t(4,st(0xc7,"hypot")),k_(a),k_(x),"'"); break;
-    case -2: r=avdo(t(4,st(0xc7,"hypot")),k_(a),k_(x),"'"); break;
+    case -1: r=avdo(biv("hypot"),k_(a),k_(x),"'"); break;
+    case -2: r=avdo(biv("hypot"),k_(a),k_(x),"'"); break;
     case  0: r=irecur2(hypot_,a,x); break;
     default: r=KERR_TYPE;
     } break;
@@ -1205,13 +1154,13 @@ K rot_(K a, K x) {
     switch(tx) {
     case  1: PRI(na); PAI; i(na,pri[i]=safe_rot(pai[i],ik(x))); break;
     case -1: PRI(na); PAI; PXI; i(na,pri[i]=safe_rot(pai[i],pxi[i])); break;
-    case  0: r=avdo(t(4,st(0xc7,"rot")),k_(a),k_(x),"'"); break;
+    case  0: r=avdo(biv("rot"),k_(a),k_(x),"'"); break;
     default: r=KERR_TYPE;
     } break;
   case 0:
     switch(tx) {
     case  1: r=irecur2(rot_,a,x); break;
-    case -1: r=avdo(t(4,st(0xc7,"rot")),k_(a),k_(x),"'"); break;
+    case -1: r=avdo(biv("rot"),k_(a),k_(x),"'"); break;
     case  0: r=irecur2(rot_,a,x); break;
     default: r=KERR_TYPE;
     } break;
@@ -1259,7 +1208,7 @@ K shift_(K a, K x) {
   case 0:
     switch(tx) {
     case  1: r=irecur2(shift_,a,x); break;
-    case -1: r=avdo(t(4,st(0xc7,"shift")),k_(a),k_(x),"'"); break;
+    case -1: r=avdo(biv("shift"),k_(a),k_(x),"'"); break;
     case  0: r=irecur2(shift_,a,x); break;
     default: r=KERR_TYPE;
     } break;

@@ -79,4 +79,19 @@ K exit_(K x);
 K exit__(K x);
 K dir_(K a);
 
+/* Int-index builtin dispatch (type-1 int-index migration).
+   A builtin verb value is t(1, st(0xc6|0xc7, idx)) where idx indexes the
+   per-valence table below.  BMONAD/BDYAD are the single source of truth,
+   shared by builtin() dispatch (b.c), lexing (lex.c reserved()), and
+   printing (k.c).  File verbs (0xcc/0xcd) and do/while/if stay type-4. */
+typedef K (*bf1)(K);
+typedef K (*bf2)(K,K);
+typedef struct { char **nm; bf1 f; } binfo1;
+typedef struct { char **nm; bf2 f; } binfo2;
+extern const binfo1 BMONAD[];
+extern const binfo2 BDYAD[];
+extern const int NBMONAD, NBDYAD;
+/* interned name -> index; sets *sub to 0xc6/0xc7; returns -1 if not a builtin */
+int bi_lookup(char *nm, u64 *sub);
+
 #endif /* B_H */

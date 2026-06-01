@@ -5,6 +5,7 @@
 #include <ctype.h>
 #include "fn.h"
 #include "h.h"
+int bi_lookup(char *nm, u64 *sub); /* b.c: interned builtin name -> int-index */
 
 #ifdef _WIN32
 #define strtok_r strtok_s
@@ -224,92 +225,15 @@ static int reserved(pgs *pgs, char *p, char *q) {
       push(pgs,T015,t(-3,st(0x85,tnv(3,strlen(q),xmemdup(q,1+strlen(q))))));
     return 1;
   }
-  if(p==R_DRAW) { push(pgs,T015,t(4,st(0xc7,q))); return 1; }
-  if(p==R_DOT) { push(pgs,T015,t(4,st(0xc7,q))); return 1; }
-  if(p==R_VS) { push(pgs,T015,t(4,st(0xc7,q))); return 1; }
-  if(p==R_SV) { push(pgs,T015,t(4,st(0xc7,q))); return 1; }
-  if(p==R_ATAN2) { push(pgs,T015,t(4,st(0xc7,q))); return 1; }
-  if(p==R_DIV) { push(pgs,T015,t(4,st(0xc7,q))); return 1; }
-  if(p==R_AND) { push(pgs,T015,t(4,st(0xc7,q))); return 1; }
-  if(p==R_OR) { push(pgs,T015,t(4,st(0xc7,q))); return 1; }
-  if(p==R_SHIFT) { push(pgs,T015,t(4,st(0xc7,q))); return 1; }
-  if(p==R_ROT) { push(pgs,T015,t(4,st(0xc7,q))); return 1; }
-  if(p==R_XOR) { push(pgs,T015,t(4,st(0xc7,q))); return 1; }
-  if(p==R_HYPOT) { push(pgs,T015,t(4,st(0xc7,q))); return 1; }
-  if(p==R_ENCRYPT) { push(pgs,T015,t(4,st(0xc7,q))); return 1; }
-  if(p==R_DECRYPT) { push(pgs,T015,t(4,st(0xc7,q))); return 1; }
-  if(p==R_SETENV) { push(pgs,T015,t(4,st(0xc7,q))); return 1; }
-  if(p==R_RENAME) { push(pgs,T015,t(4,st(0xc7,q))); return 1; }
-  if(p==R_IN) { push(pgs,T015,t(4,st(0xc7,q))); return 1; }
-  if(p==R_DVL) { push(pgs,T015,t(4,st(0xc7,q))); return 1; }
-  if(p==R_SQR) { push(pgs,T015,t(4,st(0xc6,q))); return 1; }
-  if(p==R_ABS) { push(pgs,T015,t(4,st(0xc6,q))); return 1; }
-  if(p==R_SLEEP) { push(pgs,T015,t(4,st(0xc6,q))); return 1; }
-  if(p==R_IC) { push(pgs,T015,t(4,st(0xc6,q))); return 1; }
-  if(p==R_CI) { push(pgs,T015,t(4,st(0xc6,q))); return 1; }
-  if(p==R_DJ) { push(pgs,T015,t(4,st(0xc6,q))); return 1; }
-  if(p==R_JD) { push(pgs,T015,t(4,st(0xc6,q))); return 1; }
-  if(p==R_LT) { push(pgs,T015,t(4,st(0xc6,q))); return 1; }
-  if(p==R_LOG) { push(pgs,T015,t(4,st(0xc6,q))); return 1; }
-  if(p==R_EXP) { push(pgs,T015,t(4,st(0xc6,q))); return 1; }
-  if(p==R_SQRT) { push(pgs,T015,t(4,st(0xc6,q))); return 1; }
-  if(p==R_FLOOR) { push(pgs,T015,t(4,st(0xc6,q))); return 1; }
-  if(p==R_CEIL) { push(pgs,T015,t(4,st(0xc6,q))); return 1; }
-  if(p==R_SIN) { push(pgs,T015,t(4,st(0xc6,q))); return 1; }
-  if(p==R_COS) { push(pgs,T015,t(4,st(0xc6,q))); return 1; }
-  if(p==R_TAN) { push(pgs,T015,t(4,st(0xc6,q))); return 1; }
-  if(p==R_ASIN) { push(pgs,T015,t(4,st(0xc6,q))); return 1; }
-  if(p==R_ACOS) { push(pgs,T015,t(4,st(0xc6,q))); return 1; }
-  if(p==R_ATAN) { push(pgs,T015,t(4,st(0xc6,q))); return 1; }
-  if(p==R_AT) { push(pgs,T015,t(4,st(0xc7,q))); return 1; }
-  if(p==R_SS) { push(pgs,T015,t(4,st(0xc7,q))); return 1; }
-  if(p==R_SM) { push(pgs,T015,t(4,st(0xc7,q))); return 1; }
-  if(p==R_LSQ) { push(pgs,T015,t(4,st(0xc7,q))); return 1; }
-  if(p==R_SINH) { push(pgs,T015,t(4,st(0xc6,q))); return 1; }
-  if(p==R_COSH) { push(pgs,T015,t(4,st(0xc6,q))); return 1; }
-  if(p==R_TANH) { push(pgs,T015,t(4,st(0xc6,q))); return 1; }
-  if(p==R_ERF) { push(pgs,T015,t(4,st(0xc6,q))); return 1; }
-  if(p==R_ERFC) { push(pgs,T015,t(4,st(0xc6,q))); return 1; }
-  if(p==R_GAMMA) { push(pgs,T015,t(4,st(0xc6,q))); return 1; }
-  if(p==R_LGAMMA) { push(pgs,T015,t(4,st(0xc6,q))); return 1; }
-  if(p==R_RINT) { push(pgs,T015,t(4,st(0xc6,q))); return 1; }
-  if(p==R_TRUNC) { push(pgs,T015,t(4,st(0xc6,q))); return 1; }
-  if(p==R_NOT) { push(pgs,T015,t(4,st(0xc6,q))); return 1; }
-  if(p==R_KV) { push(pgs,T015,t(4,st(0xc6,q))); return 1; }
-  if(p==R_VK) { push(pgs,T015,t(4,st(0xc6,q))); return 1; }
-  if(p==R_VAL) { push(pgs,T015,t(4,st(0xc6,q))); return 1; }
-  if(p==R_BD) { push(pgs,T015,t(4,st(0xc6,q))); return 1; }
-  if(p==R_DB) { push(pgs,T015,t(4,st(0xc6,q))); return 1; }
-  if(p==R_HB) { push(pgs,T015,t(4,st(0xc6,q))); return 1; }
-  if(p==R_BH) { push(pgs,T015,t(4,st(0xc6,q))); return 1; }
-  if(p==R_ZB) { push(pgs,T015,t(4,st(0xc6,q))); return 1; }
-  if(p==R_BZ) { push(pgs,T015,t(4,st(0xc6,q))); return 1; }
-  if(p==R_MD5) { push(pgs,T015,t(4,st(0xc6,q))); return 1; }
-  if(p==R_SHA1) { push(pgs,T015,t(4,st(0xc6,q))); return 1; }
-  if(p==R_SHA2) { push(pgs,T015,t(4,st(0xc6,q))); return 1; }
-  if(p==R_GETENV) { push(pgs,T015,t(4,st(0xc6,q))); return 1; }
-  if(p==R_SVD) { push(pgs,T015,t(4,st(0xc6,q))); return 1; }
-  if(p==R_LU) { push(pgs,T015,t(4,st(0xc6,q))); return 1; }
-  if(p==R_QR) { push(pgs,T015,t(4,st(0xc6,q))); return 1; }
-  if(p==R_LDU) { push(pgs,T015,t(4,st(0xc6,q))); return 1; }
-  if(p==R_RREF) { push(pgs,T015,t(4,st(0xc6,q))); return 1; }
-  if(p==R_DET) { push(pgs,T015,t(4,st(0xc6,q))); return 1; }
-  if(p==R_MAG) { push(pgs,T015,t(4,st(0xc6,q))); return 1; }
-  if(p==R_PRIME) { push(pgs,T015,t(4,st(0xc6,q))); return 1; }
-  if(p==R_FACTOR) { push(pgs,T015,t(4,st(0xc6,q))); return 1; }
-  if(p==R_GCD) { push(pgs,T015,t(4,st(0xc7,q))); return 1; }
-  if(p==R_LCM) { push(pgs,T015,t(4,st(0xc7,q))); return 1; }
-  if(p==R_MODINV) { push(pgs,T015,t(4,st(0xc7,q))); return 1; }
-  if(p==R_EXIT) { push(pgs,T015,t(4,st(0xc6,q))); return 1; }
-  if(p==R_TIMER) { push(pgs,T015,t(4,st(0xc6,q))); return 1; }
-  if(p==R_DEL) { push(pgs,T015,t(4,st(0xc6,q))); return 1; }
+  /* int-index builtins (0xc6/0xc7): single bi_lookup over the b.c
+     BMONAD/BDYAD source-of-truth tables, emitting t(1,st(sub,idx)). */
+  { u64 sub; int bi=bi_lookup(p,&sub); if(bi>=0) { push(pgs,T015,t(1,st(sub,bi))); return 1; } }
   if(p==R_DO) { push(pgs,T015,t(4,st(0xd1,q))); return 1; }
   if(p==R_WHILE) { push(pgs,T015,t(4,st(0xd2,q))); return 1; }
   if(p==R_IF) { push(pgs,T015,t(4,st(0xd3,q))); return 1; }
   if(p==R_LIN) { push(pgs,T015,t(4,st(0xca,q))); return 1; }
   if(p==R_DV) { push(pgs,T015,t(4,st(0xca,q))); return 1; }
   if(p==R_DI) { push(pgs,T015,t(4,st(0xca,q))); return 1; }
-  if(p==R_MUL) { push(pgs,T015,t(4,st(0xc7,q))); return 1; }
   if(p==R_EP) { push(pgs,T015,t(4,st(0xca,q))); return 1; }
   if(p==R_CHOOSE) { push(pgs,T015,t(4,st(0xca,q))); return 1; }
   if(p==R_ROUND) { push(pgs,T015,t(4,st(0xca,q))); return 1; }
@@ -828,8 +752,9 @@ K lex(pgs *pgs, int load) {
     else if(*p==';') { ++p; if(f) push(pgs,T014,0); push(pgs,T012,0); f=1; continue; }
     else if((b||f)&&*p=='/') { ++p; while(*p&&*p!='\n')++p; }
     else if(S2(p)&&isdigit(*p)&&p[1]==':') {
-      if(S3(p)&&strchr("'/\\",p[2])) getmv(pgs,4,0xcc);
-      else { char s[3]={*p,':',0}; p+=2; push(pgs,T015,t(4,st(0xcc,sp(s)))); }
+      /* file verbs de-glued: emit bare 0xcc; a following adverb tokenizes as
+         a standalone 0x85 and folds through pgreduce_ cases 0xcc/0xcd. */
+      char s[3]={*p,':',0}; p+=2; push(pgs,T015,t(4,st(0xcc,sp(s))));
     }
     else if(S2(p)&&!strncmp("::",p,2)) { p+=2; push(pgs,T015,t(4,st(0x82,sp("::")))); }
     else if(*p=='-') {

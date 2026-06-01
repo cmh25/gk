@@ -534,7 +534,20 @@ K fne(K f, K x, char *av) {
    Until consumers in pgreduce_/fe.c are migrated through this in
    2b-step-2 and 2b-step-3, this helper is unused at runtime.
    Adding it first keeps 2b-step-1 a pure-additive commit. */
+/* Recursion-depth guard for the general apply path.  fapply mutually
+   recurses with fe()/kslide() (windowed/adverb apply) -- a cycle that never
+   passes through fne_'s guard, so without this it overflows the C stack
+   (afl found it).  Single-exit wrapper keeps fapply_impl's many returns
+   untouched; f and x are consumed, matching the apply convention. */
+static K fapply_impl(K f, K x, char *av_outer);
 K fapply(K f, K x, char *av_outer) {
+  static int d=0;
+  if(++d>maxr) { --d; _k(f); _k(x); return KERR_STACK; }
+  K r=fapply_impl(f,x,av_outer);
+  --d;
+  return r;
+}
+static K fapply_impl(K f, K x, char *av_outer) {
   if(0xda==s(f)) {
     K *pw=px(f);
     K wf=k_(pw[0]);

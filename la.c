@@ -278,7 +278,7 @@ K lsq_(K a, K x) {
     return r;
   }
 
-  K mul=t(4,st(0xc7,sp("dot")));
+  u64 dsub; int didx=bi_lookup(R_DOT,&dsub); K mul=t(1,st(dsub,didx)); /* int-index dot */
   Ut=k(1,0,U); EC(Ut);
   Uy=avdo(mul,Ut,k_(a),"\\"); EC(Uy);
   Su=avdo(mul,Sinv,Uy,"\\"); EC(Su);
@@ -1453,7 +1453,7 @@ K mul_(K a, K x) {
     return knorm(r);
   }
 
-  return avdo(t(4, st(0xc7, R_DOT)), k_(a), k_(x), "\\");
+  { u64 dsub; int didx=bi_lookup(R_DOT,&dsub); return avdo(t(1,st(dsub,didx)), k_(a), k_(x), "\\"); } /* int-index dot */
 
 cleanup:
   if(r) _k(r);

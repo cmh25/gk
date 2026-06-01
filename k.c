@@ -367,8 +367,8 @@ const char* kprint_(K x, char *s, char *e, char *s0) {
         mprintf("%s",e);
       }
       break;
-    case 0xc6: mprintf("%s%s%s",s,sk(x),e); break;
-    case 0xc7: mprintf("%s%s%s",s,sk(x),e); break;
+    case 0xc6: mprintf("%s%s%s",s,*BMONAD[ik(x)].nm,e); break; /* int-index -> name */
+    case 0xc7: mprintf("%s%s%s",s,*BDYAD[ik(x)].nm,e); break;
     /* 0xc8 retired in Pass 4 -- replaced by 0xd9. */
     case 0xc9: mprintf("%s%s%s",s,sk(x),e); break;
     case 0xca: mprintf("%s%s%s",s,sk(x),e); break;

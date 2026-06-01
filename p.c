@@ -710,6 +710,44 @@ cleanup:
 }
 
 static K A0[1024][256];
+
+/* File-verb postfix-adverb application (0xcc monad `5:x`, 0xcd dyad
+   `a 0:x`), kept out of pgreduce_ so its cases stay tiny.  A postfix adverb
+   arrives as a 0x45(av,args) node (de-glued); strip the adverb, run the same
+   arg conversion the inline non-adverb path uses, then dispatch via avdo
+   (empty av -> builtin).  v is the (type-4) file verb, borrowed; a/b consumed. */
+static K fileverb_mon(K v, K a) {
+  char av[40]; av[0]=0;
+  if(0x45==s(a)) {
+    K *pav=px(a); K aav=pav[1];
+    if(T(aav)==-3 && (u64)n(aav)<sizeof(av)) { memcpy(av,px(aav),n(aav)); av[n(aav)]=0; }
+    K inner=k_(pav[2]); _k(a); a=inner;
+  }
+  if(s(a)) { a=reduce(a); if(E(a)||EXIT) return a; }
+  if(s(a)==0x41) {
+    a=r41(a); if(E(a)||EXIT) return a;
+    if(n(a)==1) { K *pa=px(a); K q=pa[0]; pa[0]=0; _k(a); a=q; }
+    else if(n(a)==0) { _k(a); a=null; }
+  }
+  else if(0x44==s(a)) { a=r44(a); if(E(a)||EXIT) return a; }
+  else if(!VST(a)) { _k(a); return KERR_TYPE; }
+  return *av ? avdo(k_(v),0,a,av) : builtin(k_(v),0,a);
+}
+static K fileverb_dyad(K v, K a, K b) {
+  char av[40]; av[0]=0;
+  if(0x45==s(b)) {
+    K *pav=px(b); K bav=pav[1];
+    if(T(bav)==-3 && (u64)n(bav)<sizeof(av)) { memcpy(av,px(bav),n(bav)); av[n(bav)]=0; }
+    K inner=k_(pav[2]); _k(b); b=inner;
+  }
+  if(!a||!b) { _k(a); _k(b); return KERR_TYPE; }
+  if(0x41==s(b)) { _k(a); _k(b); return KERR_TYPE; }
+  if(s(b)) { b=reduce(b); if(E(b)||EXIT) { _k(a); return b; } }
+  if(s(a)) { a=reduce(a); if(E(a)||EXIT) { _k(b); return a; } }
+  if(!VST(b)) { _k(a); _k(b); return KERR_TYPE; }
+  return *av ? avdo(k_(v),a,b,av) : builtin(k_(v),a,b);
+}
+
 K pgreduce_(K x0, int *quiet) {
   char q,*mv,*s;
   u8 c;
@@ -728,11 +766,12 @@ K pgreduce_(K x0, int *quiet) {
   }
   for(i=0;i<nx;i++) {
     *quiet=0; c=0; q=0;
-    if(0xc0==s(px[i])) { v=px[i]; c=ck(px[i]); q=c>>5; }
+    u64 si=s(px[i]);                 /* compute subtype once per token */
+    if(0xc0==si) { v=px[i]; c=ck(px[i]); q=c>>5; }
     switch(q) {
     case 0:
       *pA++=v=px[i];
-      switch(s(v)) {
+      switch(si) {                   /* == s(v); v==px[i] in case 0 */
       case 0xc3: case 0: case 0x40: case 0x41: case 0x81: k_(v); continue;
       case 0xc7: /* builtin dyad */
         if(pA<=A+1) { k_(v); continue; }
@@ -751,19 +790,15 @@ K pgreduce_(K x0, int *quiet) {
         }
         /* Issue #2 Pass 6: builtin with postfix adverb produces 0x45
            as `b` (e.g. `5 draw/ 10 10 10` -> stack=[5,0x45('/, vec)]).
-           Build a name K with the av suffix appended and call
-           builtin() with it -- builtin() splits the av out and routes
-           through avdo. */
+           `v` is the bare verb (lexer no longer glues adverbs onto
+           names), so call avdo(v, a, x, av) directly with the postfix
+           adverb string.  If the adverb string is empty, fall back to
+           plain builtin() (avdo must not be called with empty av). */
         if(0x45==s(b)) {
           K *pb=px(b);
           K bav=pb[1]; K bv=pb[2];
           char *bavp=(T(bav)==-3)?(char*)px(bav):"";
-          char *vname=sk(v);
-          char buf[256];
-          if(strlen(vname)+strlen(bavp)>=sizeof(buf)) { _k(b); _k(v); *pA++=KERR_LENGTH; break; }
-          snprintf(buf,sizeof(buf),"%s%s",vname,bavp);
-          K vav=t(4,st(0xc7,sp(buf)));
-          if(s(bv)) { bv=reduce(k_(bv)); if(E(bv)||EXIT) { _k(b); _k(vav); *pA++=bv; break; } }
+          if(s(bv)) { bv=reduce(k_(bv)); if(E(bv)||EXIT) { _k(b); *pA++=bv; break; } }
           else bv=k_(bv);
           /* Issue #2 Pass 6: don't consume a left value from the stack
              if the next token is a dyadic operator AND the stack only
@@ -780,18 +815,23 @@ K pgreduce_(K x0, int *quiet) {
                                  && ik(px[i+1])!=64
                                  && (pA-A)<=1);
           if(0x81==s(bv) && n(bv)==2) {
-            K *pbv=px(bv); *pA++=builtin(vav,k_(pbv[0]),k_(pbv[1])); _k(bv); _k(b);
+            K *pbv=px(bv);
+            *pA++ = *bavp ? avdo(k_(v),k_(pbv[0]),k_(pbv[1]),bavp)
+                          : builtin(k_(v),k_(pbv[0]),k_(pbv[1]));
+            _k(bv); _k(b);
           }
-          else if(0x81==s(bv)) { _k(bv); _k(b); _k(vav); *pA++=KERR_VALENCE; }
+          else if(0x81==s(bv)) { _k(bv); _k(b); *pA++=KERR_VALENCE; }
           else if(pA>A && !next_is_dyad_op) {
             a=*--pA;
-            if(s(a)) { a=reduce(a); if(E(a)||EXIT) { _k(bv); _k(b); _k(vav); *pA++=a; break; } }
-            if(!VST(a)||!VST(bv)) { _k(a); _k(bv); _k(b); _k(vav); *pA++=KERR_TYPE; break; }
-            *pA++=builtin(vav,a,bv); _k(b);
+            if(s(a)) { a=reduce(a); if(E(a)||EXIT) { _k(bv); _k(b); *pA++=a; break; } }
+            if(!VST(a)||!VST(bv)) { _k(a); _k(bv); _k(b); *pA++=KERR_TYPE; break; }
+            *pA++ = *bavp ? avdo(k_(v),a,bv,bavp) : builtin(k_(v),a,bv);
+            _k(b);
           }
           else {
-            if(!VST(bv)) { _k(bv); _k(b); _k(vav); *pA++=KERR_TYPE; break; }
-            *pA++=builtin(vav,0,bv); _k(b);
+            if(!VST(bv)) { _k(bv); _k(b); *pA++=KERR_TYPE; break; }
+            *pA++ = *bavp ? avdo(k_(v),0,bv,bavp) : builtin(k_(v),0,bv);
+            _k(b);
           }
           break;
         }
@@ -825,7 +865,9 @@ K pgreduce_(K x0, int *quiet) {
       case 0xc6: /* builtin monad */
         if(pA<=A+1) { k_(v); break; } // no argument available
         if(pA<=A+2&&i<nx-1&&ik(px[i+1])==0xff) { k_(v); break; } // {x} abs 2
-        if(pA>A+2&&strpbrk(sk(v),"/\\")) { k_(v); break; }  // 5 sin/2; 5 sin\2
+        /* (the old `strpbrk(sk(v),"/\\")` guard for glued `5 sin/2` is gone:
+           builtins are de-glued and now int-index, so the name -- and any
+           glued adverb -- no longer exists to test) */
         /* Issue #2 Pass 6: lexer no longer slurps adverbs onto names,
            so a postfix adverb token may follow.  Defer sin to case 7
            (juxtaposition) where sin + 0x85 becomes 0xda(sin,av). */
@@ -841,19 +883,16 @@ K pgreduce_(K x0, int *quiet) {
         }
         /* Issue #2 Pass 6: monadic builtin with postfix adverb produces
            0x45 as `a` (e.g. `abs'' (-2 -3;-4 -5.0)` -> stack=[0x45('',
-           plist)]).  Build a name K with the av suffix appended and
-           call builtin() with it -- builtin() splits the av out and
-           routes through avdo. */
+           plist)]).  `v` is the bare verb (lexer no longer glues
+           adverbs onto names), so call avdo(v, 0, x, av) directly with
+           the postfix adverb string.  If the adverb string is empty,
+           fall back to plain builtin() (avdo must not be called with
+           empty av). */
         if(0x45==s(a)) {
           K *pav=px(a);
           K aav=pav[1]; K av_v=pav[2];
           char *aavp=(T(aav)==-3)?(char*)px(aav):"";
-          char *vname=sk(v);
-          char buf[256];
-          if(strlen(vname)+strlen(aavp)>=sizeof(buf)) { _k(a); _k(v); *pA++=KERR_LENGTH; break; }
-          snprintf(buf,sizeof(buf),"%s%s",vname,aavp);
-          K vav=t(4,st(0xc6,sp(buf)));
-          if(s(av_v)) { av_v=reduce(k_(av_v)); if(E(av_v)||EXIT) { _k(a); _k(vav); *pA++=av_v; break; } }
+          if(s(av_v)) { av_v=reduce(k_(av_v)); if(E(av_v)||EXIT) { _k(a); *pA++=av_v; break; } }
           else av_v=k_(av_v);
           /* Issue #2 Pass 6: dyadic-juxt detection -- `5 sin/ 2` means
              "do sin 5 times starting from 2" (overmonadn) when next
@@ -863,10 +902,9 @@ K pgreduce_(K x0, int *quiet) {
              && (!strcmp(aavp,"/")||!strcmp(aavp,"\\"))) {
             ++i;
             K t0=*--pA;
-            if(s(t0)) { t0=reduce(t0); if(E(t0)||EXIT) { _k(a); _k(vav); _k(av_v); *pA++=t0; break; } }
-            if(!VST(t0)) { _k(a); _k(vav); _k(av_v); _k(t0); *pA++=KERR_TYPE; break; }
-            K f=t(4,st(0xc6,sp(vname))); /* bare sin (no av) for over/scan */
-            _k(vav);
+            if(s(t0)) { t0=reduce(t0); if(E(t0)||EXIT) { _k(a); _k(av_v); *pA++=t0; break; } }
+            if(!VST(t0)) { _k(a); _k(av_v); _k(t0); *pA++=KERR_TYPE; break; }
+            K f=k_(v); /* bare sin (no av) for over/scan */
             if(s(t0)==0 && T(t0)==1 && !strcmp(aavp,"/")) { *pA++=overmonadn(f,t0,av_v,""); *quiet=0; }
             else if(ISF(t0) && ik(val(t0))==1 && !strcmp(aavp,"/")) { *pA++=overmonadb(f,t0,av_v,""); *quiet=0; }
             else if(s(t0)==0 && T(t0)==1 && !strcmp(aavp,"\\")) { *pA++=scanmonadn(f,t0,av_v,""); *quiet=0; }
@@ -876,17 +914,21 @@ K pgreduce_(K x0, int *quiet) {
             break;
           }
           if(0x81==s(av_v) && n(av_v)==1) {
-            K *pavv=px(av_v); *pA++=builtin(vav,0,k_(pavv[0])); _k(av_v); _k(a);
+            K *pavv=px(av_v);
+            *pA++ = *aavp ? avdo(k_(v),0,k_(pavv[0]),aavp) : builtin(k_(v),0,k_(pavv[0]));
+            _k(av_v); _k(a);
           }
           else if(0x81==s(av_v)) {
             /* multi-arg list to monadic builtin -- treat as the single
                argument (e.g. abs'' on (-2 -3;-4 -5.0) gets the whole
                packed list). */
-            *pA++=builtin(vav,0,av_v); _k(a);
+            *pA++ = *aavp ? avdo(k_(v),0,av_v,aavp) : builtin(k_(v),0,av_v);
+            _k(a);
           }
           else {
-            if(!VST(av_v)) { _k(av_v); _k(a); _k(vav); *pA++=KERR_TYPE; break; }
-            *pA++=builtin(vav,0,av_v); _k(a);
+            if(!VST(av_v)) { _k(av_v); _k(a); *pA++=KERR_TYPE; break; }
+            *pA++ = *aavp ? avdo(k_(v),0,av_v,aavp) : builtin(k_(v),0,av_v);
+            _k(a);
           }
           break;
         }
@@ -907,6 +949,7 @@ K pgreduce_(K x0, int *quiet) {
         if(pA<=A+1) { k_(v); break; }
         --pA;
         a=*--pA;
+        if(0x45==s(a)) { *pA++=fileverb_mon(v,a); break; } /* de-glued postfix adverb */
         if(s(a)) { a=reduce(a); if(E(a)||EXIT) { *pA++=a; break; } }
         if(s(a)==0x41) {
           a=r41(a); if(E(a)||EXIT) { *pA++=a; break; }
@@ -926,6 +969,7 @@ K pgreduce_(K x0, int *quiet) {
         --pA;
         b=*--pA;
         a=*--pA;
+        if(0x45==s(b)) { *pA++=fileverb_dyad(v,a,b); break; } /* de-glued postfix adverb */
         if(!a||!b) { _k(a); _k(b); *pA++=KERR_TYPE; break; }
         if(0x41==s(b)) { _k(a); _k(b); *pA++=KERR_TYPE; break; }
         if(s(b)) { b=reduce(b); if(E(b)||EXIT) { _k(a); *pA++=b; break; } }
@@ -2447,6 +2491,7 @@ static K dupwrap_mv(K v, int dyad) {
    fresh 0xc7 K whose name is the adverb-stripped base; the av string
    carries the trailing adverb chars. Caller still owns c7_k. */
 static K wrap_c7_to_da(K c7_k) {
+  if(4!=T(c7_k)) return KERR_PARSE; /* int-index builtins carry no name to split (dead post-de-glue) */
   char *full=sk(c7_k);
   size_t fn=strlen(full);
   size_t avstart=fn;
@@ -2952,12 +2997,6 @@ void pnfree(pn *n) {
     xfree(n->a);
   }
   xfree(n);
-}
-
-pn* pnappend(pn *n0, pn *n1) {
-  n0->a=xrealloc(n0->a,sizeof(pn*)*(1+n0->m));
-  n0->a[n0->m++]=n1;
-  return n0;
 }
 
 #define V(x) ((x)->t&1)
