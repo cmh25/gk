@@ -11,7 +11,7 @@ g`
 \
 
 cmh@ubuntu22:~/gk$ rlwrap ./gk errortest/z12
-gk-v2.0.0 Copyright (c) 2023-2026 Charles Hall
+gk-v2.0.1 Copyright (c) 2023-2026 Charles Hall
 
 5
 { ... + 2 in errortest/z12:5
@@ -27,7 +27,7 @@ g`
 load: errortest/z12 ... + 7
 
 cmh@ubuntu22:~/gk$ rlwrap ./gk errortest/z12
-gk-v2.0.0 Copyright (c) 2023-2026 Charles Hall
+gk-v2.0.1 Copyright (c) 2023-2026 Charles Hall
 
 5
 { ... + 2 in errortest/z12:5

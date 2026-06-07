@@ -112,7 +112,7 @@ K fnd(K f) {
       else if(*ff=='.') s=11;
       else if(*ff=='`') s=101;
       else if(isalpha(*ff)) { s=7; SB(b,bm,j,*ff); j++; }
-      else if(*ff<0) { r=KERR_PARSE; goto cleanup; }
+      else if((i8)*ff<0) { r=KERR_PARSE; goto cleanup; }
       else s=6;
       params=0;
       break;
@@ -158,7 +158,7 @@ K fnd(K f) {
       else if(*ff=='`') s=106;
       else if(isalpha(*ff)) { s=7; SB(b,bm,j,*ff); j++; }
       else if(*ff=='{') { n++; s=8; }
-      else if(*ff<0) { r=10; goto cleanup; }
+      else if((i8)*ff<0) { r=10; goto cleanup; }
       else s=6;
       break;
     case 106:

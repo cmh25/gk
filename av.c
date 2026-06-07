@@ -9,7 +9,7 @@ static char *P=":+-*%&|<>=~.!@?#_^,$'/\\";
 
 static K avdoi(K f, K a, K x, int ai, int xi, char *av) {
   K r=0,*pak,*pxk,a_=0;
-  char *pac,*pxc,**pas,**pxs,Ta,Tx;
+  char *pac,*pxc,**pas,**pxs; i8 Ta,Tx;
   int *pai,*pxi;
   double *paf,*pxf;
   static int d=0;
@@ -43,7 +43,7 @@ static K avdoi(K f, K a, K x, int ai, int xi, char *av) {
 
 static K each(K f, K a, K x, char *av) {
   K r=0,e,*prk;
-  char Ta,Tx;
+  i8 Ta,Tx;
   Ta=ta; if(s(a)) { if(!VST(a)) return kerror("type"); Ta=15; }
   Tx=tx; if(s(x)) { if(!VST(x)) return kerror("type"); Tx=15; }
   if(a&&Ta<=0) {
@@ -64,7 +64,7 @@ cleanup:
 
 static K eachright(K f, K a, K x, char *av) {
   K r=0,e,*prk;
-  char Tx;
+  i8 Tx;
   Tx=tx; if(!Tx&&s(x)) { if(!VST(x)) return kerror("type"); Tx=15; }
   if(Tx>0) r=avdoi(f,a,x,-1,-1,av);
   else { PRK(nx); i(nx,prk[i]=avdoi(f,a,x,-1,i,av);EC(prk[i])) }
@@ -76,7 +76,7 @@ cleanup:
 
 static K eachleft(K f, K a, K x, char *av) {
   K r=0,e,*prk;
-  char Ta;
+  i8 Ta;
   Ta=ta; if(s(a)) { if(!VST(a)) return kerror("type"); Ta=15; }
   if(Ta>0) r=avdoi(f,a,x,-1,-1,av);
   else { PRK(na); i(na,prk[i]=avdoi(f,a,x,i,-1,av);EC(prk[i])) }
@@ -279,7 +279,7 @@ static K eachparamfe(K f, K x) {
   u64 m=0;
   i32 b=0;
   u32 valence=val(f);
-  char tp;
+  i8 tp;
   if(nx!=valence) return kerror("valence");
   q=tn(0,nx); pq=px(q);
   px=px(x);
@@ -532,7 +532,7 @@ K avdo(K f, K a, K x, char *av) {
           K *pxk=px(x);
           i64 ti=-1;
           K target=0;
-          char Tt=0;
+          i8 Tt=0;
           u64 nt=0;
           for(i64 k=(i64)nx-1; k>=0; --k) {
             K c=pxk[k];

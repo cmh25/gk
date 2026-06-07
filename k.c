@@ -537,7 +537,7 @@ const char* kprint_(K x, char *s, char *e, char *s0) {
         else {
           i32 a=1;
           px=px(x);
-          char t;
+          i8 t;
           u64 ncv=0;
           mprintf("%s(",s);
           char *s2=xmalloc(2+strlen(s0));
@@ -767,7 +767,7 @@ K val(K x) {
 static K kamendi3v(K d, K i, K f);
 static K kamendi3d(K d, K i, K f) {
   K r,e,*pdu,v,*pv,p=0,t;
-  char ti,**pis,*s;
+  i8 ti; char **pis,*s;
   typedef struct { K i; u64 j; } sf;
   i32 sm=32,sp=0;
   sf *stack=0;
@@ -865,7 +865,7 @@ cleanup:
 static K kamendi3v(K d, K i, K f) {
   i32 *pii=0;
   K r,e,t,*pdu=0;
-  char td,ti;
+  i8 td,ti;
   typedef struct { K i; u64 j; } sf;
   i32 sm=32,sp=0;
   sf *stack=0;
@@ -1009,7 +1009,7 @@ static K kamendi4d(K d, K i, K f, K y) {
   i32 *pyi,b=0;
   K r,e,*pdu,*pyu,v,*pv,p=0,*pp,t;
   double *pyf;
-  char ti,ty,Ty,*pyc,**pys,**pis,*s;
+  i8 ti,ty,Ty; char *pyc,**pys,**pis,*s;
   typedef struct { K i,y; u64 j; } sf;
   i32 sm=32,sp=0;
   sf *stack=0;
@@ -1122,7 +1122,7 @@ static K kamendi4d(K d, K i, K f, K y) {
       K i_=pf->i;
       K y_=pf->y;
       K *piu=px(i_);
-      char Ty_=T(y_); if(s(y_)) { if(!VST(y_)) { e=KERR_TYPE; goto cleanup; } Ty_=10; }
+      i8 Ty_=T(y_); if(s(y_)) { if(!VST(y_)) { e=KERR_TYPE; goto cleanup; } Ty_=10; }
       switch(Ty_) {
       case -1: pyi=px(y_);
         if(n(i_)!=n(y_)) { e=KERR_LENGTH; goto cleanup; }
@@ -1218,7 +1218,7 @@ static K kamendi4v(K d, K i, K f, K y) {
   i64 *pdj,*pyj;
   float *pde,*pye;
   double *pdf,*pyf;
-  char td,ti,ty,Ty,*pdc,**pds,*pyc,**pys;
+  i8 td,ti,ty,Ty; char *pdc,**pds,*pyc,**pys;
   typedef struct { K i,y; u64 j; } sf;
   i32 sm=32,sp=0;
   sf *stack=0;
@@ -1483,7 +1483,7 @@ static K kamendi4v(K d, K i, K f, K y) {
         K i_=pf->i;
         K y_=pf->y;
         K *piu=px(i_);
-        char Ty_=T(y_); if(s(y_)) { if(!VST(y_)) { e=KERR_TYPE; goto cleanup; } Ty_=10; }
+        i8 Ty_=T(y_); if(s(y_)) { if(!VST(y_)) { e=KERR_TYPE; goto cleanup; } Ty_=10; }
         switch(Ty_) {
         case -1: pyi=px(y_);
           if(n(i_)!=n(y_)) { e=KERR_LENGTH; goto cleanup; }
@@ -2540,7 +2540,7 @@ K kslide(K f, K a, K x, char *av) {
   K r=0,*prk,xm=0,*pxm,e;
   u32 n,s,v=2,m;
   K ff=f;
-  char Tx;
+  i8 Tx;
 
   if(T(f)==10||T(a)==10||T(x)==10) {
     /* Issue #2 Pass 3b-2: 0xd9 wrapper (was 0xd5). The arg-slot

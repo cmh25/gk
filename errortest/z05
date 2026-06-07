@@ -4,7 +4,7 @@
 \
 
 cmh@ubuntu22:~/gk$ rlwrap ./gk errortest/z05
-gk-v2.0.0 Copyright (c) 2023-2026 Charles Hall
+gk-v2.0.1 Copyright (c) 2023-2026 Charles Hall
 
 in errortest/z05:1
 type error
@@ -14,7 +14,7 @@ type error
 load: errortest/z05 ... + 1
 
 cmh@ubuntu22:~/gk$ rlwrap ./gk errortest/z05
-gk-v2.0.0 Copyright (c) 2023-2026 Charles Hall
+gk-v2.0.1 Copyright (c) 2023-2026 Charles Hall
 
 in errortest/z05:1
 type error

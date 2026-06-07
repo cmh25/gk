@@ -9,7 +9,7 @@
 \
 
 cmh@ubuntu22:~/gk$ rlwrap ./gk errortest/z13
-gk-v2.0.0 Copyright (c) 2023-2026 Charles Hall
+gk-v2.0.1 Copyright (c) 2023-2026 Charles Hall
 
 0 1 2 3 4 5 6 7 8 9
 8
@@ -22,7 +22,7 @@ type error
 load: errortest/z13 ... + 5
 
 cmh@ubuntu22:~/gk$ rlwrap ./gk errortest/z13
-gk-v2.0.0 Copyright (c) 2023-2026 Charles Hall
+gk-v2.0.1 Copyright (c) 2023-2026 Charles Hall
 
 0 1 2 3 4 5 6 7 8 9
 8

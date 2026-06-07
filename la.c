@@ -205,7 +205,7 @@ static K svdcmp(double **a, int m, int n, double *w, double **v, double *t) {
    bit0 = real(9/-9), bit1 = long(8/-8), bit2 = float64(2/-2). */
 static int la_tflags(K x) {
   if(!x||s(x)) return 0;
-  char t=T(x);
+  i8 t=T(x);
   if(t==9||t==-9) return 1;
   if(t==8||t==-8) return 2;
   if(t==2||t==-2) return 4;
@@ -218,7 +218,7 @@ static int la_tflags(K x) {
 static K la_widen(K x) {
   K r; double *pr;
   if(!x||s(x)) return k_(x);
-  char t=T(x);
+  i8 t=T(x);
   if(t==9) return t2((double)ek(x));
   if(t==8) return t2(fj(jk(x)));
   if(t==-9) { r=tn(2,n(x)); pr=px(r); float *pe=(float*)px(x); i(n(x),pr[i]=(double)pe[i]) return r; }
@@ -231,7 +231,7 @@ static K la_widen(K x) {
 static K la_narrow(K x) {
   K r; float *pr;
   if(!x||s(x)) return k_(x);
-  char t=T(x);
+  i8 t=T(x);
   if(t==2) return te((float)fk(x));
   if(t==-2) { r=tn(9,n(x)); pr=px(r); double *pf=px(x); i(n(x),pr[i]=(float)pf[i]) return r; }
   if(t==0) { r=tn(0,n(x)); K *prk=px(r),*pp=px(x); i(n(x),prk[i]=la_narrow(pp[i])) return r; }

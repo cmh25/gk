@@ -966,7 +966,7 @@ K find(K a, K x) {
 static i32 TJ;
 static K take_(K a, K x) {
   K r=0,e,*prk,*pxk,a0=0,a_=0,leaf;
-  char *prc,*pxc,**prs,**pxs,Ta,Tx;
+  char *prc,*pxc,**prs,**pxs; i8 Ta,Tx;
   i32 c,d,*pri,*pxi;
   i64 *prj,*pxj;
   float *pre,*pxe;

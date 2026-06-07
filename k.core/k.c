@@ -419,7 +419,7 @@ K knorm(K x) {
   i64 *prj;
   float *pre;
   double *prf;
-  char t,*prc,**prs;
+  char *prc,**prs; i8 t;
   if(x<20) return x; /* error */
   if(s(x)) return x;
   if(!tx&&nx) {
@@ -514,7 +514,7 @@ u64 khash(K x) {
       pxk=px(x_);
       while(i<n) {
         K xi=pxk[i];
-        char t=T(xi);
+        i8 t=T(xi);
         if(t==0 && !s(xi)) {
           if(sp==sm) stack=xrealloc(stack,sizeof(sf)*(sm*=2));
           stack[sp-1].i=i;

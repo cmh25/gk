@@ -6,7 +6,7 @@
 \
 
 cmh@ubuntu22:~/gk$ rlwrap ./gk errortest/z16
-gk-v2.0.0 Copyright (c) 2023-2026 Charles Hall
+gk-v2.0.1 Copyright (c) 2023-2026 Charles Hall
 
 3
 in errortest/z16:2

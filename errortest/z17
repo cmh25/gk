@@ -8,7 +8,7 @@ f`
 \
 
 cmh@ubuntu22:~/gk$ rlwrap ./gk errortest/z17
-gk-v2.0.0 Copyright (c) 2023-2026 Charles Hall
+gk-v2.0.1 Copyright (c) 2023-2026 Charles Hall
 
 f:{[a;b] ... + 2 in errortest/z17:3
 unmatched error

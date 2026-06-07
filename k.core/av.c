@@ -19,7 +19,7 @@ static inline double av_fsel(double a, double b, i8 op) {
 // P=":+-*%&|<>=~.!@?#_^,$'/\\"
 K each(i32 f, K a, K x) {
   K r=0,*prk,e;
-  char Ta,Tx;
+  i8 Ta,Tx;
   if(f<0||f>22) return KERR_TYPE;
   Ta=ta; if(s(a)) { if(!vstcb(a)) return KERR_TYPE; Ta=15; }
   Tx=tx; if(s(x)) { if(!vstcb(x)) return KERR_TYPE; Tx=15; }
@@ -48,7 +48,7 @@ cleanup:
 
 K eachright(i32 f, K a, K x) {
   K r=0,*prk,e;
-  char Tx;
+  i8 Tx;
   if(f<0||f>22) return KERR_TYPE;
   Tx=tx; if(!Tx&&s(x)) { if(!vstcb(x)) return KERR_TYPE; Tx=15; }
   if(Tx>0) r=k(f,k_(a),k_(x));
@@ -61,7 +61,7 @@ cleanup:
 
 K eachleft(i32 f, K a, K x) {
   K r=0,*prk,e;
-  char Ta;
+  i8 Ta;
   if(f<0||f>22) return KERR_TYPE;
   Ta=ta; if(s(a)) { if(!vstcb(a)) return KERR_TYPE; Ta=15; }
   if(Ta>0) r=k(f,k_(a),k_(x));
@@ -74,7 +74,7 @@ cleanup:
 
 K overd(i32 f, K x) {
   K r=0,*pxk,e,p;
-  char *pxc,**pxs,*P=":+-*%&|<>=~.!@?#_^,$'/\\",ff,Tx;
+  char *pxc,**pxs,*P=":+-*%&|<>=~.!@?#_^,$'/\\",ff; i8 Tx;
   i32 *pxi;
   i64 *pxj;
   float *pxe;
@@ -203,7 +203,7 @@ cleanup:
 
 K scand(i32 f, K x) {
   K r=0,*prk,*pxk,e,p;
-  char *pxc,**pxs,*P=":+-*%&|<>=~.!@?#_^,$'/\\",ff,Tx;
+  char *pxc,**pxs,*P=":+-*%&|<>=~.!@?#_^,$'/\\",ff; i8 Tx;
   i32 *pri,*pxi;
   i64 *prj,*pxj;
   float *pre,*pxe;
