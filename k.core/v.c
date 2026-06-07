@@ -742,6 +742,14 @@ static inline i32 modi(i32 a, i32 b){ i32 r; if(!b) return INT32_MIN; if(b==-1) 
 static inline i64 modj(i64 a, i64 b){ i64 r; if(!b) return J_NULL; if(b==-1) return 0; r=a%b; if(r&&((r<0)!=(b<0))) r+=b; return r; }
 static inline double modd(double a, double b){ double r=a-b*floortol(a/b); return cmpfft(r,0.0)==0?0.0:r; }
 static inline float  mode(float a, float b){ float r=a-b*(float)floortolf((double)a/(double)b); return cmpffte((double)r,0.0)==0?0.0f:r; }
+/* rotate a vector by OFF: result[i] = x[(i+OFF) mod nx].  Hoist the modulo out
+   of the loop into a start offset + wrap counter (ri), replacing a per-element
+   idiv (cf. the take cyclic fix).  Guard nx==0: the modulo would divide by zero,
+   and the original avoided it only because the loop body never ran. */
+#define ROT(PR,PX,OFF,ASSIGN) \
+  PR(nx); PX; \
+  if(nx){ ri=(i64)(OFF)%(i64)nx; if(ri<0)ri+=nx; i(nx, ASSIGN; if(++ri==(i64)nx)ri=0;) } break;
+
 K modrot(K a, K x) {
   K r=0,*prk,*pxk;
   char *prc,*pxc,**prs,**pxs;
@@ -758,13 +766,13 @@ K modrot(K a, K x) {
     case  2: r=t2(modd((double)ik(a),fk(x))); break;
     case  8: r=tj(modj((i64)ik(a),jk(x))); break;
     case  9: r=te(mode((float)ik(a),ek(x))); break;
-    case -1: PRI(nx); PXI; i(nx,ri=((i64)i+ik(a))%(i64)nx; if(ri<0)ri+=nx; *pri++=pxi[ri];) break;
-    case -2: PRF(nx); PXF; i(nx,ri=((i64)i+ik(a))%(i64)nx; if(ri<0)ri+=nx; *prf++=pxf[ri];) break;
-    case -3: PRC(nx); PXC; i(nx,ri=((i64)i+ik(a))%(i64)nx; if(ri<0)ri+=nx; *prc++=pxc[ri]) break;
-    case -4: PRS(nx); PXS; i(nx,ri=((i64)i+ik(a))%(i64)nx; if(ri<0)ri+=nx; *prs++=pxs[ri];) break;
-    case -8: PRJ(nx); PXJ; i(nx,ri=((i64)i+ik(a))%(i64)nx; if(ri<0)ri+=nx; prj[i]=pxj[ri];) break;
-    case -9: PRE(nx); PXE; i(nx,ri=((i64)i+ik(a))%(i64)nx; if(ri<0)ri+=nx; pre[i]=pxe[ri];) break;
-    case  0: PRK(nx); PXK; i(nx,ri=((i64)i+ik(a))%(i64)nx; if(ri<0)ri+=nx; *prk++=k_(pxk[ri]);) break;
+    case -1: ROT(PRI,PXI,ik(a),*pri++=pxi[ri])
+    case -2: ROT(PRF,PXF,ik(a),*prf++=pxf[ri])
+    case -3: ROT(PRC,PXC,ik(a),*prc++=pxc[ri])
+    case -4: ROT(PRS,PXS,ik(a),*prs++=pxs[ri])
+    case -8: ROT(PRJ,PXJ,ik(a),*prj++=pxj[ri])
+    case -9: ROT(PRE,PXE,ik(a),*pre++=pxe[ri])
+    case  0: ROT(PRK,PXK,ik(a),*prk++=k_(pxk[ri]))
     default: return KERR_TYPE;
     } break;
   case 2:
@@ -781,13 +789,13 @@ K modrot(K a, K x) {
     case 2: r=t2(modd(fj(jk(a)),fk(x))); break;
     case 8: r=tj(modj(jk(a),jk(x))); break;
     case 9: r=t2(modd(fj(jk(a)),(double)ek(x))); break;
-    case -1: PRI(nx); PXI; i(nx,ri=((i64)i+jk(a))%(i64)nx; if(ri<0)ri+=nx; *pri++=pxi[ri];) break;
-    case -2: PRF(nx); PXF; i(nx,ri=((i64)i+jk(a))%(i64)nx; if(ri<0)ri+=nx; *prf++=pxf[ri];) break;
-    case -3: PRC(nx); PXC; i(nx,ri=((i64)i+jk(a))%(i64)nx; if(ri<0)ri+=nx; *prc++=pxc[ri]) break;
-    case -4: PRS(nx); PXS; i(nx,ri=((i64)i+jk(a))%(i64)nx; if(ri<0)ri+=nx; *prs++=pxs[ri];) break;
-    case -8: PRJ(nx); PXJ; i(nx,ri=((i64)i+jk(a))%(i64)nx; if(ri<0)ri+=nx; prj[i]=pxj[ri];) break;
-    case -9: PRE(nx); PXE; i(nx,ri=((i64)i+jk(a))%(i64)nx; if(ri<0)ri+=nx; pre[i]=pxe[ri];) break;
-    case  0: PRK(nx); PXK; i(nx,ri=((i64)i+jk(a))%(i64)nx; if(ri<0)ri+=nx; *prk++=k_(pxk[ri]);) break;
+    case -1: ROT(PRI,PXI,jk(a),*pri++=pxi[ri])
+    case -2: ROT(PRF,PXF,jk(a),*prf++=pxf[ri])
+    case -3: ROT(PRC,PXC,jk(a),*prc++=pxc[ri])
+    case -4: ROT(PRS,PXS,jk(a),*prs++=pxs[ri])
+    case -8: ROT(PRJ,PXJ,jk(a),*prj++=pxj[ri])
+    case -9: ROT(PRE,PXE,jk(a),*pre++=pxe[ri])
+    case  0: ROT(PRK,PXK,jk(a),*prk++=k_(pxk[ri]))
     default: return KERR_TYPE;
     } break;
   case 9:
@@ -834,7 +842,16 @@ K modrot(K a, K x) {
   }
   return knorm(r);
 }
+#undef ROT
 
+
+/* single-pass bounds-checked gather for x@intvec: folds the former standalone
+   bounds pre-scan into the gather loop, so the index vector is traversed once
+   instead of twice.  On an out-of-range index, free the partial result and
+   return KERR_INDEX (same pattern as the tx==-8 path).  na/r are in scope. */
+#define ATG(PRX,PAX,ASSIGN) \
+  PRX(nx); PAX; PXI; \
+  i(nx, i32 ix_=pxi[i]; if(ix_<0||(u64)ix_>=na){_k(r);return KERR_INDEX;} ASSIGN) break;
 
 K at(K a, K x) {
   K r=0,*prk,*pak;
@@ -858,49 +875,49 @@ K at(K a, K x) {
     { K rr=at(a,r); _k(r); return rr; }
   }
   if((tx==1)&&((ik(x)<0)||(u64)(ik(x))>=na)) return KERR_INDEX;
-  if(tx==-1) { PXI; i(nx,if(pxi[i]<0||(u64)(pxi[i])>=na)return KERR_INDEX;) }
   if(!tx) return eachright(13,a,x);
   if(tx!=1&&tx!=-1) return KERR_TYPE;
   switch(ta) {
   case -8:
     switch(tx) {
     case  1: PAJ; r=tj(paj[ik(x)]); break;
-    case -1: PRJ(nx); PAJ; PXI; i(nx,*prj++=paj[*pxi++]) break;
+    case -1: ATG(PRJ,PAJ,prj[i]=paj[ix_])
     } break;
   case -1:
     switch(tx) {
     case  1: PAI; r=t(1,(u32)pai[ik(x)]); break;
-    case -1: PRI(nx); PAI; PXI; i(nx,*pri++=pai[*pxi++]) break;
+    case -1: ATG(PRI,PAI,pri[i]=pai[ix_])
     } break;
   case -9:
     switch(tx) {
     case  1: PAE; r=te(pae[ik(x)]); break;
-    case -1: PRE(nx); PAE; PXI; i(nx,*pre++=pae[*pxi++]) break;
+    case -1: ATG(PRE,PAE,pre[i]=pae[ix_])
     } break;
   case -2:
     switch(tx) {
     case  1: PAF; f=paf[ik(x)]; r=t2(f); break;
-    case -1: PRF(nx); PAF; PXI; i(nx,*prf++=paf[*pxi++]) break;
+    case -1: ATG(PRF,PAF,prf[i]=paf[ix_])
     } break;
   case -3:
     switch(tx) {
     case  1: PAC; r=t(3,(u8)pac[ik(x)]); break;
-    case -1: PRC(nx); PAC; PXI; i(nx,*prc++=pac[*pxi++]) break;
+    case -1: ATG(PRC,PAC,prc[i]=pac[ix_])
     } break;
   case -4:
     switch(tx) {
     case  1: PAS; r=t(4,pas[ik(x)]); break;
-    case -1: PRS(nx); PAS; PXI; i(nx,*prs++=pas[*pxi++]) break;
+    case -1: ATG(PRS,PAS,prs[i]=pas[ix_])
     } break;
   case  0:
     switch(tx) {
     case  1: PAK; r=k_(pak[ik(x)]); break;
-    case -1: PRK(nx); PAK; PXI; i(nx,*prk++=k_(pak[*pxi++])) break;
+    case -1: ATG(PRK,PAK,prk[i]=k_(pak[ix_]))
     } break;
   default: return KERR_TYPE;
   }
   return knorm(r);
 }
+#undef ATG
 
 static K draw(K a, K x) {
   K r=0;
@@ -963,11 +980,10 @@ K find(K a, K x) {
   return r;
 }
 
-static i32 TJ;
 static K take_(K a, K x) {
   K r=0,e,*prk,*pxk,a0=0,a_=0,leaf;
   char *prc,*pxc,**prs,**pxs; i8 Ta,Tx;
-  i32 c,d,*pri,*pxi;
+  i32 c,*pri,*pxi;
   i64 *prj,*pxj;
   float *pre,*pxe;
   double *prf,*pxf;
@@ -1010,38 +1026,38 @@ static K take_(K a, K x) {
     case  6: PRK(c); i(c,*prk++=null) break;
     case 15: PRK(c); i(c,*prk=kcp(x); EC(*prk); ++prk) break;
     case -1: PRI(c); PXI;
-      if(nx&&ik(a)<0) { d=c%nx; i(c,*pri++=pxi[(nx-d+i+TJ)%nx]) }
-      else if(nx) i(c,*pri++=pxi[(i+TJ)%nx])
+      if(nx&&ik(a)<0) { u64 w=(nx-c%nx)%nx; i(c,*pri++=pxi[w]; if(++w==nx)w=0;) }
+      else if(nx) { u64 w=0; i(c,*pri++=pxi[w]; if(++w==nx)w=0;) }
       else i(c,*pri++=0)
       break;
     case -2: PRF(c); PXF;
-      if(nx&&ik(a)<0) { d=c%nx; i(c,*prf++=pxf[(nx-d+i+TJ)%nx]) }
-      else if(nx) i(c,*prf++=pxf[(i+TJ)%nx])
+      if(nx&&ik(a)<0) { u64 w=(nx-c%nx)%nx; i(c,*prf++=pxf[w]; if(++w==nx)w=0;) }
+      else if(nx) { u64 w=0; i(c,*prf++=pxf[w]; if(++w==nx)w=0;) }
       else i(c,*prf++=0.0)
       break;
     case -8: PRJ(c); PXJ;
-      if(nx&&ik(a)<0) { d=c%nx; i(c,*prj++=pxj[(nx-d+i+TJ)%nx]) }
-      else if(nx) i(c,*prj++=pxj[(i+TJ)%nx])
+      if(nx&&ik(a)<0) { u64 w=(nx-c%nx)%nx; i(c,*prj++=pxj[w]; if(++w==nx)w=0;) }
+      else if(nx) { u64 w=0; i(c,*prj++=pxj[w]; if(++w==nx)w=0;) }
       else i(c,*prj++=0)
       break;
     case -9: PRE(c); PXE;
-      if(nx&&ik(a)<0) { d=c%nx; i(c,*pre++=pxe[(nx-d+i+TJ)%nx]) }
-      else if(nx) i(c,*pre++=pxe[(i+TJ)%nx])
+      if(nx&&ik(a)<0) { u64 w=(nx-c%nx)%nx; i(c,*pre++=pxe[w]; if(++w==nx)w=0;) }
+      else if(nx) { u64 w=0; i(c,*pre++=pxe[w]; if(++w==nx)w=0;) }
       else i(c,*pre++=0.0)
       break;
     case -3: PRC(c); PXC;
-      if(nx&&ik(a)<0) { d=c%nx; i(c,*prc++=pxc[(nx-d+i+TJ)%nx]) }
-      else if(nx) i(c,*prc++=pxc[(i+TJ)%nx])
+      if(nx&&ik(a)<0) { u64 w=(nx-c%nx)%nx; i(c,*prc++=pxc[w]; if(++w==nx)w=0;) }
+      else if(nx) { u64 w=0; i(c,*prc++=pxc[w]; if(++w==nx)w=0;) }
       else i(c,*prc++=' ')
       break;
     case -4: PRS(c); PXS;
-      if(nx&&ik(a)<0) { d=c%nx; i(c,*prs++=pxs[(nx-d+i+TJ)%nx]) }
-      else if(nx) i(c,*prs++=pxs[(i+TJ)%nx])
+      if(nx&&ik(a)<0) { u64 w=(nx-c%nx)%nx; i(c,*prs++=pxs[w]; if(++w==nx)w=0;) }
+      else if(nx) { u64 w=0; i(c,*prs++=pxs[w]; if(++w==nx)w=0;) }
       else i(c,*prs++="") /* sp()? */
       break;
     case  0: PRK(c); PXK;
-      if(nx&&ik(a)<0) { d=c%nx; i(c,*prk++=k_(pxk[(nx-d+i+TJ)%nx])) }
-      else if(nx) i(c,*prk++=k_(pxk[(i+TJ)%nx]))
+      if(nx&&ik(a)<0) { u64 w=(nx-c%nx)%nx; i(c,*prk++=k_(pxk[w]); if(++w==nx)w=0;) }
+      else if(nx) { u64 w=0; i(c,*prk++=k_(pxk[w]); if(++w==nx)w=0;) }
       else i(c,*prk++=null)
       break;
     default: r=KERR_TYPE;
@@ -1203,7 +1219,7 @@ cleanup:
   if(a_) _k(a_);
   return e;
 }
-K take(K a, K x) { TJ=0; return take_(a,x); }
+K take(K a, K x) { return take_(a,x); }
 
 K drop(K a, K x) {
   K r=0,e,*prk,*pxk,r2,*pr2k;
@@ -1903,8 +1919,13 @@ K where(K x) {
     } break;
   case  0: if(!nx) r=tn(1,0); else return KERR_TYPE; break;
   case -1:
-    PXI; i(nx,if(pxi[i]<0 || pxi[i]==INT32_MAX || pxi[i]==INT32_MIN || pxi[i]==INT32_MIN+1) return KERR_DOMAIN)
-    i(nx,if((pxi[i]>0&&j>INT32_MAX-pxi[i])||(pxi[i]<0&&j<INT32_MIN-pxi[i])) return KERR_DOMAIN; else j+=pxi[i]);
+    /* single validate+sum pass: after the domain check c is in [0,INT32_MAX),
+       so the overflow test is just j>INT32_MAX-c (no negative branch). */
+    PXI;
+    i(nx, c=pxi[i];
+      if(c<0 || c==INT32_MAX || c==INT32_MIN || c==INT32_MIN+1) return KERR_DOMAIN;
+      if(j>INT32_MAX-c) return KERR_DOMAIN;
+      j+=c)
     PRI(j);
     j=0; i(nx,kk=pxi[i]; while(kk-->0)pri[j++]=i) break;
   case -8: {
@@ -1951,8 +1972,8 @@ K upgrade(K x) {
   switch(tx) {
   case -1: r=enumerate(t(1,nx)); pri=(i32*)px(r); PXI; rcsortg(pri,pxi,nx,0); break;
   case -8: r=enumerate(t(1,nx)); pri=(i32*)px(r); PXJ; rcsortg8(pri,pxj,nx,0); break;
-  case -2: r=enumerate(t(1,nx)); pri=(i32*)px(r); PXF; msortg2(pri,pxf,0,nx-1,0); break;
-  case -9: r=enumerate(t(1,nx)); pri=(i32*)px(r); PXE; msortg9(pri,pxe,0,nx-1,0); break;
+  case -2: r=enumerate(t(1,nx)); pri=(i32*)px(r); PXF; rcsortg2(pri,pxf,nx,0); break;
+  case -9: r=enumerate(t(1,nx)); pri=(i32*)px(r); PXE; rcsortg9(pri,pxe,nx,0); break;
   case -3: r=enumerate(t(1,nx)); pri=(i32*)px(r); PXC; msortg3(pri,pxc,0,nx-1,0); break;
   case -4: r=enumerate(t(1,nx)); pri=(i32*)px(r); PXS; msortg4(pri,pxs,0,nx-1,0); break;
   case  0: r=enumerate(t(1,nx)); pri=(i32*)px(r); PXK; msortg0(pri,pxk,0,nx-1,0); break;
@@ -1973,8 +1994,8 @@ K downgrade(K x) {
   switch(tx) {
   case -1: r=enumerate(t(1,nx)); pri=(i32*)px(r); PXI; rcsortg(pri,pxi,nx,1); break;
   case -8: r=enumerate(t(1,nx)); pri=(i32*)px(r); PXJ; rcsortg8(pri,pxj,nx,1); break;
-  case -2: r=enumerate(t(1,nx)); pri=(i32*)px(r); PXF; msortg2(pri,pxf,0,nx-1,1); break;
-  case -9: r=enumerate(t(1,nx)); pri=(i32*)px(r); PXE; msortg9(pri,pxe,0,nx-1,1); break;
+  case -2: r=enumerate(t(1,nx)); pri=(i32*)px(r); PXF; rcsortg2(pri,pxf,nx,1); break;
+  case -9: r=enumerate(t(1,nx)); pri=(i32*)px(r); PXE; rcsortg9(pri,pxe,nx,1); break;
   case -3: r=enumerate(t(1,nx)); pri=(i32*)px(r); PXC; msortg3(pri,pxc,0,nx-1,1); break;
   case -4: r=enumerate(t(1,nx)); pri=(i32*)px(r); PXS; msortg4(pri,pxs,0,nx-1,1); break;
   case  0: r=enumerate(t(1,nx)); pri=(i32*)px(r); PXK; msortg0(pri,pxk,0,nx-1,1); break;
@@ -2038,7 +2059,11 @@ K group(K x) {
       if(max<pxi[i])max=pxi[i];
       if(min>pxi[i])min=pxi[i];
     }
-    if(min>=0 && !bni && max<1000000000) { /* optimize for all positive n */
+    /* dense non-negative range only: this path allocates two max-sized arrays
+       (ht + hm), so guard on magnitude relative to nx (~8x).  A short vector with
+       a huge value (e.g. =0 999999999) would otherwise calloc ~16*max bytes.  The
+       hash branch below handles arbitrary positive ints, capped at nx. */
+    if(min>=0 && !bni && (u64)max+1 <= ((u64)nx<<3)) {
       ht=xcalloc((u32)(max+1),sizeof(K));
       hm=xcalloc((u32)(max+1),sizeof(u64));
       n=pxi;n--;
@@ -2369,7 +2394,11 @@ K unique(K x) {
       if(max<pxi[i])max=pxi[i];
       if(min>pxi[i])min=pxi[i];
     }
-    if(min>=0 && !bni) { /* optimize for all positive n */
+    /* dense non-negative range: a value-indexed bitmap is O(nx) and beats the
+       hash.  Guard on magnitude: only when max+1 is within ~8x nx, else a short
+       vector with a huge value (e.g. ?5 2000000000) would calloc ~4*max bytes.
+       The hash branch below handles arbitrary positive ints, capped at nx. */
+    if(min>=0 && !bni && (u64)max+1 <= ((u64)nx<<3)) {
       hi=xcalloc((u32)(max+1),sizeof(i32));
       pxi--;
       i(nx, pxi++; if(!hi[*pxi]) { hi[*pxi]=1; pri[j++]=*pxi; if(++t==max+1) break; })
