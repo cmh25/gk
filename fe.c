@@ -8,6 +8,8 @@
 
 K fc(K f, K a, K x, char *av) {
   K r=0,e,p,f2,*pf,*pf2;
+  static int d=0;
+  if(++d>maxr) { --d; _k(a); _k(x); return KERR_STACK; }
   if(av&&*av) r=avdo(k_(f),k_(a),k_(x),av);
   else {
     pf=px(f);
@@ -23,9 +25,11 @@ K fc(K f, K a, K x, char *av) {
     }
   }
   _k(a); _k(x);
+  --d;
   return r;
 cleanup:
   _k(a); _k(x);
+  --d;
   return e;
 }
 
@@ -119,8 +123,14 @@ K fe(K f, K a, K x, char *av) {
       else if(0x81==s(x)) { _k(x); r=KERR_VALENCE; }
       else r=builtin(f,0,x);
       break;
-    case 0xcc:
-      r=builtin(f,0,x);
+    case 0xcc: /* file verb (0:,1:,...) applied as a value: x is a 0x81
+                  arg-plist from bracket/./trap apply -- unpack like 0xc7
+                  so both the monadic (1-arg) and dyadic (2-arg) forms
+                  dispatch.  Bare x (juxtaposition) stays monadic. */
+      if(0x81==s(x)&&n(x)==1) { K *px=px(x); r=builtin(f,0,k_(px[0])); _k(x); }
+      else if(0x81==s(x)&&n(x)==2) { K *px=px(x); r=builtin(f,k_(px[0]),k_(px[1])); _k(x); }
+      else if(0x81==s(x)) { _k(x); r=KERR_VALENCE; }
+      else r=builtin(f,0,x);
       break;
     case 0xc5:
       r=fc(f,0,x,av);
@@ -156,6 +166,7 @@ K fe(K f, K a, K x, char *av) {
         else if(ISF(f0) && ik(val(f0))==1 && !strcmp(favp,"\\")) { r=scanmonadb(f1,f0,x,""); quiet=0; }
         else { _k(f0); _k(f1); _k(x); r=KERR_TYPE; break; }
       }
+      else { _k(f0); _k(f1); _k(x); r=KERR_TYPE; }
       break;
     /* 0xd5/0xd6 retired in Pass 4 -- replaced by 0xd9. */
     default:
@@ -269,7 +280,7 @@ K fe(K f, K a, K x, char *av) {
       r=fapply(k_(f),xx2,av);
       break;
     }
-    case 0xc7: case 0xcd:
+    case 0xc7: case 0xcd: case 0xcc:
       if(a==inull || x==inull) {
         /* Issue #2 Pass 3b-1: produce 0xd9(verb, args_w_inulls).
            Replaces legacy 0xd4 with the canonical (f;args)

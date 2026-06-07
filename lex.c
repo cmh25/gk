@@ -16,6 +16,7 @@ static char *p,*p0,*p1;
 static int line;
 static int64_t iii;  /* lex in 64-bit space, clamp to 32-bit at end */
 static double fff;
+static float eee;    /* float32 (e suffix) literal value */
 
 static void push(pgs *s, int tt, K tv) {
   if(s->tc==s->tm) {
@@ -31,7 +32,7 @@ static void push(pgs *s, int tt, K tv) {
 }
 
 static int gn_(void) {
-  char c,*q=p;
+  char c,*q=p,*ep=0;  /* ep: position of an exponent 'e' (for f32-suffix backtrack) */
   int s=0;
   while(1) {
     switch(s) {
@@ -50,15 +51,17 @@ static int gn_(void) {
       else if(*p=='e'||*p=='E') s=8;
       else if(*p=='.') s=6;
       else if(isdigit(*p)) s=4;
+      else if(*p=='j') s=13;  /* 0j */
       else s=11;
       break;
-    case 2: s=12; break;
-    case 3: s=11; break;
+    case 2: if(*p=='e'||*p=='E') s=8; else s=12; break;  /* 0ne/0ie/-0ie -> f32 */
+    case 3: if(*p=='j') s=13; else s=11; break;  /* 0Nj/0Ij/-0Ij */
     case 4:
       if(!*p) s=11;
       else if(isdigit(*p)) s=4;
       else if(*p=='e'||*p=='E') s=8;
       else if(*p=='.') s=6;
+      else if(*p=='j') s=13;  /* 1j */
       else s=11;
       break;
     case 5:
@@ -75,11 +78,38 @@ static int gn_(void) {
       else s=12;
       break;
     case 7: if(*p&&isdigit(*p)) s=9; else s=10; break;
-    case 8: if(*p&&(isdigit(*p)||*p=='-'||*p=='+')) s=9; else s=10; break;
+    case 8:
+      /* exponent: 'e' then digits, or 'e' then a sign *followed by a digit*.
+         A sign not followed by a digit (e.g. 2.0e+'x) means 'e' is the f32
+         suffix and the sign is a separate operator token. */
+      if(*p&&(isdigit(*p)||((*p=='-'||*p=='+')&&isdigit((unsigned char)p[1])))) { ep=p-1; s=9; break; }
+      /* 'e' not followed by exponent digits => float32 suffix; the 'e' is at
+         p-1, the mantissa/sentinel token is q..p-1 (mirrors 0N/0I handling) */
+      if(p==q+1) return 0;
+      c=*(p-1); *(p-1)=0;  /* cut the suffix 'e'; mantissa = q .. p-1 */
+      /* valid f32: a float sentinel (0ne/0ie/-0ie via xstrtod) or a mantissa
+         with a decimal point / exponent (1.0e, 1.5e10e). */
+      if(!strcmp(q,"0n")||!strcmp(q,"0i")||!strcmp(q,"-0i")||strpbrk(q,".eE")) {
+        eee=(float)xstrtod(q); *(p-1)=c; return 5;
+      }
+      /* bare integer + e (e.g. 1e): not an f32 literal.  Lex just the integer
+         and leave 'e' as a separate token, so 1e errors like 1a (undefined e). */
+      iii=strtoll(q,NULL,10);
+      *(p-1)=c;  /* restore 'e' */
+      p--;       /* next token starts at the 'e' */
+      return 1;
     case 9:
       if(!*p) s=12;
       else if(isdigit(*p)) s=9;
       else if(*p=='e'||*p=='E') s=8;
+      /* A '.' after exponent digits can't be part of a (integral) exponent.
+         If the mantissa before the exponent 'e' had a decimal point, that 'e'
+         was really the float32 suffix: backtrack, emit q..ep as f32, and leave
+         the sign/digits as separate tokens.  So 1.0e+2.0e -> 1.0e + 2.0e,
+         while plain scientific (1.0e+2, 6.022e23) is unaffected. */
+      else if(*p=='.' && ep && memchr(q,'.',ep-q)) {
+        c=*ep; *ep=0; eee=(float)xstrtod(q); *ep=c; p=ep+1; return 5;
+      }
       else s=12;
       break;
     case 10: return 0; /* error */
@@ -99,6 +129,16 @@ static int gn_(void) {
       fff=xstrtod(q);
       *p=c;
       return 2;
+    case 13: /* long (j suffix); 64-bit, no clamp */
+      if(p==q) return 0;
+      c=*--p; *p=0;  /* p now at the 'j'; token is q..p */
+      if(!strcmp(q,"0N")||!strcmp(q,"-0N")) iii=J_NULL;
+      else if(!strcmp(q,"0I")) iii=J_INF;
+      else if(!strcmp(q,"-0I")) iii=J_NINF;
+      else iii=strtoll(q,NULL,10);
+      *p=c;  /* restore 'j' */
+      ++p;   /* consume it -- unlike the int terminator, 'j' is part of the literal */
+      return 4;
     }
     ++p;
   }
@@ -112,7 +152,7 @@ static int gn(pgs *pgs) {
   int r0,r,i;
   int64_t *iv=0;  /* collect in 64-bit space */
   char *nl=0;     /* nl[i]=1 if iv[i] was 0N/-0N literal */
-  int ic=0,fc=0,imm=1,fm=1;
+  int ic=0,fc=0,imm=1,fm=1,lng=0,e32=0;  /* lng: any `j`; e32: any `e` (f32) */
   double *fv=0;
   char *q;
   r0=gn_();
@@ -120,8 +160,9 @@ static int gn(pgs *pgs) {
     q=p;
     while(*p&&isblank(*p))++p;
     if((*p&&isdigit(*p))||(S2(p)&&(*p=='.'||*p=='-')&&isdigit(p[1]))) { /* convert to vector */
-      if(r0==1) { imm<<=1; iv=xrealloc(iv,imm*sizeof(int64_t)); nl=xrealloc(nl?nl:0,imm); nl[ic]=0; iv[ic++]=iii; }
+      if(r0==1||r0==4) { if(r0==4) lng=1; imm<<=1; iv=xrealloc(iv,imm*sizeof(int64_t)); nl=xrealloc(nl?nl:0,imm); nl[ic]=0; iv[ic++]=iii; }
       else if(r0==2) { fm<<=1; fv=xrealloc(fv,fm*sizeof(double)); fv[fc++]=fff; }
+      else if(r0==5) { e32=1; fm<<=1; fv=xrealloc(fv,fm*sizeof(double)); fv[fc++]=eee; }
       else if(r0==3) { imm<<=1; iv=xrealloc(iv,imm*sizeof(int64_t)); nl=xrealloc(nl?nl:0,imm); nl[ic]=1; iv[ic++]=INT32_MIN; }
     }
     p=q;
@@ -130,7 +171,8 @@ static int gn(pgs *pgs) {
         q=p;
         while(*p&&isblank(*p))++p;
         r=gn_();
-        if(r==1) {
+        if(r==1||r==4) {
+          if(r==4) lng=1;
           if(ic==imm) { imm<<=1; iv=xrealloc(iv,imm*sizeof(int64_t)); nl=xrealloc(nl,imm); }
           nl[ic]=0; iv[ic++]=iii;
         }
@@ -138,12 +180,13 @@ static int gn(pgs *pgs) {
           if(ic==imm) { imm<<=1; iv=xrealloc(iv,imm*sizeof(int64_t)); nl=xrealloc(nl,imm); }
           nl[ic]=1; iv[ic++]=INT32_MIN;
         }
-        else if(r==2) {
+        else if(r==2||r==5) {
           fm=imm;
           fv=xrealloc(fv,fm*sizeof(double));
           for(i=0;i<ic;i++) {
             /* preserve null/inf when promoting int64 to double; 0N literal -> NAN, underflow -> -inf */
             if(nl && nl[i]) fv[fc++]=NAN;
+            else if(lng) fv[fc++]=fj(iv[i]);  /* long sentinels via fj; values cast */
             else if(iv[i]==INT32_MIN) fv[fc++]=-INFINITY;  /* numeric underflow */
             else if(iv[i]==INT32_MAX) fv[fc++]=INFINITY;
             else if(iv[i]==INT32_MIN+1) fv[fc++]=-INFINITY;
@@ -151,7 +194,7 @@ static int gn(pgs *pgs) {
           }
           xfree(iv); iv=0; ic=0; if(nl) { xfree(nl); nl=0; }
           if(fc==fm) { fm<<=1; fv=xrealloc(fv,fm*sizeof(double)); }
-          fv[fc++]=fff;
+          if(r==5) { fv[fc++]=eee; e32=1; } else { fv[fc++]=fff; }
           break;
         }
         else { p=q; break; }
@@ -171,9 +214,17 @@ static int gn(pgs *pgs) {
           if(fc==fm) { fm<<=1; fv=xrealloc(fv,fm*sizeof(double)); }
           fv[fc++]=fff;
         }
+        else if(r==4) {  /* long token in a float vector -> promote via fj; forces f64 */
+          if(fc==fm) { fm<<=1; fv=xrealloc(fv,fm*sizeof(double)); }
+          fv[fc++]=fj(iii);
+        }
         else if(r==2) {
           if(fc==fm) { fm<<=1; fv=xrealloc(fv,fm*sizeof(double)); }
           fv[fc++]=fff;
+        }
+        else if(r==5) {  /* float32 token in a float vector */
+          if(fc==fm) { fm<<=1; fv=xrealloc(fv,fm*sizeof(double)); }
+          fv[fc++]=eee; e32=1;
         }
         else if(r==3) {
           /* 0N/-0N in float vector -> NAN (same as 0n) */
@@ -184,7 +235,14 @@ static int gn(pgs *pgs) {
       }
     }
   }
-  if(ic) {
+  if(ic && lng) {
+    /* long vector: no clamp; 0N literal -> J_NULL */
+    K x=tn(8,ic);
+    i64 *pj=px(x);
+    for(i=0;i<ic;i++) pj[i]=(nl && nl[i])?J_NULL:iv[i];
+    push(pgs,T014,x);
+  }
+  else if(ic) {
     K x=tn(1,ic);
     int *pi=px(x);
     /* clamp int64 to int32 here; underflow -> -0I, 0N literal preserved */
@@ -197,10 +255,19 @@ static int gn(pgs *pgs) {
     push(pgs,T014,x);
   }
   else if(fc) {
-    K x=tn(2,fc);
-    double *pf=px(x);
-    i(fc,pf[i]=fv[i])
-    push(pgs,T014,x);
+    if(e32 && !lng) {  /* float32 vector: any e-suffix makes the literal real,
+                          narrowing plain-decimal / scientific f64 elements to
+                          f32 (1.0 2.0e -> real, like 1 2.0e). long+f32 stays f64. */
+      K x=tn(9,fc);
+      float *pe=px(x);
+      i(fc,pe[i]=(float)fv[i])
+      push(pgs,T014,x);
+    } else {
+      K x=tn(2,fc);
+      double *pf=px(x);
+      i(fc,pf[i]=fv[i])
+      push(pgs,T014,x);
+    }
   }
   else if(r0==1) {
     /* scalar int - clamp; underflow -> -0I */
@@ -210,8 +277,10 @@ static int gn(pgs *pgs) {
     else v=(int)iii;
     push(pgs,T014,t(1,(u32)v));
   }
+  else if(r0==4) push(pgs,T014,tj(iii));  /* scalar long - no clamp */
   else if(r0==3) push(pgs,T014,t(1,(u32)INT32_MIN));  /* 0N / -0N literal */
   else if(r0==2) push(pgs,T014,t2(fff));
+  else if(r0==5) push(pgs,T014,te(eee));  /* scalar float32 */
   if(iv) xfree(iv);
   if(nl) xfree(nl);
   if(fv) xfree(fv);
@@ -265,6 +334,13 @@ static int gname(pgs *pgs) {
     K *plocals=px(pgs->locals);
     i(n(pgs->locals),if(q==sk(plocals[i])){push(pgs,T014,t(1,st(0x40,(u32)i)));return 1;})
   }
+  /* a name immediately followed by `:` is an assignment target -- emit it as a
+     plain name (even builtins/predefined like draw, gtime) rather than
+     resolving it to its verb token.  scope_set then decides at eval time:
+     kreserved() names raise a reserved error (at the right location, only when
+     run); other names assign normally.  Doing this in the lexer-error path
+     instead breaks multiline function definitions and mislocates the caret. */
+  if(*p==':') { push(pgs,T014,t(4,st(0x40,q))); return 1; }
   if(!reserved(pgs,sp(q0),q)) {
     push(pgs,T014,t(4,st(0x40,q)));
   }

@@ -12,9 +12,7 @@ The design of gk is inspired by k3, with additional ideas from [Stevan Apter](ht
 |-----|----------------|
 | [doc/tutorial.md](doc/tutorial.md) | Short hands-on REPL tour for newcomers |
 | [doc/ref.md](doc/ref.md) | Language reference (types, primitives, builtins, syntax) |
-| [doc/valence.md](doc/valence.md) | How many arguments functions take; projections |
-| [doc/ipc.md](doc/ipc.md) | Built-in client/server IPC |
-| [doc/timer.md](doc/timer.md) | Recurring `timer` builtin |
+| [doc/v2.md](doc/v2.md) | v2 changes and migration from v1 |
 | [doc/v1.md](doc/v1.md) | v1 changes and migration from v0 |
 | [doc/k3.md](doc/k3.md) | If you already know k3: main dialect differences |
 | [doc/digraphs.md](doc/digraphs.md) | k3 digraphs removed |
@@ -34,7 +32,7 @@ make test
 
 ```
 $ ./gk
-gk-v1.2.0 Copyright (c) 2023-2026 Charles Hall
+gk-v2.0.0 Copyright (c) 2023-2026 Charles Hall
 
   1+2
 3

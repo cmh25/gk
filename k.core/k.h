@@ -3,6 +3,7 @@
 
 #include <limits.h>
 #include <math.h>
+#include <float.h>
 #include "types.h"
 #include "x.h"
 
@@ -40,6 +41,11 @@ typedef struct {
 #define t(t,z) ((K)((t)&0x1F)<<56|((K)(z)&b(56)))
 #define ik(x) ((i32)(b(32)&x))
 #define fk(x) (((ko*)(b(48)&x))->f)
+#define jk(x) (((ko*)(b(48)&x))->j)
+/* float32 (type 9): stored INLINE in the low 32 bits of the tagged word
+   (like int), not boxed -- a 32-bit IEEE pattern fits.  ek reads, te builds. */
+static inline float ek(K x){ union{u32 u;float f;}c; c.u=(u32)(b(32)&x); return c.f; }
+static inline K te(float f){ union{u32 u;float f;}c; c.f=f; return t(9,(u64)c.u); }
 #define ck(x) ((u8)(b(8)&(x)))
 #define sk(x) ((char*)(b(48)&x))
 #define s(x) (b(8)&x>>48)
@@ -55,11 +61,17 @@ typedef struct {
 #define PXC pxc=(char*)px(x)
 #define PXS pxs=(char**)px(x)
 #define PXK pxk=(K*)px(x)
+#define PAJ paj=(i64*)px(a)
+#define PXJ pxj=(i64*)px(x)
+#define PAE pae=(float*)px(a)
+#define PXE pxe=(float*)px(x)
 #define PRI(x) r=tn(1,(x));pri=(i32*)px(r)
 #define PRF(x) r=tn(2,(x));prf=(double*)px(r)
 #define PRC(x) r=tn(3,(x));prc=(char*)px(r)
 #define PRS(x) r=tn(4,(x));prs=(char**)px(r)
 #define PRK(x) r=tn(0,(x));prk=(K*)px(r)
+#define PRJ(x) r=tn(8,(x));prj=(i64*)px(r)
+#define PRE(x) r=tn(9,(x));pre=(float*)px(r)
 
 #define KERR_NYI 0
 #define KERR_RANK 1
@@ -72,17 +84,19 @@ typedef struct {
 #define KERR_INDEX 8
 #define KERR_INT 9
 #define KERR_PARSE 10
-#define KERR_NONCE 11
-#define KERR_STACK 12
-#define KERR_RESERVED 13
-#define KERR_WSFULL 14
+#define KERR_STACK 11
+#define KERR_RESERVED 12
+#define KERR_WSFULL 13
 
 #define E(x) ((x)<256||0x84==s(x))
 #define EC(x) do { K t_=(x); if(E(t_)) { e=t_; goto cleanup; } } while(0);
 
-/* kh(x): does x own a heap ko that participates in refcounting? */
+/* kh(x): does x own a heap ko that participates in refcounting?
+   Bit i (raw 5-bit type field) set => heap.  Atom types 2 (float) and 8
+   (long) box their value in a ko, so their bits (2 and 8) are set; all
+   vectors are negative types (raw 16..31) and are covered by 0xFFFF<<16. */
 static inline i32 kh(K x) {
-  return (i32)(x>=256) & (i32)((0xFFFF0005u >> ((x>>56)&0x1F)) & 1u);
+  return (i32)(x>=256) & (i32)((0xFFFF0105u >> ((x>>56)&0x1F)) & 1u);
 }
 
 /* Inline refcount increment */
@@ -132,6 +146,38 @@ static inline i32 cmpfft(double a, double b) {
   return cmpffe(a,b);
 }
 
+/* f32 comparison tolerance. cmpfft's GK_EPSILON (1e-13) is a double-grade slack;
+   applied to f32 values widened to double it is far too tight to mean anything
+   (f32's ULP near 1.0 is ~1.2e-7), so f32 =,<,>,~,find,floor effectively compared
+   exactly. GK_EPSILON_F is a single-precision slack (~16 ULP, ~1.9e-6 relative): it
+   masks round-off (a few ULP, e.g. (sqrt 2.0e)^2 = 2.0e) while keeping ~5-6
+   significant digits distinct (1.0e != 1.0001e). Used wherever an operand is f32
+   (type 9/-9). Tunable: matching f64's ULP-slack would be ~450*FLT_EPSILON, but that
+   reaches the 4th decimal which is too coarse for a 7-digit type. */
+#define GK_EPSILON_F (16.0 * FLT_EPSILON)
+static inline i32 cmpffef(double a, double b) {
+  double da = a - b;
+  double tol = GK_EPSILON_F * fmax(fabs(a + b), 1.0);
+  return (da >  tol) ?  1
+       : (da < -tol) ? -1
+       : 0;
+}
+static inline i32 cmpffte(double a, double b) {
+  if(isnan(a) && !isnan(b)) return -1;
+  if(isnan(b) && !isnan(a)) return  1;
+  if(isnan(a) &&  isnan(b)) return  0;
+
+  if(isinf(a) && isinf(b)) {
+    if(signbit(a) && !signbit(b)) return -1;
+    if(!signbit(a) && signbit(b)) return  1;
+    return 0;
+  }
+  if(isinf(a)) return signbit(a) ? -1 : 1;
+  if(isinf(b)) return signbit(b) ? 1 : -1;
+
+  return cmpffef(a,b);
+}
+
 /* exact float comparison without tolerance - for group/unique operations */
 static inline i32 cmpffx(double a, double b) {
   if(isnan(a) && !isnan(b)) return -1;
@@ -156,6 +202,18 @@ static inline double fi(i32 x) {
   return (double)x;
 }
 
+/* 64-bit int (long, type 8) sentinels: null, +inf, -inf */
+#define J_NULL  INT64_MIN
+#define J_INF   INT64_MAX
+#define J_NINF  (INT64_MIN+1)
+
+static inline double fj(i64 x) {
+  if(x == J_INF)   return INFINITY;
+  if(x == J_NULL)  return NAN;
+  if(x == J_NINF)  return -INFINITY;
+  return (double)x;
+}
+
 extern i32 precision;
 extern K null,inull;
 extern char* sp(char*);
@@ -166,6 +224,7 @@ void _k(K x);
 K tn(i32 t, i32 n);
 K tnv(i32 t, i32 n, void *v);
 K t2(double x);
+K tj(i64 x);
 K ki(i32 i, K a, K x, i32 ai, i32 xi);
 i32 kcmpr(K a, K x);
 i32 kcmprz(K a, K x, i32 tol); /* tol: 1=use tolerance, 0=exact */
@@ -182,6 +241,8 @@ static inline K xi(K x, u64 i, i8 t) {
   switch(t) {
   case -1: return t(1,(u32)((i32*)px(x))[i]);
   case -2: return t2(((double*)px(x))[i]);
+  case -8: return tj(((i64*)px(x))[i]);
+  case -9: return te(((float*)px(x))[i]);
   case -3: return t(3,(u8)((char*)px(x))[i]);
   case -4: return t(4,((char**)px(x))[i]);
   case  0: return ((K*)px(x))[i];
@@ -194,6 +255,8 @@ static inline K xi_(K x, u64 i, i8 t) {
   switch(t) {
   case -1: return t(1,(u32)((i32*)px(x))[i]);
   case -2: return t2(((double*)px(x))[i]);
+  case -8: return tj(((i64*)px(x))[i]);
+  case -9: return te(((float*)px(x))[i]);
   case -3: return t(3,(u8)((char*)px(x))[i]);
   case -4: return t(4,((char**)px(x))[i]);
   case  0: return k_(((K*)px(x))[i]);

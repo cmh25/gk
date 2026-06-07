@@ -258,6 +258,21 @@ int xatoi(char *s) {
   return r;
 }
 
+int64_t xatol(char *s) {
+  int64_t r;
+  char *e;
+  if(!s||!strlen(s)) r=INT64_MIN;
+  else if(!strcmp(s,"0I")) r=INT64_MAX;
+  else if(!strcmp(s,"0N")) r=INT64_MIN;
+  else if(!strcmp(s,"-0N")) r=INT64_MIN;
+  else if(!strcmp(s,"-0I")) r=INT64_MIN+1;
+  else {
+    r=strtoll(s,&e,10);
+    if((size_t)(e-s)!=strlen(s)) r=INT64_MIN;
+  }
+  return r;
+}
+
 double xstrtod(char *s) {
   double r;
   char *e;

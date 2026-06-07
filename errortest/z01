@@ -5,7 +5,7 @@ f[1;2;3]
 \
 
 cmh@ubuntu22:~/gk$ rlwrap ./gk errortest/z01
-gk-v1.0.0 Copyright (c) 2023-2025 Charles Hall
+gk-v2.0.0 Copyright (c) 2023-2026 Charles Hall
 
 in errortest/z01:1
 type error
@@ -20,7 +20,7 @@ f[1;2;3]
 load: errortest/z01 ... + 2
 error
 cmh@ubuntu22:~/gk$ rlwrap ./gk errortest/z01
-gk-v1.0.0 Copyright (c) 2023-2025 Charles Hall
+gk-v2.0.0 Copyright (c) 2023-2026 Charles Hall
 
 in errortest/z01:1
 type error
@@ -35,7 +35,7 @@ f[1;2;3]
 load: errortest/z01 ... + 2
 
 cmh@ubuntu22:~/gk$ rlwrap ./gk errortest/z01
-gk-v1.0.0 Copyright (c) 2023-2025 Charles Hall
+gk-v2.0.0 Copyright (c) 2023-2026 Charles Hall
 
 in errortest/z01:1
 type error
@@ -44,7 +44,7 @@ type error
 >  \
 load: errortest/z01 ... + 2
 cmh@ubuntu22:~/gk$ rlwrap ./gk errortest/z01
-gk-v1.0.0 Copyright (c) 2023-2025 Charles Hall
+gk-v2.0.0 Copyright (c) 2023-2026 Charles Hall
 
 in errortest/z01:1
 type error
@@ -53,7 +53,7 @@ type error
 >  :3
 3
 cmh@ubuntu22:~/gk$ rlwrap ./gk errortest/z01
-gk-v1.0.0 Copyright (c) 2023-2025 Charles Hall
+gk-v2.0.0 Copyright (c) 2023-2026 Charles Hall
 
 in errortest/z01:1
 type error

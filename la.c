@@ -194,7 +194,62 @@ static K svdcmp(double **a, int m, int n, double *w, double **v, double *t) {
   return null;
 }
 
+/* --- f32/long coercion for the LA builtins ---------------------------------
+ * The decompositions compute in double. We accept real(f32) and long(int64) by
+ * widening to f64 on the way in (la_widen) and, when the input was pure-real
+ * (f32 present, no long, no f64), narrowing the f64 result back to f32 on the
+ * way out (la_narrow) -- mirroring the scalar promotion lattice: any long/f64
+ * present => stay f64. Computation itself is untouched. */
+
+/* OR-accumulate type flags over a (possibly nested) numeric K:
+   bit0 = real(9/-9), bit1 = long(8/-8), bit2 = float64(2/-2). */
+static int la_tflags(K x) {
+  if(!x||s(x)) return 0;
+  char t=T(x);
+  if(t==9||t==-9) return 1;
+  if(t==8||t==-8) return 2;
+  if(t==2||t==-2) return 4;
+  if(t==0) { int f=0; K *p=px(x); i(n(x),f|=la_tflags(p[i])) return f; }
+  return 0;
+}
+
+/* deep copy widening real/long -> float64; int/f64 (and anything else) pass
+   through as new refs; recurses into general lists. */
+static K la_widen(K x) {
+  K r; double *pr;
+  if(!x||s(x)) return k_(x);
+  char t=T(x);
+  if(t==9) return t2((double)ek(x));
+  if(t==8) return t2(fj(jk(x)));
+  if(t==-9) { r=tn(2,n(x)); pr=px(r); float *pe=(float*)px(x); i(n(x),pr[i]=(double)pe[i]) return r; }
+  if(t==-8) { r=tn(2,n(x)); pr=px(r); i64 *pj=(i64*)px(x); i(n(x),pr[i]=(double)pj[i]) return r; }
+  if(t==0) { r=tn(0,n(x)); K *prk=px(r),*pp=px(x); i(n(x),prk[i]=la_widen(pp[i])) return r; }
+  return k_(x);
+}
+
+/* deep copy narrowing float64 -> real(f32); recurses into general lists. */
+static K la_narrow(K x) {
+  K r; float *pr;
+  if(!x||s(x)) return k_(x);
+  char t=T(x);
+  if(t==2) return te((float)fk(x));
+  if(t==-2) { r=tn(9,n(x)); pr=px(r); double *pf=px(x); i(n(x),pr[i]=(float)pf[i]) return r; }
+  if(t==0) { r=tn(0,n(x)); K *prk=px(r),*pp=px(x); i(n(x),prk[i]=la_narrow(pp[i])) return r; }
+  return k_(x);
+}
+
+/* coerce guard for a single-matrix LA entry point. If real/long present, widen
+   to f64, run FN on the copy, and narrow back to f32 iff input was pure-real. */
+#define LA_COERCE1(FN,X) do{ int _f=la_tflags(X); if(_f&3){ \
+  K _x=la_widen(X); K _r=FN(_x); _k(_x); \
+  if(E(_r) || !((_f&1)&&!(_f&6))) return _r; \
+  K _q=la_narrow(_r); _k(_r); return _q; } }while(0)
+
 K lsq_(K a, K x) {
+  { int _f=la_tflags(a)|la_tflags(x); if(_f&3) {
+      K _a=la_widen(a), _x=la_widen(x); K _r=lsq_(_a,_x); _k(_a); _k(_x);
+      if(E(_r) || !((_f&1)&&!(_f&6))) return _r;
+      K _q=la_narrow(_r); _k(_r); return _q; } }
   K e=0, svdres=0, *psv, U=0, S=0, V=0, Sinv=0, Ut=0, Uy=0, Su=0, Vy=0, r=0, t=0;
   u64 i,j,n;
 
@@ -360,6 +415,7 @@ static void canonicalize_svd(K U, K S, K V) {
 
 /* (U;S;+V) = svd A */
 K svd_(K x) {
+  LA_COERCE1(svd_,x);
   K U=0,S=0,V=0,e=0,z=0;
   double **a=0, **v=0, *w=0, *rv1=0, *A0=0;
   u32 m,n;                 /* original rows, cols of A */
@@ -604,6 +660,7 @@ cleanup:
 
 /* lu decomposition */
 K lu_(K x) {
+  LA_COERCE1(lu_,x);
   K r=0, L=0, U=0, P=0, e=0;
   double **a = 0;
   u32 m, n, rnk, i, j, kk;
@@ -761,6 +818,7 @@ cleanup:
 
 /* qr decomposition */
 K qr_(K x) {
+  LA_COERCE1(qr_,x);
   K r=0, Qk=0, Rk=0;
   double **A=0, *A0=0;      /* A[m][n] */
   double **Q=0, *Q0=0;      /* Q[m][m] */
@@ -922,6 +980,7 @@ K qr_(K x) {
 
 /* ldu decomposition: A = L*D*U where L,U have 1s on diagonal */
 K ldu_(K x) {
+  LA_COERCE1(ldu_,x);
   K lu = lu_(x);
   if(E(lu)) return lu;
 
@@ -981,6 +1040,7 @@ K ldu_(K x) {
 
 /* rref: reduced row echelon form */
 K rref_(K x) {
+  LA_COERCE1(rref_,x);
   K r = 0;
   double *a0 = 0, **a = 0;
   u32 m, n, i, j, kk;
@@ -1099,6 +1159,7 @@ K rref_(K x) {
 
 /* det: determinant of square matrix via LU */
 K det_(K x) {
+  LA_COERCE1(det_,x);
   double *a0 = 0, **a = 0;
   u32 m, i, j, kk;
   int swaps = 0;
@@ -1182,7 +1243,8 @@ K det_(K x) {
 
 /* mag: vector magnitude (L2 norm) */
 K mag_(K x) {
-  if(s(x)) return kerror("type");
+  if(!x||s(x)) return kerror("type");
+  LA_COERCE1(mag_,x);
 
   switch(tx) {
   case 1: {
@@ -1421,6 +1483,149 @@ static K mul_try_f64_fast(K a, K x) {
   #undef MICRO_8x16
 }
 
+/* f32 analogues of the fast-path helpers above. Accept rectangular boxed
+ * lists whose rows are all f32 (-9) or i32 (-1); any_f32 gates the path so
+ * all-i32 stays generic (i32 result). An f64 (-2) row makes a list ineligible
+ * here, so f32-with-f64 falls through to the f64 path (f64 result). */
+static int mul_rect_dims_e(K v, u64 *rows_out, u64 *cols_out, int *any_f32_out) {
+  if(!v || s(v) || T(v) != 0) return 0;
+  u64 rows = n(v);
+  if(rows == 0) { *rows_out = 0; *cols_out = 0; *any_f32_out = 0; return 1; }
+  K *pv = (K*)px(v);
+  i32 t0 = T(pv[0]);
+  if(t0 != -1 && t0 != -9) return 0;
+  u64 cols = n(pv[0]);
+  int any_f32 = (t0 == -9);
+  for(u64 i = 1; i < rows; i++) {
+    i32 t = T(pv[i]);
+    if(t != -1 && t != -9) return 0;
+    if(n(pv[i]) != cols) return 0;
+    if(t == -9) any_f32 = 1;
+  }
+  *rows_out = rows; *cols_out = cols; *any_f32_out = any_f32;
+  return 1;
+}
+
+static void mul_pack_rows_e(K v, float *out, u64 rows, u64 cols) {
+  K *pv = (K*)px(v);
+  for(u64 i = 0; i < rows; i++) {
+    K row = pv[i];
+    float *dst = out + i * cols;
+    if(T(row) == -9) {
+      memcpy(dst, (float*)px(row), cols * sizeof(float));
+    } else {
+      i32 *src = (i32*)px(row);
+      for(u64 j = 0; j < cols; j++) dst[j] = (float)src[j];
+    }
+  }
+}
+
+/* f32 (real) matrix-multiply fast path; structurally identical to
+ * mul_try_f64_fast but with float accumulators -> f32 (-9) result rows.
+ * Float halves the bytes per accumulator, so the same 8x16 register tile
+ * holds twice the lanes per vector and the kernel runs at ~2x the f64
+ * throughput. Accumulating in float (not double) matches +/ over f32. */
+static K mul_try_f32_fast(K a, K x) {
+  u64 M, Ka, Kb, N;
+  int a_f32, x_f32;
+  if(!mul_rect_dims_e(a, &M, &Ka, &a_f32))   return 0;
+  if(!mul_rect_dims_e(x, &Kb, &N, &x_f32))   return 0;
+  if(M == 0 || Ka == 0 || N == 0)            return 0;
+  if(Ka != Kb)                               return 0;
+  if(!a_f32 && !x_f32)                       return 0;
+
+  enum { BM = 8, BN = 128, NR = 16 };
+  #define MICRO_8x16E(c_rows_, a_strip_, b_panel_, K_, N_, jr_) do {        \
+    float c0[NR] = {0}, c1[NR] = {0}, c2[NR] = {0}, c3[NR] = {0};           \
+    float c4[NR] = {0}, c5[NR] = {0}, c6[NR] = {0}, c7[NR] = {0};           \
+    for(u64 k_ = 0; k_ < (K_); k_++) {                                      \
+      const float *b_ = (b_panel_) + k_ * (N_);                            \
+      const float *a_ = (a_strip_) + k_ * BM;                              \
+      for(u64 j_ = 0; j_ < NR; j_++) c0[j_] += a_[0] * b_[j_];              \
+      for(u64 j_ = 0; j_ < NR; j_++) c1[j_] += a_[1] * b_[j_];              \
+      for(u64 j_ = 0; j_ < NR; j_++) c2[j_] += a_[2] * b_[j_];              \
+      for(u64 j_ = 0; j_ < NR; j_++) c3[j_] += a_[3] * b_[j_];              \
+      for(u64 j_ = 0; j_ < NR; j_++) c4[j_] += a_[4] * b_[j_];              \
+      for(u64 j_ = 0; j_ < NR; j_++) c5[j_] += a_[5] * b_[j_];              \
+      for(u64 j_ = 0; j_ < NR; j_++) c6[j_] += a_[6] * b_[j_];             \
+      for(u64 j_ = 0; j_ < NR; j_++) c7[j_] += a_[7] * b_[j_];             \
+    }                                                                      \
+    for(u64 j_ = 0; j_ < NR; j_++) (c_rows_)[0][(jr_) + j_] = c0[j_];      \
+    for(u64 j_ = 0; j_ < NR; j_++) (c_rows_)[1][(jr_) + j_] = c1[j_];      \
+    for(u64 j_ = 0; j_ < NR; j_++) (c_rows_)[2][(jr_) + j_] = c2[j_];      \
+    for(u64 j_ = 0; j_ < NR; j_++) (c_rows_)[3][(jr_) + j_] = c3[j_];      \
+    for(u64 j_ = 0; j_ < NR; j_++) (c_rows_)[4][(jr_) + j_] = c4[j_];      \
+    for(u64 j_ = 0; j_ < NR; j_++) (c_rows_)[5][(jr_) + j_] = c5[j_];      \
+    for(u64 j_ = 0; j_ < NR; j_++) (c_rows_)[6][(jr_) + j_] = c6[j_];      \
+    for(u64 j_ = 0; j_ < NR; j_++) (c_rows_)[7][(jr_) + j_] = c7[j_];      \
+  } while(0)
+
+  u64 M_pad = ((M + BM - 1) / BM) * BM;
+  float *A  = (float*)malloc(M     * Ka * sizeof(float));
+  float *Ap = (float*)malloc(M_pad * Ka * sizeof(float));
+  float *B  = (float*)malloc(Kb    * N  * sizeof(float));
+  float **C = (float**)malloc(M * sizeof(float*));
+  if(!A || !Ap || !B || !C) {
+    free(A); free(Ap); free(B); free(C);
+    return KERR_WSFULL;
+  }
+
+  mul_pack_rows_e(a, A, M,  Ka);
+  mul_pack_rows_e(x, B, Kb, N);
+  for(u64 ii = 0; ii < M; ii += BM) {
+    u64 bm = ii + BM > M ? M - ii : BM;
+    float *strip = Ap + ii * Ka;
+    for(u64 i = 0; i < bm; i++)
+      for(u64 k = 0; k < Ka; k++)
+        strip[k * BM + i] = A[(ii + i) * Ka + k];
+  }
+
+  K r = tn(0, M);
+  K *pr = (K*)px(r);
+  for(u64 i = 0; i < M; i++) {
+    pr[i] = tn(9, N);
+    C[i] = (float*)px(pr[i]);
+  }
+
+  for(u64 jj = 0; jj < N; jj += BN) {
+    u64 jend = jj + BN < N ? jj + BN : N;
+    for(u64 ii = 0; ii < M; ii += BM) {
+      u64 iend = ii + BM < M ? ii + BM : M;
+      u64 bm = iend - ii;
+      const float *a_strip = Ap + ii * Ka;
+
+      for(u64 jr = jj; jr < jend; jr += NR) {
+        u64 jrend = jr + NR < jend ? jr + NR : jend;
+        u64 nri = jrend - jr;
+
+        if(bm == BM && nri == NR) {
+          MICRO_8x16E(C + ii, a_strip, B + jr, Ka, N, jr);
+        } else {
+          float cc[BM][NR];
+          for(u64 i = 0; i < bm; i++)
+            for(u64 j = 0; j < nri; j++) cc[i][j] = 0.0f;
+          for(u64 k = 0; k < Ka; k++) {
+            const float *b_row = B + k * N + jr;
+            const float *a_col = a_strip + k * BM;
+            for(u64 i = 0; i < bm; i++) {
+              float a_ik = a_col[i];
+              for(u64 j = 0; j < nri; j++) cc[i][j] += a_ik * b_row[j];
+            }
+          }
+          for(u64 i = 0; i < bm; i++) {
+            float *c_row = C[ii + i] + jr;
+            for(u64 j = 0; j < nri; j++) c_row[j] = cc[i][j];
+          }
+        }
+      }
+    }
+  }
+
+  free(C); free(B); free(Ap); free(A);
+  return r;
+  #undef MICRO_8x16E
+}
+
 /* a mul x: matrix multiply. semantically identical to {x dot\y}.
  *
  *   - boxed-list left (the matrix-shaped case): for each row of a, dotp(row, x).
@@ -1444,7 +1649,9 @@ K mul_(K a, K x) {
   if(s(a) || s(x)) return KERR_TYPE;
 
   if(ta == 0) {
-    K fast = mul_try_f64_fast(a, x);
+    K fast = mul_try_f32_fast(a, x);
+    if(fast) return fast;
+    fast = mul_try_f64_fast(a, x);
     if(fast) return fast;
 
     K *pa = px(a);

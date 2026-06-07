@@ -519,10 +519,80 @@ static i32 maxw(K x, u64 b) {
   return w;
 }
 
+/* digit count of unsigned value v in base b (b>=2) */
+static u32 vwidthj(u64 v, u64 b) { u32 w=1; while(v>=b) { v/=b; ++w; } return w; }
+/* read element j of an int/long vector as i64 */
+static i64 vreadj(K x, u64 j) { return tx==-8 ? ((i64*)px(x))[j] : (i64)((i32*)px(x))[j]; }
+
+/* long base-encode (vs) -- any of base/value is long, result digits long.
+   mirrors the int vs_: scalar base x scalar value -> digit vector (empty for
+   0); scalar base x vector value -> flipped/padded matrix; vector base ->
+   mixed-radix digits. value as a general list is left to the int path. */
+static K vsj(K a, K x) {
+  if(!(ta==1||ta==8||ta==-1||ta==-8)) return KERR_TYPE;
+  if(!(tx==1||tx==8||tx==-1||tx==-8)) return KERR_TYPE;
+  if(ta==1 || ta==8) {                       /* scalar base */
+    i64 bb = ta==8 ? jk(a) : (i64)ik(a);
+    if(bb<=1) return KERR_DOMAIN;
+    u64 b=(u64)bb;
+    if(tx==1 || tx==8) {                     /* scalar value */
+      u64 v = tx==8 ? (u64)jk(x) : (u64)(i64)ik(x);
+      if(v==0) return tn(8,0);               /* vs[b;0] -> empty (matches int) */
+      u32 w=vwidthj(v,b);
+      K r=tn(8,w); i64 *pr=px(r);
+      for(i32 i=(i32)w-1;i>=0;i--) { pr[i]=(i64)(v%b); v/=b; }
+      return r;
+    }
+    u64 nval=nx; i32 w=1;                    /* vector value -> flipped matrix */
+    for(u64 j=0;j<nval;j++) { u32 ww=vwidthj((u64)vreadj(x,j),b); if((i32)ww>w) w=ww; }
+    K r=tn(0,w); K *pr=px(r);
+    for(i32 d=0;d<w;d++) pr[d]=tn(8,nval);
+    for(u64 j=0;j<nval;j++) {
+      u64 v=(u64)vreadj(x,j);
+      for(i32 d=w-1;d>=0;d--) { ((i64*)px(pr[d]))[j]=(i64)(v%b); v/=b; }
+    }
+    return r;
+  }
+  /* vector base = mixed radix; scalar value -> digit vector, vector value ->
+     matrix (L rows x nval cols), mirroring the int path so long round-trips */
+  u64 L=na; if(!L) return KERR_DOMAIN;
+  i64 *base=xmalloc(L*sizeof(i64)), *place=xmalloc(L*sizeof(i64));
+  for(u64 i=0;i<L;i++) {
+    base[i]=vreadj(a,i);
+    if(base[i]<0 || (i && base[i]<1)) { xfree(base); xfree(place); return KERR_DOMAIN; }
+  }
+  place[L-1]=1;
+  for(i32 i=(i32)L-2;i>=0;i--) place[i]=place[i+1]*base[i+1];
+  for(u64 i=0;i<L;i++) if(place[i]==0) { xfree(base); xfree(place); return KERR_DOMAIN; }
+  if(tx==1 || tx==8) {                       /* scalar value -> digit vector */
+    u64 xx = tx==8 ? (u64)jk(x) : (u64)(i64)ik(x);
+    K r=tn(8,L); i64 *pr=px(r);
+    for(u64 i=0;i<L;i++) {
+      u64 pl=(u64)place[i], m=xx/pl; xx-=m*pl;
+      pr[i] = base[i] ? (i64)(m%(u64)base[i]) : (i64)m;
+    }
+    xfree(base); xfree(place);
+    return r;
+  }
+  u64 nval=nx;                               /* vector value -> matrix */
+  K r=tn(0,L); K *pr=px(r);
+  for(u64 i=0;i<L;i++) pr[i]=tn(8,nval);
+  for(u64 j=0;j<nval;j++) {
+    u64 xx=(u64)vreadj(x,j);
+    for(u64 i=0;i<L;i++) {
+      u64 pl=(u64)place[i], m=xx/pl; xx-=m*pl;
+      ((i64*)px(pr[i]))[j] = base[i] ? (i64)(m%(u64)base[i]) : (i64)m;
+    }
+  }
+  xfree(base); xfree(place);
+  return r;
+}
+
 K vs(K a, K x) {
   i32 w,*pai,z;
   K *pxk;
   if(s(a)||s(x)) return KERR_TYPE;
+  if(ta==8 || ta==-8 || tx==8 || tx==-8) return vsj(a,x);
   if((ta==1&&ik(a)<=1)) return KERR_DOMAIN;
   if(ta==-1) {
     if(!na) return KERR_DOMAIN;
@@ -548,6 +618,35 @@ K sv(K a, K x) {
   u32 j;
   double jf,*pxf;
   if(s(a)||s(x)) return KERR_TYPE;
+  /* long base or long digit-vector with a scalar base: i64 Horner, long
+     result (e.g. sv[256j;bytes] builds a 64-bit value without overflow) */
+  if((ta==8 || tx==8 || tx==-8) && (ta==1 || ta==8)) {
+    if(tx==8) return tj(jk(x));
+    if(tx==-1 || tx==-8) {
+      i64 base = ta==8 ? jk(a) : (i64)ik(a);
+      i64 acc = 0, *pj; i32 *pi;
+      if(tx==-8) { pj=px(x); i(nx, acc=acc*base+pj[i]) }
+      else { pi=px(x); i(nx, acc=acc*base+pi[i]) }
+      return tj(acc);
+    }
+  }
+  /* mixed-radix vector base with a long base or long digits: i64, long
+     result. value = sum(digit[i] * place[i]); place[i]=prod of later bases */
+  if((ta==-8 || tx==-8) && (ta==-1 || ta==-8) && (tx==-1 || tx==-8)) {
+    if(na!=nx) return KERR_LENGTH;
+    u64 L=na; if(!L) return tj(0);
+    i64 *base=xmalloc(L*sizeof(i64)), *place=xmalloc(L*sizeof(i64)), acc=0;
+    for(u64 i=0;i<L;i++) {
+      base[i]=vreadj(a,i);
+      if(base[i]<0 || (i && base[i]<1)) { xfree(base); xfree(place); return KERR_DOMAIN; }
+    }
+    place[L-1]=1;
+    for(i32 i=(i32)L-2;i>=0;i--) place[i]=place[i+1]*base[i+1];
+    for(u64 i=0;i<L;i++) if(place[i]==0) { xfree(base); xfree(place); return KERR_DOMAIN; }
+    for(u64 i=0;i<L;i++) acc += vreadj(x,i) * place[i];
+    xfree(base); xfree(place);
+    return tj(acc);
+  }
   if(tx==0) {
     p=k(1,0,k_(x)); EC(p); /* flip */
     EC(p);
@@ -592,6 +691,13 @@ K sv(K a, K x) {
       break;
     default: r=KERR_TYPE;
     } break;
+  case  8:
+  case -8:
+    /* long base, matrix digits (list of rows after flip): decode each row,
+       mirrors the int case-0 arms so long round-trips like int */
+    if(tx==0) { pxk=px(x); r=tn(0,n(x)); prk=px(r); i(nr, prk[i]=sv(a,pxk[i]); EC(prk[i])) }
+    else r=KERR_TYPE;
+    break;
   default: r=KERR_TYPE;
   }
   _k(p); _k(q); _k(s);
@@ -604,14 +710,20 @@ cleanup:
 K square(K x) {
   K r=0,e;
   i32 *pxi;
+  i64 *pxj;
+  float *pxe,*pre,ef;
   double f,*prf,*pxf;
   if(!x) { e=KERR_TYPE; goto cleanup; }
   if(s(x)) { e=KERR_TYPE; goto cleanup; }
   switch(tx) {
   case  1: f=fi(ik(x))*fi(ik(x)); r=t2(f); break;
   case  2: f=-fk(x); f*=f; r=t2(f); break;
+  case  8: f=fj(jk(x)); f*=f; r=t2(f); break;
+  case  9: ef=ek(x); r=te(ef*ef); break;
   case -1: PRF(nx); PXI; i(nx,*prf++=*pxi*fi(*pxi);++pxi) break;
   case -2: PRF(nx); PXF; i(nx,*prf++=*pxf**pxf;++pxf) break;
+  case -8: PRF(nx); PXJ; i(nx,f=fj(pxj[i]);prf[i]=f*f) break;
+  case -9: PRE(nx); PXE; i(nx,ef=pxe[i];pre[i]=ef*ef) break;
   case  0: r=irecur1(square,x); break;
   default: r=KERR_TYPE;
   }
@@ -624,14 +736,20 @@ cleanup:
 K abs_(K x) {
   K r=0,e;
   i32 i,j,*pri,*pxi;
+  i64 jj,*prj,*pxj;
+  float ef,*pre,*pxe;
   double f,g,*prf,*pxf;
   if(!x) { e=KERR_TYPE; goto cleanup; }
   if(s(x)) { e=KERR_TYPE; goto cleanup; }
   switch(tx) {
   case  1: i=ik(x); j=i==INT32_MIN?INT32_MIN:i==INT32_MIN+1?INT32_MAX:i<0?-i:i; r=t(1,(u32)j); break;
   case  2: f=fk(x); g=isinf(f)&&f<0.0?INFINITY:f<0.0?-f:f; r=t2(g); break;
+  case  8: jj=jk(x); r=tj(jj==J_NULL?J_NULL:jj==J_NINF?J_INF:jj<0?-jj:jj); break;
+  case  9: ef=ek(x); r=te(isinf(ef)&&ef<0.0f?(float)INFINITY:ef<0.0f?-ef:ef); break;
   case -1: PRI(nx); PXI; i(nx,j=*pxi++; *pri++=j==INT32_MIN?INT32_MIN:j==INT32_MIN+1?INT32_MAX:j<0?-j:j); break;
   case -2: PRF(nx); PXF; i(nx,f=*pxf++; *prf++=isinf(f)&&f<0.0?INFINITY:f<0.0?-f:f); break;
+  case -8: PRJ(nx); PXJ; i(nx,jj=pxj[i]; prj[i]=jj==J_NULL?J_NULL:jj==J_NINF?J_INF:jj<0?-jj:jj); break;
+  case -9: PRE(nx); PXE; i(nx,ef=pxe[i]; pre[i]=isinf(ef)&&ef<0.0f?(float)INFINITY:ef<0.0f?-ef:ef); break;
   case  0: r=irecur1(abs_,x); break;
   default: r=KERR_TYPE;
   }
@@ -875,22 +993,74 @@ K lt(K x) {
   return knorm(r);
 }
 
+/* j2f: long/f32 atom or vector -> a fresh float64 K; other types pass
+ * through as a new ref. Used by float-output builtins (atan2/hypot) to
+ * accept longs/reals by promoting to double without expanding their whole
+ * type matrix. */
+static K j2f(K x) {
+  K r; double *prf; i64 *pxj; float *pxe;
+  if(tx==8) return t2(fj(jk(x)));
+  if(tx==-8) { r=tn(2,nx); prf=px(r); PXJ; i(nx,prf[i]=fj(pxj[i])) return r; }
+  if(tx==9) return t2((double)ek(x));
+  if(tx==-9) { r=tn(2,nx); prf=px(r); PXE; i(nx,prf[i]=(double)pxe[i]) return r; }
+  return k_(x);
+}
+
+/* i2e: int atom/vector -> a fresh real(f32) K; real (9/-9) passes through as a
+ * new ref. Mirror of j2f for the f32-stays-f32 path of atan2/hypot (used only
+ * when operands are pure int/real -- no f64 or long present). */
+static K i2e(K x) {
+  K r; float *pre; i32 *pxi;
+  if(tx==1) return te((float)ik(x));
+  if(tx==-1) { r=tn(9,nx); pre=px(r); PXI; i(nx,pre[i]=(float)pxi[i]) return r; }
+  return k_(x);
+}
+
+/* flatie: x is a flat int(1/-1) or real(9/-9) atom/vector -- exactly the set
+ * i2e converts to a real K. The real-stays-real fast path is only safe when
+ * BOTH operands are flatie; a general list (or any other type) must fall
+ * through to the recursing/f64 path or ehypot_/eatan2_ would read it as a
+ * float buffer and over-read the other operand. */
+static int flatie(K x) { return tx==1||tx==-1||tx==9||tx==-9; }
+
+/* real-op-real -> real dyad; operands already real (9/-9). F0f is the
+ * f32-precision libm fn. Atoms inline; vec/vec needs equal length. */
+#define EC2D(NAME,F0f) \
+static K NAME(K a,K x) { \
+  K r=0; float *pre,*pae,*pxe; \
+  if(ta<0&&tx<0&&na!=nx) return KERR_LENGTH; \
+  if(ta==9&&tx==9) return te(F0f(ek(a),ek(x))); \
+  else if(ta==9) { float A=ek(a); PRE(nx); PXE; i(nx,pre[i]=F0f(A,pxe[i])) } \
+  else if(tx==9) { float X=ek(x); PRE(na); PAE; i(na,pre[i]=F0f(pae[i],X)) } \
+  else { PRE(na); PAE; PXE; i(na,pre[i]=F0f(pae[i],pxe[i])) } \
+  return knorm(r); \
+}
+EC2D(ehypot_,hypotf)
+EC2D(eatan2_,atan2f)
+
 /*
  *  F: function
  * F0: function to compute
 */
-#define MC1D(F,F0) \
+/* F0: f64 math fn; F0f: its f32-precision variant (real stays real) */
+#define MC1D(F,F0,F0f) \
 K F(K x) { \
   K r=0,e; \
   i32 *pxi; \
+  i64 *pxj; \
+  float *pxe,*pre; \
   double *prf,*pxf; \
   if(s(x)) return KERR_TYPE; \
   switch(tx) { \
   case  1: r=t2(F0(fi(ik(x)))); break; \
   case  2: r=t2(F0(fk(x))); break; \
+  case  8: r=t2(F0(fj(jk(x)))); break; \
+  case  9: r=te(F0f(ek(x))); break; \
   case  0: r=irecur1(F,x); break; \
   case -1: r=tn(2,nx); prf=px(r); PXI; i(nx,prf[i]=F0(fi(pxi[i]))) break; \
   case -2: r=tn(2,nx); prf=px(r); PXF; i(nx,prf[i]=F0(pxf[i])) break; \
+  case -8: r=tn(2,nx); prf=px(r); PXJ; i(nx,prf[i]=F0(fj(pxj[i]))) break; \
+  case -9: r=tn(9,nx); pre=px(r); PXE; i(nx,pre[i]=F0f(pxe[i])) break; \
   default: { e=KERR_TYPE; goto cleanup; } \
   } \
   return knorm(r); \
@@ -898,37 +1068,41 @@ cleanup: \
   _k(r); \
   return e; \
 }
-MC1D(log_,log)
-MC1D(exp_,exp)
-MC1D(sqrt_,sqrt)
-MC1D(floor_,floor)
-MC1D(ceil_,ceil)
-MC1D(sin_,sin)
-MC1D(cos_,cos)
-MC1D(tan_,tan)
-MC1D(asin_,asin)
-MC1D(acos_,acos)
-MC1D(atan_,atan)
-MC1D(sinh_,sinh)
-MC1D(cosh_,cosh)
-MC1D(tanh_,tanh)
-MC1D(erf_,erf)
-MC1D(erfc_,erfc)
-MC1D(gamma_,tgamma)
-MC1D(lgamma_,lgamma)
-MC1D(rint_,rint)
-MC1D(trunc_,trunc)
+MC1D(log_,log,logf)
+MC1D(exp_,exp,expf)
+MC1D(sqrt_,sqrt,sqrtf)
+MC1D(floor_,floor,floorf)
+MC1D(ceil_,ceil,ceilf)
+MC1D(sin_,sin,sinf)
+MC1D(cos_,cos,cosf)
+MC1D(tan_,tan,tanf)
+MC1D(asin_,asin,asinf)
+MC1D(acos_,acos,acosf)
+MC1D(atan_,atan,atanf)
+MC1D(sinh_,sinh,sinhf)
+MC1D(cosh_,cosh,coshf)
+MC1D(tanh_,tanh,tanhf)
+MC1D(erf_,erf,erff)
+MC1D(erfc_,erfc,erfcf)
+MC1D(gamma_,tgamma,tgammaf)
+MC1D(lgamma_,lgamma,lgammaf)
+MC1D(rint_,rint,rintf)
+MC1D(trunc_,trunc,truncf)
 
 /*
  *  F: function
  * F0: function to compute
 */
-#define MC2D(F,F0) \
+#define MC2D(F,F0,EF) \
 K F(K a,K x) { \
   K r=0; \
   i32 *pai,*pxi; \
   double *prf,*paf,*pxf; \
   if(s(a)||s(x)) return KERR_TYPE; \
+  { char hl=ta==8||ta==-8||tx==8||tx==-8, he=ta==9||ta==-9||tx==9||tx==-9, \
+         hf=ta==2||ta==-2||tx==2||tx==-2; \
+    if(he&&!hl&&!hf&&flatie(a)&&flatie(x)) { K A=i2e(a),X=i2e(x); r=EF(A,X); _k(A); _k(X); return r; } \
+    if(hl||he) { K A=j2f(a),X=j2f(x); r=F(A,X); _k(A); _k(X); return r; } } \
   if(ta<=0 && tx<=0 && na!=nx) return KERR_LENGTH; \
   switch(ta) { \
   case  1: \
@@ -980,26 +1154,35 @@ K F(K a,K x) { \
   } \
   return knorm(r); \
 }
-MC2D(atan2_,atan2)
+MC2D(atan2_,atan2,eatan2_)
 
-/* integer ops */
+/* integer ops. Accept int (type 1) and long (type 8); any long operand
+   promotes the result to long (computed in i64). Float is a type error. */
 #define MC2IO(F,F0,O,N) \
 K F(K a, K x) { \
   K r=0; \
   i32 *pri,*pai,*pxi; \
+  i64 *prj,*paj,*pxj; \
   if(s(a)||s(x)) return KERR_TYPE; \
-  if((N)) {  /* nonce */ \
-    if(tx==1 && !ik(x)) return KERR_NONCE; \
-    if(tx==-1) { PXI; i(nx,if(!pxi[i]) return KERR_NONCE) } \
-    if(ta==1 && INT32_MIN==ik(a)) { /* 0N / -1 */ \
-      if(tx==1 && -1==ik(x)) return KERR_NONCE; \
-      if(tx==-1) { PXI; i(nx,if(-1==pxi[i]) return KERR_NONCE) } \
+  if((N)) {  /* divide-by-zero -> domain; INT_MIN/-1 overflow -> range */ \
+    if(tx==1 && !ik(x)) return KERR_DOMAIN; \
+    if(tx==8 && !jk(x)) return KERR_DOMAIN; \
+    if(tx==-1) { PXI; i(nx,if(!pxi[i]) return KERR_DOMAIN) } \
+    if(tx==-8) { PXJ; i(nx,if(!pxj[i]) return KERR_DOMAIN) } \
+    if((ta==1 && INT32_MIN==ik(a)) || (ta==8 && INT64_MIN==jk(a))) { \
+      if(tx==1 && -1==ik(x)) return KERR_RANGE; \
+      if(tx==8 && -1==jk(x)) return KERR_RANGE; \
+      if(tx==-1) { PXI; i(nx,if(-1==pxi[i]) return KERR_RANGE) } \
+      if(tx==-8) { PXJ; i(nx,if(-1==pxj[i]) return KERR_RANGE) } \
     } \
-    if(ta==-1) { \
+    if(ta==-1 || ta==-8) { \
       i32 b=0; \
-      PAI; i(na,if(INT32_MIN==pai[i]) {b=1;break;}) \
-      if(b && tx==1 && -1==ik(x)) return KERR_NONCE; \
-      if(b && tx==-1) { PXI; i(nx,if(-1==pxi[i]) return KERR_NONCE) } \
+      if(ta==-1) { PAI; i(na,if(INT32_MIN==pai[i]) {b=1;break;}) } \
+      else { PAJ; i(na,if(INT64_MIN==paj[i]) {b=1;break;}) } \
+      if(b && tx==1 && -1==ik(x)) return KERR_RANGE; \
+      if(b && tx==8 && -1==jk(x)) return KERR_RANGE; \
+      if(b && tx==-1) { PXI; i(nx,if(-1==pxi[i]) return KERR_RANGE) } \
+      if(b && tx==-8) { PXJ; i(nx,if(-1==pxj[i]) return KERR_RANGE) } \
     } \
   } \
   if(ta<=0 && tx<=0 && na!=nx) return KERR_LENGTH; \
@@ -1007,21 +1190,45 @@ K F(K a, K x) { \
   case  1: \
     switch(tx) { \
     case  1: r=t(1,(u32)(ik(a) O ik(x))); break; \
+    case  8: r=tj((i64)ik(a) O jk(x)); break; \
     case -1: PRI(nx); PXI; i(nx,pri[i]=ik(a) O pxi[i]) break; \
+    case -8: PRJ(nx); PXJ; { i64 A=(i64)ik(a); i(nx,prj[i]=A O pxj[i]) } break; \
+    case  0: r=irecur2(F,a,x); break; \
+    default: r=KERR_TYPE; \
+    } break; \
+  case  8: \
+    switch(tx) { \
+    case  1: r=tj(jk(a) O (i64)ik(x)); break; \
+    case  8: r=tj(jk(a) O jk(x)); break; \
+    case -1: PRJ(nx); PXI; { i64 A=jk(a); i(nx,prj[i]=A O (i64)pxi[i]) } break; \
+    case -8: PRJ(nx); PXJ; { i64 A=jk(a); i(nx,prj[i]=A O pxj[i]) } break; \
     case  0: r=irecur2(F,a,x); break; \
     default: r=KERR_TYPE; \
     } break; \
   case -1: \
     switch(tx) { \
     case  1: PRI(na); PAI; i(na,pri[i]=pai[i] O ik(x)) break; \
+    case  8: PRJ(na); PAI; { i64 X=jk(x); i(na,prj[i]=(i64)pai[i] O X) } break; \
     case -1: PRI(na); PAI; PXI; i(na,pri[i] = pai[i] O pxi[i]) break; \
+    case -8: PRJ(na); PAI; PXJ; i(na,prj[i]=(i64)pai[i] O pxj[i]) break; \
+    case  0: r=avdo(biv(#F0),k_(a),k_(x),"'"); break; \
+    default: r=KERR_TYPE; \
+    } break; \
+  case -8: \
+    switch(tx) { \
+    case  1: PRJ(na); PAJ; { i64 X=(i64)ik(x); i(na,prj[i]=paj[i] O X) } break; \
+    case  8: PRJ(na); PAJ; { i64 X=jk(x); i(na,prj[i]=paj[i] O X) } break; \
+    case -1: PRJ(nx); PAJ; PXI; i(nx,prj[i]=paj[i] O (i64)pxi[i]) break; \
+    case -8: PRJ(nx); PAJ; PXJ; i(nx,prj[i]=paj[i] O pxj[i]) break; \
     case  0: r=avdo(biv(#F0),k_(a),k_(x),"'"); break; \
     default: r=KERR_TYPE; \
     } break; \
   case  0: \
     switch(tx) { \
     case  1: r=irecur2(F,a,x); break; \
+    case  8: r=irecur2(F,a,x); break; \
     case -1: r=avdo(biv(#F0),k_(a),k_(x),"'"); break; \
+    case -8: r=avdo(biv(#F0),k_(a),k_(x),"'"); break; \
     case  0: r=irecur2(F,a,x); break; \
     default: r=KERR_TYPE; \
     } break; \
@@ -1040,42 +1247,46 @@ K hypot_(K a,K x) {
   i32 *pai,*pxi;
 
   if(s(a)||s(x)) return KERR_TYPE;
+  { char hl=ta==8||ta==-8||tx==8||tx==-8, he=ta==9||ta==-9||tx==9||tx==-9,
+         hf=ta==2||ta==-2||tx==2||tx==-2;
+    if(he&&!hl&&!hf&&flatie(a)&&flatie(x)) { K A=i2e(a),X=i2e(x); r=ehypot_(A,X); _k(A); _k(X); return r; }
+    if(hl||he) { K A=j2f(a),X=j2f(x); r=hypot_(A,X); _k(A); _k(X); return r; } }
   if(ta<0 && tx<0 && na!=nx) return KERR_LENGTH;
 
   switch(ta) {
   case  1:
     switch(tx) {
-    case  1: af=fi(ik(a)); xf=fi(ik(x)); r=t2(sqrt(af*af+xf*xf)); break;
-    case  2: af=fi(ik(a)); xf=fk(x); r=t2(sqrt(af*af+xf*xf)); break;
-    case -1: PRF(nx); PXI; xf=fi(ik(a)); af=xf*xf; i(nx,xf=fi(pxi[i]);prf[i]=sqrt(af+xf*xf)) break;
-    case -2: PRF(nx); PXF; xf=fi(ik(a)); af=xf*xf; i(nx,xf=pxf[i];prf[i]=sqrt(af+xf*xf)) break;
+    case  1: r=t2(hypot(fi(ik(a)),fi(ik(x)))); break;
+    case  2: r=t2(hypot(fi(ik(a)),fk(x))); break;
+    case -1: PRF(nx); PXI; af=fi(ik(a)); i(nx,prf[i]=hypot(af,fi(pxi[i]))) break;
+    case -2: PRF(nx); PXF; af=fi(ik(a)); i(nx,prf[i]=hypot(af,pxf[i])) break;
     case  0: r=irecur2(hypot_,a,x); break;
     default: r=KERR_TYPE;
     } break;
   case  2:
     switch(tx) {
-    case  1: af=fk(a); xf=fi(ik(x)); r=t2(sqrt(af*af+xf*xf)); break;
-    case  2: af=fk(a); xf=fk(x); r=t2(sqrt(af*af+xf*xf)); break;
-    case -1: PRF(nx); PXI; af=fk(a)*fk(a); i(nx, xf=fi(pxi[i]); prf[i]=sqrt(af+xf*xf)) break;
-    case -2: PRF(nx); PXF; af=fk(a)*fk(a); i(nx, xf=pxf[i]; prf[i]=sqrt(af+xf*xf)) break;
+    case  1: r=t2(hypot(fk(a),fi(ik(x)))); break;
+    case  2: r=t2(hypot(fk(a),fk(x))); break;
+    case -1: PRF(nx); PXI; af=fk(a); i(nx,prf[i]=hypot(af,fi(pxi[i]))) break;
+    case -2: PRF(nx); PXF; af=fk(a); i(nx,prf[i]=hypot(af,pxf[i])) break;
     case  0: r=irecur2(hypot_,a,x); break;
     default: r=KERR_TYPE;
     } break;
   case -1:
     switch(tx) {
-    case  1: PRF(na); PAI; xf=fi(ik(x))*fi(ik(x)); i(na, af=fi(pai[i]); prf[i]=sqrt(af*af+xf)); break;
-    case  2: PRF(na); PAI; xf=fk(x)*fk(x); i(na, af=fi(pai[i]); prf[i]=sqrt(af*af+xf)); break;
-    case -1: PRF(na); PAI; PXI; i(na, af=fi(pai[i]); xf=fi(pxi[i]); prf[i]=sqrt(af*af+xf*xf)) break;
-    case -2: PRF(na); PAI; PXF; i(na, af=fi(pai[i]); xf=pxf[i]; prf[i]=sqrt(af*af+xf*xf)) break;
+    case  1: PRF(na); PAI; xf=fi(ik(x)); i(na,prf[i]=hypot(fi(pai[i]),xf)) break;
+    case  2: PRF(na); PAI; xf=fk(x); i(na,prf[i]=hypot(fi(pai[i]),xf)) break;
+    case -1: PRF(na); PAI; PXI; i(na,prf[i]=hypot(fi(pai[i]),fi(pxi[i]))) break;
+    case -2: PRF(na); PAI; PXF; i(na,prf[i]=hypot(fi(pai[i]),pxf[i])) break;
     case  0: r=avdo(biv("hypot"),k_(a),k_(x),"'"); break;
     default: r=KERR_TYPE;
     } break;
   case -2:
     switch(tx) {
-    case  1: PRF(na); PAF; xf=fi(ik(x))*fi(ik(x)); i(na, af=paf[i]; prf[i]=sqrt(af*af+xf)); break;
-    case  2: PRF(na); PAF; xf=fk(x)*fk(x); i(na, af=paf[i]; prf[i]=sqrt(af*af+xf)); break;
-    case -1: PRF(na); PAF; PXI; i(na, af=paf[i]; xf=fi(pxi[i]); prf[i]=sqrt(af*af+xf*xf)) break;
-    case -2: PRF(na); PAF; PXF; i(na, af=paf[i]; xf=pxf[i]; prf[i]=sqrt(af*af+xf*xf)) break;
+    case  1: PRF(na); PAF; xf=fi(ik(x)); i(na,prf[i]=hypot(paf[i],xf)) break;
+    case  2: PRF(na); PAF; xf=fk(x); i(na,prf[i]=hypot(paf[i],xf)) break;
+    case -1: PRF(na); PAF; PXI; i(na,prf[i]=hypot(paf[i],fi(pxi[i]))) break;
+    case -2: PRF(na); PAF; PXF; i(na,prf[i]=hypot(paf[i],pxf[i])) break;
     case  0: r=avdo(biv("hypot"),k_(a),k_(x),"'"); break;
     default: r=KERR_TYPE;
     } break;
@@ -1096,11 +1307,14 @@ K hypot_(K a,K x) {
 K not__(K x) {
   K r=0;
   i32 *pri,*pxi;
+  i64 *prj,*pxj;
   if(s(x)) return KERR_TYPE;
   switch(tx) {
   case  1: r=t(1,(u32)~ik(x)); break;
+  case  8: r=tj(~jk(x)); break;
   case  0: r=irecur1(not__,x); break;
   case -1: PRI(nx); PXI; i(nx,pri[i]=~pxi[i]) break;
+  case -8: PRJ(nx); PXJ; i(nx,prj[i]=~pxj[i]) break;
   default: r=KERR_TYPE; break;
   }
   return knorm(r);
@@ -1135,9 +1349,39 @@ static inline i32 safe_rot(i32 v, i32 sh) {
   return raw_rot32(v, sh);
 }
 
+/* map an int/long shift count to the other width, preserving the
+   0N / 0I / -0I sentinels (which select identity / max / 1) */
+static inline i64 shcount_i(i32 c) {
+  if(c==INT32_MIN)   return J_NULL;
+  if(c==INT32_MAX)   return J_INF;
+  if(c==INT32_MIN+1) return J_NINF;
+  return (i64)c;
+}
+static inline i32 shcount_j(i64 c) {
+  if(c==J_NULL) return INT32_MIN;
+  if(c==J_INF)  return INT32_MAX;
+  if(c==J_NINF) return INT32_MIN+1;
+  return (i32)c;
+}
+
+static inline i64 raw_rot64(i64 v, i64 sh) {
+  u64 u = (u64)v;
+  u64 s = (u64)sh & 63;  /* normalize to [0..63] */
+  if(!s) return v;
+  return (i64)((u << s) | (u >> (64 - s)));
+}
+
+static inline i64 safe_rot64(i64 v, i64 sh) {
+  if(sh == J_NULL) return v;    /* 0Nj shift count -> identity */
+  if(sh == J_INF)  sh = 63;     /* 0Ij  -> rotate-by-63 */
+  if(sh == J_NINF) sh = 1;      /* -0Ij -> rotate-by-1 */
+  return raw_rot64(v, sh);
+}
+
 K rot_(K a, K x) {
   K r=0;
   i32 *pri,*pai,*pxi;
+  i64 *prj,*paj,*pxj;
 
   if(s(a)||s(x)) return KERR_TYPE;
   if(ta<=0 && tx<=0 && na!=nx) return KERR_LENGTH;
@@ -1146,21 +1390,45 @@ K rot_(K a, K x) {
   case 1:
     switch(tx) {
     case  1: r=t(1,(u32)safe_rot(ik(a),ik(x))); break;
+    case  8: r=t(1,(u32)safe_rot(ik(a),shcount_j(jk(x)))); break;
     case -1: PRI(nx); PXI; i(nx,pri[i]=safe_rot(ik(a),pxi[i])); break;
+    case -8: PRI(nx); PXJ; { i32 V=ik(a); i(nx,pri[i]=safe_rot(V,shcount_j(pxj[i]))) } break;
+    case  0: r=irecur2(rot_,a,x); break;
+    default: r=KERR_TYPE;
+    } break;
+  case 8:
+    switch(tx) {
+    case  1: r=tj(safe_rot64(jk(a),shcount_i(ik(x)))); break;
+    case  8: r=tj(safe_rot64(jk(a),jk(x))); break;
+    case -1: PRJ(nx); PXI; { i64 V=jk(a); i(nx,prj[i]=safe_rot64(V,shcount_i(pxi[i]))) } break;
+    case -8: PRJ(nx); PXJ; { i64 V=jk(a); i(nx,prj[i]=safe_rot64(V,pxj[i])) } break;
     case  0: r=irecur2(rot_,a,x); break;
     default: r=KERR_TYPE;
     } break;
   case -1:
     switch(tx) {
     case  1: PRI(na); PAI; i(na,pri[i]=safe_rot(pai[i],ik(x))); break;
+    case  8: PRI(na); PAI; { i32 S=shcount_j(jk(x)); i(na,pri[i]=safe_rot(pai[i],S)) } break;
     case -1: PRI(na); PAI; PXI; i(na,pri[i]=safe_rot(pai[i],pxi[i])); break;
+    case -8: PRI(na); PAI; PXJ; i(na,pri[i]=safe_rot(pai[i],shcount_j(pxj[i]))); break;
+    case  0: r=avdo(biv("rot"),k_(a),k_(x),"'"); break;
+    default: r=KERR_TYPE;
+    } break;
+  case -8:
+    switch(tx) {
+    case  1: PRJ(na); PAJ; { i64 S=shcount_i(ik(x)); i(na,prj[i]=safe_rot64(paj[i],S)) } break;
+    case  8: PRJ(na); PAJ; { i64 S=jk(x); i(na,prj[i]=safe_rot64(paj[i],S)) } break;
+    case -1: PRJ(na); PAJ; PXI; i(na,prj[i]=safe_rot64(paj[i],shcount_i(pxi[i]))); break;
+    case -8: PRJ(na); PAJ; PXJ; i(na,prj[i]=safe_rot64(paj[i],pxj[i])); break;
     case  0: r=avdo(biv("rot"),k_(a),k_(x),"'"); break;
     default: r=KERR_TYPE;
     } break;
   case 0:
     switch(tx) {
     case  1: r=irecur2(rot_,a,x); break;
+    case  8: r=irecur2(rot_,a,x); break;
     case -1: r=avdo(biv("rot"),k_(a),k_(x),"'"); break;
+    case -8: r=avdo(biv("rot"),k_(a),k_(x),"'"); break;
     case  0: r=irecur2(rot_,a,x); break;
     default: r=KERR_TYPE;
     } break;
@@ -1183,9 +1451,24 @@ static inline i32 safe_shift(i32 v, i32 sh) {
   return raw_shift32(v, sh);
 }
 
+static inline i64 raw_shift64(i64 v, i64 sh) {
+  u64 u = (u64)v;
+  if(sh >= 0) u <<= (sh & 63);
+  else u >>= ((-sh) & 63);
+  return (i64)u;
+}
+
+static inline i64 safe_shift64(i64 v, i64 sh) {
+  if(sh == J_NULL) return v;   /* 0Nj shift count -> identity */
+  if(sh == J_INF)  return (v & 1) ? INT64_MIN : 0;  /* 0Ij shift count */
+  if(sh == J_NINF) return 0;   /* -0Ij shift count -> always 0 */
+  return raw_shift64(v, sh);
+}
+
 K shift_(K a, K x) {
   K r=0;
   i32 *pri,*pai,*pxi;
+  i64 *prj,*paj,*pxj;
 
   if(s(a)||s(x)) return KERR_TYPE;
   if(ta<=0 && tx<=0 && na!=nx) return KERR_LENGTH;
@@ -1194,21 +1477,45 @@ K shift_(K a, K x) {
   case 1:
     switch(tx) {
     case  1: r=t(1,(u32)safe_shift(ik(a),ik(x))); break;
+    case  8: r=t(1,(u32)safe_shift(ik(a),shcount_j(jk(x)))); break;
     case -1: PRI(nx); PXI; i(nx,pri[i]=safe_shift(ik(a),pxi[i])); break;
+    case -8: PRI(nx); PXJ; { i32 V=ik(a); i(nx,pri[i]=safe_shift(V,shcount_j(pxj[i]))) } break;
+    case  0: r=irecur2(shift_,a,x); break;
+    default: r=KERR_TYPE;
+    } break;
+  case 8:
+    switch(tx) {
+    case  1: r=tj(safe_shift64(jk(a),shcount_i(ik(x)))); break;
+    case  8: r=tj(safe_shift64(jk(a),jk(x))); break;
+    case -1: PRJ(nx); PXI; { i64 V=jk(a); i(nx,prj[i]=safe_shift64(V,shcount_i(pxi[i]))) } break;
+    case -8: PRJ(nx); PXJ; { i64 V=jk(a); i(nx,prj[i]=safe_shift64(V,pxj[i])) } break;
     case  0: r=irecur2(shift_,a,x); break;
     default: r=KERR_TYPE;
     } break;
   case -1:
     switch(tx) {
     case  1: PRI(na); PAI; i(na,pri[i]=safe_shift(pai[i],ik(x))); break;
+    case  8: PRI(na); PAI; { i32 S=shcount_j(jk(x)); i(na,pri[i]=safe_shift(pai[i],S)) } break;
     case -1: PRI(na); PAI; PXI; i(na,pri[i]=safe_shift(pai[i],pxi[i])); break;
+    case -8: PRI(na); PAI; PXJ; i(na,pri[i]=safe_shift(pai[i],shcount_j(pxj[i]))); break;
+    case  0: r=irecur2(shift_,a,x); break;
+    default: r=KERR_TYPE;
+    } break;
+  case -8:
+    switch(tx) {
+    case  1: PRJ(na); PAJ; { i64 S=shcount_i(ik(x)); i(na,prj[i]=safe_shift64(paj[i],S)) } break;
+    case  8: PRJ(na); PAJ; { i64 S=jk(x); i(na,prj[i]=safe_shift64(paj[i],S)) } break;
+    case -1: PRJ(nx); PAJ; PXI; i(nx,prj[i]=safe_shift64(paj[i],shcount_i(pxi[i]))); break;
+    case -8: PRJ(nx); PAJ; PXJ; i(nx,prj[i]=safe_shift64(paj[i],pxj[i])); break;
     case  0: r=irecur2(shift_,a,x); break;
     default: r=KERR_TYPE;
     } break;
   case 0:
     switch(tx) {
     case  1: r=irecur2(shift_,a,x); break;
+    case  8: r=irecur2(shift_,a,x); break;
     case -1: r=avdo(biv("shift"),k_(a),k_(x),"'"); break;
+    case -8: r=avdo(biv("shift"),k_(a),k_(x),"'"); break;
     case  0: r=irecur2(shift_,a,x); break;
     default: r=KERR_TYPE;
     } break;
@@ -1289,12 +1596,16 @@ static K serialize(K x, char **b, char **v, i64 *n, i64 *m) {
   switch(t) {
   case  1: *n+=si; break;
   case  2: *n+=sd; break;
+  case  8: *n+=sd; break;
+  case  9: *n+=si; break;
   case  3: *n+=si; break;
   case  4: *n+=1+strlen(sk(x)); break;
   case  6: case 10: break;
   case -4: PXS; *n+=sn; i(nx,*n+=1+strlen(pxs[i])); break;
   case -3: *n+=sn; *n+=(i64)nx; break;
   case -2: *n+=sn; *n+=(i64)nx*sd; break;
+  case -8: *n+=sn; *n+=(i64)nx*sd; break;
+  case -9: *n+=sn; *n+=(i64)nx*si; break;
   case -1: *n+=sn; *n+=(i64)nx*si; break;
   case  0: *n+=sn; break;
   default: --d; return KERR_TYPE;
@@ -1313,12 +1624,16 @@ static K serialize(K x, char **b, char **v, i64 *n, i64 *m) {
   switch(t) {
   case  1: ii=ik(x); memcpy(*v,&ii,si); *v+=si; break;
   case  2: memcpy(*v,&fk(x),sd); *v+=sd; break;
+  case  8: memcpy(*v,&jk(x),sd); *v+=sd; break;
+  case  9: { float ef=ek(x); memcpy(*v,&ef,si); *v+=si; } break;
   case  3: cc=ck(x); memcpy(*v,&cc,1); *v+=1; break;
   case  4: pxc=sk(x); memcpy(*v,pxc,1+strlen(pxc)); *v+=1+strlen(pxc); break;
   case  6: case 10: break;
   case -4: PXS; memcpy(*v,&nx,sn); *v+=sn; i(nx,memcpy(*v,pxs[i],1+strlen(pxs[i]));*v+=1+strlen(pxs[i])); break;
   case -3: PXC; memcpy(*v,&nx,sn); *v+=sn; memcpy(*v,pxc,nx); *v+=nx; break;
   case -2: PXF; memcpy(*v,&nx,sn); *v+=sn; memcpy(*v,pxf,nx*sd); *v+=nx*sd; break;
+  case -8: { i64 *pxj=px(x); memcpy(*v,&nx,sn); *v+=sn; memcpy(*v,pxj,nx*sd); *v+=nx*sd; } break;
+  case -9: { float *pxe=px(x); memcpy(*v,&nx,sn); *v+=sn; memcpy(*v,pxe,nx*si); *v+=nx*si; } break;
   case -1: PXI; memcpy(*v,&nx,sn); *v+=sn; memcpy(*v,pxi,nx*si); *v+=nx*si; break;
   case  0: PXK;
     if(0xc3==s(x))  {
@@ -1443,6 +1758,8 @@ static K deserialize(char **b,u64 *m) {
   switch(t) {
   case  1: if(n<si) return KERR_LENGTH; memcpy(&ii,*b,si); r=t(1,(u32)ii); *b+=si; break;
   case  2: if(n<sd) return KERR_LENGTH; memcpy(&ff,*b,sd); r=t2(ff); *b+=sd; break;
+  case  8: if(n<sd) return KERR_LENGTH; { i64 jj; memcpy(&jj,*b,sd); r=tj(jj); *b+=sd; } break;
+  case  9: if(n<si) return KERR_LENGTH; { float ef; memcpy(&ef,*b,si); r=te(ef); *b+=si; } break;
   case  3: if(n<1) return KERR_LENGTH; memcpy(&cc,*b,1); r=t(3,(u8)cc); *b+=1; break;
   case  4: if(n<1+strlen(*b)) return KERR_LENGTH; r=t(4,sp(*b)); *b+=1+strlen(*b); break;
   case  6: r=null; break;
@@ -1469,6 +1786,18 @@ static K deserialize(char **b,u64 *m) {
     if(count>n/sd||count>(u64)INT32_MAX) return KERR_LENGTH;
     PRF(count);
     memcpy(prf,*b,nr*sd); *b+=nr*sd; break;
+  case -8:
+    if(n<sn) return KERR_LENGTH;
+    memcpy(&count,*b,sn);
+    *b+=sn; n-=sn;
+    if(count>n/sd||count>(u64)INT32_MAX) return KERR_LENGTH;
+    { i64 *prj; PRJ(count); memcpy(prj,*b,nr*sd); *b+=nr*sd; } break;
+  case -9:
+    if(n<sn) return KERR_LENGTH;
+    memcpy(&count,*b,sn);
+    *b+=sn; n-=sn;
+    if(count>n/si||count>(u64)INT32_MAX) return KERR_LENGTH;
+    { float *pre; PRE(count); memcpy(pre,*b,nr*si); *b+=nr*si; } break;
   case -1:
     if(n<sn) return KERR_LENGTH;
     memcpy(&count,*b,sn);
@@ -1522,7 +1851,7 @@ static K deserialize(char **b,u64 *m) {
 K bd_into(K x, char **buf, u64 *cap, u64 *len) {
   i64 m = (i64)*cap, n = 4;
   if(m < 4) { m = 4; *buf = xrealloc(*buf, (size_t)m); }
-  char *b = *buf, *v = b, h[4] = {2,0,0,0};
+  char *b = *buf, *v = b, h[4] = {3,0,0,0};  /* v3: adds 64-bit int (type 8) */
   memcpy(v, h, 4); v += 4;
   K t = serialize(x, &b, &v, &n, &m);
   *buf = b; *cap = (u64)m; *len = (u64)(v - b);
@@ -1546,7 +1875,10 @@ K bd_(K x) {
  * adopted by the K vector and re-allocated on every message. */
 K db_buf(const char *buf, u64 nbytes) {
   if(nbytes < 4) return KERR_LENGTH;
-  if(buf[0] != 2) return KERR_TYPE;
+  /* accept v3 (current) and v2 (gk v1): the v2->v3 change was purely additive
+     (i64/f32 type arms), so a v2 blob -- which never contains those types --
+     deserializes identically. v2 always writes v3. */
+  if(buf[0] != 3 && buf[0] != 2) return KERR_TYPE;
   char *b = (char*)buf + 4;
   u64 n = nbytes - 4;
   return deserialize(&b, &n);
@@ -1858,7 +2190,7 @@ K dir_(K x) {
   K d,q,t=0,es,fs;
   size_t n;
 
-  if(ecount) return kerror("nonce");
+  if(ecount) return kerror("domain");
 
   if(x!=null) {
     psx=sk(x);

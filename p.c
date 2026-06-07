@@ -421,7 +421,7 @@ static K rpd(K x) {
   K f2=kcp(f); _k(f); if(E(f2)) return f2;
   f=f2;
   pf=px(f);
-  if(0xc9==s(x)) pf[3]=t(1,1);
+  if(0xc9==s(x)) pf[3]=FN_VF(1,0);
   return f;
 }
 
@@ -459,7 +459,7 @@ static K r44(K x) {
         K *pf=px(f);
         u64 nx2=n(x2);
         if(0xc3==s(f) && 0x81==s(x2)) {
-          u64 nval=(u64)ik(pf[3]);
+          u64 nval=(u64)FN_VALENCE(pf[3]);
           if(nx2==nval && 6!=T(pf[2])) {
             K *pxk=px(x2);
             int has_inull=0;
@@ -949,6 +949,13 @@ K pgreduce_(K x0, int *quiet) {
         if(pA<=A+1) { k_(v); break; }
         --pA;
         a=*--pA;
+        if(0x40==s(a)&&i+1<nx&&64==ik(px[i+1])&&pA==A) { /* f:0: */
+          ++i;
+          p=scope_set(cs,a,k_(v));  /* add ref since v is borrowed from parse tree */
+          if(E(p)) { _k(a); *pA++=p; }
+          else { *pA++=p; *quiet=1; }
+          break;
+        }
         if(0x45==s(a)) { *pA++=fileverb_mon(v,a); break; } /* de-glued postfix adverb */
         if(s(a)) { a=reduce(a); if(E(a)||EXIT) { *pA++=a; break; } }
         if(s(a)==0x41) {
@@ -1370,7 +1377,7 @@ K pgreduce_(K x0, int *quiet) {
         if(f && (0xc3==s(f) || 0xd9==s(f) || 0xda==s(f))) {
           if(0xc3==s(f)) {
             K *pf=px(f);
-            if(6!=T(pf[2]) && (u64)ik(pf[3])==(u64)N) {
+            if(6!=T(pf[2]) && (u64)FN_VALENCE(pf[3])==(u64)N) {
               int has_inull=0;
               for(int j=0;j<N;j++) if(pxk[j]==inull) { has_inull=1; break; }
               if(!has_inull) {
@@ -1543,10 +1550,15 @@ apply_n_fallback: {
         else if(0xd7==s(a)) *pA++=fe(a,0,b,0);
         else {
           int w=c%32;
-          if((w==11||w==13)&&0x04==T(a)) { /* `a . 0; `a @ 0 */
+          if((w==11||w==13)&&0x04==T(a)&&!s(a)) { /* `a . 0; `a @ 0 */
             a=vlookup(a);
             if(KERR_VALUE==a) a=null;
             else if(E(a)||EXIT) { _k(b); *pA++=a; break; }
+          }
+          if(w==11 && (0xcc==s(a)||0xcd==s(a))) {
+            if(!s(b) && T(b)==0) b=st(0x81,b);
+            *pA++=fe(a,0,b,0);
+            break;
           }
           if(!VST(a)||!VST(b)) { _k(b); _k(a); *pA++=KERR_TYPE; break; }
           *pA++=k(w,a,b);
@@ -1748,7 +1760,7 @@ c3_apply:
              0xc4 retired. */
           K *pb=px(b);
           K fav=0;
-          if(0xc3==s(b)) fav=pb[3];
+          if(0xc3==s(b)) fav=0;
           else /* 0xda */ fav=pb[1];
           char *favp=-3==T(fav)?(char*)px(fav):"";
           if((!strcmp(favp,"/") || !strcmp(favp,"\\"))) {
@@ -1774,6 +1786,25 @@ c3_apply:
             *pA++=fne(a,k_(xx),av);
             _k(b); --paramsi;
           }
+        }
+        else if(0xcc==s(a)||0xcd==s(a)) {
+          if(0x44==s(b)) b=r44(b);
+          if(E(b)||EXIT) { _k(a); *pA++=b; break; }
+          if(0x45==s(b)) {
+            pb=px(b);
+            mv=px(pb[1]);
+            if(!VST(pb[2])) { _k(a); _k(b); *pA++=KERR_TYPE; break; }
+            *pA++=fe(a,0,k_(pb[2]),mv);
+            _k(b);
+          }
+          else if(pA>A&&i<nx-1&&0xc0==s(px[i+1])&&ik(px[i+1])==0xff) {  /* dyadic juxtaposition */
+            ++i;
+            t=*--pA;
+            if(s(t)) { t=reduce(t); if(E(t)||EXIT) { _k(a); _k(b); *pA++=t; break; } }
+            if(!VST(t)) { _k(a); _k(b); _k(t); *pA++=KERR_TYPE; break; }
+            *pA++=fe(a,t,b,av);
+          }
+          else *pA++=fe(a,0,b,av);
         }
         else {
           if(0x44==s(b)) b=r44(b);
@@ -1951,7 +1982,7 @@ c3_apply:
              from wrapper.  0xc4 retired. */
           K *pb=px(b);
           K fav=0;
-          if(0xc3==s(b)) fav=pb[3];
+          if(0xc3==s(b)) fav=0;
           else /* 0xda */ fav=pb[1];
           char *favp=-3==T(fav)?(char*)px(fav):"";
           if((!strcmp(favp,"/") || !strcmp(favp,"\\"))) {
@@ -3260,6 +3291,11 @@ static void r003_(pgs *s) { /* body of e > o ez (wrapped by r003) */
       b->a[0]=a->a[0];
       s->V[s->vi]=b;
     }
+    else if(b->v=='.' && b->a[1] && a->t==6 && a->m==1
+            && a->a[0] && a->a[0]->t==1 && 0xcc==s(a->a[0]->v)) {
+      b->a[0]=a->a[0];  /* (0:) . args */
+      s->V[s->vi]=b;
+    }
     else if(b->t==7 && b->a[0]) {   /* 1+- */
       b->a[0]->a[0]=a;
       b->a[0]->t=11;
@@ -3307,6 +3343,10 @@ static void r003_(pgs *s) { /* body of e > o ez (wrapped by r003) */
           q->a[0]=a;
           q->a[1]=b;
           s->V[s->vi]=q;
+        }
+        else if(b->v=='.' && a->t==2) {
+          b->a[0]=a;
+          s->V[s->vi]=b;
         }
         else if(b->a[1]->t==4) {
           q=pnnewi(s,1,0xff,0,2,1,a->i,a->line);

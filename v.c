@@ -16,7 +16,7 @@ static K vlookup(K x) {
 
 static inline K cp(K x) {
   if(x&&s(x)&&T(x)==0&&((ko*)(b(48)&x))->r) {
-    K p=kcp(x); if(E(p)) return 0;
+    K p=kcp(x); if(E(p)) return 0;  /* 0 sentinel; callers map to null (cf. atcb) */
     _k(x); x=p;
   }
   return x;
@@ -61,6 +61,10 @@ K atcb(K a,K x) {
   else if(0xc6==s(a)) { /* 0xc8 retired in Pass 4 -- now 0xd9 */
     r=builtin(a,0,k_(x));
   }
+  else if(0xcc==s(a)||0xcd==s(a)) { /* file verbs (0:,1:,...): `@` applies x as
+                                       one thing -- monadic, no spread. */
+    r=builtin(a,0,k_(x));
+  }
   else if(0xc5==s(a)) {
     r=fc(a,0,k_(x),"");
   }
@@ -101,8 +105,19 @@ K dotcb(K a,K x) {
   static i32 d=0;
   if(++d>maxr) { --d; return KERR_STACK; }
 
+  if(0xcc==s(a)||0xcd==s(a)) {
+    K args=(!s(x)&&T(x)==0)?st(0x81,k_(x)):k_(x);
+    r=fe(k_(a),0,args,0);
+    --d;
+    return r;
+  }
   if(s(x)) { --d; return KERR_TYPE; }
 
+  /* apply-by-reference: a sym / char(-vec) left arg is resolved as a name.
+     the `return 0` below is NOT an error to surface -- code 0 is a sentinel
+     meaning "not a defined name", and the caller falls back to normal
+     indexing.  do not "fix" these to return a2 / KERR_VALUE: it breaks
+     `"abc" . 0`, `` `a`b`c . 0 ``, etc. (regression test t338). */
   if(4==ta&&!s(a)) {
     K a2=scope_get(cs,a);
     if(E(a2)) { --d; return 0; }
@@ -216,7 +231,9 @@ K dotcb(K a,K x) {
   else if(0xc6==s(a)) {
     r=builtin(a,0,k_(x));
   }
-  else if(0xc7==s(a)) { /* 0xc8 retired in Pass 4 -- now 0xd9 */
+  else if(0xc7==s(a)||0xcc==s(a)||0xcd==s(a)) { /* 0xc8 retired in Pass 4 -- now 0xd9.
+                            0xcc/0xcd are the file verbs (0:,1:,...): like a
+                            builtin dyad, `.` spreads the arg list by valence. */
     switch(tx) {
     case -1: case -2: case -3: case -4: case 0:
       t=kmix(x); if(E(t)) { --d; return t; }

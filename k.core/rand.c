@@ -48,6 +48,19 @@ void drawi(int *s, int n, int m) {
   }
 }
 
+void drawj(int64_t *s, int n, int64_t m) {
+  int i;
+
+  for(i=0;i<n;i++) {
+    x ^= x << 16;
+    x ^= x >> 5;
+    x ^= x << 1;
+    t = x; x = y; y = z;
+    z = t ^ x ^ y;
+    s[i] = (int64_t)((unsigned long long)z % (unsigned long long)m);
+  }
+}
+
 void drawf(double *s, int n, double m) {
   int i;
   int rm=2147483647; /* instead of RAND_MAX */
@@ -63,7 +76,30 @@ void drawf(double *s, int n, double m) {
   }
 }
 
+void drawe(float *s, int n, float m) {
+  int i;
+  int rm=2147483647; /* instead of RAND_MAX */
+  double rmi=(double)m/rm;
+
+  for(i=0;i<n;i++) {
+    x ^= x << 16;
+    x ^= x >> 5;
+    x ^= x << 1;
+    t = x; x = y; y = z;
+    z = t ^ x ^ y;
+    s[i] = (float)((double)(z%rm)*rmi);
+  }
+}
+
 void deal(int *s, int n, int m) {
+  int i,*deck=xmalloc(sizeof(int)*m);
+  for(i=0;i<m;i++) deck[i]=i;
+  shuffle(deck,m);
+  for(i=0;i<n;i++) s[i]=deck[i];
+  xfree(deck);
+}
+
+void dealj(int64_t *s, int n, int m) {
   int i,*deck=xmalloc(sizeof(int)*m);
   for(i=0;i<m;i++) deck[i]=i;
   shuffle(deck,m);

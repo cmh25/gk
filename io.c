@@ -229,7 +229,7 @@ static K zerocolon2(K a, K x) {
 
     ppc=px(p);
     pqi=px(q);
-    i(n(p),if(!strchr("IFCS ",ppc[i])) return KERR_TYPE)
+    i(n(p),if(!strchr("IJEFCS ",ppc[i])) return KERR_TYPE)
 
     n=0; i(n(p),if(ppc[i]!=' ') ++n)
     L=0; i(n(q),if(pqi[i]<0||pqi[i]==INT32_MAX) return KERR_INT; L+=pqi[i])
@@ -278,12 +278,21 @@ static K zerocolon2(K a, K x) {
     }
 
     if(!L) { fclose(fp); xfree(z0); return KERR_TYPE; }
-    m=N/L;
+    m=0;
+    for(char *zr=z0; zr<z0+N;) {
+      if(*zr=='\n') { ++zr; continue; }
+      char *nl=memchr(zr,'\n',(z0+N)-zr);
+      if(!nl) nl=z0+N;
+      ++m;
+      zr=(nl<z0+N)?nl+1:nl;
+    }
     j=0;
     r=tn(0,n); prk=px(r);
     for(i=0;i<n(p);i++) {
       if(ppc[i]=='I') prk[j++] = tn(1,m);
       else if(ppc[i]=='F') prk[j++] = tn(2,m);
+      else if(ppc[i]=='J') prk[j++] = tn(8,m);
+      else if(ppc[i]=='E') prk[j++] = tn(9,m);
       else if(ppc[i]=='C') prk[j++] = tn(0,m);
       else if(ppc[i]=='S') prk[j++] = tn(4,m);
     }
@@ -316,6 +325,20 @@ static K zerocolon2(K a, K x) {
           pz=z; while(isspace(*pz)) ++pz;
           double *pd=px(prk[j]);
           pd[k]=xstrtod(pz);
+          j++;
+        }
+        else if(ppc[i]=='J') {
+          pz=z+pqi[i]-1; while(pz>z && isspace(*pz)) --pz; pz[1]=0;
+          pz=z; while(isspace(*pz)) ++pz;
+          i64 *pj=px(prk[j]);
+          pj[k]=xatol(pz);
+          j++;
+        }
+        else if(ppc[i]=='E') {
+          pz=z+pqi[i]-1; while(pz>z && isspace(*pz)) --pz; pz[1]=0;
+          pz=z; while(isspace(*pz)) ++pz;
+          float *pe=px(prk[j]);
+          pe[k]=(float)xstrtod(pz);
           j++;
         }
         else if(ppc[i]=='C') {
@@ -381,7 +404,7 @@ static K onecolon1(K x) {
   fd=open(s,O_RDONLY);
   if(fd==-1) return ferr(s,errno);
   n=read(fd,h,4); if(n==-1) return ferr(s,errno);
-  if(h[0]!=2) { close(fd); return kerror("header"); }
+  if(h[0]!=3 && h[0]!=2) { close(fd); return kerror("header"); } /* v3 + v1's v2 (additive) */
   n=read(fd,&t,sizeof(i32)); if(n==-1) return ferr(s,errno);
   n=read(fd,&st,sizeof(i32)); if(n==-1) return ferr(s,errno);
   n=read(fd,&pad,sizeof(i32)); if(n==-1) return ferr(s,errno);
@@ -426,7 +449,7 @@ static K onecolon2(K a, K x) {
     if(n(pak[0])!=n(pak[1])) { e=KERR_LENGTH; goto cleanup; }
     p=pak[0]; q=pak[1];
     char *ppc=px(p); int *pqi=px(q);
-    i(n(p),if(!strchr("cbsifd CS",ppc[i])) { e=KERR_TYPE; goto cleanup; })
+    i(n(p),if(!strchr("cbsijef CS",ppc[i])) { e=KERR_TYPE; goto cleanup; })
     n=0;i(n(p),if(ppc[i]!=' ')++n)
     VSIZE((i32)n);
     i(n(q),L+=pqi[i])
@@ -436,8 +459,8 @@ static K onecolon2(K a, K x) {
       switch (ppc[t]) {
       case 'c': case 'b': if(w!=1) { e = KERR_LENGTH; goto cleanup; } break;
       case 's': if(w!=2) { e = KERR_LENGTH; goto cleanup; } break;
-      case 'i': case 'f': if(w!=4) { e = KERR_LENGTH; goto cleanup; } break;
-      case 'd': if(w!=8) { e = KERR_LENGTH; goto cleanup; } break;
+      case 'i': case 'e': if(w!=4) { e = KERR_LENGTH; goto cleanup; } break;
+      case 'j': case 'f': if(w!=8) { e = KERR_LENGTH; goto cleanup; } break;
       case 'C': case 'S': if(w<=0 || w > INT_MAX) { e = KERR_LENGTH; goto cleanup; } break;
       case ' ': if(w<0 || w > INT_MAX) { e = KERR_LENGTH; goto cleanup; } break;
       default: e=KERR_TYPE; goto cleanup;
@@ -478,8 +501,9 @@ static K onecolon2(K a, K x) {
       else if(ppc[i]=='b') prk[j++]=tn(1,m);
       else if(ppc[i]=='s') prk[j++]=tn(1,m);
       else if(ppc[i]=='i') prk[j++]=tn(1,m);
+      else if(ppc[i]=='j') prk[j++]=tn(8,m);
+      else if(ppc[i]=='e') prk[j++]=tn(9,m);
       else if(ppc[i]=='f') prk[j++]=tn(2,m);
-      else if(ppc[i]=='d') prk[j++]=tn(2,m);
       else if(ppc[i]=='C') prk[j++]=tn(0,m);
       else if(ppc[i]=='S') prk[j++]=tn(4,m);
     }
@@ -503,11 +527,15 @@ static K onecolon2(K a, K x) {
           if(z+sizeof(i32)>ze) { e=KERR_LENGTH; goto cleanup; }
           i32 tmp; memcpy(&tmp, z, sizeof(tmp)); ((i32*)px(rk))[i] = tmp;
         }
-        else if(ppc[j]=='f') {
-          if(z+sizeof(float)>ze) { e=KERR_LENGTH; goto cleanup; }
-          float tmp; memcpy(&tmp, z, sizeof(tmp)); ((double*)px(rk))[i] = tmp;
+        else if(ppc[j]=='j') {
+          if(z+sizeof(i64)>ze) { e=KERR_LENGTH; goto cleanup; }
+          i64 tmp; memcpy(&tmp, z, sizeof(tmp)); ((i64*)px(rk))[i] = tmp;
         }
-        else if(ppc[j]=='d') {
+        else if(ppc[j]=='e') {
+          if(z+sizeof(float)>ze) { e=KERR_LENGTH; goto cleanup; }
+          float tmp; memcpy(&tmp, z, sizeof(tmp)); ((float*)px(rk))[i] = tmp;
+        }
+        else if(ppc[j]=='f') {
           if(z+sizeof(double)>ze) { e=KERR_LENGTH; goto cleanup; }
           double tmp; memcpy(&tmp, z, sizeof(tmp)); ((double*)px(rk))[i] = tmp;
         }
@@ -564,7 +592,15 @@ static K onecolon2(K a, K x) {
       if(N%sizeof(i32)) { e=KERR_LENGTH; goto cleanup; }
       else { VSIZE((i64)(N/sizeof(int))); r=tn(1,N/sizeof(int)); }
     }
-    else if(ck(a)=='d') {
+    else if(ck(a)=='j') {
+      if(N%sizeof(i64)) { e=KERR_LENGTH; goto cleanup; }
+      else { VSIZE((i64)(N/sizeof(i64))); r=tn(8,N/sizeof(i64)); }
+    }
+    else if(ck(a)=='e') {
+      if(N%sizeof(float)) { e=KERR_LENGTH; goto cleanup; }
+      else { VSIZE((i64)(N/sizeof(float))); r=tn(9,N/sizeof(float)); }
+    }
+    else if(ck(a)=='f') {
       if(N%sizeof(double)) { e=KERR_LENGTH; goto cleanup; }
       else { VSIZE((i64)(N/sizeof(double))); r=tn(2,N/sizeof(double)); }
     }
@@ -613,7 +649,7 @@ static K twocolon1(K x) {
     return KERR_LENGTH;
   }
   fclose(fp);
-  if(b[0]!=2) { xfree(b); return kerror("header"); }
+  if(b[0]!=3 && b[0]!=2) { xfree(b); return kerror("header"); } /* v3 + v1's v2 (additive) */
   p=tnv(3,n,b);
   r=db_(p);
   _k(p);
@@ -664,7 +700,7 @@ static K fivecolon2(K a, K x) {
       if(ioe) return ferr("",errno);
       return KERR_LENGTH;
     }
-    if(h[0]!=2) { fclose(fp); return kerror("header"); }
+    if(h[0]!=3 && h[0]!=2) { fclose(fp); return kerror("header"); } /* v3 + v1's v2 (additive) */
     if(fread(&t,sizeof(int),1,fp)!=1) {
       int ioe=ferror(fp);
       fclose(fp);

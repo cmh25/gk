@@ -170,6 +170,21 @@ K prime_(K x) {
     }
     return r;
   }
+  case 8: {
+    i64 v = jk(x);
+    return t(1, (u32)(v >= 2 && is_prime((u64)v) ? 1 : 0));
+  }
+  case -8: {
+    u64 len = nx;
+    i64 *p = px(x);
+    K r = tn(1, len);
+    i32 *pr = px(r);
+    for(u64 i = 0; i < len; i++) {
+      i64 v = p[i];
+      pr[i] = (v >= 2 && is_prime((u64)v)) ? 1 : 0;
+    }
+    return r;
+  }
   case 0:
     return irecur1(prime_, x);
   default:
@@ -196,9 +211,51 @@ K factor_(K x) {
     return r;
   }
 
+  /* long vector: factor each element */
+  if(tx == -8) {
+    u64 len = nx;
+    i64 *p = px(x);
+    K r = tn(0, len);
+    K *pr = px(r);
+    for(u64 i = 0; i < len; i++) {
+      K f = factor_(tj(p[i]));
+      if(E(f)) { _k(r); return f; }
+      pr[i] = f;
+    }
+    return r;
+  }
+
   /* list: use irecur1 */
   if(tx == 0)
     return irecur1(factor_, x);
+
+  /* long scalar: 64-bit trial division, long-vector result */
+  if(tx == 8) {
+    i64 n = jk(x);
+    if(n < 0) n = -n;
+    if(n <= 1) return tn(8, 0);
+    u64 un = (u64)n, cap = 16, cnt = 0;
+    i64 *factors = xmalloc(cap * sizeof(i64));
+    while((un & 1) == 0) {
+      if(cnt >= cap) { cap *= 2; factors = xrealloc(factors, cap * sizeof(i64)); }
+      factors[cnt++] = 2; un >>= 1;
+    }
+    for(u64 f = 3; f * f <= un; f += 2) {
+      while(un % f == 0) {
+        if(cnt >= cap) { cap *= 2; factors = xrealloc(factors, cap * sizeof(i64)); }
+        factors[cnt++] = (i64)f; un /= f;
+      }
+    }
+    if(un > 1) {
+      if(cnt >= cap) { cap *= 2; factors = xrealloc(factors, cap * sizeof(i64)); }
+      factors[cnt++] = (i64)un;
+    }
+    K r = tn(8, cnt);
+    i64 *pr = px(r);
+    for(u64 i = 0; i < cnt; i++) pr[i] = factors[i];
+    xfree(factors);
+    return r;
+  }
 
   /* scalar int */
   if(tx != 1)
@@ -243,6 +300,40 @@ K factor_(K x) {
   return r;
 }
 
+/* read element i of an int/long numeric K (atom ignores i) as i64 */
+static int isintlong(i8 t) { return t==1||t==8||t==-1||t==-8; }
+static i64 readj(K x, u64 i) {
+  switch(tx) {
+  case  1: return (i64)ik(x);
+  case  8: return jk(x);
+  case -1: return (i64)((i32*)px(x))[i];
+  case -8: return ((i64*)px(x))[i];
+  }
+  return 0;
+}
+
+/* generic long-result number-theory dyad: applies f elementwise over
+   int/long operands (atoms broadcast), producing a long atom/vector. If
+   domain!=0, a negative f result raises a domain error (for modinv). */
+static K ntdyad_j(K a, K x, i64(*f)(i64,i64), int domain) {
+  if(!isintlong(ta) || !isintlong(tx)) return kerror("type");
+  int av=ta<0, xv=tx<0;
+  if(av && xv && na!=nx) return kerror("length");
+  if(!av && !xv) { /* scalar-scalar */
+    i64 v=f(readj(a,0),readj(x,0));
+    if(domain && v<0) return kerror("domain");
+    return tj(v);
+  }
+  u64 n = av?na:nx;
+  K r=tn(8,n); i64 *pr=px(r);
+  for(u64 i=0;i<n;i++) {
+    i64 v=f(readj(a,i),readj(x,i));
+    if(domain && v<0) { _k(r); return kerror("domain"); }
+    pr[i]=v;
+  }
+  return r;
+}
+
 /* --- gcd_(K a, K x): greatest common divisor --- */
 
 K gcd_(K a, K x) {
@@ -253,6 +344,10 @@ K gcd_(K a, K x) {
   /* list cases: use irecur2 */
   if(ta_ == 0 || tx_ == 0)
     return irecur2(gcd_, a, x);
+
+  /* any long operand: long result (no INT32_MAX clamp) */
+  if(ta_==8 || ta_==-8 || tx_==8 || tx_==-8)
+    return ntdyad_j(a, x, gcd_i, 0);
 
   /* scalar-scalar */
   if(ta_ == 1 && tx_ == 1) {
@@ -323,6 +418,10 @@ K lcm_(K a, K x) {
   if(ta_ == 0 || tx_ == 0)
     return irecur2(lcm_, a, x);
 
+  /* any long operand: long result (no INT32_MAX clamp) */
+  if(ta_==8 || ta_==-8 || tx_==8 || tx_==-8)
+    return ntdyad_j(a, x, lcm_i, 0);
+
   /* scalar-scalar */
   if(ta_ == 1 && tx_ == 1) {
     i64 l = lcm_i(ik(a), ik(x));
@@ -384,6 +483,10 @@ K modinv_(K a, K x) {
   /* list cases: use irecur2 */
   if(ta_ == 0 || tx_ == 0)
     return irecur2(modinv_, a, x);
+
+  /* any long operand: long result (no INT32_MAX clamp) */
+  if(ta_==8 || ta_==-8 || tx_==8 || tx_==-8)
+    return ntdyad_j(a, x, modinv_i, 1);
 
   /* scalar-scalar */
   if(ta_ == 1 && tx_ == 1) {

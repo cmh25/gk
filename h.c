@@ -17,8 +17,10 @@ void help(int a) {
   else if(a=='0') {
     fprintf(stderr,""
 "       scalar  vector  empty  inf  nul\n"
-"int    0       1 2     !0     0I   0N\n"
-"float  0.0     1 2.0   0#0.0  0i   0n\n"
+"i32    0       1 2     !0     0I   0N\n"
+"i64    0j      1 2j    !0j    0Ij  0Nj\n"
+"f32    0.0e    1 2.0e  0#0.0e 0ie  0ne\n"
+"f64    0.0     1 2.0   0#0.0  0i   0n\n"
 "char   \" \"     \"12\"    \"\"          \"\\0\"\n"
 "symbol `       `a`b    0#`\n"
 "\n"
@@ -31,7 +33,7 @@ void help(int a) {
 " d[]   values\n"
 " d.k  d`k  d[`k]  d@`k  d.`k\n"
 "\n"
-"4:x    type: atom(1..7)[ifcsdnx] list(0..-4)[KIFCS]\n"
+"4:x    type: atom(1..9)[ijefcsdnx] list(0..-4)[KIJEFCS]\n"
 "5:x    ascii representation\n");
   }
   else if(a=='+') {
@@ -101,10 +103,11 @@ void help(int a) {
 "\n"
 "math: log exp abs sqr sqrt floor ceil dot mul\n"
 "      sin cos tan asin acos atan sinh cosh tanh x atan2 y\n"
-"      hypot[x;y] mag v (magnitude) erf erfc gamma lgamma n choose k\n"
+"      erf erfc gamma lgamma n choose k\n"
 "      rint (round to whole number) x round y (round to y) trunc (nearest)\n"
 "      div (integer) and or xor not rot shift (bitwise)\n"
 "      prime n factor n gcd[a;b] lcm[a;b] modinv[a;m] (number theory)\n"
+"      mag v (vector magnitude)\n"
 "      y lsq A (least squares approximation, y~+/A*lsq[y;A])\n"
 "      inv A (inverse A, I~A mul inv A)\n"
 "      svd A (singular value decomposition (U;S;+V), A~mul/svd A)\n"
@@ -176,8 +179,8 @@ void help(int a) {
 " 6:f   f 6:x  read/write bytes\n"
 "     (,f)6:x  append bytes\n"
 "\n"
-" (type;width)0:f   fixedwidth text(IFCS )\n"
-" (type;width)1:f   fixedwidth data(cbsifd CS)\n"
+" (type;width)0:f   fixedwidth text(IJEFCS )\n"
+" (type;width)1:f   fixedwidth data(cbsijef CS)\n"
 " blank skips. f can be (f;index;length).\n");
   }
   else if(a=='-') {

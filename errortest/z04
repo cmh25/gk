@@ -6,7 +6,7 @@ f`
 \
 
 cmh@ubuntu22:~/gk$ rlwrap ./gk errortest/z04
-gk-v1.0.0 Copyright (c) 2023-2025 Charles Hall
+gk-v2.0.0 Copyright (c) 2023-2026 Charles Hall
 
 in errortest/z04:2
 value error
@@ -31,7 +31,7 @@ f`
 load: errortest/z04 ... + 3
 
 cmh@ubuntu22:~/gk$ rlwrap ./gk errortest/z04
-gk-v1.0.0 Copyright (c) 2023-2025 Charles Hall
+gk-v2.0.0 Copyright (c) 2023-2026 Charles Hall
 
 in errortest/z04:2
 value error

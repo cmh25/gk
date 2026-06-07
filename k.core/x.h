@@ -12,6 +12,7 @@ void* xstrdup(const char *s);
 void* xstrndup(const char *s, size_t n);
 void* xmemdup(const void *s, size_t n);
 int xatoi(char *s);
+int64_t xatol(char *s);
 double xstrtod(char *s);
 char* xesc(char *p);
 char* xunesc(char *p);

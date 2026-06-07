@@ -190,14 +190,14 @@ With one argument, **`.`** either evaluates a **string** of code, or **applies**
 3
 ```
 
-This is also the default idea behind **IPC** handlers (see [ipc.md](ipc.md)).
+This is also the default idea behind **IPC** handlers (see [IPC in the reference](ref.md#ipc)).
 
 ## Where next
 
 | Doc | When to open it |
 |-----|------------------|
 | [ref.md](ref.md) | Every primitive, builtin, type, and syntax detail |
-| [valence.md](valence.md) | How many args functions take; projections |
-| [ipc.md](ipc.md) | Talking to another gk process |
-| [timer.md](timer.md) | Periodic callbacks |
+| [ref.md → Valence](ref.md#valence) | How many args functions take; projections |
+| [ref.md → IPC](ref.md#ipc) | Talking to another gk process |
+| [ref.md → Timer](ref.md#timer) | Periodic callbacks |
 | [k3.md](k3.md) | If you already know k3 and want a delta list |

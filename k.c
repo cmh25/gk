@@ -15,7 +15,7 @@
 #include "av.h"
 
 i32 maxr=MAXR;
-char *E[EMAX]={"nyi","rank","length","type","value","range","domain","valence","index","int","parse","nonce","stack","reserved","wsfull"};
+char *E[EMAX]={"nyi","rank","length","type","value","range","domain","valence","index","int","parse","stack","reserved","wsfull"};
 i32 zeroclamp;
 
 static char *P=":+-*%&|<>=~.!@?#_^,$'/\\";
@@ -194,6 +194,32 @@ static void pia(K x, char *s, char *e) {
   else if(1==nx) { mprintf("%s,",s); pi_(pxi[0]); mprintf("%s",e); }
   else i(nx,pi(pxi[i],i?"":s,i<nx-1?" ":e))
 }
+/* long (type 8): the `j` suffix marks the value/vector as 64-bit.  Sentinels
+   always carry `j`; ordinary elements print bare except the last, which gets
+   `j` to flag the whole vector (mirrors float's trailing `.0` in pfa). */
+static void pj_(i64 j) {
+  if(j==J_INF) mprintf("0Ij");
+  else if(j==J_NULL) mprintf("0Nj");
+  else if(j==J_NINF) mprintf("-0Ij");
+  else mprintf("%lldj",(long long)j);
+}
+static void pj(K x, char *s, char *e) {
+  mprintf("%s",s); pj_(jk(x)); mprintf("%s",e);
+}
+static void pja(K x, char *s, char *e) {
+  i64 j,*pxj=px(x);
+  if(!nx) { mprintf("%s!0j%s",s,e); return; }
+  if(1==nx) { mprintf("%s,",s); pj_(pxj[0]); mprintf("%s",e); return; }
+  for(u64 i=0;i<nx;i++) {
+    j=pxj[i];
+    mprintf("%s",i?"":s);
+    if(i==nx-1) { pj_(j); mprintf("%s",e); }
+    else if(j==J_INF)  mprintf("0Ij ");
+    else if(j==J_NULL) mprintf("0Nj ");
+    else if(j==J_NINF) mprintf("-0Ij ");
+    else mprintf("%lld ",(long long)j);
+  }
+}
 
 static void pf_(double f) {
   char ds[256];
@@ -233,6 +259,62 @@ static void pfa(K x, char *s, char *e) {
       }
       else mprintf("%s%s ",i?"":s,ds);
     }
+  }
+}
+
+/* float32 (type 9): print with a trailing `e` flagging the type, sentinels
+   0ne/0ie/-0ie.  Every vector element carries `e` (a bare decimal would lex
+   back as f64 and force the vector to f64, unlike the neutral ints in pja). */
+/* format a float32 into ds as a self-contained f32 literal (with `.`/exp +
+   trailing `e`); whole numbers get `.0` so 1.0e prints, not 1e. */
+static void efmt(char *ds, float f) {
+  int p32 = precision<7?precision:7;  /* float32 ~7 sig digits */
+  double d=(double)f;
+  if(zeroclamp && fabs(d)<1e-12) d=0.0;
+  sprintf(ds,"%0.*g",p32,d==0.0?0.0:d);
+  { size_t L=strlen(ds);
+    if(!strchr(ds,'.')&&!strchr(ds,'e')&&!strchr(ds,'E')) { memcpy(ds+L,".0",2); L+=2; }
+    memcpy(ds+L,"e",2); }  /* "e" + nul */
+}
+static void pe_(float f) {
+  char ds[256];
+  if(isinf(f)&&f>0.0f) mprintf("0ie");
+  else if(isnan(f)) mprintf("0ne");
+  else if(isinf(f)&&f<0.0f) mprintf("-0ie");
+  else { efmt(ds,f); mprintf("%s",ds); }
+}
+static void pe(K x, char *s, char *e) {
+  mprintf("%s",s); pe_(ek(x)); mprintf("%s",e);
+}
+/* vector: f64-style.  Only the LAST element carries the `e` type flag; every
+   non-last finite value prints bare (plain int or decimal, like an f64) and
+   still round-trips to -9 because the trailing `e` makes the whole literal
+   real (mirrors the `j` on a long vector's last element).  Sentinels keep
+   their `e` form (0ne/0ie/-0ie) since the bare 0n/0i would be f64. */
+static void pea(K x, char *s, char *e) {
+  char ds[256];
+  int p32 = precision<7?precision:7;
+  float f,*pxe=px(x);
+  if(!nx) { mprintf("%s0#0.0e%s",s,e); return; }
+  if(1==nx) { mprintf("%s,",s); pe_(pxe[0]); mprintf("%s",e); return; }
+  for(u64 i=0;i<nx;i++) {
+    int last=(i==nx-1);
+    f=pxe[i];
+    if(isinf(f)&&f>0.0f) memcpy(ds,"0ie",4);
+    else if(isnan(f)) memcpy(ds,"0ne",4);
+    else if(isinf(f)&&f<0.0f) memcpy(ds,"-0ie",5);
+    else {
+      double d=(double)f;
+      if(zeroclamp && fabs(d)<1e-12) d=0.0;
+      sprintf(ds,"%0.*g",p32,d==0.0?0.0:d);
+      if(last) {  /* last element flags the vector's real type */
+        { size_t L=strlen(ds);
+          if(!strchr(ds,'.')&&!strchr(ds,'e')&&!strchr(ds,'E')) memcpy(ds+L,".0e",4);
+          else memcpy(ds+L,"e",2); }  /* + nul */
+      }
+      /* else: non-last value prints f64-style (bare) */
+    }
+    mprintf("%s%s%s", i?"":s, ds, last?e:" ");
   }
 }
 
@@ -435,8 +517,12 @@ const char* kprint_(K x, char *s, char *e, char *s0) {
       case  3: pc(x,s,e); break;
       case  4: ps(x,s,e); break;
       case  6: case 10: mprintf("%s%s",s,e); break;
+      case  8: pj(x,s,e); break;
+      case  9: pe(x,s,e); break;
       case -1: pia(x,s,e); break;
       case -2: pfa(x,s,e); break;
+      case -8: pja(x,s,e); break;
+      case -9: pea(x,s,e); break;
       case -3: pca(x,s,e); break;
       case -4: psa(x,s,e); break;
       case  0:
@@ -618,7 +704,7 @@ K val(K x) {
                     "/" (over/fold)   collapses to 1 (val=1) or 2
                                       (val>=2; over accepts seed),
                     "\" (scan)        same as "/"
-                  This lets val({x+y*z}') = 3 (matches e333j) and
+                  This lets val({x+y*z}') = 3 and
                   val(f/) = 2 (with optional seed).  Pre-Pass 5
                   this was hardcoded to 2 regardless of inner;
                   the rebuild paths don't read val(0xda) on a
@@ -635,7 +721,7 @@ K val(K x) {
     r=t(1,vn);
     break;
   }
-  case 0xc3: px=px(b(48)&x); n=ik(px[3]); r=t(1,n?n:1); break;  /* val[{}] = 1 */
+  case 0xc3: px=px(b(48)&x); n=FN_VALENCE(px[3]); r=t(1,n?n:1); break;  /* val[{}] = 1 */
   /* 0xc4 retired in Pass 4 -- replaced by 0xd9. */
   case 0xc5: r=t(1,2); break;
   case 0xc6: r=t(1,1); break;
@@ -1129,6 +1215,8 @@ cleanup:
 static K kamendi4v(K d, K i, K f, K y) {
   i32 *pii=0,*pdi,*pyi,b=0;
   K r,e,t,*pdu=0,*pyu;
+  i64 *pdj,*pyj;
+  float *pde,*pye;
   double *pdf,*pyf;
   char td,ti,ty,Ty,*pdc,**pds,*pyc,**pys;
   typedef struct { K i,y; u64 j; } sf;
@@ -1203,6 +1291,58 @@ static K kamendi4v(K d, K i, K f, K y) {
         case -2:
           if(n(d)!=n(y)) { e=KERR_LENGTH; goto cleanup; }
           AMEND_CASE(pyf=px(y), n(d), j, t2(pdf[idx]), t2(pyf[j]), pdf, 2, fk(r), i(n(d), pdf[i]=pyf[i])); break;
+        default: _k(d); d=KERR_TYPE;
+        } break;
+      } break;
+    case -8: pdj=px(d);
+      switch(ti) {
+      case  1:
+        if(b) { r=fe(k_(f),tj(pdj[ik(i)]),k_(y),0); EC(r); }
+        else r=k_(y);
+        if(T(r)==8) { pdj[ik(i)]=jk(r); _k(r); }
+        else {
+          t=kmix(d); EC(t);
+          _k(d); d=t; pdu=px(d); _k(pdu[ik(i)]); pdu[ik(i)]=r;
+        }
+        break;
+      case -1:
+        switch(Ty) {
+        case 8: AMEND_CASE(/* */, n(i), pii[j], tj(pdj[idx]), k_(y), pdj, 8, jk(r), i(n(i), pdj[pii[i]]=jk(y))); break;
+        case -8: AMEND_CASE(pyj=px(y), n(i), pii[j], tj(pdj[idx]), tj(pyj[j]), pdj, 8, jk(r), i(n(i), pdj[pii[i]]=pyj[i])); break;
+        default: _k(d); d=KERR_TYPE;
+        } break;
+      case  6:
+        switch(Ty) {
+        case 8: AMEND_CASE(/* */, n(d), j, tj(pdj[idx]), k_(y), pdj, 8, jk(r), i(n(d), pdj[i]=jk(y))); break;
+        case -8:
+          if(n(d)!=n(y)) { e=KERR_LENGTH; goto cleanup; }
+          AMEND_CASE(pyj=px(y), n(d), j, tj(pdj[idx]), tj(pyj[j]), pdj, 8, jk(r), i(n(d), pdj[i]=pyj[i])); break;
+        default: _k(d); d=KERR_TYPE;
+        } break;
+      } break;
+    case -9: pde=px(d);
+      switch(ti) {
+      case  1:
+        if(b) { r=fe(k_(f),te(pde[ik(i)]),k_(y),0); EC(r); }
+        else r=k_(y);
+        if(T(r)==9) { pde[ik(i)]=ek(r); _k(r); }
+        else {
+          t=kmix(d); EC(t);
+          _k(d); d=t; pdu=px(d); _k(pdu[ik(i)]); pdu[ik(i)]=r;
+        }
+        break;
+      case -1:
+        switch(Ty) {
+        case 9: AMEND_CASE(/* */, n(i), pii[j], te(pde[idx]), k_(y), pde, 9, ek(r), i(n(i), pde[pii[i]]=ek(y))); break;
+        case -9: AMEND_CASE(pye=px(y), n(i), pii[j], te(pde[idx]), te(pye[j]), pde, 9, ek(r), i(n(i), pde[pii[i]]=pye[i])); break;
+        default: _k(d); d=KERR_TYPE;
+        } break;
+      case  6:
+        switch(Ty) {
+        case 9: AMEND_CASE(/* */, n(d), j, te(pde[idx]), k_(y), pde, 9, ek(r), i(n(d), pde[i]=ek(y))); break;
+        case -9:
+          if(n(d)!=n(y)) { e=KERR_LENGTH; goto cleanup; }
+          AMEND_CASE(pye=px(y), n(d), j, te(pde[idx]), te(pye[j]), pde, 9, ek(r), i(n(d), pde[i]=pye[i])); break;
         default: _k(d); d=KERR_TYPE;
         } break;
       } break;
@@ -1553,7 +1693,7 @@ static K kamend3_(K d, K i, K f) {
       default: e=KERR_TYPE; goto cleanup;
       }
       break;
-    case -1: case -2: case -3: case -4:
+    case -1: case -2: case -8: case -9: case -3: case -4:
       switch(T(i_)) {
       case  1:
         r=kamendi3v(k_(d_),k_(i_),k_(f)); EC(r);
@@ -1978,7 +2118,7 @@ static K kamend4_(K d, K i, K f, K y) {
       r=null;
       PROPAGATE_RESULT(r);
       break;
-    case -1: case -2: case -3: case -4:
+    case -1: case -2: case -8: case -9: case -3: case -4:
       if(i_==inull)i_=null;
       switch(T(i_)) {
       case  1:

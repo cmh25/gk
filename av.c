@@ -374,6 +374,19 @@ K avdo(K f, K a, K x, char *av) {
   K r=0;
   int w,n=strlen(av);
   char av2[256];
+  /* Force monad: a {Vx} lambda is semantically the bare MONADIC primitive V,
+     so a monadic adverb application (each/over/scan over one list) must
+     dispatch identically -- and in bulk, not by iterating the lambda per
+     element.  Swap it for V's raw verb code here (the choke point all adverb
+     dispatch funnels through), taking the isprim path below.  Guard with !a &&
+     x-not-a-plist: a left arg (seed/count, e.g. 5{,x}\1) or a 0x81 multi-arg
+     plist means the form is dyadic/iterate-n where V's bare-primitive default
+     valence (dyadic for `,`) would differ from the monadic force -- leave
+     those on the lambda path.  pf[3]'s high bits cache V's FM[]/P index (0 = not a force
+     monad). */
+  if(0xc3==s(f) && !a && 0x81!=s(x)) {
+    K *pf=px(f); int fm=FN_FMIDX(pf[3]); if(fm) { _k(f); f=(K)(i64)fm; }
+  }
   int isfn=VST(f) && (s(f)&0x40); /* f is a callable subtype */
   int isprim=!s(f) && !T(f);      /* numeric primitive verb code */
   static int d=0;
@@ -628,7 +641,7 @@ cleanup:
   _k(f);
   _k(r);
   _k(a);
-  if(r!=x) _k(x);
+  _k(x);
   return e;
 }
 

@@ -8,6 +8,10 @@
 extern K fnestack[1024];
 extern int fnestacki;
 
+#define FN_VALENCE(v) (ik(v)&0xff)
+#define FN_FMIDX(v) ((ik(v)>>8)&0xff)
+#define FN_VF(val,fm) t(1,((val)&0xff)|(((fm)&0xff)<<8))
+
 void fninit(void);
 K fnnew(char *f);
 void fnfree(K f);

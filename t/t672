@@ -1,0 +1,13 @@
+\e 0
+/ integer div by zero -> domain (was nonce)
+.[div;(7;0);:]
+.[div;(7 8;0);:]
+/ integer INT_MIN/-1 overflow -> range (was nonce)
+.[div;(0N;-1);:]
+.[div;(0Nj;-1);:]
+/ mod-by-zero and float div-by-zero are NOT errors
+7!0
+7%0
+/ normal integer division still works
+7 div 2
+\\

@@ -315,11 +315,9 @@ static K scope_set_(K s, char *n, K v) {
   }
   if(v==ktree) gcopy=1; // d.c:.`
   if(s==ks && strlen(n)==1 && *n!='k' && *n!='m') { // top level, single letters reserved, except k and m (.m is the ipc namespace)
-    fprintf(stderr,"reserved: %s\n",n);
     _k(v); return KERR_RESERVED;
   }
   if(kreserved(sp(n))) { // reserved names
-    fprintf(stderr,"reserved: %s\n",n);
     _k(v); return KERR_RESERVED;
   }
   if(strchr(n,'.')) {
@@ -329,7 +327,6 @@ static K scope_set_(K s, char *n, K v) {
       if(skd==strstr(skd,n)) { _k(v); return KERR_DOMAIN; }
       // .m is a reserved top-level namespace (ipc); .m.x can still be set
       if(n[1]=='m' && n[2]==0) {
-        fprintf(stderr,"reserved: %s\n",n);
         _k(v); return KERR_RESERVED;
       }
       es=ks;

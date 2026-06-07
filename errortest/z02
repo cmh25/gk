@@ -8,7 +8,7 @@ f`
 \
 
 cmh@ubuntu22:~/gk$ rlwrap ./gk errortest/z02
-gk-v1.0.0 Copyright (c) 2023-2025 Charles Hall
+gk-v2.0.0 Copyright (c) 2023-2026 Charles Hall
 
 { / this is a comment ... + 2 in errortest/z02:3
 type error
@@ -23,7 +23,7 @@ f`
 load: errortest/z02 ... + 5
 
 cmh@ubuntu22:~/gk$ rlwrap ./gk errortest/z02
-gk-v1.0.0 Copyright (c) 2023-2025 Charles Hall
+gk-v2.0.0 Copyright (c) 2023-2026 Charles Hall
 
 { / this is a comment ... + 2 in errortest/z02:3
 type error

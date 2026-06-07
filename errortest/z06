@@ -6,7 +6,7 @@
 \
 
 cmh@ubuntu22:~/gk$ rlwrap ./gk errortest/z06
-gk-v1.0.0 Copyright (c) 2023-2025 Charles Hall
+gk-v2.0.0 Copyright (c) 2023-2026 Charles Hall
 
 (1 ... + 1 in errortest/z06:2
 type error
@@ -16,7 +16,7 @@ type error
 load: errortest/z06 ... + 3
 
 cmh@ubuntu22:~/gk$ rlwrap ./gk errortest/z06
-gk-v1.0.0 Copyright (c) 2023-2025 Charles Hall
+gk-v2.0.0 Copyright (c) 2023-2026 Charles Hall
 
 (1 ... + 1 in errortest/z06:2
 type error

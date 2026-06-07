@@ -763,19 +763,19 @@ r2:r~"03:35:55"
 if[~r2;`0:,"failed";exit 1]
 
 "65. represent integer date in form yyyymmdd as character date, parts separated by /"
-x:*_ltime -388787045
+x:*_gtime -388787045
 r:x
-r2:r~20220905
+r2:r~20220906
 if[~r2;`0:,"failed";exit 1]
 r:1000 sv 10000 100 100 vs x
-r2:r~2022009005
+r2:r~2022009006
 if[~r2;`0:,"failed";exit 1]
 q:$1000 sv 10000 100 100 vs x
 r:q
-r2:r~"2022009005"
+r2:r~"2022009006"
 if[~r2;`0:,"failed";exit 1]
 r:@[q;4 7;:;"/"]
-r2:r~"2022/09/05"
+r2:r~"2022/09/06"
 if[~r2;`0:,"failed";exit 1]
 
 "66. selection by encoded list"
@@ -806,7 +806,7 @@ r2:r~(1 0 1.0
 if[~r2;`0:,"failed";exit 1]
 r:$y lsq x^/|!#x
 /r2:r~1 0 4.440892e-016 / different values near zero that e
-r2:r~$1 0 0 
+r2:r~$1 0 0
 if[~r2;`0:,"failed";exit 1]
 r:g sv y lsq x^/|!#x
 r2:r~100.0
@@ -859,8 +859,8 @@ r2:r~(0 1 1
 if[~r2;`0:,"failed";exit 1]
 
 "72. encode date as integer"
-r:*_ltime -388787045 
-r2:r~20220905
+r:*_gtime -388787045
+r2:r~20220906
 if[~r2;`0:,"failed";exit 1]
 
 "73. remove trailing blanks"
@@ -1246,10 +1246,10 @@ ap:{"AP"[115959<x],"M"}
 r:ap x
 r2:r~"PM"
 if[~r2;`0:,"failed";exit 1]
-hm:{{(hms x)," ",ap x}[*|_ltime x]}
+hm:{{(hms x)," ",ap x}[*|_gtime x]}
 /Ordinarily one would use _t as the argument to hm
 r:hm x
-r2:r~"05:15:30 PM"
+r2:r~"03:15:30 AM"
 if[~r2;`0:,"failed";exit 1]
 
 "106. leading zeros for positive integers x in field width y"
@@ -1285,8 +1285,7 @@ r2:r~("037"
 if[~r2;`0:,"failed";exit 1]
 
 "107. current date, American"
-/x:*_ltime _t
-x:*_ltime -387608282
+x:*_gtime -387608282
 /x
 /20220919
 r:10000 100 100 vs x
@@ -1323,7 +1322,7 @@ r2:r~"9/19/2022"
 if[~r2;`0:,"failed";exit 1]
 /da:{e[d?/k,/s,/$1!b vs x]}
 da:{e[d?/k[,/s,/$1!b vs x]]}
-r:da[*_ltime -387608282]
+r:da[*_gtime -387608282]
 r2:r~"9/19/2022"
 if[~r2;`0:,"failed";exit 1]
 
@@ -5094,7 +5093,7 @@ r:(&ep[<]0,x,0)-&ep[>]0,x,0
 r2:r~3 4 1
 if[~r2;`0:,"failed";exit 1]
 m415:{(&ep[<]0,x,0)-&ep[>]0,x,0}
- 
+
 /416. omitted
 
 "417. end points of equal infixes"
@@ -7008,7 +7007,7 @@ if[~r2;`0:,"failed";exit 1]
 /630. omitted
 
 /631. omitted
- 
+
 "1001. payback"
 /cumulative accumulation factors
 /(see Zark APL Tutor News 1998 Quarter 2)

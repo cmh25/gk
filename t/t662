@@ -1,0 +1,186 @@
+/ 32-bit float (real / e) type
+/ printed suffix shows result type: Ne=real(f32), N.0=float(f64), N=int, Nj=long
+/ lexer disambiguates e-suffix vs scientific exponent (see end of file)
+
+/ type-of: 9 atom, -9 vector
+4:1.0e
+4:1.0e 2.0e 3.0e
+4:0ne
+
+/ literals and sentinels
+1.0e
+0.0e 1.0e 2.0e 3.0e
+0ne
+0ie
+-0ie
+0ne 0ie -0ie
+1.5e
+
+/ promotion matrix (int/long/float/real)
+4:1.0e + 1
+4:1 + 1.0e
+4:1.0e + 1.0e
+4:1.0e + 1.0
+4:1.0e + 1j
+1.0e + 1
+1.0e + 1.0e
+0.0e + 1 2 3
+1.0e*3
+6.0e%2
+2.0e%4
+1.0e + 1.0
+1.0e + 1j
+
+/ f32-stays-f32 for divide/power/recip/math: only int%int and f64/long mixes widen
+4:6.0e%2
+4:6%2.0e
+4:6.0e%2.0e
+4:6%2
+4:6.0e%2.0
+4:6.0e%2j
+4:2.0e^10
+4:2.0e^2j
+4:%2.0e
+4:sqrt 4.0e
+4:3 hypot 4.0e
+4:3.0e hypot 4j
+
+/ arithmetic dyads
+1.0e 2.0e 3.0e + 10.0e 20.0e 30.0e
+5.0e - 2.0e
+3.0e*4.0e
+2.0e^10
+5.5e!2.0e
+5.5e!2
+7!2.0e
+
+/ negate / abs / recip / square
+{-x}1.0e 2.0e 3.0e
+abs -2.5e
+abs -0ie
+%2.0e
+%1.0e 2.0e 4.0e
+sqr 3.0e
+sqr 2.0e 3.0e
+4:sqr 3.0e
+
+/ compare / min-max / match
+2.5e<3.5e
+2.5e>3.5e
+2.5e=2.5e
+2.5e&3.5e
+2.5e|3.5e
+2.5e&3
+1.0e 2.0e 3.0e&2.5e
+2.5e~2.5e
+2.5e~2.5
+
+/ grade / sort / reverse / first
+<3.5e 1.5e 2.5e
+>3.5e 1.5e 2.5e
+{x@<x}3.5e 1.5e 2.5e
+|1.0e 2.0e 3.0e
+*1.0e 2.0e 3.0e
+
+/ structural: enlist join take drop reshape index
+,2.5e
+1.5e,2.5e
+1.0e 2.0e,3.0e 4.0e
+3#1.5e
+2#1.0e 2.0e 3.0e
+2 3#1.0e 2.0e 3.0e 4.0e 5.0e 6.0e
+1_1.0e 2.0e 3.0e 4.0e
+-2_1.0e 2.0e 3.0e 4.0e
+(1.0e 2.0e 3.0e)@0 2 1
+
+/ hash: distinct find group membership
+?3.5e 1.5e 3.5e 2.5e 1.5e
+10.0e 20.0e 30.0e?20.0e
+=3.5e 1.5e 3.5e 2.5e 1.5e
+2.0e in 1.0e 2.0e 3.0e
+
+/ reduce / scan
++/1.0e 2.0e 3.0e
+*/2.0e 3.0e 4.0e
+%/1.0e 2.0e 4.0e
+&/3.0e 1.0e 2.0e
+|/3.0e 1.0e 2.0e
++\1.0e 2.0e 3.0e
+&\3.0e 1.0e 2.0e
+
+/ each
+{x*2.0e}1.0e 2.0e 3.0e
+(1.0e 2.0e)+'(1.0e 2.0e)
+
+/ monadic not / floor
+~2.5e
+~1.0e 0.0e 2.0e
+_3.7e
+_-2.5e 9.9e
+
+/ math builtins: real arg stays real (f32 libm variants), else -> f64
+sqrt 4.0e
+sqrt 1.0e 4.0e 9.0e
+3.0e hypot 4.0e
+/ hypot: overflow-safe libm hypot/hypotf, IEEE semantics (hypot(inf,nan)=inf)
+hypot[1e200;1e200]
+4:hypot[1e200;1e200]
+hypot[2e30e;0.0e]
+0ie hypot 0ne
+0ne hypot 3.0e
+
+/ roll (?) -> n random f32 in [0,m): test type/count/range (seed-independent)
+4:10?1.0e
+#10?2.0e
+&/(10?1.0e)<1.0e
+
+/ mul: f32 matrix multiply (fast path) keeps f32 result
+(1.0e 2.0e;3.0e 4.0e)mul(5.0e 6.0e;7.0e 8.0e)
+4:*(1.0e 2.0e;3.0e 4.0e)mul(5.0e 6.0e;7.0e 8.0e)
+
+/ linear algebra: compute in f64, narrow back to f32 for pure-real input
+inv(1 2.0e;3 4.0e)
+4:*inv(1 2.0e;3 4.0e)
+det(1 2.0e;3 4.0e)
+4:det(1 2.0e;3 4.0e)
+(1.0e 2.0e)lsq(1 0.0e;0 1.0e)
+4:(1.0e 2.0e)lsq(1 0.0e;0 1.0e)
+mag 3.0e 4.0e
+4:mag 3.0e 4.0e
+/ any long/f64 operand keeps the result f64
+4:det(1 2.0e;3 4j)
+4:det(1 2j;3 4j)
+4:mag 3 4j
+
+/ amend
+@[1.0e 2.0e 3.0e;1;:;9.0e]
+@[1.0e 2.0e 3.0e;0 2;:;7.0e 8.0e]
+@[1.0e 2.0e 3.0e;1;+;10.0e]
+@[1.0e 2.0e 3.0e;1;:;5]
+
+/ format / serialize round-trip
+$2.5e
+db bd 1.0e 2.5e 3.25e
+db bd 0ne 0ie -0ie
+
+/ lexer: e-suffix vs scientific exponent disambiguation (no spaces)
+1.0e+2.0e
+1.0e-2.0e
+1.0e+2.0e+3.0e
+1.0e 2.0e+1.0e 2.0e
+1.0e 2.0e-1.0e 2.0e
+1.0e 2.0e+'1.0e 2.0e
+/ plain scientific notation must still parse as f64
+1.0e+2
+1.0e-2
+6.022e23
+1.5e3
+/ mixed plain-decimal + e-suffix vector literal -> real (e wins, narrows f64)
+4:1.0 2.0e
+1.0 2.0e
+1.2 2.0e
+0#1.0 2.0e
+/ long+f32 and pure-f64 literals stay f64
+4:1j 2.0e
+4:1.0 2.0
+\\

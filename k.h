@@ -14,7 +14,7 @@
 #else
 #define MAXR 1000
 #endif
-#define EMAX 15
+#define EMAX 14
 
 extern i32 maxr;
 extern char *E[EMAX];

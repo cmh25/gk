@@ -1,0 +1,57 @@
+/ --- long: 0j$ parses digit strings, strict like int ---
+0j$"807"
+0j$"00807"
+0j$","_"162,817,812"
+0j$"9999999999"
+4:0j$"807"
+4:0j$","_"162,817,812"
+
+/ long numeric -> format (width 0 -> ""), not cast
+0j$5
+0j$3.9
+0j$2.0e
+
+/ long rejects non-digits (mirrors int $) -> domain
+.[$;(0j;"-5");:]
+.[$;(0j;"1,2");:]
+
+/ nonzero long left = format to width N, like int $ (j is just the width)
+5j$"7"
+20j$","_"162,817,812"
+6j$"ab"
+
+/ --- real: 0.0e$ parses, lenient like float ---
+0.0e$"807"
+0.0e$"3.5"
+0.0e$"-5"
+0.0e$","_"162,817,812"
+4:0.0e$"3.5"
+4:0.0e$","_"1,2,3"
+
+/ real numeric -> format (width.prec 0.0 -> precision-0 string), not cast
+0.0e$5
+0.0e$2.5
+0.0e$9j
+
+/ strings always parse to real, regardless of left width (type stays 9)
+4:2.0e$"7"
+2.0e$"7"
+/ nonzero real left on a number = format width/precision, like float $
+2.5e$3.14159
+
+/ --- width-format a long/real VALUE (int or float width) ---
+8$2j
+8$2.5e
+8$-17j
+8.0$2j
+8.2$2.5e
+8$2 3 4j
+8$1.5e 2.5e
+8 6$2j
+
+/ --- baselines unchanged ---
+0$","_"162,817,812"
+0.0$","_"162,817,812"
+8$2
+8$2.5
+\\

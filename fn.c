@@ -30,8 +30,8 @@ void fninit(void) {
 /* Issue #2 Pass 6 cleanup: 0xc3 lambda layout shrunk from 5 to 4
    slots.  The legacy pf[3] av slot is gone (post-pass-6 the lexer
    never produces lambdas with embedded adverbs, and composition
-   happens at the AST level via 0xda(0xc3, av)).  Valence migrates
-   from pf[4] to pf[3]. */
+   happens at the AST level via 0xda(0xc3, av)).  pf[3] carries valence
+   in low bits and the force-monad cache in high bits. */
 K fnnew(char *s) {
   K f,*pf;
   char *pd;
@@ -41,7 +41,7 @@ K fnnew(char *s) {
   pf[0]=tn(3,strlen(s)); /* definition */
   pf[1]=null;            /* parse result */
   pf[2]=null;            /* scope */
-  pf[3]=t(1,0);          /* valence */
+  pf[3]=FN_VF(0,0);      /* valence + force-monad FM[] index */
   pd=px(pf[0]);
   i(strlen(s),pd[i]=s[i])
   K p=fnd(f);
@@ -62,7 +62,7 @@ static K fncp_(K x) {
   if(E(pf[0])) { K e=pf[0]; _k(f); return e; }
   pf[1]=null;       /* parse result */
   pf[2]=null;       /* scope */
-  pf[3]=t(1,0);     /* valence */
+  pf[3]=FN_VF(0,0); /* valence + force-monad FM[] index */
   if((p=fnd(f))) { fnfree(f); return p; }
   return st(0xc3,f);
 }
@@ -232,7 +232,7 @@ K fnd(K f) {
   if(vz&&q<3) { SB(v,vm,q,sp("y")); q++; }
   if(vz&&q<3) { SB(v,vm,q,sp("x")); q++; }
   if(vy&&q<2) { SB(v,vm,q,sp("x")); q++; }
-  pf[3]=t(1,q);
+  pf[3]=FN_VF(q,0);
   i(q,p=scope_set(pf[2],t(4,sp(v[i])),null);if(E(p)) { r=p; goto cleanup; })
   if(q!=(int)n(((K*)px(((K*)((K*)px(pf[2])))[1]))[0])) { r=KERR_PARSE; goto cleanup; }  // {[a;b;b]a,b}
   K locals=tn(4,q); K *plocals=px(locals);
@@ -254,6 +254,25 @@ K fnd(K f) {
   opencode=opencode0;
   _k(locals);
   if(E(pf[1])) { r=pf[1]; pf[1]=null; }
+
+  /* Force-monad recognition: a valence-1 body spelled exactly {Vx}, where
+     V is a monadic primitive (one of P below, whose index is the FM[] slot),
+     collapses at apply time to k(idx,0,arg) -- skipping scope setup + the
+     pgreduce() interpreter loop.  We cache idx in pf[3]'s high bits (0 = not a force
+     monad); the lambda otherwise stays a normal 0xc3 (prints verbatim,
+     dispatches normally everywhere), so only fne_ short-circuits and there
+     is no print/round-trip or fne()-handler surface to get wrong.  Requiring
+     the canonical 4-char spelling means `{ ,x}`/`{,y}` stay ordinary
+     lambdas. */
+  pf[3]=FN_VF(q,0);
+  if(!r && q==1 && n(pf[0])==4) {
+    char *d0=px(pf[0]);
+    static const char P[]=":+-*%&|<>=~.!@?#_^,$"; /* index == FM[] slot */
+    if(d0[0]=='{' && d0[2]=='x' && d0[3]=='}') {
+      const char *vp=strchr(P, d0[1]);
+      if(vp && vp!=P) pf[3]=FN_VF(q,(int)(vp-P)); /* exclude ':' (idx 0, no monad) */
+    }
+  }
 cleanup:
   xfree(b); xfree(v);
   return r;
@@ -279,7 +298,8 @@ K fne_(K f, K x, char *av) {
 
   pf=px(f);
   px=px(x);
-  n=(u64)ik(pf[3]);
+  n=(u64)FN_VALENCE(pf[3]);
+  int fmidx=FN_FMIDX(pf[3]); /* !=0: force monad {Vx}, FM[]/P index of V */
 
   u64 inc=0; i(nx,if(px[i]==inull)++inc)
   nn=nx-inc; //  if there are inulls, number of inulls must less than or equal to nx
@@ -346,7 +366,11 @@ K fne_(K f, K x, char *av) {
     else { r=KERR_VALENCE; --d; goto cleanup; }
   }
   else {
-    if(6==T(pf[2])) { K p=fnd(f); if(p) { _k(f); _k(x); return p; } }
+    if(6==T(pf[2])) { K p=fnd(f); if(p) { _k(f); _k(x); return p; } fmidx=FN_FMIDX(pf[3]); }
+    /* force-monad fast path: {Vx} collapses to the monadic primitive,
+       skipping scope setup + pgreduce.  fmidx!=0 holds the FM[] index;
+       valence is 1 so the lone arg is px[0]. */
+    if(fmidx && nx==1) { r=k(fmidx,0,k_(px[0])); --d; goto cleanup; }
     ps=px(pf[2]);     // scope
     pd=px(ps[1]);     // scope dict
     cs0=cs; cs=k_(pf[2]);
@@ -417,9 +441,15 @@ cleanup:
    Caller must verify these. Consumes f and x. */
 K fne_fast(K f, K x) {
   K *pf=px(f);
+  i32 vf=ik(pf[3]);
+  u64 nval=(u64)(vf&0xff);
+  /* force-monad fast path: {Vx}[a] collapses to the monadic primitive.
+     Caller guarantees x is a valence-matched plist with no inulls, so for
+     a valence-1 force monad the lone arg is px(x)[0]. */
+  if(vf>0xff) { int fmidx=(vf>>8)&0xff;
+    if(fmidx) { K r=k(fmidx,0,k_(((K*)px(x))[0])); _k(f); _k(x); return r; } }
   K *ps=px(pf[2]);
   K *pd=px(ps[1]);
-  u64 nval=(u64)ik(pf[3]);
 
   K cs0=cs; cs=k_(pf[2]);
   K pd1save=pd[1];

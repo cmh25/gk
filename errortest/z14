@@ -10,7 +10,7 @@ f`
 \
 
 cmh@cmh01:~/gk$ rlwrap ./gk errortest/z14
-gk-v1.0.0 Copyright (c) 2023-2026 Charles Hall
+gk-v2.0.0 Copyright (c) 2023-2026 Charles Hall
 
 {c:3 ... + 1 in errortest/z14:4
 value error
@@ -36,7 +36,7 @@ load: errortest/z14 ... + 7
 
   \\
 cmh@cmh01:~/gk$ rlwrap ./gk errortest/z14
-gk-v1.0.0 Copyright (c) 2023-2026 Charles Hall
+gk-v2.0.0 Copyright (c) 2023-2026 Charles Hall
 
 {c:3 ... + 1 in errortest/z14:4
 value error
