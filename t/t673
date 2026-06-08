@@ -1,0 +1,52 @@
+\e 0
+/ --- variable watches (triggers) ---
+/ basic: trigger runs after each assignment to the watched var
+a:b:0
+watch(`a;"b+:1")
+b
+a:1
+b
+a:1
+b
+/ amend (+:) fires too
+a+:1
+b
+/ query: list armed watches
+c:0
+watch(`c;"b+:10")
+watch`
+/ clear one watch; the other stays
+watch(`a;"")
+watch`
+a:99
+b
+c:1
+b
+/ self-reference fires once, not forever
+s:0
+watch(`s;"s+:1")
+s:5
+s
+/ amend-by-reference (.[`v;...] / @[`v;...]) fires, dotted or not
+r:0
+v:1 2 3
+watch(`v;"r+:1")
+@[`v;0;:;7]
+v
+r
+@[`.k.v;1;:;8]
+v
+r
+/ scope isolation: `a` in .foo is independent of `a` in .k
+\d .foo
+ay:0
+watch(`a;"ay+:100")
+\d .k
+a:1
+.foo.ay
+/ fully-qualified + cross-namespace assigns fire
+.foo.a:7
+.foo.ay
+.foo.a
+\d .k
+\\

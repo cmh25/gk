@@ -16,6 +16,7 @@
   }
 #endif
 #include "fn.h"
+#include "watch.h"
 
 #define SM 1000
 
@@ -359,6 +360,12 @@ static K scope_set_(K s, char *n, K v) {
       K m2=scope_set_(es,sp(u),m);  /* consumes m */
       if(E(m2)) { _k(w); return m2; }
       _k(m2);  /* free the returned tree ref - we only need w */
+      /* A fully-qualified absolute assign (`.ns.var:...`) writes the leaf
+         into namespace `.ns`; fire that namespace's watch.  Relative dotted
+         assigns (`a.b:...`) need no handling here: their writeback recursion
+         above already hit the simple-name hook for the top variable in the
+         current scope. */
+      if(nwatch && n[0]=='.') watch_fire_fq(n);
       return w;
     }
     else  { _k(m); _k(v); return KERR_VALUE; }
@@ -368,8 +375,10 @@ static K scope_set_(K s, char *n, K v) {
     // .[`;nul;,;"0"]
     // .[`;nul;,]
     if(0x80!=s(psu[1])) { _k(v); return KERR_VALUE; }
-    if(gcopy) { w=kcp(v); if(E(w)) { _k(v); return w; } (void)dset(psu[1],sp(n),w); _k(v); return w; }
-    else { (void)dset(psu[1],sp(n),v); return v; }
+    if(gcopy) { w=kcp(v); if(E(w)) { _k(v); return w; } (void)dset(psu[1],sp(n),w); _k(v); }
+    else { (void)dset(psu[1],sp(n),v); w=v; }
+    if(nwatch && s==gs) watch_fire(s,sp(n));
+    return w;
   }
 }
 

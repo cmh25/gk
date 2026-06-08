@@ -31,7 +31,7 @@ void help(int a) {
 "dict   .((`a;1);(`b;2);...)\n"
 " !d    keys\n"
 " d[]   values\n"
-" d.k  d`k  d[`k]  d@`k  d.`k\n"
+" d.k   d`k  d[`k]  d@`k  d.`k\n"
 "\n"
 "4:x    type: atom(1..9)[ijefcsdnx] list(0..-4)[KIJEFCS]\n"
 "5:x    ascii representation\n");

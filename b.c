@@ -28,6 +28,7 @@
 #include "repl.h"
 #include "ipc.h"
 #include "tmr.h"
+#include "watch.h"
 
 #ifdef _WIN32
 #define strtok_r strtok_s
@@ -68,7 +69,7 @@ const binfo1 BMONAD[] = {
   {&R_MD5,md5_},{&R_SHA1,sha1_},{&R_SHA2,sha2_},{&R_SVD,svd_},{&R_LU,lu_},
   {&R_QR,qr_},{&R_LDU,ldu_},{&R_RREF,rref_},{&R_DET,det_},{&R_MAG,mag_},
   {&R_PRIME,prime_},{&R_FACTOR,factor_},{&R_GETENV,getenv_},{&R_EXIT,exit_},
-  {&R_TIMER,timer_},
+  {&R_TIMER,timer_},{&R_WATCH,watch_},
 };
 const int NBDYAD=sizeof(BDYAD)/sizeof(*BDYAD);
 const int NBMONAD=sizeof(BMONAD)/sizeof(*BMONAD);
@@ -2163,6 +2164,7 @@ K exit__(K x) {
    * persistent send-scratch buffer. */
   ipc_shutdown();
   tmr_shutdown();
+  watch_shutdown();
   scope_free(cs);
   scope_free(gs);
   scope_free(ks);

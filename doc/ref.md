@@ -63,6 +63,13 @@ New to gk? Try the [tutorial](tutorial.md) first. If you already know **k3**, se
   - [Tick Output](#timer-tick-output)
   - [Semantics](#timer-semantics)
   - [Why a Builtin and Not `\t`?](#timer-why-builtin)
+- [Watches](#watches)
+  - [Quick Start](#watch-quick-start)
+  - [Surface](#watch-surface)
+  - [Which Assignments Fire](#watch-which-assignments)
+  - [Re-entrancy](#watch-reentrancy)
+  - [Errors](#watch-errors)
+  - [Semantics](#watch-semantics)
 - [Errors](#errors)
   - [Error Trapping](#error-trapping)
 - [Verb Reference](#verb-reference)
@@ -1256,6 +1263,160 @@ the recurring one. A builtin keeps the recurring form
 introspectable (`timer[]` returns the current state) and lets it
 participate in normal k expressions, including passing the
 `(t;f)` pair around as data.
+
+---
+
+## Watches
+
+A *watch* binds a global variable to a gk expression that is evaluated
+for its side effects every time that variable is assigned. It is gk's
+analog of e333j's per-variable `t` attribute:
+
+```
+  e333j:   a..t:"b+:1"        gk:   watch(`a;"b+:1")
+```
+
+<a id="watch-quick-start"></a>
+### Quick Start
+
+```
+  a:b:0
+  watch(`a;"b+:1")          / run "b+:1" after each assignment to a
+  a:1
+  b
+1
+  a:1
+  b
+2
+```
+
+<a id="watch-surface"></a>
+### Surface
+
+Watches are a single monadic builtin, `watch`. It has three forms:
+
+```
+watch (`name;"expr")   ARM. Run "expr" after each assignment to the
+                       global `name` in the current namespace. Arming
+                       an already-watched name replaces its expr.
+                       Returns nul.
+watch (`name;"")       DISARM. An empty string (or nul) as the expr
+                       removes the watch. Returns nul.
+watch x                QUERY (anything that isn't a 2-element value
+                       whose first element is a sym: watch[], watch`,
+                       watch nul, ...). Returns a list of
+                       (`fqname;"expr") pairs, one per armed watch,
+                       where fqname is the fully-qualified name. Empty
+                       list if none armed.
+```
+
+Examples:
+
+```
+  watch(`a;"b+:1")
+  watch(`c;"b+:10")
+  watch`
+((`.k.a;"b+:1")
+ (`.k.c;"b+:10"))
+  watch(`a;"")              / disarm a
+  watch`
+,(`.k.c;"b+:10")
+```
+
+<a id="watch-which-assignments"></a>
+### Which Assignments Fire
+
+Any assignment that changes the watched variable fires its expr, after
+the new value is stored (so the expr observes the post-assignment
+state):
+
+```
+  a:1                       / plain assign
+  a+:1                      / amend (and a*:2, a,:x, ...)
+  a::1                      / global-assign from inside a function
+  .k.a:1                    / fully-qualified, even from another namespace
+  a.x:1                     / a member assign still fires a's watch
+  @[`a;0;:;9]               / amend by reference (.[`a;...] / @[`a;...]),
+  @[`.k.a;0;:;9]            /   qualified or not
+```
+
+A watch is keyed by **(namespace, name)**. Different k-tree namespaces
+(`.k`, `.foo`, ...) can hold same-named variables with independent
+watches; a watch fires only for its own namespace's variable:
+
+```
+  b:0
+  watch(`a;"b+:1")          / watches .k.a
+  \d .foo
+  y:0
+  watch(`a;"y+:100")        / watches .foo.a, independent of .k.a
+  \d .k
+  a:1                       / fires .k's watch only
+  b
+1
+  .foo.y
+0
+  .foo.a:1                  / fires .foo's watch only
+  .foo.y
+100
+```
+
+The expr runs in the watched variable's namespace, so a watch armed in
+`.foo` resolves the names in its expr against `.foo` regardless of where
+the triggering assignment was made.
+
+<a id="watch-reentrancy"></a>
+### Re-entrancy
+
+A watch will not re-fire while its own expr is still running, so a watch
+whose expr re-assigns its own variable runs once, not forever:
+
+```
+  a:0
+  watch(`a;"a+:1")
+  a:5
+  a
+6                           / a:5 fired the expr once -> 6, no loop
+```
+
+Distinct watches may chain -- if `a`'s expr assigns `b`, then `b`'s
+watch fires in turn. A cycle terminates the moment it would re-enter an
+already-firing watch.
+
+<a id="watch-errors"></a>
+### Errors
+
+An error in a watch expr is reported like any other top-level error and
+honors `\e`: under `\e 0` it is returned (and so silently dropped by the
+firing assignment); under `\e 1` it prints and drops into a debug
+sub-REPL. The triggering assignment itself always completes -- the new
+value is stored before the expr runs.
+
+```
+  watch(`a;"b+:`")
+  a:2
+type error
+b+:`
+ ^
+>
+```
+
+<a id="watch-semantics"></a>
+### Semantics
+
+- **globals only.** Watches apply to global variables. A plain local
+  assignment inside a function does not fire a watch (a `::`
+  global-assign does).
+- **string expr, not a fn.** The expr is gk source evaluated each time
+  via the normal parse+eval path, not a stored lambda. This mirrors
+  e333j's `t` attribute and lets the expr reference whatever is in
+  scope at fire time.
+- **introspectable.** `watch[]` returns the armed set as ordinary data
+  you can index and inspect.
+- **limitation.** A fully-qualified assign whose path descends through a
+  *dictionary variable* in another namespace (e.g. `.foo.a.b:1` where
+  `.foo.a` is a dict, not a sub-namespace) does not fire `a`'s watch;
+  the in-namespace form (`a.b:1`, run from `.foo`) does.
 
 ---
 
