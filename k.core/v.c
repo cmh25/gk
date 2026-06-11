@@ -1845,11 +1845,11 @@ K negate(K x) {
   double f,*prf,*pxf;
   if(s(x)) return KERR_TYPE;
   switch(tx) {
-  case  1: r=t(1,(u32)(-ik(x))); break;
+  case  1: r=t(1,-(u32)ik(x)); break;  /* unsigned negate: INT_MIN-safe (matches long cases) */
   case  2: f=-fk(x); r=t2(f); break;
   case  8: r=tj((i64)(-(u64)jk(x))); break;
   case  9: r=te(-ek(x)); break;
-  case -1: PRI(nx); PXI; i(nx,*pri++=-*pxi++) break;
+  case -1: PRI(nx); PXI; i(nx,*pri++=(i32)(-(u32)*pxi++)) break;
   case -2: PRF(nx); PXF; i(nx,*prf++=-*pxf++) break;
   case -8: PRJ(nx); PXJ; i(nx,prj[i]=(i64)(-(u64)pxj[i])) break;
   case -9: PRE(nx); PXE; i(nx,*pre++=-*pxe++) break;

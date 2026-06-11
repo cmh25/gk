@@ -210,11 +210,14 @@ K fe(K f, K a, K x, char *av) {
     switch(s(f)) {
     case 0xda: { /* (f;av) modified-verb wrapper, replaces 0xc1/0xc2/0xdb */
       if(a==inull || x==inull) {
-        /* avdo / mv-string parsing consumes elided slots before
-           reaching here, so elision is a type error. Pass 3 will
-           reroute elision through a 0xd9 projection. */
-        _k(a); _k(x);
-        r=KERR_TYPE;
+        /* An elided slot in a dyadic adverb application -- e.g. f/[5;]
+           or f/[;0] -- projects: repack (a;x) (one slot is the inull
+           hole) and wrap the adverbed verb as a 0xd9 projection.  A
+           later apply fills the hole via merge_args and runs the adverb,
+           so f/[5;] behaves as {x f/y}[5;] (a do/while waiting on y). */
+        K t=tn(0,2); K *pt=px(t);
+        pt[0]=a; pt[1]=x;             /* ownership of a,x transfers into plist */
+        r=wrap_proj(k_(f),st(0x81,t)); /* retain f: fe _k's it below */
       }
       else {
         K *pw=px(f); K wf=pw[0]; K wav=pw[1];

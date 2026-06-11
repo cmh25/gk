@@ -350,7 +350,12 @@ static K scope_set_(K s, char *n, K v) {
       if(d) { if(0x80!=s(d)) break; }
       else d=dnew();
       kd=(ko*)(b(48)&e);
-      if(kd->r>1 && v!=e) { --kd->r; e=kcp(e); if(E(e)) { _k(m); _k(v); return e;} }
+      /* copy-on-write: copy the shared node BEFORE releasing its refcount.
+         If kcp fails (e.g. KERR_STACK while deep-copying a circular value),
+         leaving --kd->r already applied would double-decrement e: the manual
+         drop plus the _k(m) below (m still owns e through the traversal tree)
+         would underflow e's refcount and double-free it at teardown. */
+      if(kd->r>1 && v!=e) { K cp=kcp(e); if(E(cp)) { _k(d); _k(m); _k(v); return cp;} --kd->r; e=cp; }
       (void)dset(e,sp(ss),d);
     }
     _k(d);

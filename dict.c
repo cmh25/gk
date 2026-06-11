@@ -27,7 +27,7 @@ K dget(K d, char *key) {
 }
 
 K dset(K d, char *key, K val) {
-  K k,v,m,*pd,*pv;
+  K k,v,m,*pd,*pv,cp=0;
   char **pk;
   u32 i;
   u64 n;
@@ -36,6 +36,17 @@ K dset(K d, char *key, K val) {
    * and 'm' (.m ipc namespace), each of which must be a dict. */
   if(d==ktree && strlen(key)==1
      && ((*key!='k' && *key!='m') || 0x80!=s(val))) return kerror("reserved");
+  /* A dictionary reference must never be stored on the namespace root by
+   * reference: f reading the tree (e.g. `.`) and the result being stored back
+   * (as in `.[`;`k;{.*...}]`) would form a reference cycle the refcount GC can
+   * never reclaim.  This mirrors scope_set_'s gcopy rule but covers the amend
+   * paths (kamend3/kamend4) that write the tree directly via dset.  Only a
+   * SHARED dict (r>0) can alias existing tree structure; a fresh r==0 value
+   * (e.g. scope_set_'s own gcopy result) is already private, so we skip it and
+   * avoid double-copying. */
+  if(d==ktree && 0x80==s(val) && ((ko*)(b(48)&val))->r>0) {
+    cp=kcp(val); if(E(cp)) return cp; val=cp;
+  }
   pd=px(d);
   k=pd[0]; v=pd[1]; m=ik(pd[2]);
   pk=px(k); pv=px(v);
@@ -54,6 +65,7 @@ K dset(K d, char *key, K val) {
     pk[nk++]=key;
     pv[nv++]=k_(val);
   }
+  if(cp) _k(cp); /* drop our local ref to the copy; the dict now owns it */
   return null;
 }
 

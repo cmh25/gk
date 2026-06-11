@@ -424,10 +424,6 @@ K avdo(K f, K a, K x, char *av) {
     else {
       /* monadic */
       if(!x) { _k(f); r=kerror("type"); }
-      else if(isfn && 0x81==s(x) && nx!=(u32)ik(val(f)) && *av!='\'') {
-        /* over/scan with packed-args plist must match valence */
-        r=kerror("valence"); _k(f); _k(x);
-      }
       else if(isfn) {
         i32 vf = ik(val(f));
         /* In monadic avdo context, builtin-monad subtypes report
@@ -436,7 +432,27 @@ K avdo(K f, K a, K x, char *av) {
            over/scan dispatch picks fixed-point monad form. */
         u64 sf=s(f);
         if(sf==0xc6 || sf==0xcc || sf==0xc9 || sf==0xce) vf=1;
-        if(*av=='\'') {
+        /* do/while in bracket form.  When f is monadic, f/[n;x] / f\[n;x]
+           (n int -> do n times) and f/[b;x] / f\[b;x] (b monadic predicate
+           -> while) are the bracket spelling of the infix  n f/x / b f/x .
+           Handle before the valence guard, which would otherwise reject the
+           2-arg plist against f's valence of 1.  Mirrors fe.c's infix path. */
+        if(vf==1 && 0x81==s(x) && nx==2 && (*av=='/'||*av=='\\')) {
+          K *p=px(x); K a0=k_(p[0]), x0=k_(p[1]);
+          if(s(a0)==0 && T(a0)==1)
+            r = *av=='/' ? overmonadn(k_(f),a0,x0,"") : scanmonadn(k_(f),a0,x0,"");
+          else if(ISF(a0) && ik(val(a0))==1)
+            r = *av=='/' ? overmonadb(k_(f),a0,x0,"") : scanmonadb(k_(f),a0,x0,"");
+          /* arity is fine (a derived monadic verb legally takes 2 args); the
+             controller a is just the wrong type -- must be an int (do) or a
+             monad (while).  Match the infix n f/x path, which reports type. */
+          else { _k(a0); _k(x0); r=kerror("type"); }
+        }
+        else if(0x81==s(x) && nx!=(u32)ik(val(f)) && *av!='\'') {
+          /* over/scan with packed-args plist must match valence */
+          r=kerror("valence");
+        }
+        else if(*av=='\'') {
           /* each: if x is a packed-args plist of length val(f), do
              conformable each-multi-arg (works for any vf, val=1
              included -- it just iterates the single inner list).

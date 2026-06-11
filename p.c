@@ -118,6 +118,20 @@ static K vlookup(K x) {
   K r=scope_get(cs,x);
   return r?r:KERR_VALUE;
 }
+/* Capture a value operand into a derived-verb wrapper (0xda adverb-modified
+   verb, 0xd7 over/scan-with-seed, etc).  An adverb/seed only meaningfully
+   pairs with a verb, but the grammar tolerates a noun operand,
+   so we still build the wrapper -- we just capture the
+   operand BY VALUE when it isn't a function.  A borrowed reference to a live
+   dict could otherwise be stored back into its own subtree (e.g. `o.a.a:o.a'`
+   or `o.a.i:o.a\`/`o.a`\`), forming a reference cycle that the refcount GC can
+   never reclaim.  ISF passes primitive verbs (<256) and the 0x40-tagged
+   function family -- a shared verb ref can't close a cycle -- so only
+   nouns/dicts copy; scalar seeds copy for free (kcp of an inline atom is a
+   no-op).  Consumes a; returns the operand to store (caller owns it), or an
+   error K if the copy failed. */
+static K vcap(K a) { if(ISF(a)) return a; K c=kcp(a); _k(a); return c; }
+
 static K vlookuprs(K x, K *rs) {
   K r=0,sc=cs,*ps;
   if(0x40!=s(x)) return KERR_VALUE;
@@ -1367,7 +1381,7 @@ K pgreduce_(K x0, int *quiet) {
           char *skf=sk(f_raw);
           if(skf[0]) {
             f=scope_get(cs,f_raw);
-            if(f && E(f)) { --paramsi; *pA++=f; _k(f_raw); break; }
+            if(f && E(f)) { for(int j=0;j<N;j++) _k(pxk[j]); n(xx)=0; --paramsi; *pA++=f; _k(f_raw); break; } /* free reduced args before bailing on an undefined head */
           }
         }
         else if(0xc3==s(f_raw) || 0xd9==s(f_raw) || 0xda==s(f_raw)) {
@@ -1612,6 +1626,7 @@ apply_n_fallback: {
           *pA++=a;
         }
         else {
+          a=vcap(a); if(E(a)) { _k(b); *pA++=a; break; } /* copy noun operand to avoid a self-referential 0xda cycle */
           int lb=strlen(bav);
           K newav=tnv(3,lb,xmemdup(bav,lb+1));
           K w=tn(0,2); K *pw=px(w);
@@ -1764,6 +1779,7 @@ c3_apply:
           else /* 0xda */ fav=pb[1];
           char *favp=-3==T(fav)?(char*)px(fav):"";
           if((!strcmp(favp,"/") || !strcmp(favp,"\\"))) {
+            a=vcap(a); if(E(a)) { _k(b); *pA++=a; break; } /* copy noun seed to avoid a self-referential 0xd7 cycle */
             t=tn(0,2); pt=px(t);
             pt[0]=a; pt[1]=b;
             *pA++=st(0xd7,t);
@@ -1986,6 +2002,7 @@ c3_apply:
           else /* 0xda */ fav=pb[1];
           char *favp=-3==T(fav)?(char*)px(fav):"";
           if((!strcmp(favp,"/") || !strcmp(favp,"\\"))) {
+            a=vcap(a); if(E(a)) { _k(b); *pA++=a; break; } /* copy noun seed to avoid a self-referential 0xd7 cycle */
             t=tn(0,2); pt=px(t);
             pt[0]=a; pt[1]=b;
             *pA++=st(0xd7,t);
@@ -2540,21 +2557,40 @@ static K wrap_c7_to_da(K c7_k) {
   return st(0xda,w);
 }
 
+static int is_headless_chain(pn *n);
 K list19(pgs *s, pn *a) {
   K r=0;
   char *t;
   K v=tn(0,2); K *pv=px(v);
-  if(a->a[1]->t==40) {
-    K w=tn(0,a->a[1]->m); K *pw=px(w);
-    i(n(w),pw[i]=listbc(s,a->a[1]->a[i],0x41))
-    /* f in `f[a;b]...[c]` (40-args). If f is a 0xc1 modified verb,
-       wrap to 0xda so r44/fe see the new shape. */
-    if(a->a[0]->t==1) pv[0]=dupwrap_mv(a->a[0]->v,0);
-    else pv[0]=k_(a->a[0]->n);
-    pv[1]=st(0x40,w);
-    r=st(0x44,v);
+  /* A headless bracket chain whose hole was never filled means no head ever
+     attached (e.g. `'[3][3]`, `do[" "][1;2]` -- an adverb/control verb can't
+     head a bracket chain).  Reject it rather than walk into the NULL hole.
+     The explicit a[0]/a[1] checks also keep the static analyzer happy about
+     the unconditional derefs below (is_headless_chain already covers a[0]). */
+  if(is_headless_chain(a) || !a->a[0] || !a->a[1]) { _k(v); return kerror("parse"); }
+  /* A nested t19 apply chain f[i][j]... (each level a single t4 bracket)
+     flattens to ONE 0x40 multi-apply so the bracket groups evaluate
+     left-to-right -- matching the old t40 path and keeping f[a:1][a+1]==3.
+     Plain nested 0x44 evaluates the outer arg first (right-to-left). */
+  if(a->a[1] && a->a[1]->t==4 && a->a[0] && a->a[0]->t==19) {
+    int depth=0; pn *n=a, *head=0;
+    for(;;){
+      if(!(n->a[1] && n->a[1]->t==4)) { depth=0; break; }
+      depth++;
+      if(n->a[0]->t!=19) { head=n->a[0]; break; }
+      n=n->a[0];
+    }
+    if(depth>1 && head && head->t!=7) {
+      K w=tn(0,depth); K *pw=px(w);
+      n=a; for(int idx=depth-1; idx>=0; idx--){ pw[idx]=listbc(s,n->a[1],0x41); n=n->a[0]; }
+      if(head->t==1) pv[0]=dupwrap_mv(head->v,0);
+      else if(head->t==19) pv[0]=list19(s,head);
+      else pv[0]=k_(head->n);
+      pv[1]=st(0x40,w);
+      return st(0x44,v);
+    }
   }
-  else if(a->a[1]->t==4) {
+  if(a->a[1]->t==4) {
     if(a->a[0]->t==7) {
 
       pn *q=a->a[0];
@@ -2795,7 +2831,6 @@ static void bc(pgs *s, pn *a, K values, K index, K line, int *vm) {
     s1[i1]=a;
     if(a->t==6) continue; /* klist () */
     if(a->t==4) continue; /* plist [] */
-    if(a->t==40) continue; /* [][]... */
     if(a->t==19) {
       /* Inline RPN for f[args]: push f, then each arg sub-stmt. The plist
          node itself is NOT pushed; we synthesize an APPLY_N token in the
@@ -3062,16 +3097,61 @@ static void r002(pgs *s) { /* s > se */
 static int is_adverb_pn(pn *n) {
   return n && n->t==1 && 0x85==s(n->v);
 }
-static int is_args_pn(pn *n) {
-  return n && (n->t==4 || n->t==40); /* plist or [][]... */
+/* A multi-bracket chain `[i][j]...` is built (in r013, replacing the old
+   t==40 bundle) as a left-nested t==19 apply chain whose deepest a[0] is the
+   not-yet-known head -- left NULL as a hole.  The head-attach fills the hole;
+   once filled it is an ordinary nested t==19 that list19()/bc()/can_inline()
+   already flatten, so t==40 is gone.  chain_bottom() returns the deepest t==19
+   (the hole owner); is_headless_chain() tests for the unfilled hole. */
+static pn *chain_bottom(pn *n){ while(n->a[0] && n->a[0]->t==19) n=n->a[0]; return n; }
+static int is_headless_chain(pn *n){ return n && n->t==19 && chain_bottom(n)->a[0]==0; }
+/* Prepend a new innermost bracket plist p to chain c (c is a single plist or a
+   headless chain).  p becomes the bracket applied first (right after the head). */
+static pn *chain_prepend(pgs *s, pn *p, pn *c){
+  pn *inner=pnnewi(s,19,0,0,2,1,p->i,p->line);
+  inner->a[0]=0; inner->a[1]=p;
+  if(c->t==19){ chain_bottom(c)->a[0]=inner; return c; }
+  pn *outer=pnnewi(s,19,0,0,2,1,p->i,p->line);
+  outer->a[0]=inner; outer->a[1]=c;
+  return outer;
 }
-/* Pre-check: every spine element is an adverb or plist. */
+/* Attach head h to a bracket argument b: a lone plist becomes t19(h, plist);
+   a headless chain gets its hole filled (h[i][j] = ((h[i])[j])). */
+static pn *attach_args(pgs *s, pn *h, pn *b){
+  if(is_headless_chain(b)){ chain_bottom(b)->a[0]=h; return b; }
+  pn *q=pnnewi(s,19,0,0,2,1,h->i,h->line);
+  q->a[0]=h; q->a[1]=b;
+  return q;
+}
+static int is_args_pn(pn *n) {
+  return n && (n->t==4 || is_headless_chain(n)); /* plist or [][]... chain */
+}
+/* A noun the postfix fold can re-apply onto a bracketed result. */
+static int is_value_pn(pn *n) {
+  return n && (n->t==2 || n->t==6); /* noun atom/vector, or () klist */
+}
+/* Foldable postfix chain: every spine element is an adverb or plist, ending
+   in an adverb/plist tail (the original pure case) -- OR an adverb/plist
+   chain that *contains a bracket* and ends in a trailing value (e.g.
+   f/[5;0] 0).  In the latter the bracket closes the adverb application and
+   the trailing value re-applies to its result; left-folding makes pgreduce_
+   case-7 do exactly that.  The "contains a bracket" guard keeps f/value and
+   +/1 2 3 (adverb directly over a juxtaposed argument) on the old path. */
 static int is_pure_postfix_chain(pn *b) {
+  int lastargs=0; /* was the most recent spine element a bracket? */
   while(b && b->t==1 && b->v==0xff && b->m>=2 && b->a[0] && b->a[1]) {
-    if(!is_adverb_pn(b->a[0]) && !is_args_pn(b->a[0])) return 0;
+    if(is_args_pn(b->a[0])) lastargs=1;
+    else if(is_adverb_pn(b->a[0])) lastargs=0;
+    else return 0;
     b=b->a[1];
   }
-  return b && (is_adverb_pn(b) || is_args_pn(b));
+  if(!b) return 0;
+  if(is_adverb_pn(b) || is_args_pn(b)) return 1;
+  /* Trailing value: fold (re-apply) only when the element right before it is
+     a bracket -- i.e. the adverb already took its bracket argument, so the
+     value applies to the result (f/[5;0] 0).  If the preceding element is an
+     adverb (dv[1 2 3]'1 2 3), the value is that adverb's own argument: leave it. */
+  return lastargs && is_value_pn(b);
 }
 /* Peel one head element onto a as a juxt. We deliberately build all
    peels as 0xff juxts (rather than special-casing plists into t=19
@@ -3083,6 +3163,22 @@ static pn *postfix_peel(pgs *s, pn *a, pn *head) {
   q->a[0]=a;
   q->a[1]=head;
   return q;
+}
+/* Peel one spine element.  A headless bracket chain (`[i][j]...`) bundles
+   consecutive bracket groups; peel each separately so chained application
+   binds left-to-right after an adverb wrap -- e.g. f/[i][j] is (f/[i])[j].
+   Without the split the whole `[i][j]` would juxtapose onto the adverbed
+   verb as one args plist, dropping all but the first group.  The chain nests
+   innermost-bracket deepest, so collect bottom-up and peel in that order.
+   A lone plist or adverb peels as itself. */
+static pn *postfix_peel_el(pgs *s, pn *a, pn *head) {
+  if(head && is_headless_chain(head)) {
+    pn *stk[64]; int sp=0;
+    for(pn *n=head; n->t==19 && sp<64; n=n->a[0]) { stk[sp++]=n->a[1]; if(!n->a[0]) break; }
+    while(sp>0) a=postfix_peel(s,a,stk[--sp]);
+    return a;
+  }
+  return postfix_peel(s,a,head);
 }
 /* The chain contains at least one adverb head somewhere down the
    right-spine.  Pure plist chains (`f[1][2]`) don't need restructure
@@ -3097,7 +3193,36 @@ static int has_adverb_in_chain(pn *b) {
   }
   return is_adverb_pn(b);
 }
+/* Shape B: the spine ends in an infix verb that wrongly swallowed a bracket
+   as its left operand.  r013 builds `f/[5;]@0` as `@([5;], 0)` because by the
+   time the `]` reduces, `@` already holds its right operand `0` and an empty
+   left, so the bracket gets bound there (the r013 "[0]:5" else branch).  But
+   the bracket is really the adverbed value's argument: `(f/[5;]) @ 0`.  This
+   re-associates -- fold (base . adverb/args spine . the swallowed bracket)
+   into the closed application and make it the verb's left operand. */
+static pn *postfix_reassoc_infix(pgs *s, pn *a, pn *b) {
+  if(!has_adverb_in_chain(b)) return 0;
+  pn *tail=b;
+  while(tail && tail->t==1 && tail->v==0xff && tail->m>=2 && tail->a[0] && tail->a[1])
+    tail=tail->a[1];
+  /* tail must be a primitive infix verb: right operand set, left a bracket */
+  if(!(tail && tail->t==1 && tail->v>0 && tail->v<256 && tail->m>=2
+       && tail->a[0] && (tail->a[0]->t==4 || is_headless_chain(tail->a[0])) && tail->a[1]))
+    return 0;
+  /* the spine before the verb must be a pure adverb/args chain */
+  for(pn *w=b; w!=tail; w=w->a[1])
+    if(!(w->t==1 && w->v==0xff && w->m>=2 && w->a[0] && w->a[1]
+         && (is_adverb_pn(w->a[0]) || is_args_pn(w->a[0])))) return 0;
+  pn *plist=tail->a[0];
+  pn *folded=a;
+  for(pn *w=b; w!=tail; w=w->a[1]) folded=postfix_peel_el(s,folded,w->a[0]);
+  folded=postfix_peel_el(s,folded,plist);
+  tail->a[0]=folded;
+  return tail;
+}
 static pn *postfix_restructure(pgs *s, pn *a, pn *b) {
+  pn *rb=postfix_reassoc_infix(s,a,b);
+  if(rb) return rb;
   /* Only restructure if the entire spine is adverbs and plists.
      If a verb/value appears mid-chain (e.g. `g'!5`), the chain is
      mixed and right-leaning semantics must be preserved. */
@@ -3108,10 +3233,10 @@ static pn *postfix_restructure(pgs *s, pn *a, pn *b) {
      so plist-first chains like `f[1]'` left-fold too. */
   if(!has_adverb_in_chain(b)) return 0;
   while(b && b->t==1 && b->v==0xff && b->m>=2 && b->a[0] && b->a[1]) {
-    a=postfix_peel(s,a,b->a[0]);
+    a=postfix_peel_el(s,a,b->a[0]);
     b=b->a[1];
   }
-  return postfix_peel(s,a,b);
+  return postfix_peel_el(s,a,b);
 }
 static void r003_(pgs *s) { /* body of e > o ez (wrapped by r003) */
   pn *q;
@@ -3145,33 +3270,21 @@ static void r003_(pgs *s) { /* body of e > o ez (wrapped by r003) */
     if(q) { s->V[s->vi]=q; return; }
   }
   if(!a) return; /* postfix-restructure short-circuit may leave a NULL */
-  if(a->t==2 && (b->t==4 || b->t==40)) {
-    q=pnnewi(s,19,0,0,2,1,a->i,a->line);
-    q->a[0]=a;
-    q->a[1]=b;
-    s->V[s->vi]=q;
+  if(a->t==2 && (b->t==4 || is_headless_chain(b))) {
+    s->V[s->vi]=attach_args(s,a,b);
   }
-  else if(a->t==2 && b->a[0] && (b->a[0]->t==4 || b->a[0]->t==40)) {
-    q=pnnewi(s,19,0,0,2,1,a->i,a->line);
-    q->a[0]=a;
-    q->a[1]=b->a[0];
-    b->a[0]=q;
+  else if(a->t==2 && b->a[0] && (b->a[0]->t==4 || is_headless_chain(b->a[0]))) {
+    b->a[0]=attach_args(s,a,b->a[0]);
     s->V[s->vi]=b;
   }
-  else if(V(a) && (b->t==4 || b->t==40)
+  else if(V(a) && (b->t==4 || is_headless_chain(b))
           && 0xd1!=s(a->v) && 0xd2!=s(a->v) && 0xd3!=s(a->v)
           && 36!=a->v && 0x85!=s(a->v)) { /* 3 2 12 36 16 = do while if $ av */
-    q=pnnewi(s,19,0,0,2,1,a->i,a->line);
-    q->a[0]=a;
-    q->a[1]=b;
-    s->V[s->vi]=q;
+    s->V[s->vi]=attach_args(s,a,b);
   }
   else if(V(a) && V(b)) {
-    if(b->a[0] && b->a[0]->t==40) {
-      q=pnnewi(s,19,0,0,2,1,a->i,a->line);
-      q->a[0]=a;
-      q->a[1]=b->a[0];
-      b->a[0]=q;
+    if(0x85!=s(a->v) && !is_headless_chain(b) && b->a[0] && is_headless_chain(b->a[0])) {
+      b->a[0]=attach_args(s,a,b->a[0]);
       s->V[s->vi]=b;
     }
     else if(0x85==s(a->v)) {
@@ -3198,11 +3311,8 @@ static void r003_(pgs *s) { /* body of e > o ez (wrapped by r003) */
       b->a[0]=q;
       s->V[s->vi]=b;
     }
-    else if(b->a[0]&&(b->a[0]->t==4||b->a[0]->t==40)) { /* sqr[2]+sqr[3] */
-      q=pnnewi(s,19,0,0,2,1,a->i,a->line);
-      q->a[0]=a;
-      q->a[1]=b->a[0];
-      b->a[0]=q;
+    else if(0x85!=s(a->v)&&!is_headless_chain(b)&&b->a[0]&&(b->a[0]->t==4||is_headless_chain(b->a[0]))) { /* sqr[2]+sqr[3] */
+      b->a[0]=attach_args(s,a,b->a[0]);
       s->V[s->vi]=b;
     }
     /* Issue #2 Pass 6 cleanup: `a->t==7 && 0x85==s(b->v)` retired
@@ -3308,11 +3418,14 @@ static void r003_(pgs *s) { /* body of e > o ez (wrapped by r003) */
          512+/1024+ space.  Post-pass-6 the adverb is a standalone
          leaf and composition happens via the postfix-restructure
          juxt path, so b->v never carries 0x27/0xce/0x5c here. */
-      if(b->a[0] && (b->a[0]->t==4||b->a[0]->t==40) && b->v!=58 && b->v!=0xff) { /* d[],1   b->v != : */
-        q=pnnewi(s,1,0xff,0,2,1,a->i,a->line);
-        q->a[0]=a;
-        q->a[1]=b->a[0];
-        b->a[0]=q;
+      if(b->a[0] && (b->a[0]->t==4||is_headless_chain(b->a[0])) && b->v!=58 && b->v!=0xff) { /* d[],1   b->v != : */
+        if(is_headless_chain(b->a[0])) { b->a[0]=attach_args(s,a,b->a[0]); }
+        else {
+          q=pnnewi(s,1,0xff,0,2,1,a->i,a->line);
+          q->a[0]=a;
+          q->a[1]=b->a[0];
+          b->a[0]=q;
+        }
         s->V[s->vi]=b;
       }
       else if(b->a[0] && b->a[0]->v==0xff) {
@@ -3491,30 +3604,17 @@ static void r013(pgs *s) { /* plist > '[' elist ']' pz */
   if(a->t==3) a->t=4;
 
   if(a->t==4&&b->t==4) { /* [][] */
-    pn *q=pnnewi(s,40,0,0,2,1,a->i,a->line);
-    q->a[0]=a;
-    q->a[1]=b;
-    s->V[s->vi]=q;
+    s->V[s->vi]=chain_prepend(s,a,b);
   }
-  else if(a->t==4&&b->t==40) { /* [] [][]... */
-    b->m++;
-    b->a=xrealloc(b->a,b->m*sizeof(pn*));
-    i(b->m-1,b->a[b->m-i-1]=b->a[b->m-i-2])
-    b->a[0]=a;
-    s->V[s->vi]=b;
+  else if(a->t==4&&is_headless_chain(b)) { /* [] [][]... */
+    s->V[s->vi]=chain_prepend(s,a,b);
   }
-  else if(a->t==4&&b->a[0]&&b->a[0]->t==40&&b->v==0xff) { /* [] [][]...v */
-    b->a[0]->m++;
-    b->a[0]->a=xrealloc(b->a[0]->a,b->a[0]->m*sizeof(pn*));
-    i(b->a[0]->m-1,b->a[0]->a[b->a[0]->m-i-1]=b->a[0]->a[b->a[0]->m-i-2])
-    b->a[0]->a[0]=a;
+  else if(a->t==4&&b->a[0]&&is_headless_chain(b->a[0])&&b->v==0xff) { /* [] [][]...v */
+    b->a[0]=chain_prepend(s,a,b->a[0]);
     s->V[s->vi]=b;
   }
   else if(a->t==4&&b->a[0]&&b->a[0]->t==4) { /* [] []v */
-    pn *q=pnnewi(s,40,0,0,2,1,a->i,a->line);
-    q->a[0]=a;
-    q->a[1]=b->a[0];
-    b->a[0]=q;
+    b->a[0]=chain_prepend(s,a,b->a[0]);
     s->V[s->vi]=b;
   }
   /* Issue #2 Pass 6 cleanup: t=104 `[]'` retired -- the legacy

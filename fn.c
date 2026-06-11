@@ -550,6 +550,14 @@ K fne(K f, K x, char *av) {
                                             same callers may now pass a
                                             wrapper. */
 
+  /* fne_ assumes a bare 0xc3 lambda and reads pf[3] unconditionally; any
+     other callable subtype (e.g. 0xc5 verb-composition, which has only 2
+     slots) would overflow that read.  Such values can reach here via the
+     0xda(inner,av) dispatch in fe.c, which forwards 0xc3/0xc5/0xd9 inners
+     through fne.  Route every non-0xc3 callable through fapply, which
+     unpacks the plist and dispatches the right applier (fe/fc) for it. */
+  if(0xc3!=s(f)) return fapply(f, x, av);
+
   /* Issue #2 Pass 6 cleanup: bare 0xc3 has no pf[3] av slot anymore --
      just forward to fne_ with the caller's av. */
   return fne_(f, x, (av && *av) ? av : "");

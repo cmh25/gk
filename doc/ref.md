@@ -9,11 +9,74 @@ New to gk? Try the [tutorial](tutorial.md) first. If you already know **k3**, se
 - [Types](#types)
   - [Special Values](#special-values)
   - [Atoms, Vectors, and Lists](#atoms-vectors-and-lists)
-- [Primitive Verbs](#primitive-verbs)
-  - [Monadic](#monadic)
+- [Verbs](#verbs)
+  - [Dyadic Conformability](#dyadic-conformability)
+  - [Numeric Type Rules](#numeric-type-rules)
   - [Dyadic](#dyadic)
+    - [`a+x` plus](#d-plus)
+    - [`a-x` minus](#d-minus)
+    - [`a*x` times](#d-times)
+    - [`a%x` divide](#d-divide)
+    - [`a&x` min / and](#d-min-and)
+    - [`a|x` max / or](#d-max-or)
+    - [`a<x` less](#d-less)
+    - [`a>x` greater](#d-greater)
+    - [`a=x` equal](#d-equal)
+    - [`a~x` match](#d-match)
+    - [`a . x` apply](#d-apply)
+    - [`a!x` mod / dict](#d-mod-dict)
+    - [`a@x` at / index](#d-at-index)
+    - [`a?x` find](#d-find)
+    - [`a#x` take / reshape](#d-take-reshape)
+    - [`a_x` drop / cut](#d-drop-cut)
+    - [`a^x` power](#d-power)
+    - [`a,x` join](#d-join)
+    - [`a$x` cast / pad](#d-cast-pad)
+  - [Monadic](#monadic)
+    - [`+x` flip](#m-flip)
+    - [`-x` negate](#m-negate)
+    - [`*x` first](#m-first)
+    - [`%x` reciprocal](#m-reciprocal)
+    - [`&x` where](#m-where)
+    - [`|x` reverse](#m-reverse)
+    - [`<x` grade up](#m-grade-up)
+    - [`>x` grade down](#m-grade-down)
+    - [`=x` group](#m-group)
+    - [`~x` not](#m-not)
+    - [`. x` value](#m-value)
+    - [`!x` enumerate / keys](#m-enumerate)
+    - [`@x` atom](#m-atom)
+    - [`?x` unique](#m-unique)
+    - [`#x` count](#m-count)
+    - [`_x` floor](#m-floor)
+    - [`^x` shape](#m-shape)
+    - [`,x` enlist](#m-enlist)
+    - [`$x` string from data](#m-string)
+  - [Triadic](#triadic)
+    - [`@[x;i;f]` amend](#t-amend-at)
+    - [`.[x;i;f]` amend at depth](#t-amend-dot)
+    - [`_[n;f;x]` slide](#t-slide)
+  - [Tetradic](#tetradic)
+    - [`@[x;i;f;y]` amend](#q-amend-at)
+    - [`.[x;i;f;y]` amend at depth](#q-amend-dot)
 - [Adverbs](#adverbs)
-  - [Each-Prior](#each-prior)
+  - [each `f'x`](#adv-each)
+  - [each `x f'y`](#adv-each-dyad)
+  - [each `f'[x;y;z]`](#adv-each-multi)
+  - [scanm `f\x`](#adv-scanm)
+  - [do `n f\x`](#adv-do-scan)
+  - [while `b f\x`](#adv-while-scan)
+  - [eachleft `x f\y`](#adv-eachleft)
+  - [scand `f\x`](#adv-scand)
+  - [scan `f\[x;y;…]`](#adv-scan)
+  - [overm `f/x`](#adv-overm)
+  - [do `n f/x`](#adv-do-over)
+  - [while `b f/x`](#adv-while-over)
+  - [eachright `x f/y`](#adv-eachright)
+  - [overd `f/x`](#adv-overd)
+  - [over `f/[x;y;…]`](#adv-over)
+  - [eachprior `ep[f;x]`](#adv-eachprior)
+  - [notes](#adv-notes)
 - [Indexing](#indexing)
   - [Index at Depth](#index-at-depth)
   - [Dictionary Indexing](#dictionary-indexing)
@@ -72,47 +135,6 @@ New to gk? Try the [tutorial](tutorial.md) first. If you already know **k3**, se
   - [Semantics](#watch-semantics)
 - [Errors](#errors)
   - [Error Trapping](#error-trapping)
-- [Verb Reference](#verb-reference)
-  - [Dyadic Conformability](#dyadic-conformability)
-  - [Numeric Type Rules](#numeric-type-rules)
-  - [Dyadic](#dyadic-1)
-    - [`a+x` plus](#d-plus)
-    - [`a-x` minus](#d-minus)
-    - [`a*x` times](#d-times)
-    - [`a%x` divide](#d-divide)
-    - [`a&x` min / and](#d-min-and)
-    - [`a|x` max / or](#d-max-or)
-    - [`a<x` `a>x` `a=x` comparisons](#d-comparisons)
-    - [`a~x` match](#d-match)
-    - [`a.x` apply](#d-apply)
-    - [`a!x` mod / dict](#d-mod-dict)
-    - [`a@x` at / index](#d-at-index)
-    - [`a?x` find](#d-find)
-    - [`a#x` take / reshape](#d-take-reshape)
-    - [`a_x` drop / cut](#d-drop-cut)
-    - [`a^x` power](#d-power)
-    - [`a,x` join](#d-join)
-    - [`a$x` cast / pad](#d-cast-pad)
-  - [Monadic](#monadic-1)
-    - [`+x` flip](#m-flip)
-    - [`-x` negate](#m-negate)
-    - [`*x` first](#m-first)
-    - [`%x` reciprocal](#m-reciprocal)
-    - [`&x` where](#m-where)
-    - [`|x` reverse](#m-reverse)
-    - [`<x` grade up](#m-grade-up)
-    - [`>x` grade down](#m-grade-down)
-    - [`=x` group](#m-group)
-    - [`~x` not](#m-not)
-    - [`.x` value](#m-value)
-    - [`!x` enumerate / keys](#m-enumerate)
-    - [`@x` atom](#m-atom)
-    - [`?x` unique](#m-unique)
-    - [`#x` count](#m-count)
-    - [`_x` floor](#m-floor)
-    - [`^x` shape](#m-shape)
-    - [`,x` enlist](#m-enlist)
-    - [`$x` string from data](#m-string)
 
 ## Types
 
@@ -200,74 +222,1317 @@ Most dyadic verbs operate element-wise on vectors and recurse into lists.
 
 ---
 
-## Primitive Verbs
+## Verbs
 
-### Monadic
+Common usage and examples. Expand "spec" for detailed type semantics.
 
-| Verb | Name | Example | Result |
-|------|------|---------|--------|
-| `+x` | flip | `+(1 2;3 4)` | `(1 3;2 4)` |
-| `-x` | negate | `-3` | `-3` |
-| `*x` | first | `*1 2 3` | `1` |
-| `%x` | reciprocal | `%4` | `0.25` |
-| `&x` | where | `&1 0 1 0` | `0 2` |
-| <code>&#124;x</code> | reverse | <code>&#124;1 2 3</code> | `3 2 1` |
-| `<x` | grade up | `<3 1 2` | `1 2 0` |
-| `>x` | grade down | `>3 1 2` | `0 2 1` |
-| `=x` | group | `=0 1 0 1` | `(0 2;1 3)` |
-| `~x` | not | `~0 1` | `1 0` |
-| `.x` | value | `."1+2"` | `3` |
-| `!x` | enumerate / keys | `!5` | `0 1 2 3 4` |
-| `@x` | atom | `@1` → `1`, `@1 2` → `0` | is atom? |
-| `?x` | unique | `?1 2 1 3` | `1 2 3` |
-| `#x` | count | `#1 2 3` | `3` |
-| `_x` | floor | `_3.7` | `3` |
-| `^x` | shape | `^(1 2;3 4)` | `2 2` |
-| `,x` | enlist | `,1` | `,1` |
-| `$x` | format | `$42` | `"42"` |
+<h3 id="dyadic-conformability">Dyadic Conformability</h3>
+
+Dyadic verbs follow these rules:  
+(using `+` as an example)
+
+- atom + atom  
+  Atoms always conform.
+  ```
+    1+2
+  3
+  ```
+- atom + vector  
+  Result is atom + each element of vector
+  ```
+    1 + 2 3 4
+  3 4 5
+  ```
+- vector + atom  
+  Result is each element of vector + atom
+  ```
+    2 3 4 + 1
+  3 4 5
+  ```
+- vector + vector  
+  Result is element-wise. Vectors must be the same length.
+  ```
+    1 2 3 + 4 5 6
+  5 7 9
+  ```
+- atom + list  
+  Result is atom + each element of list, recursively.
+  ```
+    1 + (2;3 4;(5;6 7))
+  (3
+   4 5
+   (6
+    7 8))
+  ```
+- list + atom  
+  Result is each element of list, recursively, + atom.
+  ```
+    (2;3 4;(5;6 7)) + 1
+  (3
+   4 5
+   (6
+    7 8))
+  ```
+- vector + list  
+  Result is each element of vector + each element of list.
+  ```
+    1 2 + (3 4;5 6)
+  (4 5
+   7 8)
+  ```
+- list + vector  
+  Result is each element of list + vector.
+  ```
+    (3 4;5 6) + 1 2
+  (4 5
+   7 8)
+  ```
+- list + list  
+  Result is each element of left list + each element of right list.
+  ```
+    (1 2;3 4) + (5 6;(7 8;9 10))
+  (6 8
+   (10 11
+    13 14))
+  ```
+
+<h3 id="numeric-type-rules">Numeric Type Rules</h3>
+
+Arithmetic verbs (`+` `-` `*` `%`):
+
+- **Types:** numeric only — `i32`, `i64`, `f32`, `f64`
+- **Promotion:** a dyad's result takes the wider of the two operand types. The
+  one non-obvious case is `i64` with `f32` → `f64` (neither type contains the
+  other, so the result widens to `f64`):
+
+  | a \ x | `i32` | `i64` | `f32` | `f64` |
+  |-------|-------|-------|-------|-------|
+  | `i32` | `i32` | `i64` | `f32` | `f64` |
+  | `i64` | `i64` | `i64` | `f64` | `f64` |
+  | `f32` | `f32` | `f64` | `f32` | `f64` |
+  | `f64` | `f64` | `f64` | `f64` | `f64` |
+
+- **Errors:** `type error` if either operand is non-numeric
 
 ### Dyadic
 
-| Verb | Name | Example | Result |
-|------|------|---------|--------|
-| `a+x` | plus | `2+3` | `5` |
-| `a-x` | minus | `5-3` | `2` |
-| `a*x` | times | `3*4` | `12` |
-| `a%x` | divide | `10%4` | `2.5` |
-| `a&x` | min/and | `3&5` | `3` |
-| <code>a&#124;x</code> | max/or | <code>3&#124;5</code> | `5` |
-| `a<x` | less | `3<5` | `1` |
-| `a>x` | greater | `5>3` | `1` |
-| `a=x` | equal | `3=3` | `1` |
-| `a~x` | match | `1 2~1 2` | `1` |
-| `a.x` | apply | `{x+y}.(1;2)` | `3` |
-| `a!x` | mod/dict | `7!3` | `1` |
-| `a@x` | at/index | `1 2 3@1` | `2` |
-| `a?x` | find | `1 2 3?2` | `1` |
-| `a#x` | take/reshape | `3#1 2` | `1 2 1` |
-| `a_x` | drop/cut | `2_1 2 3 4` | `3 4` |
-| `a^x` | power | `2^10` | `1024.0` |
-| `a,x` | join | `1 2,3 4` | `1 2 3 4` |
-| `a$x` | cast/pad | `3$"ab"` | `" ab"` |
+<a id="d-plus"></a>
+#### `a+x` (plus)
+
+Arithmetic sum of `a` and `x`.
+
+```
+  2+3
+5
+  2+3.0
+5.0
+  1+1 2 3
+2 3 4
+  1 2 3+4 5 6
+5 7 9
+  1.5+1 2 3
+2.5 3.5 4.5
+```
+
+<details>
+<summary>spec</summary>
+
+[Dyadic Conformability](#dyadic-conformability)  
+[Numeric Type Rules](#numeric-type-rules)
+
+**Errors:** `type` when an operand is non-numeric; `length` when the vectors differ in length.
+
+</details>
+
+<a id="d-minus"></a>
+#### `a-x` (minus)
+
+`a` minus `x`.
+
+```
+  5-3
+2
+  5-3.0
+2.0
+  10-1 2 3
+9 8 7
+  5 4 3-1 2 3
+4 2 0
+```
+
+<details>
+<summary>spec</summary>
+
+[Dyadic Conformability](#dyadic-conformability)  
+[Numeric Type Rules](#numeric-type-rules)
+
+**Errors:** `type` when an operand is non-numeric; `length` when the vectors differ in length.
+
+</details>
+
+<a id="d-times"></a>
+#### `a*x` (times)
+
+Arithmetic product of `a` and `x`.
+
+```
+  3*4
+12
+  2*1 2 3
+2 4 6
+  2*-1 2 -3
+-2 4 -6
+```
+
+<details>
+<summary>spec</summary>
+
+[Dyadic Conformability](#dyadic-conformability)  
+[Numeric Type Rules](#numeric-type-rules)
+
+**Errors:** `type` when an operand is non-numeric; `length` when the vectors differ in length.
+
+</details>
+
+<a id="d-divide"></a>
+#### `a%x` (divide)
+
+Arithmetic quotient of `a` and `x`.
+
+```
+  10%4
+2.5
+  12%1 2 3 4
+12 6 4 3.0
+```
+
+<details>
+<summary>spec</summary>
+
+[Dyadic Conformability](#dyadic-conformability)  
+[Numeric Type Rules](#numeric-type-rules)
+
+**Errors:** `type` when an operand is non-numeric; `length` when the vectors differ in length. Division by zero yields infinity, not an error.
+
+</details>
+
+<a id="d-min-and"></a>
+#### `a&x` (min / and)
+
+Element-wise minimum for ints and floats (same shape rules as `+`). Also defined for char and sym (lexicographic min). On boolean-ish `0`/`1` ints, this is logical **and**.
+
+```
+  3&5
+3
+  0&1
+0
+  2&3.0
+2.0
+```
+
+<details>
+<summary>spec</summary>
+
+[Dyadic Conformability](#dyadic-conformability)
+
+**Types:** int, float, char, sym (pairwise); mixed int/float promotes to float where applicable.
+
+**Errors:** `type` when an operand is non-numeric; `length` when the vectors differ in length.
+
+</details>
+
+<a id="d-max-or"></a>
+#### `a|x` (max / or)
+
+Element-wise maximum for ints and floats; max for char and sym. On boolean-ish `0`/`1` ints, logical **or**.
+
+```
+  3|5
+5
+  0|1
+1
+```
+
+<details>
+<summary>spec</summary>
+
+[Dyadic Conformability](#dyadic-conformability)
+
+**Types:** int, float, char, sym (pairwise); mixed int/float promotes to float where applicable.
+
+**Errors:** `type` when an operand is non-numeric; `length` when the vectors differ in length.
+
+</details>
+
+<a id="d-less"></a>
+#### `a<x` (less)
+
+**Less than** — returns int `0` or `1`, element-wise with [Dyadic Conformability](#dyadic-conformability).
+
+```
+  3<5
+1
+  1 2 3<2 2 2
+1 0 0
+```
+
+<details>
+<summary>spec</summary>
+
+[Dyadic Conformability](#dyadic-conformability)
+
+**Types:** int, float, char, sym where the comparison is defined; mixed-type rules follow the implementation.
+
+**Errors:** `type` for incomparable operands; `length` when the vectors differ in length.
+
+</details>
+
+<a id="d-greater"></a>
+#### `a>x` (greater)
+
+**Greater than** — returns int `0` or `1`, element-wise with [Dyadic Conformability](#dyadic-conformability).
+
+```
+  5>3
+1
+  1 2 3>2 2 2
+0 0 1
+```
+
+<details>
+<summary>spec</summary>
+
+[Dyadic Conformability](#dyadic-conformability)
+
+**Types:** int, float, char, sym where the comparison is defined; mixed-type rules follow the implementation.
+
+**Errors:** `type` for incomparable operands; `length` when the vectors differ in length.
+
+</details>
+
+<a id="d-equal"></a>
+#### `a=x` (equal)
+
+**Equal** — returns int `0` or `1`, element-wise with [Dyadic Conformability](#dyadic-conformability).
+
+```
+  3=3
+1
+  1 2 3=2 2 2
+0 1 0
+```
+
+<details>
+<summary>spec</summary>
+
+[Dyadic Conformability](#dyadic-conformability)
+
+**Types:** int, float, char, sym where the comparison is defined; mixed-type rules follow the implementation.
+
+**Errors:** `type` for incomparable operands; `length` when the vectors differ in length.
+
+</details>
+
+<a id="d-match"></a>
+#### `a~x` (match)
+
+Structural **match** (`1` if `a` and `x` have the same shape and data, else `0`).
+
+```
+  1 2~1 2
+1
+  1 2~1 2.0
+0
+```
+
+<details>
+<summary>spec</summary>
+
+Recurses into nested lists.
+
+**Errors:** none — always returns `0` or `1`.
+
+</details>
+
+<a id="d-apply"></a>
+#### `a . x` (apply)
+
+Apply callable `a` to argument list `x` (typically `x` is a list of values).
+
+```
+  {x+y} . 1 2
+3
+```
+
+**The surrounding spaces are required.** `.` is the one verb that needs them: written tight, `a.x` parses as **dot-indexing** (member access into a dictionary / namespace), not apply. Compare:
+
+```
+  a:{x*y}
+  x:1 1
+  a . x          / apply: a applied to x
+1
+  a.x            / dot-index: member `x of dict a -> unbound name
+value error
+a.x
+^
+```
+
+This is the sole spacing exception among the dyads — everywhere else `a.x`-style juxtaposition is unambiguous.
+
+<details>
+<summary>spec</summary>
+
+`a` must be callable with valence matching `n(x)` when `x` is a list of arguments.
+
+**Errors:** `valence` when the argument count doesn't match `a`; otherwise whatever error `a` itself raises.
+
+</details>
+
+<a id="d-mod-dict"></a>
+#### `a!x` (mod / dict)
+
+Remainder / modulo for numeric `a` and `x` (C-style remainder for negatives). Dictionary-related forms of `!` are covered under [Dictionaries](#dictionaries).
+
+```
+  7!3
+1
+  7!3.0
+1.0
+```
+
+<details>
+<summary>spec</summary>
+
+[Dyadic Conformability](#dyadic-conformability)
+
+**Errors:** `type` / `int` when an operand is not an integer.
+
+</details>
+
+<a id="d-at-index"></a>
+#### `a@x` (at / index)
+
+Select from `a` at indices `x`. `x` is usually int indices (atom or vector).
+
+```
+  1 2 3@1
+2
+  1 2 3@0 2
+1 3
+```
+
+<details>
+<summary>spec</summary>
+
+[Dyadic Conformability](#dyadic-conformability)
+
+**Errors:** `index` when out of range; `type` for a non-integer index.
+
+</details>
+
+<a id="d-find"></a>
+#### `a?x` (find)
+
+Membership / lookup: for a vector `a`, result is the index of each item of `x` in `a` (first occurrence), or length of `a` if not found (see implementation for full rules).
+
+```
+  1 2 3?2
+1
+  1 2 3?5
+3
+```
+
+<details>
+<summary>spec</summary>
+
+[Dyadic Conformability](#dyadic-conformability)
+
+**Errors:** none — returns `#a` (the count) when `x` is not found.
+
+</details>
+
+<a id="d-take-reshape"></a>
+#### `a#x` (take / reshape)
+
+Take first `a` items of `x`, or reshape `x` when `a` is an integer list (see examples in primitive table and implementation).
+
+```
+  3#1 2 3 4
+1 2 3
+  -2#1 2 3 4
+3 4
+  2 2#1 2 3 4
+(1 2
+ 3 4)
+```
+
+<details>
+<summary>spec</summary>
+
+[Dyadic Conformability](#dyadic-conformability)
+
+**Errors:** `type` when the left argument `a` is not an integer.
+
+</details>
+
+<a id="d-drop-cut"></a>
+#### `a_x` (drop / cut)
+
+With an int atom `a`, drop the first `a` items of `x`. With an int vector of cut points, splits `x` (see examples).
+
+```
+  2_1 2 3 4
+3 4
+  2 4_!10
+(2 3
+ 4 5 6 7 8 9)
+```
+
+<details>
+<summary>spec</summary>
+
+[Dyadic Conformability](#dyadic-conformability)
+
+**Errors:** `type` when the left argument `a` is non-numeric.
+
+</details>
+
+<a id="d-power"></a>
+#### `a^x` (power)
+
+`a` raised to the power `x` (float result where needed).
+
+```
+  2^10
+1024.0
+  1 2^3 4
+1 16.0
+```
+
+<details>
+<summary>spec</summary>
+
+[Dyadic Conformability](#dyadic-conformability)  
+[Numeric Type Rules](#numeric-type-rules)
+
+**Errors:** `domain` when a base is negative and its exponent is not a whole number (gk has no complex numbers); `type` when an operand is non-numeric; `length` when the vectors differ in length.
+
+</details>
+
+<a id="d-join"></a>
+#### `a,x` (join)
+
+Concatenate `a` and `x` (join lists/vectors).
+
+```
+  1 2,3 4
+1 2 3 4
+  (1;2),3
+1 2 3
+```
+
+<details>
+<summary>spec</summary>
+
+[Dyadic Conformability](#dyadic-conformability)
+
+**Errors:** none — operands of unlike type are joined into a list.
+
+</details>
+
+<a id="d-cast-pad"></a>
+#### `a$x` (cast / pad)
+
+Dyadic `$` pads, truncates, or reshapes strings when `a` is int; other cast combinations exist (see implementation).
+
+```
+  3$"ab"
+" ab"
+  6$"ab"
+"    ab"
+```
+
+<details>
+<summary>spec</summary>
+
+[Dyadic Conformability](#dyadic-conformability)
+
+**Errors:** `domain` for an unrecognized cast specifier (e.g. `` `zzz$5 ``).
+
+</details>
+
+### Monadic
+
+<a id="m-flip"></a>
+#### `+x` (flip)
+
+Transposes a matrix.
+
+```
+  +(1 2;3 4)
+(1 3
+ 2 4)
+  +("asdf";"0123")
+("a0"
+ "s1"
+ "d2"
+ "f3")
+```
+
+Atoms expand to match the length of other rows:
+
+```
+  +(1 2;3;4 5)
+(1 3 4
+ 2 3 5)
+```
+
+Noop for atoms and vectors.
+
+```
+  +1 2 3
+1 2 3
+  +5
+5
+```
+
+<details>
+<summary>spec</summary>
+
+**Types:** list of equal-length lists → transposed list. Atoms pass through unchanged.
+
+**Errors:** `length` when the rows have unequal length.
+
+</details>
+
+<a id="m-negate"></a>
+#### `-x` (negate)
+
+Arithmetic negation.
+
+```
+  -5
+-5
+  --5
+5
+```
+
+Note: `-` before a number is a negative literal, not negate. Use a space:
+
+```
+  -1 2 3
+-1 2 3
+  - -1 2 3
+1 -2 -3
+```
+
+Works on ints and floats; recurses into lists.
+
+<details>
+<summary>spec</summary>
+
+[Numeric Type Rules](#numeric-type-rules)
+
+**Errors:** `type` when `x` is non-numeric.
+
+</details>
+
+<a id="m-first"></a>
+#### `*x` (first)
+
+First item of `x`.
+
+```
+  *1 2 3
+1
+  *"asdf"
+"a"
+```
+
+<details>
+<summary>spec</summary>
+
+**Types:** any.
+- atom → `x` unchanged
+- vector / list → first item
+- empty vector → the type's fill element (`0`, `0.0`, `" "`)
+- empty list `()` → `()`
+
+**Errors:** none — empty aggregates return the type fill or `()`.
+
+</details>
+
+<a id="m-reciprocal"></a>
+#### `%x` (reciprocal)
+
+`1 % x` for numeric `x`.
+
+```
+  %4
+0.25
+  %1 2 4
+1 0.5 0.25
+```
+
+<details>
+<summary>spec</summary>
+
+[Numeric Type Rules](#numeric-type-rules)
+
+**Errors:** `type` when `x` is non-numeric.
+
+</details>
+
+<a id="m-where"></a>
+#### `&x` (where)
+
+Indices where boolean-ish `x` is non-zero (typically `1`).
+
+```
+  &1 0 1 0
+0 2
+```
+
+<details>
+<summary>spec</summary>
+
+**Types:** non-negative int vector (or atom). Returns each index `i` repeated `x[i]` times, so a `0`/`1` mask yields the positions of the `1`s; `&n` on an atom gives `n` copies of `0`.
+
+**Errors:** `type` when `x` is non-integer (char or float).
+
+</details>
+
+<a id="m-reverse"></a>
+#### `|x` (reverse)
+
+Reverse a vector (chars, ints, …).
+
+```
+  |1 2 3
+3 2 1
+  |"abc"
+"cba"
+```
+
+<details>
+<summary>spec</summary>
+
+**Types:** vector or list → items in reverse order; atoms are returned unchanged. Reversal is top-level only — nested items are not themselves reversed.
+
+**Errors:** none.
+
+</details>
+
+<a id="m-grade-up"></a>
+#### `<x` (grade up)
+
+Permutation indices that would sort `x` ascending.
+
+```
+  <3 1 2
+1 2 0
+```
+
+<details>
+<summary>spec</summary>
+
+**Types:** numeric, char, or symbol vector (also a list of atoms). Returns an int vector of indices that would sort `x` ascending.
+
+**Errors:** `rank` when `x` is an atom.
+
+</details>
+
+<a id="m-grade-down"></a>
+#### `>x` (grade down)
+
+Permutation indices that would sort `x` descending.
+
+```
+  >3 1 2
+0 2 1
+```
+
+<details>
+<summary>spec</summary>
+
+**Types:** numeric, char, or symbol vector (also a list of atoms). Returns an int vector of indices that would sort `x` descending.
+
+**Errors:** `rank` when `x` is an atom.
+
+</details>
+
+<a id="m-group"></a>
+#### `=x` (group)
+
+Group indices of equal items.
+
+```
+  =0 1 0 1
+(0 2
+ 1 3)
+```
+
+<details>
+<summary>spec</summary>
+
+**Types:** numeric, char, or symbol vector. Returns a list of index-vectors, one per distinct value, in first-seen order.
+
+**Errors:** `rank` when `x` is an atom.
+
+</details>
+
+<a id="m-not"></a>
+#### `~x` (not)
+
+Logical not on `0`/`1` ints (and related cases).
+
+```
+  ~0 1
+1 0
+```
+
+<details>
+<summary>spec</summary>
+
+[Numeric Type Rules](#numeric-type-rules) for int boolean vectors.
+
+**Errors:** `type` when `x` is non-numeric.
+
+</details>
+
+<a id="m-value"></a>
+#### `. x` (value)
+
+Evaluate a string of code, or apply when `x` has the shape `(f; args)` (see tutorial and IPC docs).
+
+```
+  ."1+2"
+3
+  .(+;1 2)
+3
+```
+
+**A space is required before a bareword name.** `.x` (tight, `x` an identifier) parses as a **dotted name** — a qualified / namespace reference — not value-of-`x`, so it raises `value`. Write `. x` to evaluate the variable. No space is needed before a string or `(`-expression, which are unambiguous (`."1+1"`, `.(f;args)` above). Same root cause as [`a . x` apply](#d-apply).
+
+```
+  x:"1+1"
+  .x             / dotted name -> unbound
+value error
+.x
+^
+  . x            / value: evaluate x
+2
+```
+
+<details>
+<summary>spec</summary>
+
+**Errors:** `value` when a name is undefined; `parse` on malformed code.
+
+</details>
+
+<a id="m-enumerate"></a>
+#### `!x` (enumerate / keys)
+
+With positive int `x`, `0..x-1`. With a dict, key list.
+
+```
+  !5
+0 1 2 3 4
+  d:.();d.a:1;d.b:2;!d
+`a `b
+```
+
+<details>
+<summary>spec</summary>
+
+**Types:**
+- non-negative int `n` → `0 1 … n-1` (`!0` is the empty int vector)
+- dictionary → its key list
+
+Other types follow [Dictionaries](#dictionaries) and implementation rules.
+
+**Errors:** `domain` when `x` is a negative count.
+
+</details>
+
+<a id="m-atom"></a>
+#### `@x` (atom)
+
+`1` if `x` is an atom, `0` if it is not (e.g. a vector).
+
+```
+  @1
+1
+  @1 2
+0
+```
+
+<details>
+<summary>spec</summary>
+
+**Types:** any. Returns int `1` for atoms — including numbers, chars, symbols, and dictionaries — and `0` for vectors and lists (the empty list `()` is `0`).
+
+**Errors:** none.
+
+</details>
+
+<a id="m-unique"></a>
+#### `?x` (unique)
+
+Unique items of `x` in first-seen order.
+
+```
+  ?1 2 1 3
+1 2 3
+```
+
+<details>
+<summary>spec</summary>
+
+**Types:** vector or list. Returns the distinct items in first-seen order; works on numeric, char, and symbol vectors and on general lists.
+
+**Errors:** none.
+
+</details>
+
+<a id="m-count"></a>
+#### `#x` (count)
+
+Number of items at the top level of `x`.
+
+```
+  #1 2 3
+3
+  #(1;2 3)
+2
+```
+
+<details>
+<summary>spec</summary>
+
+**Types:** any. Number of top-level items: `1` for an atom, the length for a vector or list, the number of entries for a dictionary. Empty aggregates return `0`.
+
+**Errors:** none.
+
+</details>
+
+<a id="m-floor"></a>
+#### `_x` (floor)
+
+Floor for floats; truncates toward \(-\infty\). Also defined on ints.
+
+```
+  _3.7
+3
+  _-3.2
+-4
+```
+
+<details>
+<summary>spec</summary>
+
+[Numeric Type Rules](#numeric-type-rules)
+
+**Errors:** `type` when `x` is non-numeric.
+
+</details>
+
+<a id="m-shape"></a>
+#### `^x` (shape)
+
+Shape vector for nested `x` (length of top level, then row lengths where applicable).
+
+```
+  ^(1 2;3 4)
+2 2
+  ^1 2 3
+,3
+```
+
+<details>
+<summary>spec</summary>
+
+**Types:** any. Returns an int vector of the regular leading dimensions: empty (`!0`) for an atom, `,n` for a vector, and one entry per nested level while the sub-lists stay rectangular — ragged levels are not measured.
+
+**Errors:** none.
+
+</details>
+
+<a id="m-enlist"></a>
+#### `,x` (enlist)
+
+Wrap atom `x` as a length-1 vector `,x`.
+
+```
+  ,1
+,1
+```
+
+<details>
+<summary>spec</summary>
+
+**Types:** any. Wraps `x` in a length-1 aggregate: an atom becomes a one-element vector, a vector or list becomes a one-element list whose sole item is `x` (so `^,x` gains a leading `1`).
+
+**Errors:** none.
+
+</details>
+
+<a id="m-string"></a>
+#### `$x` (string from data)
+
+Format `x` as a string (types vary; see implementation for full rules).
+
+```
+  $42
+"42"
+  $`ab
+"ab"
+```
+
+<details>
+<summary>spec</summary>
+
+**Types:**
+- atom (int / float / char / symbol) → its text as a char vector
+- char vector → returned unchanged
+- vector / list → list of formatted strings, item by item
+
+See also dyadic [`a$x` cast / pad](#d-cast-pad) for width formatting.
+
+**Errors:** none.
+
+</details>
+
+### Triadic
+
+<a id="t-amend-at"></a>
+#### `@[x;i;f]` (amend)
+
+Amend `x` at index `i` by applying monadic `f` to the item(s) there, returning the modified `x`.
+
+```
+  @[1 2 3 4;1 3;-]
+1 -2 3 -4
+  @[1 2 3 4;1;10+]
+1 12 3 4
+```
+
+If `x` is a symbol naming a variable, the amend is applied **by reference** — the variable is updated in place and the symbol is returned.
+
+```
+  a:1 2 3 4
+  @[`a;1;10+]
+`a
+  a
+1 12 3 4
+```
+
+To **replace** rather than transform, use the [tetradic form](#q-amend-at) with `:` as `f`.
+
+<details>
+<summary>spec</summary>
+
+`i` is an index (atom or vector) into `x`; `f` is applied to each selected item.
+
+The 3-arg shape `@[f;x;:]` — third argument `:` — is **trap**, not amend; see [Error Trapping](#error-trapping).
+
+**Errors:** `index` when `i` is out of range; whatever error `f` raises.
+
+</details>
+
+<a id="t-amend-dot"></a>
+#### `.[x;i;f]` (amend at depth)
+
+Like [`@[x;i;f]`](#t-amend-at), but `i` is a **path** — one index per nesting level — so `f` is applied deep in `x`.
+
+```
+  .[(1 2;3 4);0 1;-]
+(1 -2
+ 3 4)
+```
+
+By-reference (`` .[`a;…] ``) works as with `@`. The trap form `.[f;x;:]` is covered under [Error Trapping](#error-trapping).
+
+<details>
+<summary>spec</summary>
+
+Item `k` of the path `i` indexes level `k` of `x`.
+
+**Errors:** `index` for an out-of-range path step; whatever error `f` raises.
+
+</details>
+
+<a id="t-slide"></a>
+#### `_[n;f;x]` (slide)
+
+Apply dyadic `f` to a **sliding pair** of items from `x`. The integer `n` controls the pairing:
+
+- `|n|` is the **stride** between successive pairs — `1` gives overlapping adjacent pairs, `2` non-overlapping pairs, larger values skip `|n|-1` items between pairs.
+- The **sign** of `n` sets argument order: positive passes the pair as `(earlier; later)`, negative as `(later; earlier)`.
+
+```
+  _[1;,;"abcd"]            / overlapping pairs
+("ab"
+ "bc"
+ "cd")
+  _[2;,;"abcd"]            / non-overlapping
+("ab"
+ "cd")
+  _[3;,;"abcdefghijk"]     / stride 3
+("ab"
+ "de"
+ "gh"
+ "jk")
+  _[-1;,;"abcd"]           / reversed order
+("ba"
+ "cb"
+ "dc")
+```
+
+`_[-1;f;x]` is k3's each-prior `f': x`; slide is the primitive cousin of the [eachprior](#adv-eachprior) builtin.
+
+<details>
+<summary>spec</summary>
+
+The window is always **two** items wide — the pair `x[k·s]`, `x[k·s+1]` for stride `s = |n|` — so `f` must be dyadic.
+
+`#x` must satisfy `(m-1)·|n| + 2 = #x` for some integer `m ≥ 1`: the strided pairs must tile `x` with no ragged tail.
+
+**Errors:** `length` when the stride leaves a partial pair at the end; `valence` when `f` is not dyadic; `type` for a non-integer `n`.
+
+</details>
+
+### Tetradic
+
+<a id="q-amend-at"></a>
+#### `@[x;i;f;y]` (amend)
+
+Amend `x` at index `i` by applying **dyadic** `f` with right argument `y` — each selected item becomes `item f y`. With `:` (assign) as `f`, this is plain **replacement**.
+
+```
+  @[1 2 3 4;1 3;+;10]
+1 12 3 14
+  @[1 2 3 4;1 3;:;99]      / replace
+1 99 3 99
+```
+
+By reference: `` @[`a;i;f;y] `` updates the named variable in place.
+
+<details>
+<summary>spec</summary>
+
+`y` conforms to `i` — one value per selected item, or a scalar broadcast across them. `:` as `f` assigns (replace); any other dyad transforms.
+
+**Errors:** `index` when `i` is out of range; `length` when `y` does not conform to `i`; whatever error `f` raises.
+
+</details>
+
+<a id="q-amend-dot"></a>
+#### `.[x;i;f;y]` (amend at depth)
+
+Like [`@[x;i;f;y]`](#q-amend-at), but `i` is a path descending into nested `x` (see [`.[x;i;f]`](#t-amend-dot)).
+
+```
+  .[(1 2;3 4);0 1;+;100]
+(1 102
+ 3 4)
+  .[(1 2;3 4);0 1;:;99]
+(1 99
+ 3 4)
+```
+
+<details>
+<summary>spec</summary>
+
+Path semantics as in [`.[x;i;f]`](#t-amend-dot); the `:`-for-replace rule matches `@`.
+
+**Errors:** `index` for a bad path step; `length` when `y` does not conform; whatever error `f` raises.
+
+</details>
 
 ---
 
 <h2 id="adverbs">Adverbs</h2>
 
-| Adverb | Name | Example | Result |
-|--------|------|---------|--------|
-| `f'x` | each | `#'"ab""cde"` | `2 3` |
-| `a f'x` | each (dyad) | `1 2+'3 4` | `4 6` |
-| `f/x` | over/fold | `+/1 2 3` | `6` |
-| `a f/x` | each-right | `1 2+/3 4` | `(4 5;5 6)` |
-| `f\x` | scan | `+\1 2 3` | `1 3 6` |
-| `a f\x` | each-left | `1 2+\3 4` | `(4 5;5 6)` |
-| `n f/x` | do n times | `5{x,x}/1` | `1 1 1...` |
-| `b f/x` | while | `{x<100}{x*2}/1` | `128` |
-| `n f\x` | do n times (scan) | `5{x+1}\0` | `0 1 2 3 4 5` |
-| `b f\x` | while (scan) | `{x<10}{x+1}\0` | `0 1 2...10` |
+An adverb modifies a verb, creating a new verb.
+```
+  f:,'   / join-each
+  f
+,'
+  "abc" f "012"
+("a0"
+ "b1"
+ "c2")
+```
 
-### Each-Prior
+A modified verb may have adverbs itself.
+```
+  f/    / join-each-eachright
+,'/
+  "abc" f/ "012"
+(("a0"
+  "b0"
+  "c0")
+ ("a1"
+  "b1"
+  "c1")
+ ("a2"
+  "b2"
+  "c2"))
+```
+
+gk has three adverbs: `' / \`.
+`'` is always *each*. `/` and `\` have different modes depending on the valence of the verb and how the derived verb is applied.
+
+<h3 id="adv-each">each <code>f'x</code></h3>
+
+Apply a monadic `f` to each item of `x`.
+
+```
+  #'("ab";"cde")
+2 3
+```
+
+<h3 id="adv-each-dyad">each <code>x f'y</code></h3>
+
+Apply a dyadic `f` to each pair of `x` and `y` (which must conform; an atom
+broadcasts).
+
+```
+  "ab",'"cd"
+("ac"
+ "bd")
+```
+
+<h3 id="adv-each-multi">each <code>f'[x;y;z]</code></h3>
+
+Apply `f` across N conforming lists, N = valence of `f`.
+
+```
+  {x,y,z}'["ab";"cd";"ef"]
+("ace"
+ "bdf")
+```
+
+<h3 id="adv-scanm">scanm <code>f\x</code></h3>
+
+Iterate a monadic `f` from `x`, keeping every value, until it reaches a fixed
+point (or a previous value recurs).
+
+```
+  {_x%2}\100
+100 50 25 12 6 3 1 0
+```
+
+<h3 id="adv-do-scan">do <code>n f\x</code></h3>
+
+Apply a monadic `f` to `x` `n` times (`n` a non-negative int), keeping each step.
+
+```
+  5{x+1}\0
+0 1 2 3 4 5
+```
+
+<h3 id="adv-while-scan">while <code>b f\x</code></h3>
+
+Apply a monadic `f` while the monadic predicate `b` holds, keeping each step.
+
+```
+  {x<10}{x+1}\0
+0 1 2 3 4 5 6 7 8 9 10
+```
+
+<h3 id="adv-eachleft">eachleft <code>x f\y</code></h3>
+
+Apply a dyadic `f` to each item of `x` with all of `y` — `f[item;y]`.
+
+```
+  "ab",\"cd"
+("acd"
+ "bcd")
+```
+
+<h3 id="adv-scand">scand <code>f\x</code></h3>
+
+Running fold of a dyadic `f` over `x` — like `f/x` but keeping every step.
+
+```
+  ,\"abc"
+("a";"ab";"abc")
+```
+
+<h3 id="adv-scan">scan <code>f\[x;y;…]</code></h3>
+
+Seeded scan for a verb of valence ≥3 (see [over](#adv-over)), keeping each
+accumulator.
+
+```
+  {[a;b;c]a+b+c}\[0;1 2 3;10]
+0 11 23 36
+```
+
+<h3 id="adv-overm">overm <code>f/x</code></h3>
+
+Iterate a monadic `f` from `x` to a fixed point; result is the final value.
+
+```
+  {_x%2}/100
+0
+```
+
+<h3 id="adv-do-over">do <code>n f/x</code></h3>
+
+Apply a monadic `f` to `x` `n` times; result is the final value.
+
+```
+  5{x+1}/0
+5
+```
+
+<h3 id="adv-while-over">while <code>b f/x</code></h3>
+
+Apply a monadic `f` while the monadic predicate `b` holds; result is the final
+value.
+
+```
+  {x<100}{x*2}/1
+128
+```
+
+<h3 id="adv-eachright">eachright <code>x f/y</code></h3>
+
+Apply a dyadic `f` to all of `x` with each item of `y` — `f[x;item]`.
+
+```
+  "ab",/"cd"
+("abc"
+ "abd")
+```
+
+<h3 id="adv-overd">overd <code>f/x</code></h3>
+
+Fold a dyadic `f` over `x`, left to right.
+
+```
+  ,/("ab";"cd";"ef")
+"abcdef"
+```
+
+<h3 id="adv-over">over <code>f/[x;y;…]</code></h3>
+
+Seeded fold for a verb of valence ≥3: `x` seeds the accumulator, the rest
+conform — vectors iterate in lockstep, atoms broadcast as per-step constants.
+
+```
+  {[a;b;c]a+b+c}/[0;1 2 3;10]
+36
+```
+
+<h3 id="adv-eachprior">eachprior <code>ep[f;x]</code></h3>
+
+Apply a dyadic `f` to each adjacent pair of `x`, giving a result one shorter
+than `x`.
 
 ```
   ep[-]1 2 3 4 5
@@ -277,7 +1542,29 @@ Most dyadic verbs operate element-wise on vectors and recurse into lists.
  "cb")
 ```
 
----
+<h3 id="adv-notes">notes</h3>
+
+**Primitives default to their dyad** in adverb context, so `+/` is `overd`
+(plus-fold), not flip-over. To iterate a primitive's *monad* — for `overm`,
+`do`, or `while` — wrap it in a lambda: `3{|x}/1 2 3 4` reverses three times.
+
+**do / while** read the left argument to pick the mode when `f` is monadic:
+a non-negative int is `do`, a monadic predicate is `while`. The infix and
+bracket spellings are the same (`a f/x` is `f/[a;x]`). A negative count is a
+`domain` error; a controller that is neither an int nor a monad is `type`; the
+wrong number of arguments for `f`'s valence is `valence`.
+
+**Projection** — an empty bracket slot projects, like any application:
+
+```
+  g:{,x}/[5;]   / fix the count, supply the value later
+  g 0
+,,,,,0
+```
+
+**Dyadic over/scan** — there is no two-argument `f/[acc;list]` fold (that
+spelling is `eachright`); express it with an ignored third argument:
+`{z;x,y}/["";"asdf";nul]` gives `"asdf"` (see [doc/digraphs.md](digraphs.md)).
 
 ## Indexing
 
@@ -1268,13 +2555,8 @@ participate in normal k expressions, including passing the
 
 ## Watches
 
-A *watch* binds a global variable to a gk expression that is evaluated
-for its side effects every time that variable is assigned. It is gk's
-analog of e333j's per-variable `t` attribute:
-
-```
-  e333j:   a..t:"b+:1"        gk:   watch(`a;"b+:1")
-```
+A *watch* binds a global variable to an expression that is evaluated
+every time that variable is modified.
 
 <a id="watch-quick-start"></a>
 ### Quick Start
@@ -1408,9 +2690,7 @@ b+:`
   assignment inside a function does not fire a watch (a `::`
   global-assign does).
 - **string expr, not a fn.** The expr is gk source evaluated each time
-  via the normal parse+eval path, not a stored lambda. This mirrors
-  e333j's `t` attribute and lets the expr reference whatever is in
-  scope at fire time.
+  via the normal parse+eval path, not a stored lambda.
 - **introspectable.** `watch[]` returns the armed set as ordinary data
   you can index and inspect.
 - **limitation.** A fully-qualified assign whose path descends through a
@@ -1455,921 +2735,4 @@ b+:`
   @[{x+1};5;:]
 0 6
 ```
-
----
-
-## Verb Reference
-
-Common usage and examples. Expand "spec" for detailed type semantics.
-
-<h3 id="dyadic-conformability">Dyadic Conformability</h3>
-
-Dyadic verbs follow these rules:  
-(using `+` as an example)
-
-- atom + atom  
-  Atoms always conform.
-  ```
-    1+2
-  3
-  ```
-- atom + vector  
-  Result is atom + each element of vector
-  ```
-    1 + 2 3 4
-  3 4 5
-  ```
-- vector + atom  
-  Result is each element of vector + atom
-  ```
-    2 3 4 + 1
-  3 4 5
-  ```
-- vector + vector  
-  Result is element-wise. Vectors must be the same length.
-  ```
-    1 2 3 + 4 5 6
-  5 7 9
-  ```
-- atom + list  
-  Result is atom + each element of list, recursively.
-  ```
-    1 + (2;3 4;(5;6 7))
-  (3
-   4 5
-   (6
-    7 8))
-  ```
-- list + atom  
-  Result is each element of list, recursively, + atom.
-  ```
-    (2;3 4;(5;6 7)) + 1
-  (3
-   4 5
-   (6
-    7 8))
-  ```
-- vector + list  
-  Result is each element of vector + each element of list.
-  ```
-    1 2 + (3 4;5 6)
-  (4 5
-   7 8)
-  ```
-- list + vector  
-  Result is each element of list + vector.
-  ```
-    (3 4;5 6) + 1 2
-  (4 5
-   7 8)
-  ```
-- list + list  
-  Result is each element of left list + each element of right list.
-  ```
-    (1 2;3 4) + (5 6;(7 8;9 10))
-  (6 8
-   (10 11
-    13 14))
-  ```
-
-<h3 id="numeric-type-rules">Numeric Type Rules</h3>
-
-Arithmetic verbs (`+` `-` `*` `%`):
-
-- **Types:** numeric only — `i32`, `i64`, `f32`, `f64`
-- **Promotion:** a dyad's result takes the wider of the two operand types. The
-  one non-obvious case is `i64` with `f32` → `f64` (neither type contains the
-  other, so the result widens to `f64`):
-
-  | a \ x | `i32` | `i64` | `f32` | `f64` |
-  |-------|-------|-------|-------|-------|
-  | `i32` | `i32` | `i64` | `f32` | `f64` |
-  | `i64` | `i64` | `i64` | `f64` | `f64` |
-  | `f32` | `f32` | `f64` | `f32` | `f64` |
-  | `f64` | `f64` | `f64` | `f64` | `f64` |
-
-- **Errors:** `type error` if either operand is non-numeric
-
-### Dyadic
-
-<a id="d-plus"></a>
-#### `a+x` (plus)
-
-Arithmetic sum of `a` and `x`.
-
-```
-  2+3
-5
-  2+3.0
-5.0
-  1+1 2 3
-2 3 4
-  1 2 3+4 5 6
-5 7 9
-  1.5+1 2 3
-2.5 3.5 4.5
-```
-
-<details>
-<summary>spec</summary>
-
-[Dyadic Conformability](#dyadic-conformability)  
-[Numeric Type Rules](#numeric-type-rules)
-
-**Errors:** `type` when an operand is non-numeric; `length` when the vectors differ in length.
-
-</details>
-
-<a id="d-minus"></a>
-#### `a-x` (minus)
-
-`a` minus `x`.
-
-```
-  5-3
-2
-  5-3.0
-2.0
-  10-1 2 3
-9 8 7
-  5 4 3-1 2 3
-4 2 0
-```
-
-<details>
-<summary>spec</summary>
-
-[Dyadic Conformability](#dyadic-conformability)  
-[Numeric Type Rules](#numeric-type-rules)
-
-**Errors:** `type` when an operand is non-numeric; `length` when the vectors differ in length.
-
-</details>
-
-<a id="d-times"></a>
-#### `a*x` (times)
-
-Arithmetic product of `a` and `x`.
-
-```
-  3*4
-12
-  2*1 2 3
-2 4 6
-  2*-1 2 -3
--2 4 -6
-```
-
-<details>
-<summary>spec</summary>
-
-[Dyadic Conformability](#dyadic-conformability)  
-[Numeric Type Rules](#numeric-type-rules)
-
-**Errors:** `type` when an operand is non-numeric; `length` when the vectors differ in length.
-
-</details>
-
-<a id="d-divide"></a>
-#### `a%x` (divide)
-
-Arithmetic quotient of `a` and `x`.
-
-```
-  10%4
-2.5
-  12%1 2 3 4
-12 6 4 3.0
-```
-
-<details>
-<summary>spec</summary>
-
-[Dyadic Conformability](#dyadic-conformability)  
-[Numeric Type Rules](#numeric-type-rules)
-
-**Errors:** `type` when an operand is non-numeric; `length` when the vectors differ in length. Division by zero yields infinity, not an error.
-
-</details>
-
-<a id="d-min-and"></a>
-#### `a&x` (min / and)
-
-Element-wise minimum for ints and floats (same shape rules as `+`). Also defined for char and sym (lexicographic min). On boolean-ish `0`/`1` ints, this is logical **and**.
-
-```
-  3&5
-3
-  0&1
-0
-  2&3.0
-2.0
-```
-
-<details>
-<summary>spec</summary>
-
-[Dyadic Conformability](#dyadic-conformability)
-
-**Types:** int, float, char, sym (pairwise); mixed int/float promotes to float where applicable.
-
-**Errors:** `type` when an operand is non-numeric; `length` when the vectors differ in length.
-
-</details>
-
-<a id="d-max-or"></a>
-#### `a|x` (max / or)
-
-Element-wise maximum for ints and floats; max for char and sym. On boolean-ish `0`/`1` ints, logical **or**.
-
-```
-  3|5
-5
-  0|1
-1
-```
-
-<details>
-<summary>spec</summary>
-
-[Dyadic Conformability](#dyadic-conformability)
-
-**Types:** int, float, char, sym (pairwise); mixed int/float promotes to float where applicable.
-
-**Errors:** `type` when an operand is non-numeric; `length` when the vectors differ in length.
-
-</details>
-
-<a id="d-comparisons"></a>
-#### `a<x`, `a>x`, `a=x` (comparisons)
-
-Less, greater, equal — return int `0` or `1`, element-wise with [Dyadic Conformability](#dyadic-conformability).
-
-```
-  3<5
-1
-  5>3
-1
-  3=3
-1
-  1 2 3<2 2 2
-1 0 0
-```
-
-<details>
-<summary>spec</summary>
-
-[Dyadic Conformability](#dyadic-conformability)
-
-**Types:** int, float, char, sym where the comparison is defined; mixed-type rules follow the implementation.
-
-**Errors:** `type` for incomparable operands; `length` when the vectors differ in length.
-
-</details>
-
-<a id="d-match"></a>
-#### `a~x` (match)
-
-Structural **match** (`1` if `a` and `x` have the same shape and data, else `0`).
-
-```
-  1 2~1 2
-1
-  1 2~1 2.0
-0
-```
-
-<details>
-<summary>spec</summary>
-
-Recurses into nested lists.
-
-**Errors:** none — always returns `0` or `1`.
-
-</details>
-
-<a id="d-apply"></a>
-#### `a.x` (apply)
-
-Apply callable `a` to argument list `x` (typically `x` is a list of values).
-
-```
-  {x+y} . 1 2
-3
-```
-
-<details>
-<summary>spec</summary>
-
-`a` must be callable with valence matching `n(x)` when `x` is a list of arguments.
-
-**Errors:** `valence` when the argument count doesn't match `a`; otherwise whatever error `a` itself raises.
-
-</details>
-
-<a id="d-mod-dict"></a>
-#### `a!x` (mod / dict)
-
-Remainder / modulo for numeric `a` and `x` (C-style remainder for negatives). Dictionary-related forms of `!` are covered under [Dictionaries](#dictionaries).
-
-```
-  7!3
-1
-  7!3.0
-1.0
-```
-
-<details>
-<summary>spec</summary>
-
-[Dyadic Conformability](#dyadic-conformability)
-
-**Errors:** `type` / `int` when an operand is not an integer.
-
-</details>
-
-<a id="d-at-index"></a>
-#### `a@x` (at / index)
-
-Select from `a` at indices `x`. `x` is usually int indices (atom or vector).
-
-```
-  1 2 3@1
-2
-  1 2 3@0 2
-1 3
-```
-
-<details>
-<summary>spec</summary>
-
-[Dyadic Conformability](#dyadic-conformability)
-
-**Errors:** `index` when out of range; `type` for a non-integer index.
-
-</details>
-
-<a id="d-find"></a>
-#### `a?x` (find)
-
-Membership / lookup: for a vector `a`, result is the index of each item of `x` in `a` (first occurrence), or length of `a` if not found (see implementation for full rules).
-
-```
-  1 2 3?2
-1
-  1 2 3?5
-3
-```
-
-<details>
-<summary>spec</summary>
-
-[Dyadic Conformability](#dyadic-conformability)
-
-**Errors:** none — returns `#a` (the count) when `x` is not found.
-
-</details>
-
-<a id="d-take-reshape"></a>
-#### `a#x` (take / reshape)
-
-Take first `a` items of `x`, or reshape `x` when `a` is an integer list (see examples in primitive table and implementation).
-
-```
-  3#1 2 3 4
-1 2 3
-  -2#1 2 3 4
-3 4
-  2 2#1 2 3 4
-(1 2
- 3 4)
-```
-
-<details>
-<summary>spec</summary>
-
-[Dyadic Conformability](#dyadic-conformability)
-
-**Errors:** `type` when the left argument `a` is not an integer.
-
-</details>
-
-<a id="d-drop-cut"></a>
-#### `a_x` (drop / cut)
-
-With an int atom `a`, drop the first `a` items of `x`. With an int vector of cut points, splits `x` (see examples).
-
-```
-  2_1 2 3 4
-3 4
-  2 4_!10
-(2 3
- 4 5 6 7 8 9)
-```
-
-<details>
-<summary>spec</summary>
-
-[Dyadic Conformability](#dyadic-conformability)
-
-**Errors:** `type` when the left argument `a` is non-numeric.
-
-</details>
-
-<a id="d-power"></a>
-#### `a^x` (power)
-
-`a` raised to the power `x` (float result where needed).
-
-```
-  2^10
-1024.0
-  1 2^3 4
-1 16.0
-```
-
-<details>
-<summary>spec</summary>
-
-[Dyadic Conformability](#dyadic-conformability)  
-[Numeric Type Rules](#numeric-type-rules)
-
-**Errors:** `domain` when a base is negative and its exponent is not a whole number (gk has no complex numbers); `type` when an operand is non-numeric; `length` when the vectors differ in length.
-
-</details>
-
-<a id="d-join"></a>
-#### `a,x` (join)
-
-Concatenate `a` and `x` (join lists/vectors).
-
-```
-  1 2,3 4
-1 2 3 4
-  (1;2),3
-1 2 3
-```
-
-<details>
-<summary>spec</summary>
-
-[Dyadic Conformability](#dyadic-conformability)
-
-**Errors:** none — operands of unlike type are joined into a list.
-
-</details>
-
-<a id="d-cast-pad"></a>
-#### `a$x` (cast / pad)
-
-Dyadic `$` pads, truncates, or reshapes strings when `a` is int; other cast combinations exist (see implementation).
-
-```
-  3$"ab"
-" ab"
-  6$"ab"
-"    ab"
-```
-
-<details>
-<summary>spec</summary>
-
-[Dyadic Conformability](#dyadic-conformability)
-
-**Errors:** `domain` for an unrecognized cast specifier (e.g. `` `zzz$5 ``).
-
-</details>
-
-### Monadic
-
-<a id="m-flip"></a>
-#### `+x` (flip)
-
-Transposes a matrix.
-
-```
-  +(1 2;3 4)
-(1 3
- 2 4)
-  +("asdf";"0123")
-("a0"
- "s1"
- "d2"
- "f3")
-```
-
-Atoms expand to match the length of other rows:
-
-```
-  +(1 2;3;4 5)
-(1 3 4
- 2 3 5)
-```
-
-Noop for atoms and vectors.
-
-```
-  +1 2 3
-1 2 3
-  +5
-5
-```
-
-<details>
-<summary>spec</summary>
-
-**Types:** list of equal-length lists → transposed list. Atoms pass through unchanged.
-
-**Errors:** `length` when the rows have unequal length.
-
-</details>
-
-<a id="m-negate"></a>
-#### `-x` (negate)
-
-Arithmetic negation.
-
-```
-  -5
--5
-  --5
-5
-```
-
-Note: `-` before a number is a negative literal, not negate. Use a space:
-
-```
-  -1 2 3
--1 2 3
-  - -1 2 3
-1 -2 -3
-```
-
-Works on ints and floats; recurses into lists.
-
-<details>
-<summary>spec</summary>
-
-[Numeric Type Rules](#numeric-type-rules)
-
-**Errors:** `type` when `x` is non-numeric.
-
-</details>
-
-<a id="m-first"></a>
-#### `*x` (first)
-
-First item of `x`.
-
-```
-  *1 2 3
-1
-  *"asdf"
-"a"
-```
-
-<details>
-<summary>spec</summary>
-
-**Types:** any.
-- atom → `x` unchanged
-- vector / list → first item
-- empty vector → the type's fill element (`0`, `0.0`, `" "`)
-- empty list `()` → `()`
-
-**Errors:** none — empty aggregates return the type fill or `()`.
-
-</details>
-
-<a id="m-reciprocal"></a>
-#### `%x` (reciprocal)
-
-`1 % x` for numeric `x`.
-
-```
-  %4
-0.25
-  %1 2 4
-1 0.5 0.25
-```
-
-<details>
-<summary>spec</summary>
-
-[Numeric Type Rules](#numeric-type-rules)
-
-**Errors:** `type` when `x` is non-numeric.
-
-</details>
-
-<a id="m-where"></a>
-#### `&x` (where)
-
-Indices where boolean-ish `x` is non-zero (typically `1`).
-
-```
-  &1 0 1 0
-0 2
-```
-
-<details>
-<summary>spec</summary>
-
-**Types:** non-negative int vector (or atom). Returns each index `i` repeated `x[i]` times, so a `0`/`1` mask yields the positions of the `1`s; `&n` on an atom gives `n` copies of `0`.
-
-**Errors:** `type` when `x` is non-integer (char or float).
-
-</details>
-
-<a id="m-reverse"></a>
-#### `|x` (reverse)
-
-Reverse a vector (chars, ints, …).
-
-```
-  |1 2 3
-3 2 1
-  |"abc"
-"cba"
-```
-
-<details>
-<summary>spec</summary>
-
-**Types:** vector or list → items in reverse order; atoms are returned unchanged. Reversal is top-level only — nested items are not themselves reversed.
-
-**Errors:** none.
-
-</details>
-
-<a id="m-grade-up"></a>
-#### `<x` (grade up)
-
-Permutation indices that would sort `x` ascending.
-
-```
-  <3 1 2
-1 2 0
-```
-
-<details>
-<summary>spec</summary>
-
-**Types:** numeric, char, or symbol vector (also a list of atoms). Returns an int vector of indices that would sort `x` ascending.
-
-**Errors:** `rank` when `x` is an atom.
-
-</details>
-
-<a id="m-grade-down"></a>
-#### `>x` (grade down)
-
-Permutation indices that would sort `x` descending.
-
-```
-  >3 1 2
-0 2 1
-```
-
-<details>
-<summary>spec</summary>
-
-**Types:** numeric, char, or symbol vector (also a list of atoms). Returns an int vector of indices that would sort `x` descending.
-
-**Errors:** `rank` when `x` is an atom.
-
-</details>
-
-<a id="m-group"></a>
-#### `=x` (group)
-
-Group indices of equal items.
-
-```
-  =0 1 0 1
-(0 2
- 1 3)
-```
-
-<details>
-<summary>spec</summary>
-
-**Types:** numeric, char, or symbol vector. Returns a list of index-vectors, one per distinct value, in first-seen order.
-
-**Errors:** `rank` when `x` is an atom.
-
-</details>
-
-<a id="m-not"></a>
-#### `~x` (not)
-
-Logical not on `0`/`1` ints (and related cases).
-
-```
-  ~0 1
-1 0
-```
-
-<details>
-<summary>spec</summary>
-
-[Numeric Type Rules](#numeric-type-rules) for int boolean vectors.
-
-**Errors:** `type` when `x` is non-numeric.
-
-</details>
-
-<a id="m-value"></a>
-#### `.x` (value)
-
-Evaluate a string of code, or apply when `x` has the shape `(f; args)` (see tutorial and IPC docs).
-
-```
-  ."1+2"
-3
-  .(+;1 2)
-3
-```
-
-<details>
-<summary>spec</summary>
-
-**Errors:** `value` when a name is undefined; `parse` on malformed code.
-
-</details>
-
-<a id="m-enumerate"></a>
-#### `!x` (enumerate / keys)
-
-With positive int `x`, `0..x-1`. With a dict, key list.
-
-```
-  !5
-0 1 2 3 4
-  d:.();d.a:1;d.b:2;!d
-`a `b
-```
-
-<details>
-<summary>spec</summary>
-
-**Types:**
-- non-negative int `n` → `0 1 … n-1` (`!0` is the empty int vector)
-- dictionary → its key list
-
-Other types follow [Dictionaries](#dictionaries) and implementation rules.
-
-**Errors:** `domain` when `x` is a negative count.
-
-</details>
-
-<a id="m-atom"></a>
-#### `@x` (atom)
-
-`1` if `x` is an atom, `0` if it is not (e.g. a vector).
-
-```
-  @1
-1
-  @1 2
-0
-```
-
-<details>
-<summary>spec</summary>
-
-**Types:** any. Returns int `1` for atoms — including numbers, chars, symbols, and dictionaries — and `0` for vectors and lists (the empty list `()` is `0`).
-
-**Errors:** none.
-
-</details>
-
-<a id="m-unique"></a>
-#### `?x` (unique)
-
-Unique items of `x` in first-seen order.
-
-```
-  ?1 2 1 3
-1 2 3
-```
-
-<details>
-<summary>spec</summary>
-
-**Types:** vector or list. Returns the distinct items in first-seen order; works on numeric, char, and symbol vectors and on general lists.
-
-**Errors:** none.
-
-</details>
-
-<a id="m-count"></a>
-#### `#x` (count)
-
-Number of items at the top level of `x`.
-
-```
-  #1 2 3
-3
-  #(1;2 3)
-2
-```
-
-<details>
-<summary>spec</summary>
-
-**Types:** any. Number of top-level items: `1` for an atom, the length for a vector or list, the number of entries for a dictionary. Empty aggregates return `0`.
-
-**Errors:** none.
-
-</details>
-
-<a id="m-floor"></a>
-#### `_x` (floor)
-
-Floor for floats; truncates toward \(-\infty\). Also defined on ints.
-
-```
-  _3.7
-3
-  _-3.2
--4
-```
-
-<details>
-<summary>spec</summary>
-
-[Numeric Type Rules](#numeric-type-rules)
-
-**Errors:** `type` when `x` is non-numeric.
-
-</details>
-
-<a id="m-shape"></a>
-#### `^x` (shape)
-
-Shape vector for nested `x` (length of top level, then row lengths where applicable).
-
-```
-  ^(1 2;3 4)
-2 2
-  ^1 2 3
-,3
-```
-
-<details>
-<summary>spec</summary>
-
-**Types:** any. Returns an int vector of the regular leading dimensions: empty (`!0`) for an atom, `,n` for a vector, and one entry per nested level while the sub-lists stay rectangular — ragged levels are not measured.
-
-**Errors:** none.
-
-</details>
-
-<a id="m-enlist"></a>
-#### `,x` (enlist)
-
-Wrap atom `x` as a length-1 vector `,x`.
-
-```
-  ,1
-,1
-```
-
-<details>
-<summary>spec</summary>
-
-**Types:** any. Wraps `x` in a length-1 aggregate: an atom becomes a one-element vector, a vector or list becomes a one-element list whose sole item is `x` (so `^,x` gains a leading `1`).
-
-**Errors:** none.
-
-</details>
-
-<a id="m-string"></a>
-#### `$x` (string from data)
-
-Format `x` as a string (types vary; see implementation for full rules).
-
-```
-  $42
-"42"
-  $`ab
-"ab"
-```
-
-<details>
-<summary>spec</summary>
-
-**Types:**
-- atom (int / float / char / symbol) → its text as a char vector
-- char vector → returned unchanged
-- vector / list → list of formatted strings, item by item
-
-See also dyadic [`a$x` cast / pad](#d-cast-pad) for width formatting.
-
-**Errors:** none.
-
-</details>
-
----
 
