@@ -93,17 +93,31 @@ void watch_fire_path(char *path, char *name) {
   if(sc) watch_fire_(p, nm, sc);
 }
 
-/* Fire the watch for a fully-qualified name (".ns.var") by splitting it
- * at the last dot into (namespace, var).  Used by the dotted-path branch
- * of scope_set_ and by the in-place ktree-amend (kt) paths in k.c, which
- * mutate a qualified variable without going through scope_set. */
+/* Fire watches touched by a fully-qualified assignment (".ns.var...").
+ * Used by the dotted-path branch of scope_set_ and the in-place ktree-amend
+ * (kt) paths in k.c, which mutate a qualified variable without going through
+ * scope_set.
+ *
+ * An assignment like `.k.a.b:3` mutates the dict variable `.k.a` (it gains
+ * member `b`) AND, if `.k.a` is itself a namespace, assigns var `b` within
+ * it.  So every interior dot is a candidate (namespace, var) boundary:
+ * (".k","a") and (".k.a","b").  We fire any watch armed at each -- splitting
+ * only at the last dot (the old behaviour) misses the watch on `a`. */
 void watch_fire_fq(char *fq) {
   char nb[256];
   size_t L = strlen(fq);
   if(L == 0 || L >= sizeof nb) return;
   memcpy(nb, fq, L + 1);
-  char *dot = strrchr(nb, '.');
-  if(dot && dot != nb) { *dot = 0; watch_fire_path(nb, dot + 1); }
+  /* skip the leading dot of an absolute path; each later dot splits the
+   * path into (namespace = text before it, var = the single token after). */
+  for(char *dot = strchr(nb + 1, '.'); dot; dot = strchr(dot + 1, '.')) {
+    char *var = dot + 1, *nd = strchr(var, '.');
+    char vb[256]; size_t vl = nd ? (size_t)(nd - var) : strlen(var);
+    memcpy(vb, var, vl); vb[vl] = 0;
+    *dot = 0;                       /* nb = namespace path for this boundary */
+    watch_fire_path(nb, vb);        /* no-op unless a watch is armed there   */
+    *dot = '.';                     /* restore for the next boundary         */
+  }
 }
 
 /* Free all armed watches.  Called from exit__ so the stored trigger
@@ -120,6 +134,9 @@ static K watch_set(K name, K expr) {
   char *sc = scope_path(gs);
   if(!sc) return KERR_DOMAIN;
   char *nm = sk(name);
+  /* the empty symbol (`) is not a variable name; reject it for both set and
+   * clear rather than storing the nonsensical key ".k." */
+  if(!*nm) return KERR_DOMAIN;
 
   /* nul or "" clears; a non-empty char atom/vector sets; anything else
    * is a type error. */
@@ -166,17 +183,17 @@ static K watch_list(void) {
 }
 
 K watch_(K x) {
-  /* A 2-element list (`name;"expr") is a set/clear; the first element
-   * must be a symbol.  Anything else is a query. */
+  /* A 2-element list is the set/clear form (`name;"expr"); its first
+   * element must be a symbol -- anything else is a type error, not a
+   * query.  A query is any argument that isn't a 2-element list
+   * (watch[], watch`, watch nul, ...). */
   if(T(x) <= 0 && n(x) == 2) {
     K name = xi_(x, 0, T(x));
-    if(T(name) == 4) {
-      K expr = xi_(x, 1, T(x));
-      K r = watch_set(name, expr);
-      _k(name); _k(expr);
-      return r;
-    }
-    _k(name);
+    if(T(name) != 4) { _k(name); return KERR_TYPE; }
+    K expr = xi_(x, 1, T(x));
+    K r = watch_set(name, expr);
+    _k(name); _k(expr);
+    return r;
   }
   return watch_list();
 }

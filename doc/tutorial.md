@@ -1,6 +1,6 @@
 # gk tutorial
 
-A guided tour of the REPL. See the [reference manual](ref.md) for detailed documentation—there, **primitive dyads** are written **`a+x`** style (**`a`** left, **`x`** right); tutorial snippets use normal names like **`f`** and **`x`**, **`y`** at the prompt.
+A guided tour of the REPL. See the [reference manual](ref.md) for detailed documentation.
 
 ## Start the interpreter
 
@@ -93,7 +93,7 @@ If every item in a list is of the same type, gk promotes it to a vector.
 | `#x` | Length of `x` |
 | `+/x` | Sum (`/` is “over”, `+` is plus) |
 | `*x` | First element |
-| `|x` | Reverse |
+| `\|x` | Reverse |
 | `x#y` | Take first `x` items of `y` |
 | `x_y` | Drop first `x` items of `y` (no `_` in **names**—only this verb) |
 
@@ -150,7 +150,7 @@ Try:
 
 ## After an error
 
-Sometimes a failing expression leaves you at a **`>`** prompt instead of the usual two spaces. That is a small **debug** session: you can still type expressions (for example **`x`** and **`y`** inside a function that was running). When you are done looking, **`\`** then **Enter** (**abort**) drops you back to the main REPL. That is not the same as a lone **`\`** at the top level (which opens the help index above).
+Sometimes a failing expression leaves you at a **`>`** prompt instead of the usual two spaces. That is a small **debug** session: you can still type expressions (for example **`x`** and **`y`** inside a function that was running). When you are done looking, **`\`** then **Enter** (**abort**) drops you back to the main REPL.
 
 ```
   f:{x+y}
@@ -167,7 +167,7 @@ type error
 
 ## Dictionaries
 
-A **dictionary** maps symbols to values. Build an empty one with **`.()`**, then assign fields (like named columns):
+A **dictionary** maps keys to values. Build an empty one with **`.()`**, then assign fields (like named columns):
 
 ```
   d:.()

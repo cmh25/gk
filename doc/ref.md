@@ -159,21 +159,13 @@ New to gk? Try the [tutorial](tutorial.md) first. If you already know **k3**, se
 
 ### Special Values
 
-| Value | Type | Description |
-|-------|------|-------------|
-| `0N` | i32 | null integer |
-| `0I` | i32 | positive infinity |
-| `-0I` | i32 | negative infinity |
-| `0Nj` | i64 | null integer |
-| `0Ij` | i64 | positive infinity |
-| `-0Ij` | i64 | negative infinity |
-| `0n` | f64 | NaN |
-| `0i` | f64 | positive infinity |
-| `-0i` | f64 | negative infinity |
-| `0ne` | f32 | NaN |
-| `0ie` | f32 | positive infinity |
-| `-0ie` | f32 | negative infinity |
-| `nul` | null | null value |
+| Type | Null | Infinity | -Infinity |
+|------|------|----------|-----------|
+| i32  | `0N` | `0I`     | `-0I`     |
+| i64  | `0Nj`| `0Ij`    | `-0Ij`    |
+| f32  | `0ne`| `0ie`    | `-0ie`    |
+| f64  | `0n` | `0i`     | `-0i`     |
+| null | `nul`|          |           |
 
 ### Atoms, Vectors, and Lists
 
@@ -2024,8 +2016,50 @@ Time builtins use an epoch of **2035-01-01** (Julian day `0` is a Monday).
 | `a 0: x` | write lines to file |
 | `1: x` | read k data from file |
 | `a 1: x` | write k data to file |
-| `2: x` | read bytes from file |
-| `a 2: x` | write bytes to file |
+| `2: x` | read serialized k data from file |
+| `f 2: (e;t)` | link object code — see below |
+| `6: x` | read bytes from file |
+| `a 6: x` | write bytes to file |
+
+#### Link Object Code — `f 2: (e;t)`
+
+Loads a shared object and makes one of its exported C functions callable from
+gk. `f` is the path to the shared library (`.so` / `.dylib` / `.dll`), `e` is the
+symbol name of the function to expose, and `t` is its number of
+parameters, `0–8`. The result is a gk function that can be invoked like any other.
+
+```
+add: "libmath.so" 2:("kadd";2)
+add[3;4]   / calls kadd(3,4) and returns its result
+```
+
+**Writing the C/C++ side.** The function receives and returns `K` (gk's 64-bit
+tagged word, by value). Include the public header **`gk.h`** — self-contained,
+C and C++ (`extern "C"`) — which gives you the accessors to *read* arguments and
+the `gk_mk*` constructors to *build* results:
+
+```c
+#include "gk.h"
+GK_FN K kadd(K x, K y) { return gk_mki(gk_i(x) + gk_i(y)); }  /* read two ints, make one */
+```
+
+Mark each exposed function with `GK_FN` — it adds the `__declspec(dllexport)`
+Windows needs so `2:` can find the symbol, and is a no-op elsewhere.
+`gk_i`/`gk_f`/`gk_j`/`gk_e`/`gk_c`/`gk_s` read an atom; `gk_iv`/`gk_fv`/… give a
+typed pointer to a vector's elements; `gk_mki`/`gk_mkf`/…/`gk_mkiv`/`gk_mkstr`
+construct atoms and vectors; `gk_err("msg")` raises an error. Build it as a
+shared object:
+- Linux: `cc -shared -fPIC f.c -o f.so`
+- macOS: `cc -shared -fPIC -undefined dynamic_lookup f.c -o f.so`
+- Windows: `cl /LD f.c gk.lib` (link gk's import library)
+
+gk exports the `gk_*` ABI so the library resolves it at load.
+
+Arguments are **borrowed**: do not free them (gk owns them); to retain one past
+the call use `gk_ref()`. The library stays mapped for the life of the process.
+
+`domain error` if `f` can't be loaded or `e` can't be resolved within it (an OS
+message may also appear); `type error` if `f`, `e`, or `t` are not as described.
 
 #### Fixed-Width Records
 
@@ -2342,7 +2376,7 @@ Three overridable globals control dispatch:
 The default handler for `.m.s` and `.m.g` is `{. x}`:
 
 - `. "!10"` — if `x` is a char vector, treat it as K source and evaluate.
-- `. (`g;1 2 3)` — if `x` is a `(fn;args)` pair, apply the function to the args.
+- ``. (`g;1 2 3)`` — if `x` is a `(fn;args)` pair, apply the function to the args.
 
 So out of the box, a freshly started gk server handles both raw code
 strings and typed function calls:
@@ -2584,13 +2618,18 @@ watch (`name;"expr")   ARM. Run "expr" after each assignment to the
                        Returns nul.
 watch (`name;"")       DISARM. An empty string (or nul) as the expr
                        removes the watch. Returns nul.
-watch x                QUERY (anything that isn't a 2-element value
-                       whose first element is a sym: watch[], watch`,
-                       watch nul, ...). Returns a list of
-                       (`fqname;"expr") pairs, one per armed watch,
+                       `name` must be a real variable name; the empty
+                       symbol (`) raises `domain`.
+watch x                QUERY (anything that isn't a 2-element list:
+                       watch[], watch`, watch nul, ...). Returns a list
+                       of (`fqname;"expr") pairs, one per armed watch,
                        where fqname is the fully-qualified name. Empty
                        list if none armed.
 ```
+
+A 2-element list is always the set/clear form, so its first element
+must be a symbol -- `watch("a";...)`, `watch(2;...)`, etc. raise
+`type`.
 
 Examples:
 
@@ -2618,6 +2657,7 @@ state):
   a::1                      / global-assign from inside a function
   .k.a:1                    / fully-qualified, even from another namespace
   a.x:1                     / a member assign still fires a's watch
+  .k.a.x:1                  /   ... qualified, descending through the dict, too
   @[`a;0;:;9]               / amend by reference (.[`a;...] / @[`a;...]),
   @[`.k.a;0;:;9]            /   qualified or not
 ```
@@ -2693,10 +2733,11 @@ b+:`
   via the normal parse+eval path, not a stored lambda.
 - **introspectable.** `watch[]` returns the armed set as ordinary data
   you can index and inspect.
-- **limitation.** A fully-qualified assign whose path descends through a
-  *dictionary variable* in another namespace (e.g. `.foo.a.b:1` where
-  `.foo.a` is a dict, not a sub-namespace) does not fire `a`'s watch;
-  the in-namespace form (`a.b:1`, run from `.foo`) does.
+- **deep assigns fire the enclosing var.** Assigning a member of a
+  dictionary variable fires that variable's watch, whether addressed
+  relatively (`a.b:1`) or fully-qualified (`.k.a.b:1`) -- the assign
+  mutates `a`, so `a`'s watch runs. Each interior path segment is
+  checked, so a watch on a sub-namespace var (`.k.a`/`b`) fires too.
 
 ---
 

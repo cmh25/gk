@@ -68,6 +68,9 @@ K atcb(K a,K x) {
   else if(0xc5==s(a)) {
     r=fc(a,0,k_(x),"");
   }
+  else if(0xdc==s(a)) { /* 2:-linked C function: monadic apply (x is one arg) */
+    r=fe(k_(a),0,k_(x),"");
+  }
   else if(0xda==s(a)) { /* (f;av) modified-verb wrapper, replaces 0xc1 */
     r=fe(k_(a),0,k_(x),"");
   }
@@ -207,6 +210,16 @@ K dotcb(K a,K x) {
       r=fne(k_(a),t,0);
       break;
     default: t=tn(0,1); pt=px(t); pt[0]=k_(x); r=fne(k_(a),t,0); break;
+    }
+  }
+  else if(0xdc==s(a)) { /* 2:-linked C function applied with `.`: spread args */
+    switch(tx) {
+    case  0: r=linkcall(k_(a),k_(x)); break;
+    case -1: case -2: case -3: case -4:
+      t=kmix(x); if(E(t)) { --d; return t; }
+      r=linkcall(k_(a),t);
+      break;
+    default: t=tn(0,1); pt=px(t); pt[0]=k_(x); r=linkcall(k_(a),t); break;
     }
   }
   else if(0xc0==s(a)) {

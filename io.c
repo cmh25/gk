@@ -10,6 +10,7 @@
 #include <sys/wait.h>
 #include <sys/mman.h>
 #include <signal.h>
+#include <dlfcn.h>
 #endif
 #include <stdio.h>
 #include <errno.h>
@@ -659,9 +660,116 @@ cleanup:
   return e;
 }
 
+/* Maximum valence of a 2:-linked external function.  linkcall() dispatches
+   through a fixed switch (no libffi), so this bounds the arity it can call. */
+#define LINK_MAXV 8
+
+/* One function-pointer type per supported arity.  linkcall() memcpy's dlsym's
+   void* into the right one and calls it -- memcpy is the one void*->function
+   conversion ISO C allows, and using the exact type means no function-pointer
+   cast (so neither -Wpedantic nor -Wcast-function-type fires). */
+typedef K (*kf0)(void);
+typedef K (*kf1)(K);
+typedef K (*kf2)(K,K);
+typedef K (*kf3)(K,K,K);
+typedef K (*kf4)(K,K,K,K);
+typedef K (*kf5)(K,K,K,K,K);
+typedef K (*kf6)(K,K,K,K,K,K);
+typedef K (*kf7)(K,K,K,K,K,K,K);
+typedef K (*kf8)(K,K,K,K,K,K,K,K);
+
+/* Pull a NUL-terminated C string out of a char-vector (-3), symbol (4), or
+   char atom (3).  Returns a malloc'd copy the caller must xfree, or 0 on a
+   type mismatch. */
+static char* kcstr(K x) {
+  if(T(x)==4) return xstrdup(sk(x));
+  if(T(x)==-3) { u64 n=nx; char *s=xmalloc(n+1); memcpy(s,px(x),n); s[n]=0; return s; }
+  if(T(x)==3) { char *s=xmalloc(2); s[0]=(char)ck(x); s[1]=0; return s; }
+  return 0;
+}
+
+/* f 2:(e;t) -- Link Object Code.
+   a (=f) names a shared object; x is the pair (e;t) where e is the symbol of
+   an exported function and t is its valence (number of K parameters).  The
+   result is a callable value (subtype 0xdc) holding the resolved function
+   pointer and valence; applying it calls the C function with t borrowed K
+   arguments and returns the K it produces.  The external function must be
+   built against gk's K ABI: it receives/returns `K` (the 64-bit tagged word)
+   and must not free its arguments (gk owns them) -- to retain one it bumps the
+   refcount with k_().  Domain error if the file or symbol can't be resolved;
+   type error if f, e, or t are not as described. */
 static K twocolon2(K a, K x) {
+#ifdef FUZZING
   (void)a; (void)x;
-  return null;
+  return KERR_DOMAIN; /* no dlopen under the fuzzer (see fopen_ rationale) */
+#else
+  K r,*pxk,ke,kt;
+  char *fn,*en;
+  i32 val;
+  void *h,*fp;
+  if(ta!=-3&&ta!=4&&ta!=3) return KERR_TYPE;
+  if(T(x)!=0||s(x)||nx!=2) return KERR_TYPE; /* (e;t) */
+  pxk=px(x); ke=pxk[0]; kt=pxk[1];
+  if(T(kt)!=1) return KERR_TYPE;
+  val=ik(kt);
+  if(val<0||val>LINK_MAXV) return KERR_DOMAIN;
+  fn=kcstr(a);  if(!fn) return KERR_TYPE;
+  en=kcstr(ke); if(!en) { xfree(fn); return KERR_TYPE; }
+#ifdef _WIN32
+  h=(void*)LoadLibraryA(fn);
+  if(!h) { xfree(fn); xfree(en); return KERR_DOMAIN; }
+  fp=(void*)GetProcAddress((HMODULE)h,en);
+#else
+  h=dlopen(fn,RTLD_NOW|RTLD_LOCAL); /* LOCAL: .so still resolves gk's exported
+                                       gk_* ABI, but its own symbols stay private
+                                       (no global-namespace collisions) */
+  if(!h) { xfree(fn); xfree(en); return KERR_DOMAIN; }
+  fp=dlsym(h,en);
+#endif
+  /* The handle is intentionally left open for the life of the process: a
+     linked function can be called any time after `f 2: ...` returns, so the
+     library must stay mapped.  K processes never unlink object code. */
+  if(!fp) { xfree(fn); xfree(en); return KERR_DOMAIN; }
+  r=tn(0,3);
+  K *pf=px(r);
+  pf[0]=tj((i64)(intptr_t)fp); /* function pointer */
+  pf[1]=t(1,(u32)val);         /* valence */
+  pf[2]=t(4,sp(en));           /* symbol name, for printing */
+  r=st(0xdc,r);
+  xfree(fn); xfree(en);
+  return r;
+#endif
+}
+
+/* Apply a 2:-linked function (subtype 0xdc).  x is a type-0 argument list
+   (a 0x81 bracket plist or a plain list from `.`); each element is one
+   borrowed argument.  Frees x before returning. */
+K linkcall(K f, K x) {
+  K r,*pf=px(f),*av;
+  void *fp;
+  kf0 g0;kf1 g1;kf2 g2;kf3 g3;kf4 g4;kf5 g5;kf6 g6;kf7 g7;kf8 g8;
+  i32 val,argc;
+  if(T(x)!=0) { _k(f); _k(x); return KERR_TYPE; }
+  fp=(void*)(intptr_t)jk(pf[0]);
+  val=ik(pf[1]);
+  av=px(x);
+  argc=(i32)nx;
+  if(argc==1&&val==0&&(av[0]==null||av[0]==inull)) argc=0; /* g[] passes a lone nul */
+  if(argc!=val) { _k(f); _k(x); return KERR_VALENCE; }
+  switch(val) {
+  case 0: memcpy(&g0,&fp,sizeof g0); r=g0(); break;
+  case 1: memcpy(&g1,&fp,sizeof g1); r=g1(av[0]); break;
+  case 2: memcpy(&g2,&fp,sizeof g2); r=g2(av[0],av[1]); break;
+  case 3: memcpy(&g3,&fp,sizeof g3); r=g3(av[0],av[1],av[2]); break;
+  case 4: memcpy(&g4,&fp,sizeof g4); r=g4(av[0],av[1],av[2],av[3]); break;
+  case 5: memcpy(&g5,&fp,sizeof g5); r=g5(av[0],av[1],av[2],av[3],av[4]); break;
+  case 6: memcpy(&g6,&fp,sizeof g6); r=g6(av[0],av[1],av[2],av[3],av[4],av[5]); break;
+  case 7: memcpy(&g7,&fp,sizeof g7); r=g7(av[0],av[1],av[2],av[3],av[4],av[5],av[6]); break;
+  case 8: memcpy(&g8,&fp,sizeof g8); r=g8(av[0],av[1],av[2],av[3],av[4],av[5],av[6],av[7]); break;
+  default: _k(f); _k(x); return KERR_VALENCE;
+  }
+  _k(f); _k(x); /* frees the arg list and its (borrowed) elements */
+  return r;
 }
 
 K twocolon(K a, K x) {

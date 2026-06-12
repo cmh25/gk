@@ -5,6 +5,7 @@
 #include "av.h"
 #include "b.h"
 #include "fn.h"
+#include "io.h"
 
 K fc(K f, K a, K x, char *av) {
   K r=0,e,p,f2,*pf,*pf2;
@@ -89,6 +90,12 @@ K fe(K f, K a, K x, char *av) {
         else { xx=tn(0,1); ((K*)px(xx))[0]=x; xx=st(0x81,xx); }
         r=fne(k_(wf),xx,avp);
       }
+      else if(0xdc==s(wf)) { /* 0xda(2:-linked fn, av): e.g. (add')[a;b] */
+        K xx;
+        if(0x81==s(x)) xx=x;
+        else { xx=tn(0,1); ((K*)px(xx))[0]=x; xx=st(0x81,xx); }
+        r=avdo(k_(wf),0,xx,avp);
+      }
       else { _k(x); r=KERR_TYPE; }
       break;
     }
@@ -100,6 +107,19 @@ K fe(K f, K a, K x, char *av) {
         r=fne(k_(f),xx,av);
       }
       break;
+    case 0xdc: { /* 2:-linked C function.  Pack into a plist, then project on
+                    short-fill / elided (inull) slots -- producing a 0xd9
+                    wrapper that fapply completes later -- or call when the
+                    plist holds exactly `valence` bound args. */
+      if(av&&*av) { _k(f); _k(x); r=KERR_VALENCE; break; } /* no adverbs here (avdo handles those) */
+      if(0x81==s(x)) xx=x;
+      else { xx=tn(0,1); pxx=px(xx); pxx[0]=x; xx=st(0x81,xx); }
+      pf=px(f); i32 lval=ik(pf[1]);
+      u64 ln=n(xx),inc=0; { K *pe=px(xx); i(ln,if(pe[i]==inull)++inc) }
+      if((i32)ln<lval || (i32)(ln-inc)<lval) r=wrap_proj(k_(f),xx);
+      else r=linkcall(k_(f),xx);
+      break;
+    }
     case 0xd9: { /* Issue #2 Pass 3a: (f;args) projection wrapper.
                     Route through fapply, which peels the wrapper,
                     merges new x into args (filling inulls or
@@ -265,6 +285,9 @@ K fe(K f, K a, K x, char *av) {
           xx=st(0x81,xx);
           r=fne(k_(wf),xx,avp);
         }
+        else if(0xdc==s(wf)) { /* dyadic adverb apply of a 2:-linked fn (a add' x) */
+          r=avdo(k_(wf),a,x,avp);
+        }
         else { _k(a); _k(x); r=KERR_TYPE; }
       }
       break;
@@ -273,6 +296,14 @@ K fe(K f, K a, K x, char *av) {
       xx=tn(0,2); pxx=px(xx);
       pxx[0]=a; pxx[1]=x;
       r=fne(k_(f),xx,av);
+      break;
+    case 0xdc: /* 2:-linked C function, dyadic apply (valence 2), or project
+                  to a 0xd9 wrapper when a slot is elided (e.g. add[3;]). */
+      if(av&&*av) { _k(f); _k(a); _k(x); r=KERR_VALENCE; break; }
+      xx=tn(0,2); pxx=px(xx);
+      pxx[0]=a; pxx[1]=x;
+      if(a==inull || x==inull) r=wrap_proj(k_(f),st(0x81,xx)); /* k_: fe _k's f below */
+      else r=linkcall(k_(f),xx);
       break;
     case 0xd9: { /* Issue #2 Pass 3a dyadic apply: (f;args) wrapper.
                     Pack {a,x} into 0x81 plist and route through

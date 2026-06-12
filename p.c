@@ -2236,6 +2236,28 @@ c3_apply:
         break;
       /* 0xd5/0xd6 retired in Pass 4 -- replaced by 0xd9 (handled above). */
       case 0xd7: *pA++=fe(a,0,b,""); break;
+      case 0xdc: /* 2:-linked C function followed by an adverb (each/over/scan).
+                    Mirrors the 0xd9 0x45 branch: pull an optional left arg for
+                    dyadic juxtaposition (`x add/y`), reduce the right args, and
+                    dispatch through avdo (which treats 0xdc as callable). */
+        if(0x45==s(b)) {
+          pb=px(b);
+          mv=px(pb[1]);
+          if(!VST(pb[2])) { _k(a); _k(b); *pA++=KERR_TYPE; break; }
+          t=0;
+          if(pA>A && i<nx-1 && 0xc0==s(px[i+1]) && ik(px[i+1])==0xff) { /* dyadic juxtaposition */
+            ++i;
+            t=*--pA;
+            if(s(t)) { t=reduce(t); if(E(t)||EXIT) { _k(a); _k(b); *pA++=t; break; } }
+            if(!VST(t)) { _k(a); _k(b); _k(t); *pA++=KERR_TYPE; break; }
+          }
+          if(s(pb[2])) { p=reduce(k_(pb[2])); if(E(p)||EXIT) { _k(a); _k(b); _k(t); *pA++=p; break; } }
+          else p=k_(pb[2]);
+          *pA++=avdo(a,t,p,mv);
+          _k(b);
+        }
+        else *pA++=k(13,a,b); /* plain juxtaposition -> apply */
+        break;
       default: *pA++=k(13,a,b); /* a b */
       } break;
     }

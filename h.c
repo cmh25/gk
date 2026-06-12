@@ -173,6 +173,7 @@ void help(int a) {
 " 1:f   f 1:x  read (map)/write k data\n"
 "       f 5:x  append k data\n"
 " 2:f          read k data\n"
+" f 2:(e;t)    link object code: fn e (valence t) from .so/.dll f\n"
 " 6:f   f 6:x  read/write bytes\n"
 "     (,f)6:x  append bytes\n"
 "\n"

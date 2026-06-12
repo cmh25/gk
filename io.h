@@ -13,5 +13,6 @@ K sixcolon(K a, K x);
 K eightcolon(K a, K x);
 K del_(K a);
 K rename_(K a, K x);
+K linkcall(K f, K x); /* apply a 2:-linked C function (subtype 0xdc) to arg list x */
 
 #endif /* IO_H */

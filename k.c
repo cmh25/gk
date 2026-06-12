@@ -461,6 +461,7 @@ const char* kprint_(K x, char *s, char *e, char *s0) {
     //case 0xcd: mprintf("%s%s%s",s,sk(x),e); break;
     case 0xce: mprintf("%s%c:%s",s,ck(x),e); break;
     //case 0xcf: mprintf("%s%c:%s",s,ck(x),e); break;
+    case 0xdc: { K *pw=px(x); mprintf("%s%s%s",s,sk(pw[2]),e); } break; /* 2:-linked C fn: show symbol */
     case 0xd0:
       px=px(x);
       kprint_(px[0],s,"","");
@@ -737,6 +738,7 @@ K val(K x) {
   case 0xcd: r=t(1,2); break;
   case 0xce: r=t(1,1); break;
   case 0xcf: r=t(1,2); break;
+  case 0xdc: { px=px(x); i32 v=ik(px[1]); r=t(1,(u32)(v<1?1:v)); } break; /* 2:-linked C fn: stored valence (no valence-0 fns: report >=1) */
   case 0xd0: r=t(1,1); break;
   /* 0xd4/0xd5/0xd6 retired in Pass 4 -- replaced by 0xd9. */
   case 0xd7: r=t(1,1); break;
@@ -2663,6 +2665,7 @@ u64 khashcb(K x) {
   case 0xcd: r=r+khash(x&(K)0xff00ffffffffffff); break;
   case 0xce: r=r+khash(x&(K)0xff00ffffffffffff); break;
   case 0xcf: r=r+khash(x&(K)0xff00ffffffffffff); break;
+  case 0xdc: r=r+khash(x&(K)0xff00ffffffffffff); break;
   case 0xd0: r=r+khash(x&(K)0xff00ffffffffffff); break;
   case 0xd1: r=r+khash(x&(K)0xff00ffffffffffff); break;
   case 0xd2: r=r+khash(x&(K)0xff00ffffffffffff); break;
@@ -2723,6 +2726,7 @@ K kcpcb(K x) {
   case 0xcd: p=kcp(x&(K)0xff00ffffffffffff); if(E(p)) r=p; else r=set_sx(p,0xcd); break;
   case 0xce: p=kcp(x&(K)0xff00ffffffffffff); if(E(p)) r=p; else r=set_sx(p,0xce); break;
   case 0xcf: p=kcp(x&(K)0xff00ffffffffffff); if(E(p)) r=p; else r=set_sx(p,0xcf); break;
+  case 0xdc: p=kcp(x&(K)0xff00ffffffffffff); if(E(p)) r=p; else r=set_sx(p,0xdc); break;
   case 0xd0: p=kcp(x&(K)0xff00ffffffffffff); if(E(p)) r=p; else r=set_sx(p,0xd0); break;
   case 0xd1: p=kcp(x&(K)0xff00ffffffffffff); if(E(p)) r=p; else r=set_sx(p,0xd1); break;
   case 0xd2: p=kcp(x&(K)0xff00ffffffffffff); if(E(p)) r=p; else r=set_sx(p,0xd2); break;
