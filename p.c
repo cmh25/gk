@@ -2256,7 +2256,17 @@ c3_apply:
           *pA++=avdo(a,t,p,mv);
           _k(b);
         }
-        else *pA++=k(13,a,b); /* plain juxtaposition -> apply */
+        else {
+          t=0;
+          if(pA>A && i<nx-1 && 0xc0==s(px[i+1]) && ik(px[i+1])==0xff) { /* dyadic juxtaposition */
+            ++i;
+            t=*--pA;
+            if(s(t)) { t=reduce(t); if(E(t)||EXIT) { _k(a); _k(b); *pA++=t; break; } }
+            if(!VST(t)) { _k(a); _k(b); _k(t); *pA++=KERR_TYPE; break; }
+          }
+          if(t) *pA++=fe(a,t,b,"");
+          else *pA++=k(13,a,b); /* plain juxtaposition -> apply */
+        }
         break;
       default: *pA++=k(13,a,b); /* a b */
       } break;

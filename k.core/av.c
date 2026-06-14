@@ -81,7 +81,7 @@ K overd(i32 f, K x) {
   double sf,*pxf;
   if(f<0||f>22) return KERR_TYPE;
   Tx=tx; if(!Tx&&s(x)) { if(!vstcb(x)) return KERR_TYPE; Tx=15; }
-  if(Tx==1||Tx==2||Tx==3||Tx==4) return k_(x);
+  if(Tx==1||Tx==2||Tx==3||Tx==4||Tx==8||Tx==9) return k_(x);
   if(Tx==15) return kcp(x);
   if(Tx<=0&&!nx) {
     ff=P[f];
@@ -224,7 +224,7 @@ K scand(i32 f, K x) {
     return r;
   }
   if(Tx==-1&&!nx&&ff=='=') return tn(1,0);
-  if(Tx==1||Tx==2||Tx==3||Tx==4) return k_(x);
+  if(Tx==1||Tx==2||Tx==3||Tx==4||Tx==8||Tx==9) return k_(x);
   if(Tx==15) return kcp(x);
   if(Tx<=0&&!nx) return tn(0,0);
   switch(f) {

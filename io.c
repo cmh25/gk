@@ -688,6 +688,18 @@ static char* kcstr(K x) {
   return 0;
 }
 
+#ifndef FUZZING
+/* Open a shared object by exact path; returns an opaque handle, or 0. */
+static void *linkdlopen(const char *p) {
+#ifdef _WIN32
+  return (void*)LoadLibraryA(p);
+#else
+  return dlopen(p,RTLD_NOW|RTLD_LOCAL); /* LOCAL: the .so still resolves gk's
+    exported gk_* ABI, but its own symbols stay private (no collisions) */
+#endif
+}
+#endif
+
 /* f 2:(e;t) -- Link Object Code.
    a (=f) names a shared object; x is the pair (e;t) where e is the symbol of
    an exported function and t is its valence (number of K parameters).  The
@@ -715,15 +727,29 @@ static K twocolon2(K a, K x) {
   if(val<0||val>LINK_MAXV) return KERR_DOMAIN;
   fn=kcstr(a);  if(!fn) return KERR_TYPE;
   en=kcstr(ke); if(!en) { xfree(fn); return KERR_TYPE; }
+  /* Resolve the library. A bare name with no path separator (e.g. "mylib.so")
+     is, by a script's intent, the .so in the working directory -- but dlopen()/
+     LoadLibrary search the system library path, NOT the cwd. So try "./<name>"
+     first, then fall back to the bare name so a genuine system library (e.g.
+     "libm.so.6") still resolves. A name that already carries a separator
+     (relative-with-dir or absolute) is used verbatim. */
+  h=0;
 #ifdef _WIN32
-  h=(void*)LoadLibraryA(fn);
+  if(!strpbrk(fn,"/\\")) {
+#else
+  if(!strchr(fn,'/')) {
+#endif
+    size_t fl=strlen(fn);
+    char *rel=xmalloc(fl+3);
+    rel[0]='.'; rel[1]='/'; memcpy(rel+2,fn,fl+1);
+    h=linkdlopen(rel);
+    xfree(rel);
+  }
+  if(!h) h=linkdlopen(fn);
   if(!h) { xfree(fn); xfree(en); return KERR_DOMAIN; }
+#ifdef _WIN32
   fp=(void*)GetProcAddress((HMODULE)h,en);
 #else
-  h=dlopen(fn,RTLD_NOW|RTLD_LOCAL); /* LOCAL: .so still resolves gk's exported
-                                       gk_* ABI, but its own symbols stay private
-                                       (no global-namespace collisions) */
-  if(!h) { xfree(fn); xfree(en); return KERR_DOMAIN; }
   fp=dlsym(h,en);
 #endif
   /* The handle is intentionally left open for the life of the process: a

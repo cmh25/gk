@@ -97,6 +97,7 @@ void help(int a) {
 "      .z.t  seconds since 2035 (int)\n"
 "      .z.f  self reference to current function\n"
 "      .z.w  handle of ipc peer\n"
+"      .z.filepath  path of the script currently being loaded\n"
 "\n"
 "math: log exp abs sqr sqrt floor ceil dot mul\n"
 "      sin cos tan asin acos atan sinh cosh tanh x atan2 y\n"

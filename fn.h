@@ -30,7 +30,7 @@ K fapply(K f, K x, char *av_outer);
    modified) lambda; returns 3 (KERR_TYPE) for any non-0xc3 input --
    callers gate on 0xc3 to avoid that path. */
 static inline K closure(K x, K s0, K closurescope) {
-  K r=3; K *_px,_s,*_fs,*_pr;
+  K r=KERR_TYPE; K *_px,_s,*_fs,*_pr;
   if(0xc3==s(x)) {
     _px=px(x);
     _s=_px[2];

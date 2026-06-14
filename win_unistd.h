@@ -1,7 +1,10 @@
-#ifndef _UNISTD_H
-#define _UNISTD_H 1
+#ifndef WIN_UNISTD_H
+#define WIN_UNISTD_H 1
 
-/* This is intended as a drop-in replacement for unistd.h on Windows.
+/* Windows-only stand-in for the POSIX unistd.h, included as "win_unistd.h"
+ * from the _WIN32 branches in main.c/scope.c/b.c. Named distinctly (not
+ * "unistd.h") so it can never shadow the real system header when a non-Windows
+ * build adds -I. (clangd, analyzers, ad-hoc -fsyntax-only, ...).
  * Please add functionality as needed.
  * https://stackoverflow.com/a/826027/1202830
  */

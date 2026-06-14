@@ -642,7 +642,7 @@ K dot0(K a, K x) {
     p=pxk[0];
     t=nx==2?k_(pxk[1]):k(16,t(1,1),k_(x)); /* drop */
     K(*ff)(K,K)=nx==2?at:dot;
-    if(s(p)||s(t)) { _k(t); return 3; } /* type */
+    if(s(p)||s(t)) { _k(t); return KERR_TYPE; }
     else if(T(p)<=0&&n(p)) {
       PRK(n(p));
       pm=kmix(p); if(E(pm)) { e=pm; goto cleanup; }
@@ -927,7 +927,7 @@ static K draw(K a, K x) {
   if(ta==1 && tx==1 && ik(x)<0 && ik(a)>abs(ik(x))) return KERR_LENGTH;
   switch(ta) {
   case 1:
-    if(ik(a)<0) return 6; /* domain */
+    if(ik(a)<0) return KERR_DOMAIN;
     VSIZE(ik(a));
     switch(tx) {
     case 1:
@@ -2288,7 +2288,7 @@ static K lsdir(char *p) {
   WIN32_FIND_DATA ffd;
   HANDLE h;
   h=FindFirstFile(t,&ffd);
-  if(h==INVALID_HANDLE_VALUE) return 4;
+  if(h==INVALID_HANDLE_VALUE) return KERR_VALUE;
   q=tn(0,32); pqk=px(q);
   do {
     if(!strcmp(ffd.cFileName,".")||!strcmp(ffd.cFileName,"..")) continue;
@@ -2312,7 +2312,7 @@ static K lsdir(char *p) {
   u64 n=0;
   DIR *f=opendir(p);
   struct dirent *e;
-  if(!f) return 4;
+  if(!f) return KERR_VALUE;
   q=tn(0,32); pqk=px(q);
   while((e=readdir(f))) {
     if(!strcmp(e->d_name,".")||!strcmp(e->d_name,"..")) continue;
@@ -2340,8 +2340,8 @@ K enumerate(K x) {
   i64 *prj;
   if(s(x)) return enumeratecb(x);
   switch(tx) {
-  case  1: if(ik(x)<0||ik(x)==INT32_MAX) return 6; PRI(ik(x)); i(ik(x),pri[i]=i); break;
-  case  8: { i64 v=jk(x); if(v<0||v>=INT32_MAX) return 6; PRJ((i32)v); i((i32)v,prj[i]=i); } break;
+  case  1: if(ik(x)<0||ik(x)==INT32_MAX) return KERR_DOMAIN; PRI(ik(x)); i(ik(x),pri[i]=i); break;
+  case  8: { i64 v=jk(x); if(v<0||v>=INT32_MAX) return KERR_DOMAIN; PRJ((i32)v); i((i32)v,prj[i]=i); } break;
   case  2: return KERR_INT;
   case  3: p[0]=ck(x); p[1]=0; r=lsdir(p); break;
   case  4: return enumeratecb(x);

@@ -9,9 +9,11 @@
 #include <io.h>
 #define isatty _isatty
 #define STDIN_FILENO 0
+#define GKPATHSEP ';'  /* ':' is a drive-letter separator on Windows */
 #else
 #include <unistd.h>
 #include <poll.h>
+#define GKPATHSEP ':'
 #endif
 #include "timer.h"
 #include "scope.h"
@@ -86,25 +88,92 @@ int DEPTH;
 int REPL;
 int LOADLINE;
 
+static FILE *ofopen(const char *p) {
+  FILE *f;
+#ifdef _WIN32
+  if(fopen_s(&f,p,"r")) f=0;
+#else
+  f=fopen(p,"r");
+#endif
+  return f;
+}
+
+#ifndef S_ISDIR
+#define S_ISDIR(m) (((m)&_S_IFDIR)!=0)  /* MSVC <sys/stat.h> lacks the macro */
+#endif
+
+/* A directory on the load path is a "package": loading it really loads its
+   entry script <dir>/GKPKGENTRY (the Python `__init__.py` / Node `index.js`
+   idea). The entry uses .z.filepath to find its own dir and 2:-link siblings.
+   This also closes a latent trap -- fopen() succeeds on a directory, so without
+   this a `\l somedir` would silently "load" nothing. */
+#define GKPKGENTRY "load.k"
+
+/* Open `path` as a script. If `path` names a directory, open its package entry
+   <path>/load.k instead, writing the resolved path into `buf` (capacity `n`).
+   *out is set to the path actually opened (== `path`, or `buf` for a package),
+   so pfile / .z.filepath report the real file. Returns the FILE*, or 0. */
+static FILE *ofopen_script(char *path, char *buf, size_t n, char **out) {
+  struct stat st;
+  *out = path;
+  if(!stat(path,&st) && S_ISDIR(st.st_mode)) {
+    if((size_t)snprintf(buf,n,"%s/%s",path,GKPKGENTRY) >= n) return 0;
+    FILE *f = ofopen(buf);
+    if(f) *out = buf;
+    return f;
+  }
+  return ofopen(path);
+}
+
 K load(char *fn, int load) {
   FILE *fp=0; K r,e=null;
-  K cs0,gs0,d0;
+  K cs0,gs0,d0,zfp0=0;
   int c,f,s=0,space=0;
   size_t i=0,j=0,m=32;
-  char *b,*pfile0;
+  char *b,*pfile0,*rfn=fn;
+  char rbuf[4096],cbuf[4096];
   int fileline0=fileline;
   fileline=0;
   int newfileline=0;
+  /* Resolve fn to an openable script (ofopen_script also turns a directory
+     into its package entry <dir>/load.k). */
+  fp=ofopen_script(fn,rbuf,sizeof rbuf,&rfn);
+  /* \l (load==2) consults GKPATH when the literal name isn't found and isn't
+     an absolute path: a list of directories searched in order, first hit wins
+     (separator ':' on unix, ';' on windows).  fn is repointed at the resolved
+     path so pfile and error messages report where it actually loaded from.
+     The command-line script arg (load==1) is never searched -- it stays literal. */
+  if(!fp && load==2 && fn[0]!='/') {
 #ifdef _WIN32
-  if(fopen_s(&fp,fn,"r")) fp=0;
+    /* _dupenv_s mallocs; caller frees with free() */
+    char *gp=0; _dupenv_s(&gp,0,"GKPATH");
 #else
-  fp=fopen(fn,"r");
+    char *gp=getenv("GKPATH");
 #endif
+    if(gp) {
+      size_t fl=strlen(fn);
+      for(char *p=gp;*p;) {
+        char *sep=strchr(p,GKPATHSEP);
+        size_t dl=sep?(size_t)(sep-p):strlen(p);
+        if(dl && dl+1+fl<sizeof cbuf) {
+          memcpy(cbuf,p,dl); cbuf[dl]='/'; memcpy(cbuf+dl+1,fn,fl+1);
+          if((fp=ofopen_script(cbuf,rbuf,sizeof rbuf,&rfn))) break;
+        }
+        if(!sep) break;
+        p=sep+1;
+      }
+#ifdef _WIN32
+      free(gp);
+#endif
+    }
+  }
   if(!fp) { fprintf(stderr,"%s: %s\n",fn,xstrerror(errno)); fileline=fileline0; return null; }
+  fn=rfn;  /* commit the resolved path (package entry, or GKPATH hit) */
   b=xmalloc(m+2);
   pcount=scount=ccount=qcount=0;
   f=1; s=0;
   pfile0=pfile; pfile=fn;
+  zfp0=scope_set_z_filepath(fn);  /* .z.filepath; restored at cleanup */
   cs0=k_(cs);
   gs0=k_(gs);
   d0=D;
@@ -207,6 +276,7 @@ K load(char *fn, int load) {
     i(strlen(b+z+1),putc(' ',stderr)); putc('^',stderr); putc('\n',stderr);
   }
 cleanup:
+  scope_restore_z_filepath(zfp0);
   fclose(fp);
   fileline=fileline0;
   xfree(b);

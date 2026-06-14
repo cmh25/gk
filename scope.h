@@ -21,6 +21,17 @@ void scope_refresh_pid(void);
  * `fd` set before invoking .m.s / .m.g / .m.c, and call with 0 after,
  * so outside-handler reads of .z.w see 0. */
 void scope_set_z_w(int fd);
+
+/* .z.filepath = the path of the script currently being loaded (gk's analogue
+ * of q's .z.f, which gk uses for the current function). load() sets it on
+ * entry and restores the prior value on exit, so nested loads each see their
+ * own path. A loader script reads .z.filepath to find its own directory and
+ * 2:-link a sibling .so without a collision-prone bare-name search.
+ * _set returns the previous value (a retained ref, or 0 if the key was unset)
+ * for the caller to hand back to _restore at the end of the load. */
+K scope_set_z_filepath(char *path);
+void scope_restore_z_filepath(K old);
+
 K scope_new(K p);
 K scope_newk(K p, K k);
 void scope_free(K s);

@@ -6,7 +6,7 @@
 #include "scope.h"
 #include "fn.h"
 #ifdef _WIN32
-#include "unistd.h"
+#include "win_unistd.h"
 #define WIN32_LEAN_AND_MEAN
 #include <windows.h>
 #else
@@ -61,7 +61,7 @@ int main(int argc, char **argv) {
     else { script=a; break; }
   }
   setvbuf(stdout, NULL, _IONBF, 0);
-  if(!quiet) fprintf(stderr, "gk-v2.1.0 Copyright (c) 2023-2026 Charles Hall\n\n");
+  if(!quiet) fprintf(stderr, "gk-v2.2.0 Copyright (c) 2023-2026 Charles Hall\n\n");
 #ifdef _WIN32
   SetConsoleCtrlHandler(ctlc,TRUE);
 #else

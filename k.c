@@ -422,12 +422,17 @@ const char* kprint_(K x, char *s, char *e, char *s0) {
         mprintf("%s%s",avp,e);
         break;
       }
-      char vc=' ';
       if(0xc0==s(wf)) {
+        char vc=' ';
         u32 c=ck(wf)%32;
         if(c<strlen(P)) vc=P[c];
+        mprintf("%s%c%s%s",s,vc,avp,e);
+      } else {
+        /* noun operand (e.g. 5'): print the operand then the av suffix,
+           rather than blanking it to a space. */
+        kprint_(wf,s,"",s0);
+        mprintf("%s%s",avp,e);
       }
-      mprintf("%s%c%s%s",s,vc,avp,e);
       break;
     }
     case 0xc3:
@@ -1044,7 +1049,7 @@ static K kamendi4d(K d, K i, K f, K y) {
     pis=px(i);
     i(n(i),if(!strlen(pis[i])) { e=KERR_DOMAIN; goto cleanup; })
     switch(Ty) {
-    case  1: case 2: case 3: case 4: case 6:
+    case  1: case 2: case 3: case 4: case 6: case 8: case 9:
       for(u64 j=0;j<n(i);++j) {
         if(b) { t=dget(d,pis[j]);if(!t)t=null;r=fe(k_(f),t,k_(y),0);EC(r); }
         else r=k_(y);
@@ -1110,7 +1115,7 @@ static K kamendi4d(K d, K i, K f, K y) {
       else i(n(p),_k(pv[i]);pv[i]=pp[i];pp[i]=0)
        _k(p);
       break;
-    case 1: case 2: case 3: case 4: case 6:
+    case 1: case 2: case 3: case 4: case 6: case 8: case 9:
       if(b) i(n(v),r=fe(k_(f),k_(pv[i]),k_(y),0);EC(r);_k(pv[i]);pv[i]=r)
       else i(n(v),_k(pv[i]);pv[i]=k_(y))
       break;
@@ -1145,7 +1150,7 @@ static K kamendi4d(K d, K i, K f, K y) {
         if(n(i_)!=n(y_)) { e=KERR_LENGTH; goto cleanup; }
         i(n(i_),d=kamendi4d(d,k_(piu[i]),k_(f),t(4,pys[i]));EC(d))
         break;
-      case 1: case 2: case 3: case 4: case 6: case 15:
+      case 1: case 2: case 3: case 4: case 6: case 8: case 9: case 15:
         while(pf->j<n(i_)) {
           K i2=piu[pf->j++];
           if(s(i2)) { e=KERR_TYPE; goto cleanup; }
@@ -1415,7 +1420,7 @@ static K kamendi4v(K d, K i, K f, K y) {
       break;
     case -1:
       switch(Ty) {
-      case  1: case 2: case 3: case 4: case 6:
+      case  1: case 2: case 3: case 4: case 6: case 8: case 9:
         if(b) { i(n(i),r=fe(k_(f),k_(pdu[pii[i]]),k_(y),0); EC(r); _k(pdu[pii[i]]); pdu[pii[i]]=r) }
         else { i(n(i),_k(pdu[pii[i]]); pdu[pii[i]]=k_(y)) }
         break;
@@ -1446,7 +1451,7 @@ static K kamendi4v(K d, K i, K f, K y) {
       } break;
     case  6:
       switch(Ty) {
-      case  1: case 2: case 3: case 4: case 6:
+      case  1: case 2: case 3: case 4: case 6: case 8: case 9:
         if(b) { i(n(d),r=fe(k_(f),k_(pdu[i]),k_(y),0); EC(r); _k(pdu[i]); pdu[i]=r) }
         else { i(n(d),_k(pdu[i]); pdu[i]=k_(y)) }
         break;
@@ -1506,7 +1511,7 @@ static K kamendi4v(K d, K i, K f, K y) {
           if(n(i_)!=n(y_)) { e=KERR_LENGTH; goto cleanup; }
           i(n(i_),d=kamendi4v(d,k_(piu[i]),k_(f),t(4,pys[i]));EC(d))
           break;
-        case 1: case 2: case 3: case 4: case 6: case 15:
+        case 1: case 2: case 3: case 4: case 6: case 8: case 9: case 15:
           while(pf->j<n(i_)) {
             K i2=piu[pf->j++];
             if(s(i2)) { e=KERR_TYPE; goto cleanup; }
@@ -2577,7 +2582,7 @@ K kslide(K f, K a, K x, char *av) {
   else {
     s=llabs((i64)ik(a));
     m=(nx-v+s)/s;
-    if((m-1)*s+v!=n(xm)) { e=7; goto cleanup; }
+    if((m-1)*s+v!=n(xm)) { e=KERR_VALENCE; goto cleanup; }
     PRK(m);
     pxm=px(xm);
     if(n) {

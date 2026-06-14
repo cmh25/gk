@@ -16,6 +16,7 @@ ck[val ans;1]            / valence-0 link reports 1 (no valence-0 fns)
 ck[neg 9;-9]             / monadic juxtaposition
 ck[neg[10];-10]         / monadic bracket
 ck[add[3;4];7]          / dyadic bracket
+ck[3 add 4;7]           / dyadic infix
 ck[add . 5 6;11]        / dot apply (spreads)
 ck[s3[1;2;3];6]         / valence 3
 
@@ -47,6 +48,23 @@ ck[add'[1 2 3;10 20 30];11 22 33]      / each-pair (bracket)
 ck[1 2 3 add'10 20 30;11 22 33]        / each-pair (infix)
 ck[add/1 2 3 4;10]                     / fold
 ck[add\1 2 3 4;1 3 6 10]               / scan
+
+/ dictionaries: bulk make, streaming make, nesting, read by key/keys/vals
+mk:f 2:("t_mkdict";1)
+dnewset:f 2:("t_dnewset";1)
+nest:f 2:("t_nestdict";1)
+dlook:f 2:("t_dlook";2)
+dkeys:f 2:("t_dkeys";1)
+dvals:f 2:("t_dvals";1)
+ck[mk[];.+(`a`b`c;1 2 3)]        / gk_dict builds a dict gk can look up
+ck[dnewset[];.+(`a`b`c;1 2 3)]   / gk_dnew+gk_dset agrees with gk_dict
+ck[nest[][`a][`b];1]             / nested dict value (inner stored as a value)
+ck[dlook[mk[];`b];2]             / gk_dget read-by-key
+ck[dkeys mk[];`a`b`c]            / gk_dkeys
+ck[dvals mk[];1 2 3]             / gk_dvals (normalizes a homogeneous column to a vector)
+D:.+(`x`y;10 20)                 / round-trip a gk-built dict back through the ABI
+ck[dkeys D;`x`y]
+ck[dlook[D;`y];20]
 
 / errors: @[f;x;:] traps, giving (0;result) or (1;errorstring)
 ck[@[{"/no/such.so" 2:("t_add";2)};0;:];(1;"domain")]   / missing file

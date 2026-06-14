@@ -2028,9 +2028,16 @@ gk. `f` is the path to the shared library (`.so` / `.dylib` / `.dll`), `e` is th
 symbol name of the function to expose, and `t` is its number of
 parameters, `0–8`. The result is a gk function that can be invoked like any other.
 
+A bare `f` with no path separator (e.g. `"mylib.so"`) is resolved from the
+**working directory first** (`./mylib.so`), then falls back to the system library
+search — so a `.so` you built sits next to your script just works, while a real
+system library (`"libm.so.6"`) still resolves. A path that already carries a
+separator (`"./mylib.so"`, `"lib/mylib.so"`, or an absolute path) is used verbatim.
+
 ```
-add: "libmath.so" 2:("kadd";2)
-add[3;4]   / calls kadd(3,4) and returns its result
+  add:"libmath.so" 2:("kadd";2)
+  add[3;4]
+7 
 ```
 
 **Writing the C/C++ side.** The function receives and returns `K` (gk's 64-bit
@@ -2057,6 +2064,32 @@ gk exports the `gk_*` ABI so the library resolves it at load.
 
 Arguments are **borrowed**: do not free them (gk owns them); to retain one past
 the call use `gk_ref()`. The library stays mapped for the life of the process.
+
+**Dictionaries.** A shim can also build and read gk dictionaries (symbol-keyed
+maps), which unlocks libraries that return *named* data — SQLite result sets,
+JSON, config trees:
+
+```c
+GK_FN K row(K a) {  /* .+(`id`name;(7;"abe")) */
+  K d = gk_dnew();
+  gk_dset(d, "id",   gk_mki(7));
+  gk_dset(d, "name", gk_mkstr("abe"));
+  return d;
+}
+```
+
+`gk_dnew()` makes an empty dict; `gk_dset(d,key,val)` inserts or updates;
+`gk_dict(keys,vals,n)` is one-call sugar when you already have parallel columns.
+Values nest freely — a value may itself be a dict (build the inner one first and
+`gk_dset` it in). To read: `gk_isdict(x)`, `gk_dget(d,key)` (the value, or null if
+absent), `gk_dkeys(d)` (the key symbol vector), `gk_dvals(d)` (the value list).
+A dict reports `gk_t(x)==GK_LIST`; use `gk_isdict` to tell them apart.
+
+`gk_dset` and `gk_dict` **consume** their values — the reference moves into the
+dict, so build a value with `gk_mk*` and hand it straight in (do not reuse or
+unref it); `gk_ref()` a borrowed argument first if you mean to store it. Keys are
+C strings the dict interns. `gk_dvals` normalizes its result, so a homogeneous
+value column comes back as a typed vector (a mixed column stays a general list).
 
 `domain error` if `f` can't be loaded or `e` can't be resolved within it (an OS
 message may also appear); `type error` if `f`, `e`, or `t` are not as described.
@@ -2174,13 +2207,84 @@ slice) as one vector of that type — `c` char, `i` int, `j` i64, `e` f32,
 
 | Command | Description |
 |---------|-------------|
-| `\l file` | load file |
+| `\l file` | load file (searches `GKPATH`, see below) |
 | `\t expr` | time expression |
 | `\p n` | set print precision |
 | `\v` | list variables |
 | `\\` | exit |
 
 In the **interactive** top-level REPL, **`\`** alone (then Enter) prints a **help index** of further `\`-topics, for example `\0` (data), `\+` (verbs), `\'` (adverbs), `\_` (reserved), `\.` (assign / control / debug), `\:` (I/O), `\-` (client/server), `` \` `` (OS), `\?` (commands). At nested prompts (e.g. debug under `\e 1`), a lone `\` is **abort**, not this menu.
+
+### Load path (`GKPATH`)
+
+`\l` first tries the name as given (so absolute and cwd-relative paths work
+unchanged). If that misses **and** the name is not absolute, it searches the
+directories in the `GKPATH` environment variable, in order, and loads the
+first match. Separator is `:` on unix, `;` on Windows. Files need no `.k`
+suffix, so an extension can be loaded by bare name:
+
+```
+$ export GKPATH=".:/path/to/scripts
+$ ./gk -q
+  \l mylib  / loads /path/to/scripts/mylib
+```
+
+**Packages.** When the resolved name is a *directory* rather than a file, gk
+loads the package entry script `load.k` inside it (the `__init__.py` / `index.js`
+convention). So a single `GKPATH` entry can hold many self-contained packages,
+each in its own subdirectory. gk ships example packages in `ext/` of the source
+tree:
+
+```
+ext/
+  lin/                / Linux examples
+    bignum/
+      load.k          / \l bignum loads this
+      bignum.so       / the 2:-linked shim (GMP big integers)
+    cuda/
+      load.k
+      cuda.so         / GPU f32 matmul via cuBLAS
+  mac/                / macOS examples
+    accelerate/
+      load.k
+      accelerate.dylib  / CPU f32 matmul via the Accelerate BLAS framework
+  win/                / Windows examples
+    msgbox/
+      load.k
+      msgbox.dll      / a native Win32 modal dialog (user32 MessageBox)
+$ export GKPATH=/path/to/gk/ext/lin    / one entry, many packages
+  \l bignum
+```
+
+The examples are split by host OS (`lin`/`mac`/`win`) because each shim is
+platform-specific -- it links a native library and is built with that
+platform's toolchain (a `makefile` on lin/mac, a `make.bat` driving MSVC `cl`
+on win). The `2:` ABI itself (`gk.h`) is identical across all three.
+
+The entry script locates its sibling `.so` through **`.z.filepath`** (set by
+`\l`/`load` to the path of the script currently being loaded). Since the entry
+is always `load.k`, drop that known suffix and append the library name -- a
+fixed, absolute path, so a stray `bignum.so` elsewhere on `GKPATH` can never
+shadow the right one. A `\d` at the top defines the verbs into a namespace of
+the package's name (reached as `bignum.bmul` etc.); `load()` restores the
+caller's namespace on return:
+
+```
+  \d bignum
+  f:((-6)_.z.filepath),"bignum.so"   / drop "load.k", append the lib
+  bmul:f 2:("bmul";2)                / -> bignum.bmul
+```
+
+(A namespace is just a dict on the ktree, so its name may be anything -- even a
+built-in verb. But if it shadows one -- e.g. `\d mul` vs the `mul` primitive --
+the bare `mul.gmul` parses as the verb applied to `.gmul`; reach such a
+namespace's members by their fully-qualified path, `.k.mul.gmul`.)
+
+This is the intended mechanism for distributable extensions (`2:`-linked
+shared-library shims kept outside the core binary): install them anywhere,
+point `GKPATH` at the directory, and `\l name` finds the package. Only `\l`
+searches `GKPATH`; the command-line script argument (`gk file`) stays literal
+(though it, too, loads `load.k` if handed a directory).
 
 ---
 

@@ -1,7 +1,7 @@
 #ifndef GK_H
 #define GK_H
 /* ============================================================================
- * gk.h -- foreign-function ABI for gk `2:` link object code.
+ * gk.h -- foreign-function ABI for gk 2: link object code.
  *
  *   A gk value (K) is a 64-bit tagged word passed BY VALUE (not a pointer).
  *   A 2:-linked C or C++ function takes K arguments and returns a K:
@@ -19,8 +19,7 @@
  *   the call, retain it with gk_ref(); return a freshly made value (or
  *   gk_ref(arg)). Return gk_err("msg") to raise an error in the gk caller.
  *
- *   Self-contained: include ONLY this file. The K layout below mirrors gk's
- *   internal representation and is checked against it at gk build time.
+ *   Self-contained: include ONLY this file.
  * ==========================================================================*/
 #include <stdint.h>
 
@@ -39,7 +38,7 @@
 #  define GK_API
 #endif
 
-/* GK_FN -- mark each function you expose to `2:`. On Windows a DLL exports
+/* GK_FN -- mark each function you expose to 2:. On Windows a DLL exports
    nothing by default, so 2: (GetProcAddress) can't find an unmarked function;
    GK_FN adds the needed __declspec(dllexport). No-op on POSIX (ELF/Mach-O
    export non-static functions already). Usage:  GK_FN K add(K x, K y){...}  */
@@ -64,20 +63,20 @@ typedef struct {
 
 /* Type codes returned by gk_t(): positive = atom/list, negative = vector
    (a vector type is the negation of its atom type, e.g. gk_mkiv -> GK_I32v). */
-#define GK_LIST    0         /* general (mixed) K list */
-#define GK_I32     1         /* i32    atom */
-#define GK_F64     2         /* f64    atom */
-#define GK_CHAR    3         /* char   atom */
-#define GK_SYM     4         /* symbol atom */
-#define GK_NULL    6         /* null */
-#define GK_I64     8         /* i64    atom */
-#define GK_F32     9         /* f32    atom */
-#define GK_I32v   -1         /* i32    vector */
-#define GK_F64v   -2         /* f64    vector */
-#define GK_CHARv  -3         /* char   vector (a gk string) */
-#define GK_SYMv   -4         /* symbol vector */
-#define GK_I64v   -8         /* i64    vector */
-#define GK_F32v   -9         /* f32    vector */
+#define GK_LIST   0  /* general (mixed) K list */
+#define GK_I32    1  /* i32    atom */
+#define GK_F64    2  /* f64    atom */
+#define GK_CHAR   3  /* char   atom */
+#define GK_SYM    4  /* symbol atom */
+#define GK_NULL   6  /* null */
+#define GK_I64    8  /* i64    atom */
+#define GK_F32    9  /* f32    atom */
+#define GK_I32V  -1  /* i32    vector */
+#define GK_F64V  -2  /* f64    vector */
+#define GK_CHARV -3  /* char   vector */
+#define GK_SYMV  -4  /* symbol vector */
+#define GK_I64V  -8  /* i64    vector */
+#define GK_F32V  -9  /* f32    vector */
 
 /* internal: the heap object behind x (strip the 16 tag bits) */
 #define GK_KO(x) ((gk_ko*)((K)(x) & 0xFFFFFFFFFFFFULL))
@@ -139,16 +138,26 @@ GK_API K    gk_ref(K x);               /* retain (bump refcount); returns x */
 GK_API void gk_unref(K x);             /* release (drop refcount) */
 GK_API K    gk_norm(K x);              /* normalize a built K list to a typed vector */
 
+/* ---- dictionaries --------------------------------------------------------- */
+/* A gk dict maps symbol keys to K values. gk_t() of a dict reports GK_LIST (0);
+   use gk_isdict() to tell them apart. Nesting is free: a value may itself be a
+   dict (build inner ones first and store them as values).
+   OWNERSHIP: gk_dset and gk_dict CONSUME each value -- the reference is moved
+   into the dict, so build a value with gk_mk*() and hand it straight in; do not
+   reuse or unref it. To insert a borrowed argument, gk_ref() it first. Keys are
+   C strings that the dict interns (copying as needed); you keep your strings.
+   The reads return owned values (retained/copied), freed once by gk, like every
+   other gk_* return. */
+GK_API K    gk_dnew(void);                 /* a fresh empty dict */
+GK_API void gk_dset(K d, const char *key, K val);  /* insert/update; CONSUMES val */
+GK_API K    gk_dict(const char **keys, const K *vals, int32_t n); /* column sugar over dnew+dset; CONSUMES each val */
+GK_API int  gk_isdict(K x);                /* 1 if x is a dict, else 0 */
+GK_API K    gk_dkeys(K d);                 /* key symbol vector (owned) */
+GK_API K    gk_dvals(K d);                 /* value list (owned) */
+GK_API K    gk_dget(K d, const char *key); /* value for key, or the null value */
+
 #ifdef __cplusplus
 }
-#endif
-
-/* Layout self-check (also runs in author translation units, catching a stale
-   copy of this header against a newer gk). */
-#if defined(__cplusplus)
-static_assert(sizeof(gk_ko) == 24, "gk.h: gk_ko layout mismatch");
-#elif defined(__STDC_VERSION__) && __STDC_VERSION__ >= 201112L
-_Static_assert(sizeof(gk_ko) == 24, "gk.h: gk_ko layout mismatch");
 #endif
 
 #endif /* GK_H */

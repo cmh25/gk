@@ -6,7 +6,7 @@
 #include <time.h>
 #ifdef _WIN32
 #include "systime.h"
-#include "unistd.h"
+#include "win_unistd.h"
 #define getpid() _getpid()
 #else
 #include "sys/time.h"
@@ -101,6 +101,22 @@ void scope_set_z_w(int fd) {
   K *pz = px(Z);
   K *pzv = px(pz[1]);
   pzv[6] = t(1, (u32)fd);
+}
+
+/* See scope.h. dset retains its value, so for a freshly built path vector we
+ * drop our creating ref afterward (the dict then owns the lone ref); the
+ * displaced previous value is freed by dset's update path. _set returns the
+ * old value retained so _restore can put it back and drop the held ref. */
+K scope_set_z_filepath(char *path) {
+  K old = dget(Z, sp("filepath"));   /* retained ref, or 0 if key absent */
+  K v = path ? tnv(3,strlen(path),xmemdup(path,1+strlen(path))) : null;
+  (void)dset(Z, sp("filepath"), v);
+  if(v!=null) _k(v);
+  return old;
+}
+void scope_restore_z_filepath(K old) {
+  (void)dset(Z, sp("filepath"), old?old:null);
+  if(old) _k(old);
 }
 
 static K scope_new_(K p, K k) {
@@ -343,6 +359,7 @@ static K scope_set_(K s, char *n, K v) {
     kd=(ko*)(b(48)&d);
     if(kd->r>1) { --kd->r; d=kcp(d); if(E(d)) { _k(v); return d; } } /* copy on write */
     e=m=k_(d);
+    K par=0; char *pkey=0;  /* parent node of e and the key linking it, for COW relink */
     while((ss=strtok_r(0,".",&rp))) {
       t=ss; e=d; _k(d);
       if(v==e) copy=1;  /* v in traversal path - need to copy */
@@ -354,9 +371,21 @@ static K scope_set_(K s, char *n, K v) {
          If kcp fails (e.g. KERR_STACK while deep-copying a circular value),
          leaving --kd->r already applied would double-decrement e: the manual
          drop plus the _k(m) below (m still owns e through the traversal tree)
-         would underflow e's refcount and double-free it at teardown. */
-      if(kd->r>1 && v!=e) { K cp=kcp(e); if(E(cp)) { _k(d); _k(m); _k(v); return cp;} --kd->r; e=cp; }
+         would underflow e's refcount and double-free it at teardown.
+         The copy must also be relinked into its parent: the parent still
+         physically points at the original e (set by the prior iteration's
+         dset below), so dset(par,pkey,cp) swaps in the copy and drops that
+         reference properly. Without it the original is under-counted (the bare
+         --kd->r assumes a transfer that never happens) and double-freed, and
+         the copy is orphaned. The top node (par==0) is owned via m and written
+         back by scope_set_ below, so it just needs the bare drop. */
+      if(kd->r>1 && v!=e) {
+        K cp=kcp(e); if(E(cp)) { _k(d); _k(m); _k(v); return cp; }
+        if(par) { (void)dset(par,pkey,cp); _k(cp); } else --kd->r;
+        e=cp;
+      }
       (void)dset(e,sp(ss),d);
+      par=e; pkey=t;
     }
     _k(d);
     if(!strtok_r(0,".",&rp)) {

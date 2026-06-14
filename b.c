@@ -6,7 +6,7 @@
 #include <math.h>
 #ifdef _WIN32
 #include "systime.h"
-#include "unistd.h"
+#include "win_unistd.h"
 #else
 #include <sys/time.h>
 #include <unistd.h>
@@ -2192,7 +2192,8 @@ K dir_(K x) {
   K d,q,t=0,es,fs;
   size_t n;
 
-  if(ecount) return kerror("domain");
+  if(ecount && x!=null) return kerror("domain"); /* read-only \d (display) is safe while
+                                                     suspended; changing namespace is not */
 
   if(x!=null) {
     psx=sk(x);
