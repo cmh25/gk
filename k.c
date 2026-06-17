@@ -458,15 +458,12 @@ const char* kprint_(K x, char *s, char *e, char *s0) {
       break;
     case 0xc6: mprintf("%s%s%s",s,*BMONAD[ik(x)].nm,e); break; /* int-index -> name */
     case 0xc7: mprintf("%s%s%s",s,*BDYAD[ik(x)].nm,e); break;
-    /* 0xc8 retired in Pass 4 -- replaced by 0xd9. */
     case 0xc9: mprintf("%s%s%s",s,sk(x),e); break;
     case 0xca: mprintf("%s%s%s",s,sk(x),e); break;
     case 0xcb: mprintf("%s%s%s",s,sk(x),e); break;
     case 0xcc: mprintf("%s%s%s",s,sk(x),e); break;
-    //case 0xcd: mprintf("%s%s%s",s,sk(x),e); break;
     case 0xce: mprintf("%s%c:%s",s,ck(x),e); break;
-    //case 0xcf: mprintf("%s%c:%s",s,ck(x),e); break;
-    case 0xdc: { K *pw=px(x); mprintf("%s%s%s",s,sk(pw[2]),e); } break; /* 2:-linked C fn: show symbol */
+    case 0xdc: { K *pw=px(x); mprintf("%s%s%s",s,sk(pw[2]),e); } break;
     case 0xd0:
       px=px(x);
       kprint_(px[0],s,"","");
@@ -476,14 +473,12 @@ const char* kprint_(K x, char *s, char *e, char *s0) {
     case 0xd1: mprintf("%s%s%s",s,sk(x),e); break;
     case 0xd2: mprintf("%s%s%s",s,sk(x),e); break;
     case 0xd3: mprintf("%s%s%s",s,sk(x),e); break;
-    /* 0xd4/0xd5/0xd6 retired in Pass 4 -- replaced by 0xd9. */
     case 0xd7:
       px=px(x);
       kprint_(px[0],s,"",s0);
       kprint_(px[1],"",e,s0);
       break;
-    case 0xd9: /* Issue #2 Pass 3a: (f;args) projection wrapper.
-                  Print as f[a0;a1;...]. Inulls render as empty. */
+    case 0xd9:
       px=px(x);
       kprint_(px[0],s,"",s0);
       mprintf("[");
@@ -494,7 +489,6 @@ const char* kprint_(K x, char *s, char *e, char *s0) {
       mprintf("]");
       mprintf(e);
       break;
-    /* 0xdb retired in Pass 1b -- draw/ now prints through the 0xda case */
     case 0x80:
       mprintf("%s.",s);
       s2=xmalloc(2+strlen(s0));
@@ -731,11 +725,9 @@ K val(K x) {
     break;
   }
   case 0xc3: px=px(b(48)&x); n=FN_VALENCE(px[3]); r=t(1,n?n:1); break;  /* val[{}] = 1 */
-  /* 0xc4 retired in Pass 4 -- replaced by 0xd9. */
   case 0xc5: r=t(1,2); break;
   case 0xc6: r=t(1,1); break;
   case 0xc7: r=t(1,2); break;
-  /* 0xc8 retired in Pass 4 -- replaced by 0xd9. */
   case 0xc9: r=t(1,1); break;
   case 0xca: r=t(1,2); break;
   case 0xcb: r=t(1,3); break;
@@ -743,9 +735,8 @@ K val(K x) {
   case 0xcd: r=t(1,2); break;
   case 0xce: r=t(1,1); break;
   case 0xcf: r=t(1,2); break;
-  case 0xdc: { px=px(x); i32 v=ik(px[1]); r=t(1,(u32)(v<1?1:v)); } break; /* 2:-linked C fn: stored valence (no valence-0 fns: report >=1) */
+  case 0xdc: { px=px(x); i32 v=ik(px[1]); r=t(1,(u32)(v<1?1:v)); } break;
   case 0xd0: r=t(1,1); break;
-  /* 0xd4/0xd5/0xd6 retired in Pass 4 -- replaced by 0xd9. */
   case 0xd7: r=t(1,1); break;
   case 0xd9: { /* (f;args) projection wrapper, Issue #2 Pass 3a.
                   val((f;args)) = max(val(f) - nb, ni, 1) where:
@@ -958,10 +949,6 @@ K kamendi3(K d, K i, K f) {
   int kt=0;
 
   if(d==inull||i==inull||f==inull) {
-    /* Issue #2 Pass 3b-2: produce 0xd9(verb, (d;i;f)) projection
-       wrapper instead of 0xd5 4-tuple. Inulls in the args plist
-       mark elided slots; fapply()'s 0xd9 peel + merge_args fills
-       them on subsequent application. */
     K args=tn(0,3); K *pa=px(args);
     pa[0]=kcp(d); if(E(pa[0])) { e=pa[0]; _k(args); goto cleanup; }
     pa[1]=kcp(i); if(E(pa[1])) { e=pa[1]; _k(args); goto cleanup; }
@@ -1568,7 +1555,6 @@ K kamendi4(K d, K i, K f, K y) {
   int kt=0;
 
   if(d==inull||i==inull||f==inull||y==inull) {
-    /* Issue #2 Pass 3b-2: 0xd9 wrapper (was 0xd6). */
     K args=tn(0,4); K *pa=px(args);
     pa[0]=kcp(d); if(E(pa[0])) { e=pa[0]; _k(args); goto cleanup; }
     pa[1]=kcp(i); if(E(pa[1])) { e=pa[1]; _k(args); goto cleanup; }
@@ -1997,7 +1983,6 @@ K kamend3(K d, K i, K f) {
   int kt=0;
 
   if(d==inull||i==inull||f==inull) {
-    /* Issue #2 Pass 3b-2: 0xd9 wrapper (was 0xd5). */
     K args=tn(0,3); K *pa=px(args);
     pa[0]=kcp(d); if(E(pa[0])) { e=pa[0]; _k(args); goto cleanup; }
     pa[1]=kcp(i); if(E(pa[1])) { e=pa[1]; _k(args); goto cleanup; }
@@ -2507,7 +2492,6 @@ K kamend4(K d, K i, K f, K y) {
   int kt=0;
 
   if(d==inull||i==inull||f==inull||y==inull) {
-    /* Issue #2 Pass 3b-2: 0xd9 wrapper (was 0xd6). */
     K args=tn(0,4); K *pa=px(args);
     pa[0]=kcp(d); if(E(pa[0])) { e=pa[0]; _k(args); goto cleanup; }
     pa[1]=kcp(i); if(E(pa[1])) { e=pa[1]; _k(args); goto cleanup; }
@@ -2553,10 +2537,6 @@ K kslide(K f, K a, K x, char *av) {
   i8 Tx;
 
   if(T(f)==10||T(a)==10||T(x)==10) {
-    /* Issue #2 Pass 3b-2: 0xd9 wrapper (was 0xd5). The arg-slot
-       order (a, f, x) matches the legacy 0xd5 layout so fe()'s
-       default primitive case (nx==3 && ff==16) still extracts f,
-       a, x in the right order after fapply's merge. */
     K args=tn(0,3); K *pa=px(args);
     pa[0]=a; pa[1]=f; pa[2]=x;
     args=st(0x81,args);
@@ -2660,12 +2640,10 @@ u64 khashcb(K x) {
   case 0x82: r=r+khash(x&(K)0xff00ffffffffffff); break;
   case 0x85: r=r+khash(x&(K)0xff00ffffffffffff); break;
   case 0xc0: r=r+(u64)ck(x)*2654435761U; break;
-  case 0xc3: PXK; r=r+khash(pxk[0]); break; /* Issue #2 Pass 6: no av slot */
-  /* 0xc4 retired in Pass 4 -- replaced by 0xd9. */
+  case 0xc3: PXK; r=r+khash(pxk[0]); break;
   case 0xc5: PXK; i(nx,r^=r+khash(pxk[i])) break;
   case 0xc6: r=r+khash(x&(K)0xff00ffffffffffff); break;
   case 0xc7: r=r+khash(x&(K)0xff00ffffffffffff); break;
-  /* 0xc8 retired in Pass 4 -- replaced by 0xd9. */
   case 0xcc: r=r+khash(x&(K)0xff00ffffffffffff); break;
   case 0xcd: r=r+khash(x&(K)0xff00ffffffffffff); break;
   case 0xce: r=r+khash(x&(K)0xff00ffffffffffff); break;
@@ -2675,12 +2653,10 @@ u64 khashcb(K x) {
   case 0xd1: r=r+khash(x&(K)0xff00ffffffffffff); break;
   case 0xd2: r=r+khash(x&(K)0xff00ffffffffffff); break;
   case 0xd3: r=r+khash(x&(K)0xff00ffffffffffff); break;
-  /* 0xd4/0xd5/0xd6 retired in Pass 4 -- replaced by 0xd9. */
   case 0xd7: r=r+khash(x&(K)0xff00ffffffffffff); break;
   case 0xd8: r=r+khash(x&(K)0xff00ffffffffffff); break;
   case 0xd9: r=r+khash(x&(K)0xff00ffffffffffff); break;
   case 0xda: PXK; r=r+khash(pxk[0]); r^=r+khash(pxk[1]); break;
-  /* 0xdb retired in Pass 1b */
   default:
     fprintf(stderr,"error: unsupported type in khashcb()\n");
     exit(1);
@@ -2722,11 +2698,9 @@ K kcpcb(K x) {
   case 0x85: p=kcp(x&(K)0xff00ffffffffffff); if(E(p)) r=p; else r=set_sx(p,0x85); break;
   case 0xc0: p=kcp(x&(K)0xff00ffffffffffff); if(E(p)) r=p; else r=set_sx(p,0xc0); break;
   case 0xc3: r=fncp(x); break;
-  /* 0xc4 retired in Pass 4 -- replaced by 0xd9. */
   case 0xc5: p=kcp(x&(K)0xff00ffffffffffff); if(E(p)) r=p; else r=set_sx(p,0xc5); break;
   case 0xc6: p=kcp(x&(K)0xff00ffffffffffff); if(E(p)) r=p; else r=set_sx(p,0xc6); break;
   case 0xc7: p=kcp(x&(K)0xff00ffffffffffff); if(E(p)) r=p; else r=set_sx(p,0xc7); break;
-  /* 0xc8 retired in Pass 4 -- replaced by 0xd9. */
   case 0xcc: p=kcp(x&(K)0xff00ffffffffffff); if(E(p)) r=p; else r=set_sx(p,0xcc); break;
   case 0xcd: p=kcp(x&(K)0xff00ffffffffffff); if(E(p)) r=p; else r=set_sx(p,0xcd); break;
   case 0xce: p=kcp(x&(K)0xff00ffffffffffff); if(E(p)) r=p; else r=set_sx(p,0xce); break;
@@ -2736,12 +2710,10 @@ K kcpcb(K x) {
   case 0xd1: p=kcp(x&(K)0xff00ffffffffffff); if(E(p)) r=p; else r=set_sx(p,0xd1); break;
   case 0xd2: p=kcp(x&(K)0xff00ffffffffffff); if(E(p)) r=p; else r=set_sx(p,0xd2); break;
   case 0xd3: p=kcp(x&(K)0xff00ffffffffffff); if(E(p)) r=p; else r=set_sx(p,0xd3); break;
-  /* 0xd4/0xd5/0xd6 retired in Pass 4 -- replaced by 0xd9. */
   case 0xd7: p=kcp(x&(K)0xff00ffffffffffff); if(E(p)) r=p; else r=set_sx(p,0xd7); break;
   case 0xd8: p=kcp(x&(K)0xff00ffffffffffff); if(E(p)) r=p; else r=set_sx(p,0xd8); break;
   case 0xd9: p=kcp(x&(K)0xff00ffffffffffff); if(E(p)) r=p; else r=set_sx(p,0xd9); break;
   case 0xda: p=kcp(x&(K)0xff00ffffffffffff); if(E(p)) r=p; else r=set_sx(p,0xda); break;
-  /* 0xdb retired in Pass 1b */
   }
   --d;
   return r;

@@ -45,10 +45,6 @@ static inline K tnc(i32 t, u64 n, void *v) {
   return tnv(t,(i32)n,v);
 }
 
-/* Single source-of-truth tables for the type-1 int-index builtins.  A verb
-   value is t(1, st(0xc6|0xc7, idx)); idx is the position here.  Shared with
-   lex.c (reserved() emits the index) and k.c (print maps index->name via
-   *nm).  &R_X is a compile-time-constant address; R_X is filled at runtime. */
 const binfo2 BDYAD[] = {
   {&R_DRAW,draw},{&R_VS,vs},{&R_SV,sv},{&R_ATAN2,atan2_},{&R_DIV,div_},
   {&R_AND,and_},{&R_OR,or_},{&R_XOR,xor_},{&R_HYPOT,hypot_},{&R_GCD,gcd_},
@@ -78,8 +74,6 @@ int bi_lookup(char *nm, u64 *sub) {
   for(int i=0;i<NBMONAD;i++) if(nm==*BMONAD[i].nm) { *sub=0xc6; return i; }
   return -1;
 }
-/* int-index verb value for a builtin name literal (used by builtins that
-   each-apply themselves over general lists, e.g. hypot/sm/ss/rot/shift). */
 static K biv(char *nm) { u64 sub; int i=bi_lookup(sp(nm),&sub); return t(1,st(sub,i)); }
 
 K builtin(K f, K a, K x) {
@@ -137,13 +131,12 @@ K builtin(K f, K a, K x) {
   else if(0xcd==s(f)) {
     if(!x) r=KERR_TYPE;
     else if(!a) { /* project */
-      /* Issue #2 Pass 3b-3: 0xd9 wrapper (was 0xc8). */
       K verb_k=t(4,st(0xcd,sp(a2)));
       K args=tn(0,1); K *pa=px(args);
       pa[0]=x;
       args=st(0x81,args);
       r=wrap_proj(verb_k, args);
-      x=0; /* args plist took ownership of x; _k(x) at exit no-ops */
+      x=0; /* args plist took ownership of x */
     }
     else if(a2==sp("0:")) r=zerocolon(a,x);
     else if(a2==sp("1:")) r=onecolon(a,x);

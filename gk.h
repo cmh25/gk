@@ -62,7 +62,7 @@ typedef struct {
 } gk_ko;
 
 /* Type codes returned by gk_t(): positive = atom/list, negative = vector
-   (a vector type is the negation of its atom type, e.g. gk_mkiv -> GK_I32v). */
+   (a vector type is the negation of its atom type, e.g. gk_mkiv -> GK_I32V). */
 #define GK_LIST   0  /* general (mixed) K list */
 #define GK_I32    1  /* i32    atom */
 #define GK_F64    2  /* f64    atom */

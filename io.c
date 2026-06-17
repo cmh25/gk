@@ -700,16 +700,7 @@ static void *linkdlopen(const char *p) {
 }
 #endif
 
-/* f 2:(e;t) -- Link Object Code.
-   a (=f) names a shared object; x is the pair (e;t) where e is the symbol of
-   an exported function and t is its valence (number of K parameters).  The
-   result is a callable value (subtype 0xdc) holding the resolved function
-   pointer and valence; applying it calls the C function with t borrowed K
-   arguments and returns the K it produces.  The external function must be
-   built against gk's K ABI: it receives/returns `K` (the 64-bit tagged word)
-   and must not free its arguments (gk owns them) -- to retain one it bumps the
-   refcount with k_().  Domain error if the file or symbol can't be resolved;
-   type error if f, e, or t are not as described. */
+/* f 2:(e;t) -- Link Object Code. */
 static K twocolon2(K a, K x) {
 #ifdef FUZZING
   (void)a; (void)x;

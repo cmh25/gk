@@ -27,11 +27,6 @@ void fninit(void) {
   spf=sp("f");
 }
 
-/* Issue #2 Pass 6 cleanup: 0xc3 lambda layout shrunk from 5 to 4
-   slots.  The legacy pf[3] av slot is gone (post-pass-6 the lexer
-   never produces lambdas with embedded adverbs, and composition
-   happens at the AST level via 0xda(0xc3, av)).  pf[3] carries valence
-   in low bits and the force-monad cache in high bits. */
 K fnnew(char *s) {
   K f,*pf;
   char *pd;
@@ -121,10 +116,6 @@ K fnd(K f) {
       else s=1;
       break;
     case 2:
-      /* Issue #2 Pass 6: trailing adverbs no longer reach fnd --
-         lex.c terminates the lambda string at `}`, and ipc/tmr/v.c
-         pass bare `{...}` definitions.  Anything after `}` is a
-         parse error. */
       r=KERR_PARSE; goto cleanup;
     case 3:
       if(isalpha(*ff)) { s=4; SB(b,bm,j,*ff); j++; ffq=1; }
@@ -293,8 +284,6 @@ K fne_(K f, K x, char *av) {
   u64 n,nn;
 
   if(++d>maxr) { r=KERR_STACK; --d; goto cleanup; }
-
-  /* 0xc4 retired in Pass 4 -- replaced by 0xd9 (handled in fapply()). */
 
   pf=px(f);
   px=px(x);
@@ -528,55 +517,12 @@ K fne_fast(K f, K x) {
 }
 
 K fne(K f, K x, char *av) {
-  if(0xd9==s(f)) {
-    /* Issue #2 Pass 9: (f;args) projection wrapper.  Always route
-       through fapply.  fapply merges bound args with new args
-       and recurses; eventual lambda dispatch sees a single fully
-       conformable plist with the projection's stored adverbs as
-       av.  Pre-Pass-9 fne had a direct-avdo shortcut that
-       treated `v x` (juxt) as iterate-over-x and gave different
-       answers than `v[x]` (bracket via r44 -> fapply).  Multi-
-       char av (chained explicit `'`) is handled at avdo's
-       multi-char peel using pxk[nx-1] as the iteration target
-       (Pass 9: newest-arg-first), so iterating projection wraps
-       still works after merge. */
-    return fapply(f,x,av);
-  }
-  if(0xda==s(f)) return fapply(f,x,av); /* same: route 0xda(c3,av) here
-                                            so callers don't need to peel.
-                                            Pre-pass-3b-5 some callers
-                                            passed bare 0xc3 only; with
-                                            the 0xc4->0xd9 migration the
-                                            same callers may now pass a
-                                            wrapper. */
-
-  /* fne_ assumes a bare 0xc3 lambda and reads pf[3] unconditionally; any
-     other callable subtype (e.g. 0xc5 verb-composition, which has only 2
-     slots) would overflow that read.  Such values can reach here via the
-     0xda(inner,av) dispatch in fe.c, which forwards 0xc3/0xc5/0xd9 inners
-     through fne.  Route every non-0xc3 callable through fapply, which
-     unpacks the plist and dispatches the right applier (fe/fc) for it. */
-  if(0xc3!=s(f)) return fapply(f, x, av);
-
-  /* Issue #2 Pass 6 cleanup: bare 0xc3 has no pf[3] av slot anymore --
-     just forward to fne_ with the caller's av. */
+  if(0xd9==s(f)) return fapply(f,x,av);
+  if(0xda==s(f)) return fapply(f,x,av);
+  if(0xc3!=s(f)) return fapply(f,x,av);
   return fne_(f, x, (av && *av) ? av : "");
 }
 
-/* Issue #2 Pass 2b-step-1.
-   Single-entry-point dispatcher for "apply lambda+av to args".
-   Accepts either bare 0xc3/0xc4 or 0xda(c3/c4, av_inner) wrapper
-   and combines the wrapper's av_inner with the caller's av_outer
-   before delegating to fne(). Takes ownership of f and x.
-
-   Until consumers in pgreduce_/fe.c are migrated through this in
-   2b-step-2 and 2b-step-3, this helper is unused at runtime.
-   Adding it first keeps 2b-step-1 a pure-additive commit. */
-/* Recursion-depth guard for the general apply path.  fapply mutually
-   recurses with fe()/kslide() (windowed/adverb apply) -- a cycle that never
-   passes through fne_'s guard, so without this it overflows the C stack
-   (afl found it).  Single-exit wrapper keeps fapply_impl's many returns
-   untouched; f and x are consumed, matching the apply convention. */
 static K fapply_impl(K f, K x, char *av_outer);
 K fapply(K f, K x, char *av_outer) {
   static int d=0;

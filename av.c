@@ -86,9 +86,6 @@ cleanup:
   return e;
 }
 
-/* Pass 5: each-conformable fold (over) on a multi-arg callable f
-   with x being a 0x81 plist of N args.  Was over7 (0xc3-only via
-   fne_); now type-agnostic through fe(). */
 static K over_fe(K f, K x, char *av) {
   K r=0,e,p=0,q=0,*pp,*pq,*pxk;
   i64 m=-1;
@@ -133,8 +130,6 @@ cleanup:
   return e;
 }
 
-/* Pass 5: each-conformable scan on a multi-arg callable f with x
-   a 0x81 plist of N args.  Was scan7 (0xc3-only); now via fe(). */
 static K scan_fe(K f, K x, char *av) {
   K r=0,e,p=0,q=0,*pp,*pq,*pxk,*prk;
   i64 m=-1;
@@ -177,8 +172,6 @@ cleanup:
   return e;
 }
 
-/* overm7 retired in Pass 5 -- overm now handles 0xc3 too. */
-
 static K overm(K f, K x, char *av) {
   K r=0,e,p,q;
   int b=0,n=strlen(av);
@@ -201,8 +194,6 @@ cleanup:
   if(q!=r) _k(q);
   return e;
 }
-
-/* scanm7 retired in Pass 5 -- scanm now handles 0xc3 too. */
 
 static K scanm(K f, K x, char *av) {
   K r=0,t=0,e,q=0,*prk;
@@ -269,11 +260,6 @@ cleanup:
   return e;
 }
 
-/* overd7/scand7 retired in Pass 5 -- overdfe/scandfe handle 0xc3 too. */
-
-/* Pass 5: each-conformable apply on a multi-arg callable f with x
-   a 0x81 plist of args.  Was eachparam7 (0xc3-only via fne_); now
-   type-agnostic through fe(). */
 static K eachparamfe(K f, K x) {
   K r=0,p=0,q=0,*pp,*pq,*px,*pr,t;
   u64 m=0;
@@ -311,9 +297,6 @@ static K eachparamfe(K f, K x) {
   if(b==0&&m==1) { p=pr[0]; n(r)=0; _k(r); r=p; }
   return r;
 }
-
-/* each7/eachright7/eachleft7 retired in Pass 5 -- eachfe / eachrightfe
-   / eachleftfe handle 0xc3 too. */
 
 static K eachfe(K f, K a, K x, char *av) {
   K r=0,e,*prk;
@@ -366,10 +349,6 @@ cleanup:
   return e;
 }
 
-/* Pass 5 -- avdo unification.  Dispatch is on the adverb string, not
-   on s(f).  Per-element calls go through fe() uniformly, so f can be
-   any callable subtype (0xc3, 0xc5, 0xc6, 0xc7, 0xcc, 0xcd, 0xd0,
-   0xd9, 0xda) or a primitive verb (numeric ff). */
 K avdo(K f, K a, K x, char *av) {
   K r=0;
   int w,n=strlen(av);
@@ -391,10 +370,6 @@ K avdo(K f, K a, K x, char *av) {
   int isprim=!s(f) && !T(f);      /* numeric primitive verb code */
   static int d=0;
 
-  /* Issue #3 fuzz fix: avdo<->overm/scanm can recurse tightly without
-     going through fne_'s depth guard (each cycle peels one av char +
-     does fixed-point iter), so long adverb strings on a recursive
-     lambda blow the stack before maxr fires.  Track depth here too. */
   if(++d>maxr) { --d; _k(f); _k(a); _k(x); return kerror("stack"); }
 
   if(0x85==s(a)||0x85==s(x)) { _k(f); _k(a); _k(x); r=kerror("type"); }
