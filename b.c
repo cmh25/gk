@@ -4,6 +4,7 @@
 #include <string.h>
 #include <time.h>
 #include <math.h>
+#include <errno.h>
 #ifdef _WIN32
 #include "systime.h"
 #include "win_unistd.h"
@@ -39,10 +40,10 @@ static K vlookup(K x) {
   return r?r:KERR_VALUE;
 }
 
-/* tnv with size_t input; returns wsfull if n exceeds the i32 K count limit. */
+/* tnv with size_t input; returns wsfull if n exceeds the vector length limit. */
 static inline K tnc(i32 t, u64 n, void *v) {
-  if(n>(u64)INT32_MAX) return KERR_WSFULL;
-  return tnv(t,(i32)n,v);
+  if(n>=(u64)VMAX) return KERR_WSFULL;
+  return tnv(t,(i64)n,v);
 }
 
 const binfo2 BDYAD[] = {
@@ -163,6 +164,12 @@ K draw(K a, K x) {
   K r=0,e,p,q;
   i32 n=1,*pai;
   if(!a||!x) { e=KERR_TYPE; goto cleanup; }
+  if(ta==8) { /* long-atom count -> big draw; ? (v.c draw) does i64-count
+                 validation and the deal/roll/float-range dispatch */
+    r=k(14,tj(jk(a)),k_(x));
+    if(r<EMAX) { e=r; r=0; goto cleanup; }
+    return r;
+  }
   if(ta!=0 && ta!=1 && ta!=-1) { e=KERR_TYPE; goto cleanup; }
   if(tx!=1 && tx!=2 && ta!=-1) { e=KERR_TYPE; goto cleanup; }
   if(ta==1 && tx==1 && ik(x)==INT32_MIN) { e=KERR_WSFULL; goto cleanup; }
@@ -207,6 +214,8 @@ K dotp(K a, K x) {
 K at_(K a, K x) {
   K r=0;
   i32 *pri,*pai,*pxi;
+  i64 *pxj,*paj,*prj;
+  float *pae,*pre;
   double *prf,*paf;
   char *prc,*pac,**prs,**pas;
 
@@ -218,28 +227,54 @@ K at_(K a, K x) {
   case -1:
     switch(tx) {
     case  1: PAI; r=t(1,(u32)((ik(x)<0||(u64)(ik(x))>=na)?INT32_MIN:pai[ik(x)])); break;
-    case -1: PRI(nx); PAI; PXI; i(nx, pri[i]=(pxi[i]<0||pxi[i]>=(i32)na)?INT32_MIN:pai[pxi[i]]); break;
+    case -1: PRI(nx); PAI; PXI; i(nx, pri[i]=(pxi[i]<0||(u64)pxi[i]>=na)?INT32_MIN:pai[pxi[i]]); break;
+    case  8: PAI; r=t(1,(u32)((jk(x)<0||(u64)(jk(x))>=na)?INT32_MIN:pai[jk(x)])); break;
+    case -8: PRI(nx); PAI; pxj=px(x); i(nx, pri[i]=(pxj[i]<0||(u64)pxj[i]>=na)?INT32_MIN:pai[pxj[i]]); break;
     case  0: r=irecur2(at_,a,x); break;
     default: r=KERR_TYPE;
     } break;
   case -2:
     switch(tx) {
     case  1: PAF; r=t2((ik(x)<0||(u64)(ik(x))>=na)?NAN:paf[ik(x)]); break;
-    case -1: PRF(nx); PAF; PXI; i(nx, prf[i]=(pxi[i]<0||pxi[i]>=(i32)na)?NAN:paf[pxi[i]]); break;
+    case -1: PRF(nx); PAF; PXI; i(nx, prf[i]=(pxi[i]<0||(u64)pxi[i]>=na)?NAN:paf[pxi[i]]); break;
+    case  8: PAF; r=t2((jk(x)<0||(u64)(jk(x))>=na)?NAN:paf[jk(x)]); break;
+    case -8: PRF(nx); PAF; pxj=px(x); i(nx, prf[i]=(pxj[i]<0||(u64)pxj[i]>=na)?NAN:paf[pxj[i]]); break;
     case  0: r=irecur2(at_,a,x); break;
     default: r=KERR_TYPE;
     } break;
   case -3:
     switch(tx) {
     case  1: PAC; r=t(3,(ik(x)<0||(u64)(ik(x))>=na)?' ':(u8)pac[ik(x)]); break;
-    case -1: PRC(nx); PAC; PXI; i(nx, prc[i]=(pxi[i]<0||pxi[i]>=(i32)na)?' ':pac[pxi[i]]); break;
+    case -1: PRC(nx); PAC; PXI; i(nx, prc[i]=(pxi[i]<0||(u64)pxi[i]>=na)?' ':pac[pxi[i]]); break;
+    case  8: PAC; r=t(3,(jk(x)<0||(u64)(jk(x))>=na)?' ':(u8)pac[jk(x)]); break;
+    case -8: PRC(nx); PAC; pxj=px(x); i(nx, prc[i]=(pxj[i]<0||(u64)pxj[i]>=na)?' ':pac[pxj[i]]); break;
     case  0: r=irecur2(at_,a,x); break;
     default: r=KERR_TYPE;
     } break;
   case -4:
     switch(tx) {
     case  1: PAS; r=t(4,(ik(x)<0||(u64)(ik(x))>=na)?sp(""):pas[ik(x)]); break;
-    case -1: PRS(nx); PAS; PXI; i(nx, prs[i]=(pxi[i]<0||pxi[i]>=(i32)na)?sp(""):pas[pxi[i]]); break;
+    case -1: PRS(nx); PAS; PXI; i(nx, prs[i]=(pxi[i]<0||(u64)pxi[i]>=na)?sp(""):pas[pxi[i]]); break;
+    case  8: PAS; r=t(4,(jk(x)<0||(u64)(jk(x))>=na)?sp(""):pas[jk(x)]); break;
+    case -8: PRS(nx); PAS; pxj=px(x); i(nx, prs[i]=(pxj[i]<0||(u64)pxj[i]>=na)?sp(""):pas[pxj[i]]); break;
+    case  0: r=irecur2(at_,a,x); break;
+    default: r=KERR_TYPE;
+    } break;
+  case -8:
+    switch(tx) {
+    case  1: PAJ; r=tj((ik(x)<0||(u64)(ik(x))>=na)?J_NULL:paj[ik(x)]); break;
+    case -1: PRJ(nx); PAJ; PXI; i(nx, prj[i]=(pxi[i]<0||(u64)pxi[i]>=na)?J_NULL:paj[pxi[i]]); break;
+    case  8: PAJ; r=tj((jk(x)<0||(u64)(jk(x))>=na)?J_NULL:paj[jk(x)]); break;
+    case -8: PRJ(nx); PAJ; pxj=px(x); i(nx, prj[i]=(pxj[i]<0||(u64)pxj[i]>=na)?J_NULL:paj[pxj[i]]); break;
+    case  0: r=irecur2(at_,a,x); break;
+    default: r=KERR_TYPE;
+    } break;
+  case -9:
+    switch(tx) {
+    case  1: PAE; r=te((ik(x)<0||(u64)(ik(x))>=na)?(float)NAN:pae[ik(x)]); break;
+    case -1: PRE(nx); PAE; PXI; i(nx, pre[i]=(pxi[i]<0||(u64)pxi[i]>=na)?(float)NAN:pae[pxi[i]]); break;
+    case  8: PAE; r=te((jk(x)<0||(u64)(jk(x))>=na)?(float)NAN:pae[jk(x)]); break;
+    case -8: PRE(nx); PAE; pxj=px(x); i(nx, pre[i]=(pxj[i]<0||(u64)pxj[i]>=na)?(float)NAN:pae[pxj[i]]); break;
     case  0: r=irecur2(at_,a,x); break;
     default: r=KERR_TYPE;
     } break;
@@ -249,7 +284,7 @@ K at_(K a, K x) {
   return knorm(r);
 }
 
-static i32 sm_(char *a, char *x, i32 an, i32 xn, i32 i, i32 j) {
+static i32 sm_(char *a, char *x, i64 an, i64 xn, i64 i, i64 j) {
   i32 m=1;
   for(;;++i,++j) {
     if(i>=an&&j>=xn) break;
@@ -333,8 +368,8 @@ K sm(K a, K x) {
   return knorm(r);
 }
 
-static i32 ss_(char *a, char *x, i32 an, i32 xn, i32 i) {
-  i32 m=1,j,k=i;
+static i64 ss_(char *a, char *x, i64 an, i64 xn, i64 i) {
+  i64 m=1,j,k=i;
   for(j=0;j<xn;j++) {
     if(k==an) break;
     if(x[j]=='?') { }
@@ -366,8 +401,9 @@ static i32 ss_(char *a, char *x, i32 an, i32 xn, i32 i) {
 
 K ss(K a, K x) {
   K r=0;
-  u32 i,n=0,m,s;
-  i32 *pri;
+  u64 i,n=0;
+  i64 m,s,*prj;     /* match positions accumulated as i64 (narrowed to int below
+                       when #a<=2^31, so small-haystack output stays an int vector) */
   char *pac,*pxc,s0[2];
 
   if(s(a) || s(x)) return KERR_TYPE;
@@ -382,27 +418,27 @@ K ss(K a, K x) {
     PAC;
     switch(tx) {
     case  3:
-      PRI(2);
+      PRJ(2);
       s0[0]=ck(x); s0[1]=0;
       s=1;
       for(i=0;i<na;i++) {
         if((m=ss_(pac,s0,na,s,i))) {
-          if(n==nr) { r=kresize(r,n<<1); pri=px(r); }
-          pri[n++]=i;
+          if(n==nr) { r=kresize(r,n<<1); prj=px(r); }
+          prj[n++]=i;
           i+=m-1;
         }
       }
       nr=n;
       break;
     case  4:
-      PRI(2);
+      PRJ(2);
       pxc=sk(x);
       s=strlen(pxc);
       for(i=0;i<na;i++) {
         if((m=ss_(pac,pxc,na,s,i))) {
           if((i==0||!isalpha(pac[i-1])) && ((i+m<na&&!isalpha(pac[i+m]))||i+m==na)) {
-            if(n==nr) { r=kresize(r,n<<1); pri=px(r); }
-            pri[n++]=i;
+            if(n==nr) { r=kresize(r,n<<1); prj=px(r); }
+            prj[n++]=i;
             i+=m-1;
           }
         }
@@ -410,12 +446,12 @@ K ss(K a, K x) {
       nr=n;
       break;
     case -3:
-      PRI(2);
+      PRJ(2);
       PXC;
       for(i=0;i<na;i++) {
         if((m=ss_(pac,pxc,na,nx,i))) {
-          if(n==nr) { r=kresize(r,n<<1); pri=px(r); }
-          pri[n++]=i;
+          if(n==nr) { r=kresize(r,n<<1); prj=px(r); }
+          prj[n++]=i;
           i+=m-1;
         }
       }
@@ -424,7 +460,16 @@ K ss(K a, K x) {
     case -4: r=avdo(biv("ss"),k_(a),k_(x),"/"); break;
     case  0: r=avdo(biv("ss"),k_(a),k_(x),"/"); break;
     default: r=KERR_TYPE;
-    } break;
+    }
+    /* positions fit i32 when #a<=2^31: narrow long result to an int vector so
+       small-haystack output is unchanged (an int vector). big haystack keeps
+       long positions. */
+    if(T(r)==-8 && na<=BIGV) {
+      K r2=tn(1,nr); i32 *p2=px(r2); prj=px(r);
+      i(nr,p2[i]=(i32)prj[i]);
+      _k(r); r=r2;
+    }
+    break;
   case  0:
     switch(tx) {
     case  3: r=irecur2(ss,a,x); break;
@@ -813,11 +858,15 @@ K do_(K x) {
   if(nx<2) return KERR_VALENCE;
   if(0x81==s(x)) return null; // all constants, nothing to do
   a=pgreduce_(px[i],&q);
-  if(ta!=1) { _k(a); return KERR_TYPE; }
-  c=ik(a);
+  if(ta!=1 && ta!=8) { _k(a); return KERR_TYPE; }
+  c = ta==8 ? jk(a) : ik(a);   /* accept a long (j) count, not just int */
+  _k(a);
   if(c<0) return r;
   while(c-->0)
     for(i=nx-2;i>=0;i--) {
+#ifdef FUZZING
+      if(--gk_budget<0) return kerror("limit");
+#endif
       p=pgreduce_(px[i],&q); if(!p)p=null;
       EC(p);
       if(RETURN) return p;
@@ -836,8 +885,12 @@ K while_(K x) {
   if(nx<2) return KERR_VALENCE;
   if(0x81==s(x)) return null; // all constants, nothing to do
   a=pgreduce_(px[nx-1],&q);
-  if(ta!=1) { _k(a); return KERR_TYPE; }
-  while(ik(a)) {
+  if(ta!=1 && ta!=8) { _k(a); return KERR_TYPE; }
+  i64 c = ta==8 ? jk(a) : ik(a); _k(a);   /* accept a long (j) condition, not just int */
+  while(c) {
+#ifdef FUZZING
+    if(--gk_budget<0) return kerror("limit");
+#endif
     for(i=nx-2;i>=0;i--) {
       p=pgreduce_(px[i],&q); if(!p)p=null;
       EC(p);
@@ -845,7 +898,8 @@ K while_(K x) {
       _k(p);
     }
     a=pgreduce_(px[nx-1],&q);
-    if(ta!=1) { _k(a); return KERR_TYPE; }
+    if(ta!=1 && ta!=8) { _k(a); return KERR_TYPE; }
+    c = ta==8 ? jk(a) : ik(a); _k(a);
   }
   return r;
 cleanup:
@@ -860,8 +914,9 @@ K if_(K x) {
   if(nx<2) return KERR_VALENCE;
   if(0x81==s(x)) return null; // all constants, nothing to do
   a=pgreduce_(px[i],&q);
-  if(ta!=1) { _k(a); return KERR_TYPE; }
-  if(ik(a))
+  if(ta!=1 && ta!=8) { _k(a); return KERR_TYPE; }
+  i64 c = ta==8 ? jk(a) : ik(a); _k(a);   /* accept a long (j) condition, not just int */
+  if(c)
     for(i=nx-2;i>=0;i--) {
       p=pgreduce_(px[i],&q); if(!p)p=null;
       EC(p);
@@ -880,8 +935,9 @@ static K cond81_(K x) {
   for(i=0;i<nx;++i) {
     if(i<nx-1) {
       a=k_(px[i++]);;
-      if(ta!=1) { _k(a); return KERR_TYPE; }
-      if(ik(a)&&i<=nx-1) { _k(r); r=k_(px[i]); if(!r) r=null; break; }
+      if(ta!=1 && ta!=8) { _k(a); return KERR_TYPE; }
+      i64 c = ta==8 ? jk(a) : ik(a); _k(a);   /* accept a long (j) condition, not just int */
+      if(c&&i<=nx-1) { _k(r); r=k_(px[i]); if(!r) r=null; break; }
     }
     else { r=k_(px[i]); if(!r) r=null; }
     if(RETURN) return r;
@@ -896,8 +952,9 @@ K cond_(K x) {
   for(i=nx-1;i>=0;--i) {
     if(i) {
       a=pgreduce_(px[i--],&q); if(!a) a=null;
-      if(ta!=1) { _k(a); return KERR_TYPE; }
-      if(ik(a)&&i>=0) { _k(r); r=pgreduce_(px[i],&q); if(!r) r=null; break; }
+      if(ta!=1 && ta!=8) { _k(a); return KERR_TYPE; }
+      i64 c = ta==8 ? jk(a) : ik(a); _k(a);   /* accept a long (j) condition, not just int */
+      if(c&&i>=0) { _k(r); r=pgreduce_(px[i],&q); if(!r) r=null; break; }
     }
     else { r=pgreduce_(px[i],&q); if(!r) r=null; }
     if(RETURN) return r;
@@ -1605,11 +1662,11 @@ static K serialize(K x, char **b, char **v, i64 *n, i64 *m) {
   default: --d; return KERR_TYPE;
   }
   dv=*v-*b;
-  /* bd output is a K char vector; total must fit in an i32 count */
-  if(dv+*n>(i64)INT32_MAX) { --d; return KERR_WSFULL; }
+  /* bd output is a K char vector; cap at the vector length limit (VMAX) */
+  if(dv+*n>=VMAX) { --d; return KERR_WSFULL; }
   while(dv+*n>*m) {
     i64 nm=*m<<1;
-    if(nm>(i64)INT32_MAX) nm=(i64)INT32_MAX;
+    if(nm>VMAX) nm=VMAX;
     *m=nm; *b=xrealloc(*b,(size_t)*m); *v=*b+dv; dv=*v-*b;
   }
   memcpy(*v,&t,si); *v+=si;
@@ -1763,40 +1820,40 @@ static K deserialize(char **b,u64 *m) {
     memcpy(&count,*b,sn);
     *b+=sn; n-=sn;
     /* min 1 byte/elem (the trailing nul); guards i32 overflow in PRS too */
-    if(count>n||count>(u64)INT32_MAX) return KERR_LENGTH;
+    if(count>n||count>=(u64)VMAX) return KERR_LENGTH;
     PRS(count);
     i(nr,size_t len=strnlen(*b,n); if(n<len) return KERR_LENGTH; prs[i]=sp(*b); n-=1+len; *b+=1+len) break;
   case -3:
     if(n<sn) return KERR_LENGTH;
     memcpy(&count,*b,sn);
     *b+=sn; n-=sn;
-    if(count>n||count>(u64)INT32_MAX) return KERR_LENGTH;
+    if(count>n||count>=(u64)VMAX) return KERR_LENGTH;
     PRC(count);
     memcpy(prc,*b,nr); *b+=nr; break;
   case -2:
     if(n<sn) return KERR_LENGTH;
     memcpy(&count,*b,sn);
     *b+=sn; n-=sn;
-    if(count>n/sd||count>(u64)INT32_MAX) return KERR_LENGTH;
+    if(count>n/sd||count>=(u64)VMAX) return KERR_LENGTH;
     PRF(count);
     memcpy(prf,*b,nr*sd); *b+=nr*sd; break;
   case -8:
     if(n<sn) return KERR_LENGTH;
     memcpy(&count,*b,sn);
     *b+=sn; n-=sn;
-    if(count>n/sd||count>(u64)INT32_MAX) return KERR_LENGTH;
+    if(count>n/sd||count>=(u64)VMAX) return KERR_LENGTH;
     { i64 *prj; PRJ(count); memcpy(prj,*b,nr*sd); *b+=nr*sd; } break;
   case -9:
     if(n<sn) return KERR_LENGTH;
     memcpy(&count,*b,sn);
     *b+=sn; n-=sn;
-    if(count>n/si||count>(u64)INT32_MAX) return KERR_LENGTH;
+    if(count>n/si||count>=(u64)VMAX) return KERR_LENGTH;
     { float *pre; PRE(count); memcpy(pre,*b,nr*si); *b+=nr*si; } break;
   case -1:
     if(n<sn) return KERR_LENGTH;
     memcpy(&count,*b,sn);
     *b+=sn; n-=sn;
-    if(count>n/si||count>(u64)INT32_MAX) return KERR_LENGTH;
+    if(count>n/si||count>=(u64)VMAX) return KERR_LENGTH;
     PRI(count);
     memcpy(pri,*b,nr*si); *b+=nr*si; break;
   case  0:
@@ -1804,7 +1861,7 @@ static K deserialize(char **b,u64 *m) {
     memcpy(&count,*b,sn);
     *b+=sn; n-=sn;
     /* every nested element occupies at least 3*sizeof(i32) bytes (header) */
-    if(count>n/(3*si)||count>(u64)INT32_MAX) return KERR_LENGTH;
+    if(count>n/(3*si)||count>=(u64)VMAX) return KERR_LENGTH;
     PRK(count);
     i(nr,p=deserialize(b,&n); if(E(p)) { _k(r); return p; } prk[i]=p)
     break;
@@ -1890,7 +1947,7 @@ K hb_(K x) {
   switch(tx) {
   //case  3: PRC(2); sprintf(prc,"%02x",ck(x)); break; /* breaks round trip */
   case -3:
-    if(nx>((u64)INT32_MAX-1)/2) return KERR_WSFULL;
+    if(nx>(VMAX-1)/2) return KERR_WSFULL;
     PRC(1+2*nx); PXC; i(nx,sprintf(prc,"%02x",(u8)pxc[i]);prc+=2); nr--; break;
   case  0: r=irecur1(hb_,x); break;
   default: r=KERR_TYPE;
@@ -2036,6 +2093,13 @@ cleanup:
   return e;
 }
 
+/* Cap env var NAME length and BATCH (vector) element count.  Env names are
+ * tiny in practice and the OS bounds the whole env block (ARG_MAX); this just
+ * rejects absurd (e.g. big-vector) inputs with a clean length error instead of
+ * a pointless huge alloc.  VALUES are intentionally NOT capped here (real ones
+ * like LS_COLORS/PATH exceed this). */
+#define ENVMAX 4096
+
 /* Caller must xfree() (or free()) the result. NULL if unset. */
 static char* ge(char *k) {
 #ifdef _WIN32
@@ -2061,10 +2125,10 @@ K getenv_(K x) {
   char *p,**pxs;
   if(s(x)) return KERR_TYPE;
   switch(tx) {
-  case -3: p=ge((char*)px(x)); if(p){r=tnv(3,strlen(p),xstrndup(p,strlen(p))); ge_free(p);} break;
+  case -3: if(nx>ENVMAX) return KERR_LENGTH; p=ge((char*)px(x)); if(p){r=tnv(3,strlen(p),xstrndup(p,strlen(p))); ge_free(p);} break;
   case  4: p=ge(sk(x));        if(p){r=tnv(3,strlen(p),xstrndup(p,strlen(p))); ge_free(p);} break;
-  case -4: PRK(nx); PXS; i(nx,prk[i]=getenv_(t(4,pxs[i])); EC(prk[i])) break;
-  case  0: r=irecur1(getenv_,x); break;
+  case -4: if(nx>ENVMAX) return KERR_LENGTH; PRK(nx); PXS; i(nx,prk[i]=getenv_(t(4,pxs[i])); EC(prk[i])) break;
+  case  0: if(nx>ENVMAX) return KERR_LENGTH; r=irecur1(getenv_,x); break;
   default: r=KERR_TYPE;
   }
   return r;
@@ -2073,12 +2137,20 @@ cleanup:
   return e;
 }
 
-static void se(char *k, char *v) {
+/* Returns 0 on success, else an errno value. */
+static int se(char *k, char *v) {
 #ifdef _WIN32
-  _putenv_s(k,v);
+  return _putenv_s(k,v);               /* 0, or an errno value */
 #else
-  setenv(k,v,1);
+  return setenv(k,v,1)==0 ? 0 : errno; /* normalize -1 to errno */
 #endif
+}
+
+/* Map a setenv/_putenv_s failure to a sensible K error.  The realistic causes
+ * are EINVAL (empty name or a name containing '=') -> domain, and ENOMEM ->
+ * wsfull.  (NB setenv does NOT enforce ARG_MAX -- a long value just succeeds.) */
+static K se_err(int rc) {
+  return rc==ENOMEM ? KERR_WSFULL : KERR_DOMAIN;
 }
 
 K setenv_(K a, K x) {
@@ -2088,13 +2160,13 @@ K setenv_(K a, K x) {
   if((ta==0||ta==-4)&&(tx==0||tx==-4)&&(na!=nx)) return KERR_LENGTH;
   switch(ta) {
   case -3:
+    if(na>ENVMAX) return KERR_LENGTH;   /* name length; value (nx) uncapped */
     switch(tx) {
     case -3: p=xstrndup(px(a),na); q=xstrndup(px(x),nx); break;
     case  4: p=xstrndup(px(a),na); q=xstrndup(sk(x),strlen(sk(x))); break;
     default: return KERR_TYPE;
     }
-    se(p,q);
-    xfree(p); xfree(q);
+    {int rc=se(p,q); xfree(p); xfree(q); if(rc) return se_err(rc);}
     break;
   case  4:
     switch(tx) {
@@ -2102,16 +2174,17 @@ K setenv_(K a, K x) {
     case  4: p=xstrndup(sk(a),strlen(sk(a))); q=xstrndup(sk(x),strlen(sk(x))); break;
     default: return KERR_TYPE;
     }
-    se(p,q);
-    xfree(p); xfree(q);
+    {int rc=se(p,q); xfree(p); xfree(q); if(rc) return se_err(rc);}
     break;
   case -4:
+    if(na>ENVMAX) return KERR_LENGTH;   /* batch count; values uncapped */
     switch(tx) {
-    case -4: PAS; PXS; i(nx,se(pas[i],pxs[i])); break;
+    case -4: PAS; PXS; i(nx,{int rc=se(pas[i],pxs[i]); if(rc) return se_err(rc);}); break;
     case  0: PAS; PXK; i(na,EC(setenv_(t(4,pas[i]),pxk[i]))); break;
     default: return KERR_TYPE;
     } break;
   case  0:
+    if(na>ENVMAX) return KERR_LENGTH;   /* batch count; values uncapped */
     switch(tx) {
     case -4: PAK; PXS; i(nx,EC(setenv_(pak[i],t(4,pxs[i])))); break;
     case  0: PAK; PXK; i(na,EC(setenv_(pak[i],pxk[i]))); break;
@@ -2131,7 +2204,7 @@ K in_(K a, K x) {
   n=nx;
   K t=k(14,k_(x),k_(a));     /* x?a */
   if(E(t)) return t;
-  return k(7,t,t(1,(u32)n)); /* t<nx */
+  return k(7,t,n>BIGV?tj((i64)n):t(1,(u32)n)); /* t<nx */
 }
 
 K dvl_(K a, K x) {
@@ -2142,7 +2215,7 @@ K dvl_(K a, K x) {
   n=nx;
   K t=k(78,k_(x),k_(a)); /* x?/a */
   if(E(t)) return t;
-  t=k(9,t(1,(u32)n),t);  /* (#nx)=t */
+  t=k(9,n>BIGV?tj((i64)n):t(1,(u32)n),t);  /* (#nx)=t */
   if(E(t)) return t;
   t=k(5,0,t);            /* &t */
   if(E(t)) return t;

@@ -180,9 +180,9 @@ K fe(K f, K a, K x, char *av) {
       if((!strcmp(favp,"/") || !strcmp(favp,"\\"))) {
         K f1_=kcp(f1); _k(f1); f1=f1_;
         if(E(f1)) { _k(f0); _k(x); r=f1; break; }
-        if(s(f0)==0 && T(f0)==1 && !strcmp(favp,"/")) { r=overmonadn(f1,f0,x,""); quiet=0; }
+        if(s(f0)==0 && (T(f0)==1||T(f0)==8) && !strcmp(favp,"/")) { r=overmonadn(f1,f0,x,""); quiet=0; }
         else if(ISF(f0) && ik(val(f0))==1 && !strcmp(favp,"/")) { r=overmonadb(f1,f0,x,""); quiet=0; }
-        else if(s(f0)==0 && T(f0)==1 && !strcmp(favp,"\\")) { r=scanmonadn(f1,f0,x,""); quiet=0; }
+        else if(s(f0)==0 && (T(f0)==1||T(f0)==8) && !strcmp(favp,"\\")) { r=scanmonadn(f1,f0,x,""); quiet=0; }
         else if(ISF(f0) && ik(val(f0))==1 && !strcmp(favp,"\\")) { r=scanmonadb(f1,f0,x,""); quiet=0; }
         else { _k(f0); _k(f1); _k(x); r=KERR_TYPE; break; }
       }
@@ -262,9 +262,9 @@ K fe(K f, K a, K x, char *av) {
              monadic apply.  do-n-times (atom int seed) or do-while
              (monadic-function seed), with sin as the inner monad. */
           if(!strcmp(avp,"/") || !strcmp(avp,"\\")) {
-            if(s(a)==0 && T(a)==1 && !strcmp(avp,"/")) r=overmonadn(k_(wf),a,x,"");
+            if(s(a)==0 && (T(a)==1||T(a)==8) && !strcmp(avp,"/")) r=overmonadn(k_(wf),a,x,"");
             else if(s(a)==0xc3 && !strcmp(avp,"/")) r=overmonadb(k_(wf),a,x,"");
-            else if(s(a)==0 && T(a)==1 && !strcmp(avp,"\\")) r=scanmonadn(k_(wf),a,x,"");
+            else if(s(a)==0 && (T(a)==1||T(a)==8) && !strcmp(avp,"\\")) r=scanmonadn(k_(wf),a,x,"");
             else if(s(a)==0xc3 && !strcmp(avp,"\\")) r=scanmonadb(k_(wf),a,x,"");
             else { _k(a); _k(x); r=KERR_TYPE; }
           }

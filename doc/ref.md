@@ -9,6 +9,7 @@ New to gk? Try the [tutorial](tutorial.md) first. If you already know **k3**, se
 - [Types](#types)
   - [Special Values](#special-values)
   - [Atoms, Vectors, and Lists](#atoms-vectors-and-lists)
+  - [Big Vectors](#big-vectors)
 - [Verbs](#verbs)
   - [Dyadic Conformability](#dyadic-conformability)
   - [Numeric Type Rules](#numeric-type-rules)
@@ -211,6 +212,52 @@ The `kv` builtin can be used to construct a non-promoted homogeneous list.
 ```
 
 Most dyadic verbs operate element-wise on vectors and recurse into lists.
+
+### Big Vectors
+
+A vector's length is a 64-bit count, so vectors are not capped at the 32-bit
+`2^31` limit familiar from older k implementations. The ceiling is `2^56`
+elements; an operation that would exceed it (or simply run out of memory) fails
+with `wsfull` rather than truncating or wrapping.
+
+Because a length can exceed the 32-bit integer range, the verbs that *produce* a
+count or an index return an **i64** (`j`) instead of an i32 once the
+relevant length crosses `2^31`. Below that threshold they still return an i32, so
+small data is unaffected.
+
+```
+  a:2200000000j#"x"   / a 2.2-billion-element char vector
+  #a                  / count: an i64 atom, because 2.2e9 > 2^31
+2200000000j
+  #5#a                / a small slice still counts as i32
+5
+  #a,a                / join is length-aware: 4.4 billion elements
+4400000000j
+```
+
+This i64-above-`2^31` rule covers `#x` (count), `&x` (where), `<x`/`>x` (grade),
+and `a?x` (find) — each yields i64 results when its source vector is longer than
+`2^31`.
+
+Conversely, the verbs that *consume* a count or index accept an i64 (`j`)
+argument, so a big vector can be built, reshaped, cut, indexed, and sampled at
+long magnitudes:
+
+```
+  a@2199999999j       / index at a long position
+"x"
+  #2199999999j_a      / drop a long count
+1
+  3000000000j draw 10 / draw a long number of picks (see Random)
+```
+
+A note on literals: a bare integer literal larger than `2^31` saturates to `0I`
+(int overflow), so a big count must be written with the `j` suffix
+(`2200000000j`, not `2200000000`).
+
+All verbs, builtins, adverbs, and the file-I/O forms (`1:`, `2:`, `5:`, `6:`,
+and the `0:`/`1:` schema loaders) are big-vector aware and preserve i64 counts
+end to end.
 
 ---
 
@@ -1103,7 +1150,7 @@ Number of items at the top level of `x`.
 <details>
 <summary>spec</summary>
 
-**Types:** any. Number of top-level items: `1` for an atom, the length for a vector or list, the number of entries for a dictionary. Empty aggregates return `0`.
+**Types:** any. Number of top-level items: `1` for an atom, the length for a vector or list, the number of entries for a dictionary. Empty aggregates return `0`. The result is an i64 (`j`) when the count exceeds `2^31` — see [Big Vectors](#big-vectors).
 
 **Errors:** none.
 

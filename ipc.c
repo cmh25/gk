@@ -396,17 +396,25 @@ int ipc_stdin_init(void) { return 0; }
 /* ===== implementation (single body, both platforms) ====================== */
 
 
-#define IPC_HDR_SIZE   8
-#define IPC_VERSION    1
+/* Wire framing, two header shapes (distinguished by the version byte at off 2):
+ *   v1 (8 bytes):  arch, msgtype, version=1, reserved, msglen:u32
+ *   v2 (12 bytes): arch, msgtype, version=2, reserved, msglen:u64
+ * msglen is the TOTAL message length including the header. The sender emits v1
+ * whenever the message fits the v1 cap (so it still talks to old peers), and
+ * v2 only when it doesn't -- a message an old peer could not have handled
+ * anyway. Receivers accept either. */
+#define IPC_HDR_V1     8
+#define IPC_HDR_V2     12
+#define IPC_HDR_SIZE   IPC_HDR_V2              /* hdr[] buffer size (max of the two) */
+#define IPC_VERSION_V1 1
+#define IPC_VERSION_V2 2
 #define IPC_ARCH_LE    1
-/* Hard cap per message (header + payload). The real ceiling is set by:
- *   - our wire framing: body_need is i32; >2^31 wraps negative
- *   - K's public count APIs (tn/tnv/kresize) take i32, so a single K
- *     vector tops out at ~2.1G elements anyway
- * Senders that exceed this raise 'length; receivers that see a larger
- * msglen drop the conn (only reachable from a non-conforming peer at
- * this point). */
-#define IPC_MAX_MSG  ((u32)0x7FFFFFFF)         /* INT32_MAX */
+/* v1 cap: a v1 frame stays <= INT32_MAX so old peers (which reject larger
+ * msglen) still accept it. Above this the sender escalates to v2. */
+#define IPC_MAX_MSG  ((u32)0x7FFFFFFF)         /* INT32_MAX -- v1 ceiling */
+/* absolute cap (v2): the vector-length limit; beyond this the sender raises
+ * 'length and a receiver drops the conn. */
+#define IPC_MAX_MSG2 ((u64)VMAX)
 
 #define MSG_ASYNC     0
 #define MSG_SYNC_REQ  1
@@ -430,11 +438,11 @@ typedef struct {
   int   fd;
   /* receive */
   u8    hdr[IPC_HDR_SIZE];
-  i32   hdr_have;
+  i32   hdr_have;      /* 0..IPC_HDR_V1 for v1, ..IPC_HDR_V2 for a v2 header */
   u8   *body;          /* xmalloc'd; persists across messages until close */
-  i32   body_cap;      /* current backing allocation; >= body_need on a parsed header */
-  i32   body_have;
-  i32   body_need;     /* bytes of bd payload expected (msglen - 8) */
+  i64   body_cap;      /* current backing allocation; >= body_need on a parsed header */
+  i64   body_have;
+  i64   body_need;     /* bytes of bd payload expected (msglen - header size) */
   u8    msgtype;       /* parsed from header; valid once body!=NULL */
   /* role / sync rendezvous */
   u8    is_client;     /* 1 if we opened it (vs accepted) */
@@ -724,26 +732,33 @@ static void handle_accept(int lfd, int lmode) {
 
 /* ---- frame parsing ---- */
 
-/* Validate a fully-received 8-byte header and populate body_need / msgtype.
- * Returns 0 on ok, -1 on protocol error (caller closes the conn). */
+/* Validate a fully-received header (v1 = 8 bytes, v2 = 12) and populate
+ * body_need / msgtype. Returns 0 on ok, -1 on protocol error (caller closes).
+ * For v2 the caller must have already read all IPC_HDR_V2 bytes. */
 static int parse_header(ipc_conn *c) {
   u8  arch     = c->hdr[0];
   u8  msgtype  = c->hdr[1];
   u8  version  = c->hdr[2];
   u8  reserved = c->hdr[3];
-  u32 msglen;
-  memcpy(&msglen, c->hdr + 4, 4);   /* little-endian on supported archs */
+  u64 msglen, hdrsz;
 
   /* Any framing problem -> drop the connection. The caller (recv_step)
    * closes the fd, which in turn signals any sync waiter via the existing
    * close-with-waiter path; async senders just observe the closed peer. */
   if(arch != IPC_ARCH_LE)        return -1;
-  if(version != IPC_VERSION)     return -1;
   if(reserved != 0)              return -1;
   if(msgtype > MSG_SYNC_ERR)     return -1;
-  if(msglen < IPC_HDR_SIZE)      return -1;
-  if(msglen > IPC_MAX_MSG)       return -1;
-  c->body_need = (i32)(msglen - IPC_HDR_SIZE);
+  if(version == IPC_VERSION_V1) {
+    u32 m32; memcpy(&m32, c->hdr + 4, 4);
+    msglen = m32; hdrsz = IPC_HDR_V1;
+    if(msglen > IPC_MAX_MSG)     return -1;
+  } else if(version == IPC_VERSION_V2) {
+    memcpy(&msglen, c->hdr + 4, 8);
+    hdrsz = IPC_HDR_V2;
+    if(msglen >= IPC_MAX_MSG2)   return -1;
+  } else                         return -1;
+  if(msglen < hdrsz)             return -1;
+  c->body_need = (i64)(msglen - hdrsz);
   c->msgtype   = msgtype;
   if(c->body_need > c->body_cap) {
     c->body = xrealloc(c->body, (size_t)c->body_need);
@@ -781,25 +796,35 @@ static int write_all(int fd, const void *buf, size_t n) {
   return 0;
 }
 
-/* Frame and send a message. payload may be NULL iff plen==0.
+/* Frame and send a message. payload may be NULL iff plen==0. Emits a v1
+ * (8-byte, u32 length) header when the message fits the v1 cap -- so old
+ * peers still accept it -- otherwise a v2 (12-byte, u64 length) header.
  * Returns 0 on success, -1 on error. */
-static int send_frame(int fd, u8 msgtype, const void *payload, u32 plen) {
-  u8  hdr[IPC_HDR_SIZE];
-  u32 total = IPC_HDR_SIZE + plen;
+static int send_frame(int fd, u8 msgtype, const void *payload, u64 plen) {
+  u8 hdr[IPC_HDR_V2]; i32 hsz;
   hdr[0] = IPC_ARCH_LE;
   hdr[1] = msgtype;
-  hdr[2] = IPC_VERSION;
   hdr[3] = 0;
-  memcpy(hdr + 4, &total, 4);
-  if(write_all(fd, hdr, IPC_HDR_SIZE) < 0) return -1;
-  if(plen && write_all(fd, payload, plen) < 0) return -1;
+  if(plen + IPC_HDR_V1 <= IPC_MAX_MSG) {       /* v1: old-peer compatible */
+    u32 total = (u32)(IPC_HDR_V1 + plen);
+    hdr[2] = IPC_VERSION_V1;
+    memcpy(hdr + 4, &total, 4);
+    hsz = IPC_HDR_V1;
+  } else {                                      /* v2: u64 length */
+    u64 total = IPC_HDR_V2 + plen;
+    hdr[2] = IPC_VERSION_V2;
+    memcpy(hdr + 4, &total, 8);
+    hsz = IPC_HDR_V2;
+  }
+  if(write_all(fd, hdr, (size_t)hsz) < 0) return -1;
+  if(plen && write_all(fd, payload, (size_t)plen) < 0) return -1;
   return 0;
 }
 
-/* True iff a payload of plen bytes plus our header would exceed the cap.
- * Use u64 arithmetic so the IPC_HDR_SIZE add can't itself wrap. */
+/* True iff a payload of plen bytes plus a v2 header would exceed the absolute
+ * cap. Use u64 arithmetic so the header add can't itself wrap. */
 static int over_ipclimit(u64 plen) {
-  return (plen + IPC_HDR_SIZE) > IPC_MAX_MSG;
+  return (plen + IPC_HDR_V2) >= IPC_MAX_MSG2;
 }
 
 /* Scratch buffer reused across all bd_-into-socket sends. Never freed;
@@ -836,7 +861,7 @@ static int send_value(int fd, u8 msgtype, K r) {
     _k(str);
     return rc;
   }
-  return send_frame(fd, msgtype, send_scratch, (u32)len);
+  return send_frame(fd, msgtype, send_scratch, len);
 }
 
 /* Format an error K into a plain C string, wrap it as a K char vector,
@@ -1013,7 +1038,7 @@ static void fire_close_handler(int fd) {
 static void deliver_message(ipc_conn *c) {
   int  fd      = c->fd;
   u8   msgtype = c->msgtype;
-  i32  blen    = c->body_need;
+  i64  blen    = c->body_need;
   u8  *body    = c->body;
 
   K msg = (blen > 0) ? db_buf((const char*)body, (u64)blen)
@@ -1097,10 +1122,13 @@ void ipc_init_ns(void) {
  * Returns 0 to keep the connection, -1 to close it. */
 static int recv_step(ipc_conn *c) {
   for(;;) {
-    /* phase 1: header */
-    if(c->hdr_have < IPC_HDR_SIZE) {
+    /* phase 1: header. v1 is 8 bytes; a v2 header (version byte at off 2)
+       needs 4 more, so recompute the target as bytes arrive. */
+    i32 hdr_need = (c->hdr_have >= 3 && c->hdr[2] == IPC_VERSION_V2)
+                   ? IPC_HDR_V2 : IPC_HDR_V1;
+    if(c->hdr_have < hdr_need) {
       ssize_t r = sock_recv(c->fd, c->hdr + c->hdr_have,
-                                   IPC_HDR_SIZE - c->hdr_have);
+                                   (size_t)(hdr_need - c->hdr_have));
       if(r == 0) return -1;                 /* peer closed */
       if(r <  0) {
         int e = sock_lasterr();
@@ -1109,7 +1137,9 @@ static int recv_step(ipc_conn *c) {
         return -1;                          /* close conn; sync waiter (if any) gets 'conn' */
       }
       c->hdr_have += (i32)r;
-      if(c->hdr_have < IPC_HDR_SIZE) return 0;  /* need more, wait for poll */
+      hdr_need = (c->hdr_have >= 3 && c->hdr[2] == IPC_VERSION_V2)
+                 ? IPC_HDR_V2 : IPC_HDR_V1;
+      if(c->hdr_have < hdr_need) return 0;       /* need more, wait for poll */
       if(parse_header(c) < 0) return -1;
       if(c->body_need == 0) {
         deliver_message(c);
@@ -1128,7 +1158,7 @@ static int recv_step(ipc_conn *c) {
       if(sock_would_block(e))             return 0;
       return -1;
     }
-    c->body_have += (i32)r;
+    c->body_have += (i64)r;
     if(c->body_have < c->body_need) return 0;   /* wait for more */
 
     /* full message in hand */

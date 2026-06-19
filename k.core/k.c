@@ -42,11 +42,11 @@ K k(i32 i, K a, K x) {
 
 typedef struct { K x; i8 s; } SF;
 static SF *g_stack;
-static i32 g_cap;
+static i64 g_cap;
 
-static inline void push_sf(SF **stack, i32 *sp, i32 *cap, SF *local, i32 local_cap, K x, i32 s) {
+static inline void push_sf(SF **stack, i64 *sp, i64 *cap, SF *local, i64 local_cap, K x, i32 s) {
   if(*sp == *cap) {
-    i32 new_cap = (*cap ? *cap : local_cap) << 1;
+    i64 new_cap = (*cap ? *cap : local_cap) << 1;   /* i64: a >2^30-element flat list spills the whole breadth onto this stack */
     if(g_cap < new_cap) {
       g_stack = (SF*)xrealloc(g_stack, sizeof(SF)*new_cap);
       g_cap   = new_cap;
@@ -66,13 +66,13 @@ static void __k(K x) {
   ko *k=(ko*)(b(48)&x);
   if(tx) {
 #ifndef _WIN32  // TODO: mmap on windows?
-    if(k->m) {  // mapped object
+    if(k->m) {  // mapped object (from onecolon1: base = k->v-24, span 24+data)
       size_t len;
-      if(tx == -1) len = 12 + nx*sizeof(int);
-      else if(tx == -2) len = nx*sizeof(double);
-      else if(tx == -3) len = nx*sizeof(char);
+      if(tx == -1) len = 24 + nx*sizeof(int);
+      else if(tx == -2) len = 24 + nx*sizeof(double);
+      else if(tx == -3) len = 24 + nx*sizeof(char);
       else { fprintf(stderr,"unexpected mmap'd type\n"); exit(1); }
-      munmap((char*)k->v - 20, len);
+      munmap((char*)k->v - 24, len);
       xfree(k);
     }
     else
@@ -81,8 +81,8 @@ static void __k(K x) {
     return;
   }
   SF local[64],*stack=local;
-  const i32 cap0=(i32)(sizeof(local)/sizeof(local[0]));
-  i32 sp=0, cap=cap0;
+  const i64 cap0=(i64)(sizeof(local)/sizeof(local[0]));
+  i64 sp=0, cap=cap0;
   push_sf(&stack, &sp, &cap, local, cap, x, 0);
   while(sp) {
     SF *f=&stack[--sp];
@@ -99,13 +99,13 @@ static void __k(K x) {
       }
     }
 #ifndef _WIN32  // TODO: mmap on windows?
-    else if(k->m) {  // mapped object
+    else if(k->m) {  // mapped object (from onecolon1: base = k->v-24, span 24+data)
       size_t len;
-      if(tx == -1) len = 12 + nx*sizeof(int);
-      else if(tx == -2) len = nx*sizeof(double);
-      else if(tx == -3) len = nx*sizeof(char);
+      if(tx == -1) len = 24 + nx*sizeof(int);
+      else if(tx == -2) len = 24 + nx*sizeof(double);
+      else if(tx == -3) len = 24 + nx*sizeof(char);
       else { fprintf(stderr,"unexpected mmap'd type\n"); exit(1); }
-      munmap((char*)k->v - 20, len);
+      munmap((char*)k->v - 24, len);
       xfree(k);
     }
 #endif
@@ -119,7 +119,7 @@ void _k(K x) {
   __k(x);
 }
 
-K tn(i32 t, i32 n) {
+K tn(i32 t, i64 n) {
   K r=0; void *v=0;
   ko *k;
   switch(t) {
@@ -135,7 +135,7 @@ K tn(i32 t, i32 n) {
   return r;
 }
 
-K tnv(i32 t, i32 n, void *v) {
+K tnv(i32 t, i64 n, void *v) {
   K r=tn(t,1);
   ko* pr=(ko*)(b(48)&r);
   xfree(pr->v);
@@ -154,7 +154,7 @@ K tj(i64 x) {
   return t(8,k);
 }
 
-K ki(i32 i, K a, K x, i32 ai, i32 xi) {
+K ki(i32 i, K a, K x, i64 ai, i64 xi) {
   K r=0,*pak,*pxk,a_=0;
   char *pac,*pxc,**pas,**pxs;
   i32 *pai,*pxi;
@@ -460,7 +460,7 @@ K kmix(K x) {
   return r;
 }
 
-K kresize(K x, i32 n) {
+K kresize(K x, i64 n) {
   ko *k=(ko*)(b(48)&x);
   switch(tx) {
   case -1: k->v=xrealloc(k->v,n*sizeof(i32)); break;

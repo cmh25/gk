@@ -63,6 +63,8 @@ typedef struct {
   int node_max;    /* maximum capacity of nodes array */
   char *file;      /* filename */
   K locals;
+  int overflow;    /* set by mark_lvalues when a statement's parse tree exceeds
+                      maxr depth; pgparse turns it into a "stack" error */
 } pgs;
 
 extern int quiet,RETURN;
@@ -70,6 +72,17 @@ extern int STOP,EFLAG,SIGNAL;
 extern K EXIT;
 extern int opencode;
 extern char *pfile;
+
+#ifdef FUZZING
+/* Iteration budget for the unbounded loop constructs (converge f/x, f\x and
+ * while-test f/x, f\x).  gk legitimately allows non-terminating programs
+ * (e.g. sin/1 converges only in the float limit), so under fuzzing we cap the
+ * total converge/while iterations per top-level eval and raise 'limit.  This
+ * turns language-legal non-termination into a fast clean error instead of an
+ * AFL hang, and never touches the shipping binary (no FUZZING -> no counter). */
+extern long gk_budget;
+#define GK_BUDGET 1000000L
+#endif
 extern int gline,glinei,gline0,gline0i,fileline;
 extern char *glinep,*gline0p;
 extern K params[];

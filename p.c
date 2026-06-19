@@ -36,6 +36,9 @@ int RETURN;
 int quiet;
 int STOP,EFLAG=1,SIGNAL;
 K EXIT;
+#ifdef FUZZING
+long gk_budget=GK_BUDGET;
+#endif
 int opencode=1;
 char *pfile="";
 int gline,glinei,gline0,gline0i,fileline;
@@ -773,8 +776,13 @@ K pgreduce_(K x0, int *quiet) {
   int w,valence;
   if(STOP) { STOP=0; return kerror("stop"); }
   if(++d>1+maxr) { --d; return kerror("stack"); } /* must be one greater than fne_() */
-  if(nx*10>256) {
-    ma=nx*10;
+  /* Value-stack depth is bounded by the token count: every branch below does
+     at most one net push (*pA++) per token, so depth <= nx.  Allocate nx + a
+     small pad (was nx*10, a 10x over-provision).  Statements with <= ~240
+     tokens stay in the static A0[d] buffer (256 slots); only larger ones
+     malloc -- so this also cuts the malloc rate for mid-size statements. */
+  if(nx+16>256) {
+    ma=nx+16;
     pA=A2=xmalloc(sizeof(K)*ma);
     A=A2;
   }
@@ -919,9 +927,9 @@ K pgreduce_(K x0, int *quiet) {
             if(s(t0)) { t0=reduce(t0); if(E(t0)||EXIT) { _k(a); _k(av_v); *pA++=t0; break; } }
             if(!VST(t0)) { _k(a); _k(av_v); _k(t0); *pA++=KERR_TYPE; break; }
             K f=k_(v); /* bare sin (no av) for over/scan */
-            if(s(t0)==0 && T(t0)==1 && !strcmp(aavp,"/")) { *pA++=overmonadn(f,t0,av_v,""); *quiet=0; }
+            if(s(t0)==0 && (T(t0)==1||T(t0)==8) && !strcmp(aavp,"/")) { *pA++=overmonadn(f,t0,av_v,""); *quiet=0; }
             else if(ISF(t0) && ik(val(t0))==1 && !strcmp(aavp,"/")) { *pA++=overmonadb(f,t0,av_v,""); *quiet=0; }
-            else if(s(t0)==0 && T(t0)==1 && !strcmp(aavp,"\\")) { *pA++=scanmonadn(f,t0,av_v,""); *quiet=0; }
+            else if(s(t0)==0 && (T(t0)==1||T(t0)==8) && !strcmp(aavp,"\\")) { *pA++=scanmonadn(f,t0,av_v,""); *quiet=0; }
             else if(ISF(t0) && ik(val(t0))==1 && !strcmp(aavp,"\\")) { *pA++=scanmonadb(f,t0,av_v,""); *quiet=0; }
             else { _k(f); _k(t0); _k(av_v); *pA++=KERR_TYPE; }
             _k(a);
@@ -1003,6 +1011,7 @@ K pgreduce_(K x0, int *quiet) {
         --pA;
         b=*--pA;
         a=*--pA;
+        if(!a||!b) { _k(a); _k(b); *pA++=KERR_TYPE; break; } /* backstop: never store/amend a NULL operand (mirrors the 0x81 guard above). Known producers are fixed at the push site, but the operand-stack-never-NULL invariant has several entry points. */
         if(s(b)) { b=reduce(b); if(E(b)||EXIT) { _k(a); *pA++=b; break; } }
         if(0x40==s(a)) { /* a::1 */
           if(!VST(b)) { _k(b); *pA++=KERR_PARSE; break; }
@@ -1749,9 +1758,9 @@ c3_apply:
                  && (!strcmp(cav,"/")||!strcmp(cav,"\\"))) {
                 K f=kcp(a);
                 if(E(f)) { _k(a); _k(b); _k(b1); _k(b2); _k(t); *pA++=f; break; }
-                if(s(t)==0 && T(t)==1 && !strcmp(cav,"/")) { *pA++=overmonadn(f,t,b2,""); *quiet=0; }
+                if(s(t)==0 && (T(t)==1||T(t)==8) && !strcmp(cav,"/")) { *pA++=overmonadn(f,t,b2,""); *quiet=0; }
                 else if(ISF(t) && ik(val(t))==1 && !strcmp(cav,"/")) { *pA++=overmonadb(f,t,b2,""); *quiet=0; }
-                else if(s(t)==0 && T(t)==1 && !strcmp(cav,"\\")) { *pA++=scanmonadn(f,t,b2,""); *quiet=0; }
+                else if(s(t)==0 && (T(t)==1||T(t)==8) && !strcmp(cav,"\\")) { *pA++=scanmonadn(f,t,b2,""); *quiet=0; }
                 else if(ISF(t) && ik(val(t))==1 && !strcmp(cav,"\\")) { *pA++=scanmonadb(f,t,b2,""); *quiet=0; }
                 else { _k(f); _k(t); _k(b2); *pA++=KERR_TYPE; }
                 _k(a); _k(b); _k(b1);
@@ -1840,14 +1849,14 @@ c3_apply:
               /* primitive do/while */
               ++i;
               t=*--pA;
-              if(0x43==s(b)) { *pA++=0; _k(a); _k(b); break; } /* TODO: f[]'[] */
+              if(0x43==s(b)) { *pA++=KERR_PARSE; _k(a); _k(b); break; } /* f[]'[] not handled here; push a real error, never a NULL operand (cf. sibling at ~1837) */
               if(s(t)) { t=reduce(t); if(E(t)||EXIT) { _k(a); _k(b); *pA++=t; break; } }
               if(!VST(t)) { _k(a); _k(b); _k(t); *pA++=KERR_TYPE; break; }
               K f=kcp(a); _k(a);
               if(E(f)) { _k(b); _k(t); *pA++=f; break; }
-              if(s(t)==0 && T(t)==1 && !strcmp(favp,"/")) { *pA++=overmonadn(f,t,b,""); *quiet=0; }
+              if(s(t)==0 && (T(t)==1||T(t)==8) && !strcmp(favp,"/")) { *pA++=overmonadn(f,t,b,""); *quiet=0; }
               else if(ISF(t) && ik(val(t))==1 && !strcmp(favp,"/")) { *pA++=overmonadb(f,t,b,""); *quiet=0; }
-              else if(s(t)==0 && T(t)==1 && !strcmp(favp,"\\")) { *pA++=scanmonadn(f,t,b,""); *quiet=0; }
+              else if(s(t)==0 && (T(t)==1||T(t)==8) && !strcmp(favp,"\\")) { *pA++=scanmonadn(f,t,b,""); *quiet=0; }
               else if(ISF(t) && ik(val(t))==1 && !strcmp(favp,"\\")) { *pA++=scanmonadb(f,t,b,""); *quiet=0; }
               else { _k(f); _k(b); _k(t); *pA++=KERR_TYPE; break; }
             }
@@ -1884,14 +1893,14 @@ c3_apply:
             if(pA>A&&i<nx-1&&0xc0==s(px[i+1])&&ik(px[i+1])==0xff) {  /* dyadic juxtaposition */
               ++i;
               t=*--pA;
-              if(0x43==s(b)) { *pA++=0; _k(a); _k(b); break; } /* TODO: f[]'[] */
+              if(0x43==s(b)) { *pA++=KERR_PARSE; _k(a); _k(b); break; } /* f[]'[] not handled here; push a real error, never a NULL operand (cf. sibling at ~1837) */
               if(s(t)) { t=reduce(t); if(E(t)||EXIT) { _k(a); _k(b); *pA++=t; break; } }
               if(!VST(t)) { _k(a); _k(b); _k(t); *pA++=KERR_TYPE; break; }
               xx=params[paramsi++]; pxk=px(xx); pxk[0]=t; pxk[1]=b; n(xx)=2;
               *pA++=fne(a,k_(xx),av);
               _k(t); _k(b); --paramsi;
             }
-            else if(0x43==s(b)) { *pA++=0; _k(a); _k(b); break; } /* TODO f[]'[] */
+            else if(0x43==s(b)) { *pA++=KERR_PARSE; _k(a); _k(b); break; } /* f[]'[] not handled here; push a real error, never a NULL operand (cf. sibling at ~1837) */
             else {
               xx=params[paramsi++]; pxk=px(xx); pxk[0]=b; n(xx)=1;
               *pA++=fne(a,k_(xx),av);
@@ -2221,9 +2230,9 @@ c3_apply:
             t=*--pA;
             if(s(t)) { t=reduce(t); if(E(t)||EXIT) { _k(a); _k(b); *pA++=t; break; } }
             if(!VST(t)) { _k(a); _k(b); _k(t); *pA++=KERR_TYPE; break; }
-            if(s(t)==0 && T(t)==1 && !strcmp(mv,"/")) { *pA++=overmonadn(a,t,k_(pb[2]),""); *quiet=0; }
+            if(s(t)==0 && (T(t)==1||T(t)==8) && !strcmp(mv,"/")) { *pA++=overmonadn(a,t,k_(pb[2]),""); *quiet=0; }
             else if(ISF(t) && ik(val(t))==1 && !strcmp(mv,"/")) { *pA++=overmonadb(a,t,k_(pb[2]),""); *quiet=0; }
-            else if(s(t)==0 && T(t)==1 && !strcmp(mv,"\\")) { *pA++=scanmonadn(a,t,k_(pb[2]),""); *quiet=0; }
+            else if(s(t)==0 && (T(t)==1||T(t)==8) && !strcmp(mv,"\\")) { *pA++=scanmonadn(a,t,k_(pb[2]),""); *quiet=0; }
             else if(ISF(t) && ik(val(t))==1 && !strcmp(mv,"\\")) { *pA++=scanmonadb(a,t,k_(pb[2]),""); *quiet=0; }
             else { _k(a); _k(t); *pA++=KERR_TYPE; }
             _k(b);
@@ -2511,12 +2520,14 @@ K pgreduce(K x, int p) {
     timer=0;
     if(RETURN) {
       if(!REPL) RETURN=0;
-      if(cs!=gs) break;
-      /* at global scope during file load: r already printed above; stop */
-      if(!REPL && opencode) {
-        RETURN=0;
-        break;
-      }
+      if(cs!=gs) break;                 /* local scope: propagate up */
+      /* global top-level: a return stops the statement list the same way in
+         file load (opencode) and the REPL.  Previously the REPL fell through
+         and kept evaluating, so `:2.0;3.0;4.0` yielded 4.0 instead of 2.0 and
+         leaked the held return value when the next statement overwrote r.
+         Only an embedded eval (!REPL && !opencode, e.g. value"...") still lets
+         RETURN propagate to its caller. */
+      if(REPL || opencode) break;
     }
   }
   return r;
@@ -2826,8 +2837,12 @@ static int is_assign_verb(K v) {
   return 0;
 }
 
-static void mark_lvalues(pn *a) {
-  if(!a) return;
+static void mark_lvalues(pgs *s, pn *a, int d) {
+  if(!a || s->overflow) return;
+  if(d>maxr) { s->overflow=1; return; }  /* tree too deep: a recursive walk (this,
+                               bc, can_inline_call) would overflow the C stack.  Flag
+                               it -> bc bails, pgparse raises "stack".  Piggybacks on
+                               the traversal bc already does, so no extra pass. */
   if(a->t==1) {
     int isassign=is_assign_verb(a->v);
     /* 0xff wraps an amend in some grammars: q=t==1 with v==0xff and the
@@ -2843,7 +2858,7 @@ static void mark_lvalues(pn *a) {
       a->a[0]->lv=1;
     }
   }
-  for(int i=0;i<a->m;i++) mark_lvalues(a->a[i]);
+  for(int i=0;i<a->m;i++) mark_lvalues(s,a->a[i],d+1);
 }
 
 static void bc(pgs *s, pn *a, K values, K index, K line, int *vm) {
@@ -2853,7 +2868,8 @@ static void bc(pgs *s, pn *a, K values, K index, K line, int *vm) {
   K *pvalues=px(values);
   int *pindex=px(index);
   int *pline=px(line);
-  mark_lvalues(a);
+  mark_lvalues(s,a,0);
+  if(s->overflow) return;  /* parse tree too deep (mark_lvalues) -> pgparse raises "stack" */
   s0=xmalloc(sizeof(pn*)*i0m);
   s1=xmalloc(sizeof(pn*)*i1m);
   s0[++i0]=a;
@@ -3807,6 +3823,12 @@ K pgparse(char *q, int load, K locals) {
   int j,r,zo;
   u64 zn,zm=256;
   if(!q) return KERR_PARSE;
+  /* The token table (pgs.tm/tc, p.h) is a 32-bit count grown by doubling, so
+     it overflows past ~2^30 tokens; a source has <=1 token/char.  Reject a
+     >=2^30-char source up front with a clean length error -- covers every lex
+     entry point (REPL repl.c:216, load repl.c:346, lambda defs fn.c:243, the
+     `.` verb v.c, watch exprs watch.c) instead of corrupting in the lexer. */
+  if(strlen(q) >= ((u64)1<<30)) return KERR_LENGTH;
   pgs *s=pgnew();
   s->locals=locals;
   z=prnew(zm);
@@ -3863,6 +3885,7 @@ K pgparse(char *q, int load, K locals) {
       while(s->si>=0&&s->S[s->si]==-2) { (*F[s->R[s->ri--]])(s); --s->si; }
       if(s->si<0) { --s->vi; break; }
     }
+    if(s->overflow) { e=KERR_STACK; goto cleanup; }  /* parse tree too deep (mark_lvalues) */
     if(s->q) { /* quiet? ; */
       s->q=0;
       /* check if s->values needs resizing before writing */

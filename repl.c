@@ -213,7 +213,7 @@ K load(char *fn, int load) {
     ++newfileline;
     if(!pcount&&!scount&&!ccount&&!qcount) {
       b[i++]=0;
-      r=pgparse(xstrdup(b),load,0);
+      r=memchr(b,0,i-1)?KERR_PARSE:pgparse(xstrdup(b),load,0);  /* raw NUL: not valid source */
       if(E(r)) {
         if(r<EMAX) r=kerror(E[r]);
         if(glinep&&gline0p&&strcmp(glinep,gline0p)) {
@@ -240,6 +240,9 @@ K load(char *fn, int load) {
         goto cleanup;
       }
       else if(r) {
+#ifdef FUZZING
+        gk_budget=GK_BUDGET;
+#endif
         ++DEPTH;
         K rr=pgreduce(r,1);
         --DEPTH;
@@ -343,7 +346,13 @@ static K repl_(void) {
   b[i++]='\n'; b[i]=0;
   int opencode0=opencode; opencode=1;
   //K d0=D; K cs0=cs; K gs0=gs;
-  r=pgparse(b,0,0);
+  /* A raw NUL is never valid in source (escaped "\0" is the two bytes \ 0, not
+     a NUL byte).  The byte-level bracket counter above can balance a line whose
+     embedded NUL would truncate the C-string the lexer sees, handing the
+     open-code parser an unterminated group -> spin.  Reject it as a parse
+     error here, while we still know the real length. */
+  if(memchr(b,0,i)) { xfree(b); r=KERR_PARSE; } /* NUL-reject must still free the line buffer that pgparse() would otherwise consume */
+  else r=pgparse(b,0,0);
   //D=d0; cs=cs0; gs=gs0;
   opencode=opencode0;
   if(E(r)) {
@@ -358,6 +367,9 @@ static K repl_(void) {
      r=null;
   }
   else if(r) {
+#ifdef FUZZING
+    gk_budget=GK_BUDGET;
+#endif
     int opencode0=opencode; opencode=1;
     K t=pgreduce(r,0);
     opencode=opencode0;

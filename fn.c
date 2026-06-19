@@ -374,6 +374,11 @@ K fne_(K f, K x, char *av) {
     opencode=0;
     RETURN=0;  /* clear early return flag from previous calls */
     r=pgreduce(pf[1],0);
+    RETURN=0;  /* a call consumes its own return; RETURN must not leak into the
+                  caller's expression.  pgreduce clears it in file mode (!REPL)
+                  but left it set in the REPL, so `1+g 5` with g:{:x*2} wrongly
+                  yielded 10 not 11.  Only a direct top-level/subconsole `:`
+                  (which never runs through fne_) should survive to the REPL. */
     opencode=opencode0;
     --fnestacki;
     if(0xc3==s(r)) {
@@ -466,22 +471,23 @@ K fne_fast(K f, K x) {
     if(E(p)) { _k(r); r=p; break; }
     if(EXIT) { _k(p); _k(r); r=null; break; }
     _k(r); r=p;
-    if(RETURN) { if(!REPL) RETURN=0; break; }
+    if(RETURN) { RETURN=0; break; }  /* a call consumes its own return (see fne_) */
   }
 
   opencode=opencode0;
   --fnestacki;
 
   /* closure detection: a returned lambda or dict-of-lambdas captures
-     this scope's locals. */
+     this scope's locals.  NOTE: fne_fast reuses f's persistent scope
+     (pf[2]) as the activation record, so every exit path MUST run the
+     epilogue below to restore pd[1]/ps[5]/nx -- otherwise a re-entrant
+     activation of the same f sees the corrupted scope.  When scope_cp
+     fails (e.g. KERR_STACK on a circular/deep scope) we therefore drop
+     the closure and goto cleanup with the error as the result, rather
+     than returning early and skipping the restore. */
   if(0xc3==s(r)) {
     K closurescope=scope_cp(cs);
-    if(E(closurescope)) {
-      pd=px(ps[1]); pd[1]=pd1save;
-      _k(cs); cs=cs0;
-      _k(r); _k(f); _k(x);
-      return closurescope;
-    }
+    if(E(closurescope)) { _k(r); r=closurescope; goto cleanup; }
     K *pc=px(closurescope); pc[3]=t(1,1);
     r=closure(r,cs,closurescope);
     _k(closurescope);
@@ -494,18 +500,15 @@ K fne_fast(K f, K x) {
     i(n(v),if(0xc3==s(pvv[i]))++c)
     if(c&&c==n(v)) {
       K closurescope=scope_cp(cs);
-      if(E(closurescope)) {
-        pd=px(ps[1]); pd[1]=pd1save;
-        _k(cs); cs=cs0;
-        _k(r); _k(f); _k(x);
-        return closurescope;
-      }
+      if(E(closurescope)) { _k(r); r=closurescope; goto cleanup; }
       K *pc=px(closurescope); pc[3]=t(1,1);
       i(n(v),pvv[i]=closure(pvv[i],cs,closurescope))
       _k(closurescope);
     }
   }
 
+cleanup:
+  pd=px(ps[1]);          /* ps[1] may have been refreshed during the body */
   if(ik(ps[5])==0) _k(pd[1]);
   pd[1]=pd1save;
   ps[5]=ps5save;

@@ -32,6 +32,11 @@ K dset(K d, char *key, K val) {
   u32 i;
   u64 n;
   gcache_clear();  /* conservative: invalidate cache on any dict modification */
+  /* the empty symbol is not a valid dictionary key.  The index-amend paths
+   * (kamendi*) already reject it, and `d[`]:x` errors, but the named-amend
+   * paths (.[`ns;`;...]) dset it directly -- guard at the single chokepoint
+   * where keys enter a dict so every path is covered. */
+  if(!*key) return kerror("domain");
   /* top-level single-letter keys are reserved, except 'k' (.k namespace)
    * and 'm' (.m ipc namespace), each of which must be a dict. */
   if(d==ktree && strlen(key)==1

@@ -1,0 +1,10 @@
+<`c`a`b`a`c
+>`c`a`b`a`c
+<`aa`a`ab`b`abc`aA
+v:`a`ab`abc`b`ba`aa`aA`z`zzz
+v@<v
+v@>v
+<`s`s`s
+>`s`s`s
+4:<`a`b`c
+\\

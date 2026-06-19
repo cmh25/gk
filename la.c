@@ -245,6 +245,17 @@ static K la_narrow(K x) {
   if(E(_r) || !((_f&1)&&!(_f&6))) return _r; \
   K _q=la_narrow(_r); _k(_r); return _q; } }while(0)
 
+/* big-vectors: every LA entry point densifies the row-list into int-indexed
+   double arrays (svdcmp even takes (int)dims), so a row/col count >INT32_MAX
+   would silently truncate (u64->u32 at >=2^32) or negate ((int)mm at >2^31).
+   A matrix that large is memory-explosive (tier-2, ~256GB: a >2^31-row list is
+   a >17GB boxed spine before the dense m*n copies) and untestable under the
+   121GB VM, so reject it cleanly instead of corrupting. Checks the raw u64
+   n() (NOT the already-truncated u32 dim). */
+static inline int la_dimoversize(u64 rows, u64 cols) {
+  return rows > (u64)INT32_MAX || cols > (u64)INT32_MAX;
+}
+
 K lsq_(K a, K x) {
   { int _f=la_tflags(a)|la_tflags(x); if(_f&3) {
       K _a=la_widen(a), _x=la_widen(x); K _r=lsq_(_a,_x); _k(_a); _k(_x);
@@ -428,6 +439,7 @@ K svd_(K x) {
   m = n(x);
   if(s(pxk[0]) || (T(pxk[0])!=0 && T(pxk[0])!=-1 && T(pxk[0])!=-2)) return kerror("type");
   n = n(pxk[0]);
+  if(la_dimoversize(n(x), n(pxk[0]))) return kerror("length");
   for(i=0;i<m;i++) {
     K row = pxk[i];
     if(s(row) || (T(row)!=0 && T(row)!=-1 && T(row)!=-2)) return kerror("type");
@@ -673,6 +685,7 @@ K lu_(K x) {
   m = n(x);
   if(s(pxk[0]) || (T(pxk[0])!=0 && T(pxk[0])!=-1 && T(pxk[0])!=-2)) return kerror("type");
   n = n(pxk[0]);
+  if(la_dimoversize(n(x), n(pxk[0]))) return kerror("length");
   for(i=0;i<m;i++) {
     K row = pxk[i];
     if(s(row) || (T(row)!=0 && T(row)!=-1 && T(row)!=-2)) return kerror("type");
@@ -831,6 +844,7 @@ K qr_(K x) {
   m = n(x);
   if(s(pxk[0]) || (T(pxk[0])!=0 && T(pxk[0])!=-1 && T(pxk[0])!=-2)) return kerror("type");
   n = n(pxk[0]);
+  if(la_dimoversize(n(x), n(pxk[0]))) return kerror("length");
   for(i=0;i<m;i++) {
     K row = pxk[i];
     if(s(row) || (T(row)!=0 && T(row)!=-1 && T(row)!=-2)) return kerror("type");
@@ -1054,6 +1068,7 @@ K rref_(K x) {
   if(s(pxk[0]) || (T(pxk[0])!=0 && T(pxk[0])!=-1 && T(pxk[0])!=-2))
     return kerror("type");
   n = n(pxk[0]);
+  if(la_dimoversize(n(x), n(pxk[0]))) return kerror("length");
   for(i = 0; i < m; i++) {
     K row = pxk[i];
     if(s(row) || (T(row)!=0 && T(row)!=-1 && T(row)!=-2))
@@ -1174,6 +1189,7 @@ K det_(K x) {
   if(s(pxk[0]) || (T(pxk[0])!=0 && T(pxk[0])!=-1 && T(pxk[0])!=-2))
     return kerror("type");
   if(n(pxk[0]) != m) return kerror("length");  /* must be square */
+  if(la_dimoversize(n(x), n(pxk[0]))) return kerror("length");
   for(i = 0; i < m; i++) {
     K row = pxk[i];
     if(s(row) || (T(row)!=0 && T(row)!=-1 && T(row)!=-2))

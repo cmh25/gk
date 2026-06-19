@@ -7,7 +7,7 @@
 
 static char *P=":+-*%&|<>=~.!@?#_^,$'/\\";
 
-static K avdoi(K f, K a, K x, int ai, int xi, char *av) {
+static K avdoi(K f, K a, K x, i64 ai, i64 xi, char *av) {
   K r=0,*pak,*pxk,a_=0;
   char *pac,*pxc,**pas,**pxs; i8 Ta,Tx;
   int *pai,*pxi;
@@ -175,6 +175,9 @@ cleanup:
 static K overm(K f, K x, char *av) {
   K r=0,e,p,q;
   int b=0,n=strlen(av);
+#ifdef FUZZING
+  long bw=0;
+#endif
   if(n==0) b=1;
   p=x;  /* first */
   q=b?fe(k_(f),0,k_(x),av):avdo(k_(f),0,k_(x),av); EC(q); /* previous */
@@ -185,6 +188,9 @@ static K overm(K f, K x, char *av) {
       z=b?fe(k_(f),0,k_(q),av):avdo(k_(f),0,k_(q),av); EC(z); r=z;
       if(STOP) { STOP=0; e=kerror("stop"); goto cleanup; }
       if(EXIT) { e=kerror("abort"); goto cleanup; }
+#ifdef FUZZING
+      gk_budget-=++bw; if(gk_budget<0) { e=kerror("limit"); goto cleanup; }  /* weight by iteration: converge per-step work grows with value depth, so a flat per-iter cost can't fire before -t (e.g. +\\\0 deepens by one enlist each step) */
+#endif
     }
   }
   _k(r);
@@ -198,6 +204,9 @@ cleanup:
 static K scanm(K f, K x, char *av) {
   K r=0,t=0,e,q=0,*prk;
   int b=0,n=strlen(av),zi=0,zm=32;
+#ifdef FUZZING
+  long bw=0;
+#endif
   if(n==0) b=1;
   PRK(zm);
   prk[zi]=kcp2(x); if(E(prk[zi])) { e=prk[zi]; goto cleanup; } ++zi; /* first */
@@ -212,6 +221,9 @@ static K scanm(K f, K x, char *av) {
       t=b?fe(k_(f),0,k_(q),av):avdo(k_(f),0,k_(q),av); EC(t);
       if(STOP) { STOP=0; e=kerror("stop"); goto cleanup; }
       if(EXIT) { e=kerror("abort"); goto cleanup; }
+#ifdef FUZZING
+      gk_budget-=++bw; if(gk_budget<0) { e=kerror("limit"); goto cleanup; }  /* weight by iteration: converge per-step work grows with value depth, so a flat per-iter cost can't fire before -t (e.g. +\\\0 deepens by one enlist each step) */
+#endif
     }
   }
   _k(q);
@@ -414,7 +426,7 @@ K avdo(K f, K a, K x, char *av) {
            2-arg plist against f's valence of 1.  Mirrors fe.c's infix path. */
         if(vf==1 && 0x81==s(x) && nx==2 && (*av=='/'||*av=='\\')) {
           K *p=px(x); K a0=k_(p[0]), x0=k_(p[1]);
-          if(s(a0)==0 && T(a0)==1)
+          if(s(a0)==0 && (T(a0)==1||T(a0)==8))
             r = *av=='/' ? overmonadn(k_(f),a0,x0,"") : scanmonadn(k_(f),a0,x0,"");
           else if(ISF(a0) && ik(val(a0))==1)
             r = *av=='/' ? overmonadb(k_(f),a0,x0,"") : scanmonadb(k_(f),a0,x0,"");
@@ -490,11 +502,11 @@ K avdo(K f, K a, K x, char *av) {
       if(!x) r=kerror("type");
       else if(av[n-1]=='\'') r=each(f,a,x,av2);
       else if(av[n-1]=='/') {
-        if(n>1 && ta==1 && 0xc3!=s(f)) r=overmonadn(k_(f),k_(a),k_(x),av2);
+        if(n>1 && (ta==1||ta==8) && 0xc3!=s(f)) r=overmonadn(k_(f),k_(a),k_(x),av2);
         else r=eachright(f,a,x,av2);
       }
       else if(av[n-1]=='\\') {
-        if(n>1 && ta==1 && 0xc3!=s(f)) r=scanmonadn(k_(f),k_(a),k_(x),av2);
+        if(n>1 && (ta==1||ta==8) && 0xc3!=s(f)) r=scanmonadn(k_(f),k_(a),k_(x),av2);
         else r=eachleft(f,a,x,av2);
       }
       _k(f); _k(a); _k(x);
@@ -571,7 +583,7 @@ K avdo(K f, K a, K x, char *av) {
 
 K overmonadn(K f, K a, K x, char *av) {
   K r=0,e,p=0;
-  i32 i=ik(a);
+  i64 i = T(a)==8 ? jk(a) : ik(a);  /* do-n count: accept a long n (boxed -> jk) as well as int */
   if(i<0) { e=kerror("domain"); goto cleanup; }
   r=k_(x);
   while(i>0) {
@@ -580,6 +592,9 @@ K overmonadn(K f, K a, K x, char *av) {
     --i;
     if(STOP) { STOP=0; e=kerror("stop"); goto cleanup; }
     if(EXIT) { e=kerror("abort"); goto cleanup; }
+#ifdef FUZZING
+    if(--gk_budget<0) { e=kerror("limit"); goto cleanup; }
+#endif
   }
   _k(f); _k(a); _k(x);
   return knorm(r);
@@ -590,7 +605,7 @@ cleanup:
 
 K scanmonadn(K f, K a, K x, char *av) {
   K r=0,e,p=0,*prk;
-  i32 i=ik(a),j=0;
+  i64 i = T(a)==8 ? jk(a) : ik(a), j=0;  /* do-n count: accept a long n as well as int */
   if(i<0) { e=kerror("domain"); goto cleanup; }
   r=tn(0,1+i); prk=px(r);
   prk[j]=kcp2(x); if(E(prk[j])) { e=prk[j]; goto cleanup; } ++j;
@@ -600,6 +615,9 @@ K scanmonadn(K f, K a, K x, char *av) {
     --i;
     if(STOP) { STOP=0; e=kerror("stop"); goto cleanup; }
     if(EXIT) { e=kerror("abort"); goto cleanup; }
+#ifdef FUZZING
+    if(--gk_budget<0) { e=kerror("limit"); goto cleanup; }
+#endif
   }
   _k(f); _k(a); _k(x);
   return knorm(r);
@@ -625,6 +643,9 @@ K overmonadb(K f, K a, K x, char *av) {
     _k(p);
     if(STOP) { STOP=0; e=kerror("stop"); goto cleanup; }
     if(EXIT) { e=kerror("abort"); goto cleanup; }
+#ifdef FUZZING
+    if(--gk_budget<0) { e=kerror("limit"); goto cleanup; }
+#endif
   }
   _k(f); _k(a); _k(x);
   return knorm(r);
@@ -657,6 +678,9 @@ K scanmonadb(K f, K a, K x, char *av) {
     _k(p);
     if(STOP) { STOP=0; e=kerror("stop"); goto cleanup; }
     if(EXIT) { e=kerror("abort"); goto cleanup; }
+#ifdef FUZZING
+    if(--gk_budget<0) { e=kerror("limit"); goto cleanup; }
+#endif
   }
   _k(f); _k(a); _k(x);
   return knorm(r);

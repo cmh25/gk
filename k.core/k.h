@@ -105,10 +105,31 @@ static inline K k_(K x) {
   return x;
 }
 
+/* VMAX: max element count for a vector. Above this the byte-size multiply
+   (n * up to 8 bytes/elt) could overflow size_t, and the allocation is hopeless
+   regardless (xmalloc hard-exits on failure). ~7.2e16 elements -- far past any
+   real machine, but a finite guard against wraparound and garbage sizes. */
+#define VMAX ((i64)1<<56)
+/* BIGV: the i32->i64 big-vector dispatch threshold. A source length > BIGV
+   makes the index/count-producing verbs (#, @/at, &where, ?find, </>grade,
+   =group, ^shape, ss) take the long/i64 path & emit a long count/index;
+   mirror-#source rule. Defaults to INT32_MAX (production). **Lower it with
+   -DBIGV=64 to fuzz the i64 code paths on small inputs** (so AFL/ASAN/UBSan
+   exercise gradej/groupj/long-count/long-index etc. without a 17GB vector).
+   Fuzz-only: a lowered build won't pass `make test` (goldens assume the int
+   path). Does NOT reproduce true 2^31-magnitude overflows (those need real
+   size -- use UBSan on t64 for that class). */
+#ifndef BIGV
+#define BIGV ((u64)0x7fffffff)
+#endif
+/* evaluate the size through an i64 temp: single evaluation, and the VMAX
+   comparison isn't tautological when the caller passes an i32/u32 (no
+   -Wtautological-constant-out-of-range-compare on strict clang builds). */
 #ifdef ASAN_ENABLED
-#define VSIZE(x) do { if((x)<0||(x)>1000000000) return KERR_WSFULL; } while(0);
+#define VSIZE(x) do { i64 vsz_=(i64)(x); if(vsz_<0||vsz_>1000000000) return KERR_WSFULL; } while(0);
 #else
-#define VSIZE(x) do { if((x)<0||(x)==INT32_MAX) return KERR_WSFULL; } while(0);
+/* reject negative, the int-infinity sentinel (0I == INT32_MAX), and >= VMAX */
+#define VSIZE(x) do { i64 vsz_=(i64)(x); if(vsz_<0||vsz_==INT32_MAX||vsz_>=VMAX) return KERR_WSFULL; } while(0);
 #endif
 
 /* floating point comparision */
@@ -221,17 +242,17 @@ extern void sf(void);
 
 K k(i32 i, K a, K x);
 void _k(K x);
-K tn(i32 t, i32 n);
-K tnv(i32 t, i32 n, void *v);
+K tn(i32 t, i64 n);
+K tnv(i32 t, i64 n, void *v);
 K t2(double x);
 K tj(i64 x);
-K ki(i32 i, K a, K x, i32 ai, i32 xi);
+K ki(i32 i, K a, K x, i64 ai, i64 xi);
 i32 kcmpr(K a, K x);
 i32 kcmprz(K a, K x, i32 tol); /* tol: 1=use tolerance, 0=exact */
 K kcp(K x);
 K knorm(K x);
 K kmix(K x);
-K kresize(K x, i32 n);
+K kresize(K x, i64 n);
 u64 khash(K x);
 K ksplit(char *b, char *c);
 void kexit(void);

@@ -35,8 +35,8 @@ static void shuffle(int *a, int n) {
   }
 }
 
-void drawi(int *s, int n, int m) {
-  int i;
+void drawi(int *s, int64_t n, int m) {
+  int64_t i;
 
   for(i=0;i<n;i++) {
     x ^= x << 16;
@@ -48,8 +48,8 @@ void drawi(int *s, int n, int m) {
   }
 }
 
-void drawj(int64_t *s, int n, int64_t m) {
-  int i;
+void drawj(int64_t *s, int64_t n, int64_t m) {
+  int64_t i;
 
   for(i=0;i<n;i++) {
     x ^= x << 16;
@@ -61,8 +61,8 @@ void drawj(int64_t *s, int n, int64_t m) {
   }
 }
 
-void drawf(double *s, int n, double m) {
-  int i;
+void drawf(double *s, int64_t n, double m) {
+  int64_t i;
   int rm=2147483647; /* instead of RAND_MAX */
   double rmi=m/rm;
 
@@ -76,8 +76,8 @@ void drawf(double *s, int n, double m) {
   }
 }
 
-void drawe(float *s, int n, float m) {
-  int i;
+void drawe(float *s, int64_t n, float m) {
+  int64_t i;
   int rm=2147483647; /* instead of RAND_MAX */
   double rmi=(double)m/rm;
 

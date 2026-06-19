@@ -22,7 +22,7 @@
 .[#;(2 -1;"asdf1234");:]
 .[#;(0N 0;"asdf");:]
 
-/ --- floor _ uses comparison tolerance (consistent with =,<,>); _floor stays exact ---
+/ --- the floor verb _ uses comparison tolerance (consistent with =,<,>); the floor builtin stays exact ---
 _1.9999999999999
 _1.999999999999
 _2.0000000000001

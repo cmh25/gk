@@ -77,7 +77,8 @@ static void md5block(md5s *s, const unsigned char *p) {
 }
 
 static void md5final(md5s *s, unsigned char *p, size_t n, unsigned char *d) {
-  uint32_t i,hi,len=s->n*64+n,*h=s->h;
+  uint32_t i,*h=s->h;
+  uint64_t len=(s->n*64ULL+n)*8ULL; /* bit length, full 64-bit (no >4GB trunc) */
 
   p[n++]=0x80;
   if(n>56) {
@@ -87,13 +88,8 @@ static void md5final(md5s *s, unsigned char *p, size_t n, unsigned char *d) {
   }
   else memset(p+n,0,56-n);
 
-  hi = len >> 29; len <<= 3;
-  p[56] = len;
-  p[57] = len>>8;
-  p[58] = len>>16;
-  p[59] = len>>24;
-  p[60] = hi;
-  p[61] = p[62] = p[63] = 0;
+  STORE32_LE(p+56,(uint32_t)len);       /* MD5 length is little-endian */
+  STORE32_LE(p+60,(uint32_t)(len>>32));
 
   md5block(s, p);
   for(i=0;i<4;i++) STORE32_LE(d + i*4, h[i]);

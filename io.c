@@ -48,6 +48,20 @@ static FILE* fopen__(FILE **fp, const char *p, const char *m) {
   return *fp;
 }
 
+/* Write the whole buffer, then flush+close, surfacing a short write or a
+   deferred flush failure (typically ENOSPC -- disk full) as an io error
+   instead of silently truncating the file. A single fwrite of a >2GB buffer
+   is fine (glibc loops internally), so a short return is a real device
+   error; with buffered stdio the error often only shows up at fclose, so
+   close here and check it. *fp is always consumed (closed). Returns null on
+   success, an error K otherwise. */
+static K fwclose_(const void *p, size_t n, FILE *fp) {
+  int err = (n && fwrite(p,1,n,fp)!=n) || ferror(fp);
+  int eno = err ? errno : 0;
+  if(fclose(fp) && !err) { err=1; eno=errno; }
+  return err ? ferr("write",eno) : null;
+}
+
 #ifdef FUZZING
 /* Under FUZZING, all filesystem-touching verbs are stubbed. Rationale: we're
  * not trying to fuzz libc fopen/fread/stat; we want to fuzz the interpreter.
@@ -191,7 +205,8 @@ static K zerocolon2(K a, K x) {
   K r=null,e=0,p=0,q=0,ff=0,*prk,*pak,*pxk;
   FILE *fp=0;
   size_t B=0,N=0,NN=0;
-  u32 i,j,k,n,m,L=0,u;
+  u32 i,j,n,L=0,u;   /* field-level: i,j field index, n field count, L row width */
+  u64 k,m;           /* row index / row count -- must be 64-bit (>2^32 rows) */
   char *ppc,*z,*pz,*z0=0,g;
   i32 *pqi;
 
@@ -212,11 +227,15 @@ static K zerocolon2(K a, K x) {
         fwrite(px(pxk[i]),1,n(pxk[i]),fp);
         fputc('\n',fp);
       }
+      e=fwclose_(0,0,fp); fp=0;  /* flush+close; catch disk full */
+      if(E(e)) return e;
       break;
     case -3:  /* single string */
       EC(fopen_(a,"wb",&fp));
       fwrite(px(x),1,nx,fp);
       fputc('\n',fp);
+      e=fwclose_(0,0,fp); fp=0;  /* flush+close; catch disk full */
+      if(E(e)) return e;
       break;
     default: return KERR_TYPE;
     } break;
@@ -287,6 +306,7 @@ static K zerocolon2(K a, K x) {
       ++m;
       zr=(nl<z0+N)?nl+1:nl;
     }
+    if(m>=(u64)VMAX) { e=KERR_WSFULL; goto cleanup; } /* row count -> column length */
     j=0;
     r=tn(0,n); prk=px(r);
     for(i=0;i<n(p);i++) {
@@ -415,7 +435,11 @@ static K onecolon1(K x) {
   else if(t==-2) len=c*sizeof(double);
   else if(t==-3) len=c*sizeof(char);
   else return KERR_TYPE;
-  v=mmap(0,len,PROT_READ|PROT_WRITE,MAP_PRIVATE,fd,0);
+  /* the file is [24-byte header][len data]; the vector points at v+24, so the
+     mapping must span header+data (24+len). Mapping only `len` left the tail
+     24 bytes of data unmapped whenever len was page-aligned (big vectors) -> SEGV.
+     __k frees this via munmap(k->v-24, 24+len) -- keep the two in lockstep. */
+  v=mmap(0,24+len,PROT_READ|PROT_WRITE,MAP_PRIVATE,fd,0);
   if(v==(void*)-1) { r=ferr(s,errno); return r; }
   r=tnv(-t,c,24+(char*)v);
   ((ko*)(b(48)&r))->m=1;
@@ -429,7 +453,8 @@ static K onecolon2(K a, K x) {
   K r=null,e,p,q,ff,*prk,*pak,*pxk;
   FILE *fp=0;
   size_t B=0,N=0,NN=0;
-  u32 i,j,k,n,m,L=0;
+  u32 j,k,n,L=0;   /* field-level: j,k field index, n field count, L row width */
+  u64 i,m;         /* row index / row count -- must be 64-bit (>2^32 rows) */
   char *z,*pz,*z0=0,*ze,g;
   if((ta==4&&!strlen(sk(a))) || (ta==-3&&!na)) return KERR_LENGTH;
   switch(ta) {
@@ -438,9 +463,9 @@ static K onecolon2(K a, K x) {
     EC(fopen_(a,"wb",&fp));
     r=bd_(x); EC(r);
     if(E(r)) { fclose(fp); e=r; goto cleanup; }
-    fwrite((void*)px(r),1,n(r),fp);
-    fclose(fp); fp=0;
+    e=fwclose_((void*)px(r),n(r),fp); fp=0;  /* consumes fp; catches disk full */
     _k(r); r=null;
+    if(E(e)) goto cleanup;
     break;
   case 0:
     if(na!=2) { e=KERR_LENGTH; goto cleanup; }
@@ -495,6 +520,7 @@ static K onecolon2(K a, K x) {
     if(!L) { e=KERR_LENGTH; goto cleanup; }
     if(N%L) { e=KERR_LENGTH; goto cleanup; }
     m=N/L;
+    if(m>=(u64)VMAX) { e=KERR_WSFULL; goto cleanup; } /* row count -> column length */
     PRK(n);
     // ("cid S";1 4 8 4 5)1:("b2";22;66)
     for(i=0,j=0;i<n(p);i++) {
@@ -856,20 +882,22 @@ static K fivecolon2(K a, K x) {
     p=bd_(x);
     if(E(p)) { fclose(fp); e=p; goto cleanup; }
     fseek(fp,0,SEEK_END);
-    fwrite(24+(char*)px(p),1,n(p)-24,fp); /* p skip header,type,subtype,pad,count */
-    fclose(fp);                  /* close and reopen to edit count */
+    /* append data; close+check catches disk full (p skips header,type,subtype,pad,count) */
+    e=fwclose_(24+(char*)px(p),n(p)-24,fp); fp=0;
+    if(E(e)) goto cleanup;
     EC(fopen_(a,"rb+",&fp));
     fseek(fp,sizeof(int)*4,SEEK_SET); /* skip header,type,subtype,pad */
     n=c+((tx>0||s(x))?1:nx);
     fwrite(&n,sizeof(u64),1,fp); /* update count */
-    fclose(fp);
-    r=t(1,n);
+    e=fwclose_(0,0,fp); fp=0;
+    if(E(e)) goto cleanup;
+    r=n>(size_t)INT32_MAX?tj((i64)n):t(1,n); /* big count: long atom, not i32-truncated */
   }
   else {
     p=bd_(x);
     if(E(p)) { fclose(fp); e=p; goto cleanup; }
-    fwrite((char*)px(p),1,n(p),fp);
-    fclose(fp);
+    e=fwclose_((char*)px(p),n(p),fp); fp=0;
+    if(E(e)) goto cleanup;
     r=null;
   }
   _k(p);
@@ -927,9 +955,8 @@ static K sixcolon2(K a, K x) {
   }
   else EC(fopen_(a,"wb",&fp));
   PXC;
-  i(nx,fputc(pxc[i],fp));
-  fclose(fp);
-  return null;
+  fwrite(pxc,1,nx,fp);
+  return fwclose_(0,0,fp);  /* flush+close; catch disk full */
 cleanup:
   return e;
 }

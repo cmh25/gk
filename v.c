@@ -378,6 +378,11 @@ K valuecb(K x) {
     else r=KERR_PARSE;
     break;
   case -3:
+    /* The lexer's token table (pgs.tm) is a 32-bit count that grows by
+       doubling, so it overflows past ~2^30 tokens; a source has <=1 token per
+       char, so reject a >=2^30-char program string up front with a clean
+       length error instead of corrupting/aborting deep in the lexer. */
+    if(nx>=((u64)1<<30)) return KERR_LENGTH;
     pxc=px(x);
     h=xcalloc(1,nx+2);
     i(nx,h[i]=pxc[i]) h[nx]='\n'; h[nx+1]=0;
