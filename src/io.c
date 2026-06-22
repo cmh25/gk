@@ -951,7 +951,9 @@ static K sixcolon2(K a, K x) {
   if(!ta) { /* append */
     PAK;
     if(!na||(T(pak[0])!=-3&&T(pak[0])!=4)) return KERR_TYPE;
-    EC(fopen_(pak[0],"a",&fp));
+    EC(fopen_(pak[0],"ab",&fp));   /* binary: 6: writes raw bytes; text-mode "a"
+                                      would CRLF-translate \n on Windows (the
+                                      fresh-write path below already uses "wb") */
   }
   else EC(fopen_(a,"wb",&fp));
   PXC;

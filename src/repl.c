@@ -144,8 +144,8 @@ K load(char *fn, int load) {
      path so pfile and error messages report where it actually loaded from.
      The command-line script arg (load==1) is never searched -- it stays literal. */
   if(!fp && load==2 && fn[0]!='/') {
-#ifdef _WIN32
-    /* _dupenv_s mallocs; caller frees with free() */
+#ifdef _MSC_VER
+    /* MSVC-only: _dupenv_s mallocs, freed below. MinGW/POSIX use getenv (static). */
     char *gp=0; _dupenv_s(&gp,0,"GKPATH");
 #else
     char *gp=getenv("GKPATH");
@@ -162,7 +162,7 @@ K load(char *fn, int load) {
         if(!sep) break;
         p=sep+1;
       }
-#ifdef _WIN32
+#ifdef _MSC_VER
       free(gp);
 #endif
     }
@@ -242,6 +242,7 @@ K load(char *fn, int load) {
       else if(r) {
 #ifdef FUZZING
         gk_budget=GK_BUDGET;
+        gk_alloc_budget=GK_ALLOC_BUDGET;
 #endif
         ++DEPTH;
         K rr=pgreduce(r,1);
@@ -369,6 +370,7 @@ static K repl_(void) {
   else if(r) {
 #ifdef FUZZING
     gk_budget=GK_BUDGET;
+    gk_alloc_budget=GK_ALLOC_BUDGET;
 #endif
     int opencode0=opencode; opencode=1;
     K t=pgreduce(r,0);

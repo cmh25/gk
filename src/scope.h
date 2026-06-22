@@ -8,9 +8,8 @@ extern K ks,gs,cs;
 extern K ktree,C,Z,D;
 #define LOCALSMAX 2048
 extern K locals[LOCALSMAX];
-extern int localsi;
 
-void scope_init(int argc, char **argv);
+void scope_init(char **args, int nargs);
 
 /* Refresh .z.P with the current process pid. .z.P is captured once during
  * scope_init, so anyone who forks (e.g. ipc.c's forking server) needs to

@@ -16,7 +16,7 @@ static K vlookup(K x) {
 
 static inline K cp(K x) {
   if(x&&s(x)&&T(x)==0&&((ko*)(b(48)&x))->r) {
-    K p=kcp(x); if(E(p)) return 0;  /* 0 sentinel; callers map to null (cf. atcb) */
+    K p=kcp(x); if(E(p)) { _k(x); return 0; }  /* 0 sentinel; callers map to null (cf. atcb). x is owned (dget returns k_), so free it on copy failure */
     _k(x); x=p;
   }
   return x;
@@ -25,7 +25,7 @@ K atcb(K a,K x) {
   K r=KERR_TYPE,e,*prk,*pxk,t,*pt;
   char **pxs,s[2];
   static i32 d=0;
-  if(++d>maxr) { --d; return KERR_STACK; }
+  if(++d>maxr || (!(d&7)&&stack_low())) { --d; return KERR_STACK; }
   if(!a||!x) { --d; return KERR_TYPE; }
   if(4==ta&&!s(a)) { /* `d"a"  `f"x" */
     if(4==(a=vlookup(a))) {
@@ -106,7 +106,7 @@ K dotcb(K a,K x) {
   K r=0,e,t,*pr,*pt,v,*pv,x2,*px;
   char **pxs,b[2];
   static i32 d=0;
-  if(++d>maxr) { --d; return KERR_STACK; }
+  if(++d>maxr || (!(d&7)&&stack_low())) { --d; return KERR_STACK; }
 
   if(0xcc==s(a)||0xcd==s(a)) {
     K args=(!s(x)&&T(x)==0)?st(0x81,k_(x)):k_(x);

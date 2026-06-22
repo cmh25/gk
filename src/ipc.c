@@ -64,9 +64,16 @@
     u_long nb = 1;
     return ioctlsocket(fd, FIONBIO, &nb) == 0 ? 0 : -1;
   }
+  /* thread-local storage: MSVC spells it __declspec(thread); GCC/MinGW spell it
+     __thread and warn on the MSVC form.  Both reach this _WIN32 block. */
+  #if defined(__GNUC__)
+  #  define GK_TLS __thread
+  #else
+  #  define GK_TLS __declspec(thread)
+  #endif
   /* FormatMessage into a thread-local buffer; trim trailing CRLF. */
   static const char *sock_errstr(int err) {
-    static __declspec(thread) char buf[256];
+    static GK_TLS char buf[256];
     DWORD n = FormatMessageA(
       FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_IGNORE_INSERTS,
       NULL, (DWORD)err, 0, buf, sizeof buf, NULL);

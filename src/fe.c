@@ -10,7 +10,7 @@
 K fc(K f, K a, K x, char *av) {
   K r=0,e,p,f2,*pf,*pf2;
   static int d=0;
-  if(++d>maxr) { --d; _k(a); _k(x); return KERR_STACK; }
+  if(++d>maxr || (!(d&7)&&stack_low())) { --d; _k(a); _k(x); return KERR_STACK; }
   if(av&&*av) r=avdo(k_(f),k_(a),k_(x),av);
   else {
     pf=px(f);

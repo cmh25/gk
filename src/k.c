@@ -1,3 +1,15 @@
+#if defined(__linux__) || defined(__GLIBC__)
+#define _GNU_SOURCE   /* pthread_getattr_np (stack_guard_init); must precede includes */
+#endif
+#ifdef _WIN32
+/* GetCurrentThreadStackLimits (stack_guard_init) needs Windows 8.  MinGW's
+ * default _WIN32_WINNT is older, so bump it (only if not already higher) before
+ * any header pulls in windows.h. */
+# if !defined(_WIN32_WINNT) || _WIN32_WINNT < 0x0602
+#  undef _WIN32_WINNT
+#  define _WIN32_WINNT 0x0602
+# endif
+#endif
 #include "k.h"
 #include <stdio.h>
 #include <limits.h>
@@ -9,6 +21,9 @@
 #include "watch.h"
 #ifndef _WIN32
 #include <sys/resource.h>
+#include <pthread.h>   /* pthread_getattr_np / pthread_get_stackaddr_np (stack_guard_init) */
+#else
+#include <windows.h>   /* GetCurrentThreadStackLimits (stack_guard_init) */
 #endif
 #include "b.h"
 #include "fe.h"
@@ -19,23 +34,68 @@ i32 maxr=MAXR;
 char *E[EMAX]={"nyi","rank","length","type","value","range","domain","valence","index","int","parse","stack","reserved","wsfull"};
 i32 zeroclamp;
 
+/* RSP stack guard (see k.h).  EVAL margin is generous because stack_low() is
+ * probed only every 8th level (perf -- see the guard sites), so up to 8 levels'
+ * growth can occur between probes: 1MB/8 = safe to ~128KB/level, far above the
+ * ~10KB worst case seen in practice.  It also leaves room for error-reporting/
+ * printing after the guard fires.  PRINT margin is small -- kprint_ is probed
+ * every call (not the hot path) so it can use the headroom eval left it. */
+#define STACK_MARGIN_EVAL  (1024UL*1024)
+#define STACK_MARGIN_PRINT (64UL*1024)
+uintptr_t stack_floor, stack_floor_print;
+
+void stack_guard_init(void) {
+  /* The danger threshold must be the REAL low end of the stack plus a margin --
+   * NOT base-minus-size, because the address of a local here can sit hundreds of
+   * KB below the true stack top (initial argv/env/auxv layout, call chain), which
+   * would silently eat the margin.  Query the actual bounds from the OS. */
+  uintptr_t lo = 0;   /* lowest valid stack address (stack grows down toward it) */
+#ifdef _WIN32
+  ULONG_PTR wlo, whi;
+  GetCurrentThreadStackLimits(&wlo, &whi);
+  lo = (uintptr_t)wlo;
+#elif defined(__APPLE__)
+  uintptr_t top = (uintptr_t)pthread_get_stackaddr_np(pthread_self());
+  lo = top - pthread_get_stacksize_np(pthread_self());
+#elif defined(__GLIBC__)
+  pthread_attr_t a; void *b; size_t sz;
+  if(pthread_getattr_np(pthread_self(),&a)==0 && pthread_attr_getstack(&a,&b,&sz)==0) {
+    pthread_attr_destroy(&a);
+    lo = (uintptr_t)b;
+  }
+#endif
+#ifndef _WIN32
+  if(!lo) {
+    /* generic fallback (Cygwin, or pthread query failed): rlimit size below a
+     * local probe.  Less precise -- err toward firing early. */
+    char probe; struct rlimit rl;
+    size_t size = (getrlimit(RLIMIT_STACK,&rl)==0 && rl.rlim_cur!=RLIM_INFINITY)
+                  ? (size_t)rl.rlim_cur : (8UL<<20);
+    if(size < 2*STACK_MARGIN_EVAL) size = 2*STACK_MARGIN_EVAL;
+    lo = (uintptr_t)&probe - (size - STACK_MARGIN_EVAL);
+  }
+#endif
+  stack_floor       = lo + STACK_MARGIN_EVAL;
+  stack_floor_print = lo + STACK_MARGIN_PRINT;
+}
+
 static char *P=":+-*%&|<>=~.!@?#_^,$'/\\";
 
 /* reserved symbols */
 char *R_NUL,*R_DRAW,*R_DOT,*R_VS,*R_SV,*R_ATAN2,*R_DIV,*R_AND,*R_OR,*R_SHIFT,*R_ROT,*R_XOR,*R_HYPOT,*R_ENCRYPT,*R_DECRYPT,*R_SETENV,*R_RENAME,*R_SQR,*R_ABS,*R_SLEEP,*R_IC,*R_CI,*R_DJ,*R_JD,*R_LT,*R_LOG,*R_EXP,*R_SQRT,*R_FLOOR,*R_CEIL,*R_SIN,*R_COS,*R_TAN,*R_ASIN,*R_ACOS,*R_ATAN,*R_AT,*R_SS,*R_SM,*R_LSQ,*R_SINH,*R_COSH,*R_TANH,*R_ERF,*R_ERFC,*R_GAMMA,*R_LGAMMA,*R_RINT,*R_TRUNC,*R_NOT,*R_KV,*R_VK,*R_VAL,*R_BD,*R_DB,*R_HB,*R_BH,*R_ZB,*R_BZ,*R_MD5,*R_SHA1,*R_SHA2,*R_GETENV,*R_SVD,*R_LU,*R_QR,*R_LDU,*R_RREF,*R_DET,*R_MAG,*R_PRIME,*R_FACTOR,*R_GCD,*R_LCM,*R_MODINV,*R_EXIT,*R_DEL,*R_DO,*R_WHILE,*R_IF,*R_IN,*R_DVL,*R_LIN,*R_DVL,*R_DV,*R_DI,*R_GTIME,*R_LTIME,*R_TL,*R_MUL,*R_INV,*R_CHOOSE,*R_ROUND,*R_SSR,*R_EP,*R_TIMER,*R_WATCH;
 
 void kinit(void) {
-#ifndef _WIN32
-  struct rlimit rl;
-  if(getrlimit(RLIMIT_STACK,&rl)) {
-    fprintf(stderr,"error: kinit() failed\n");
-    exit(1);
-  }
-  maxr=rl.rlim_cur / 10500;
-  if(maxr>1000) maxr=1000;
+  /* Recursion is bounded by TWO independent caps (see k.h): stack_low() guards
+   * the real C stack (handles the variable per-level cost -- ~1.2KB trivial to
+   * ~10KB adverb-nested), and maxr caps the depth COUNTER so it can't overrun
+   * the EVALDEPTH-row A0/params arrays.  So maxr is just the array bound now, not
+   * a stack-size estimate. */
+  stack_guard_init();
+  maxr=EVALDEPTH-16;
 #ifdef ASAN_ENABLED
+  /* &local is unreliable under ASAN (shadow stack) so stack_low() is a no-op;
+   * fall back to a small count cap to keep deep recursion off the real stack. */
   maxr=100;
-#endif
 #endif
   /* reserved */
   R_NUL=sp("nul");
@@ -354,7 +414,7 @@ const char* kprint_(K x, char *s, char *e, char *s0) {
      kprint_ returns char* not K, so it can't return KERR_STACK; single-
      threaded, so a static depth counter is safe. */
   static i32 d=0;
-  if(++d>maxr) { --d; mprintf("%s...%s",s?s:"",e?e:""); return mbuffer(); }
+  if(++d>maxr || stack_print_low()) { --d; mprintf("%s...%s",s?s:"",e?e:""); return mbuffer(); }
 
   SF *stack=xmalloc(sizeof(SF)*sm);
   if(!stack) abort();
@@ -786,7 +846,7 @@ static K kamendi3d(K d, K i, K f) {
   i32 sm=32,sp=0;
   sf *stack=0;
   static int dd=0;
-  if(++dd>maxr) { e=KERR_STACK; --dd; goto cleanup; }
+  if(++dd>maxr || (!(dd&7)&&stack_low())) { e=KERR_STACK; --dd; goto cleanup; }
 
   ti=T(i);
 
@@ -884,7 +944,7 @@ static K kamendi3v(K d, K i, K f) {
   i32 sm=32,sp=0;
   sf *stack=0;
   static int dd=0;
-  if(++dd>maxr) { e=KERR_STACK; --dd; goto cleanup; }
+  if(++dd>maxr || (!(dd&7)&&stack_low())) { e=KERR_STACK; --dd; goto cleanup; }
 
   td=T(d);
   ti=T(i);
@@ -1044,7 +1104,7 @@ static K kamendi4d(K d, K i, K f, K y) {
   sf *stack=0;
   static int dd=0;
 
-  if(++dd>maxr) { e=KERR_STACK; --dd; goto cleanup; }
+  if(++dd>maxr || (!(dd&7)&&stack_low())) { e=KERR_STACK; --dd; goto cleanup; }
 
   ti=T(i);
   ty=T(y);
@@ -1252,7 +1312,7 @@ static K kamendi4v(K d, K i, K f, K y) {
   i32 sm=32,sp=0;
   sf *stack=0;
   static int dd=0;
-  if(++dd>maxr) { e=KERR_STACK; --dd; goto cleanup; }
+  if(++dd>maxr || (!(dd&7)&&stack_low())) { e=KERR_STACK; --dd; goto cleanup; }
 
   td=T(d);
   ti=T(i);
@@ -1709,7 +1769,7 @@ static K kamend3_(K d, K i, K f) {
   i32 sm=32,sp=0,*pi;
   sf *stack=0;
   static int dd=0;
-  if(++dd>maxr) { e=KERR_STACK; --dd; goto cleanup; }
+  if(++dd>maxr || (!(dd&7)&&stack_low())) { e=KERR_STACK; --dd; goto cleanup; }
 
 #define PROPAGATE_RESULT(x) do { \
     if(sp == 1) { _k(pf->d); pf->d=(x); break; } \
@@ -1948,9 +2008,26 @@ static K kamend3_(K d, K i, K f) {
               PROPAGATE_RESULT(k_(d_));
               break;
             }
-          case  0:;
+          case  0:; {
             K *pi0u=px(i0);
             K *pi2=px(i2);
+            /* Single-element scatter (e.g. a deeply nested ,,,..x index path):
+             * descend in place by reprocessing this frame with the sub-path
+             * instead of recursing kamend3_, so deep nesting stays off the C
+             * stack and isn't capped by maxr (calibrated for the eval frame,
+             * not this one) -- a small-stack stack error on Cygwin/msys, t186. */
+            if(n(i0)==1) {
+              K q=tn(0,1+n(i2));
+              K *pq=px(q);
+              pq[0]=k_(pi0u[0]);
+              for(u64 j=0;j<n(i2);++j) { pq[1+j]=k_(pi2[j]); }
+              _k(i0); _k(i2);
+              _k(pf->i); pf->i=q;
+              _k(pf->r); pf->r=0;
+              _k(pf->ri); pf->ri=0;
+              pf->j=0;
+              continue;
+            }
             for(u64 i=0;i<n(i0);++i) {
               K q=tn(0,1+n(i2));
               K *pq=px(q);
@@ -1962,7 +2039,7 @@ static K kamend3_(K d, K i, K f) {
             }
             _k(i0); _k(i2);
             PROPAGATE_RESULT(k_(d_));
-            break;
+            break; }
           default: _k(i0); _k(i2); e=KERR_TYPE; goto cleanup;
           } break;
         default: e=KERR_TYPE; goto cleanup;
@@ -2118,9 +2195,23 @@ static K kamend3_(K d, K i, K f) {
               PROPAGATE_RESULT(k_(d_));
               break;
             }
-          case  0:;
+          case  0:; {
             K *pi0u=px(i0);
             K *pi2=px(i2);
+            /* Single-element scatter: reprocess this frame in place rather than
+             * recursing -- see the matching dict-branch case above. */
+            if(n(i0)==1) {
+              K q=tn(0,1+n(i2));
+              K *pq=px(q);
+              pq[0]=k_(pi0u[0]);
+              for(u64 j=0;j<n(i2);++j) { pq[1+j]=k_(pi2[j]); }
+              _k(i0); _k(i2);
+              _k(pf->i); pf->i=q;
+              _k(pf->r); pf->r=0;
+              _k(pf->ri); pf->ri=0;
+              pf->j=0;
+              continue;
+            }
             for(u64 i=0;i<n(i0);++i) {
               K q=tn(0,1+n(i2));
               K *pq=px(q);
@@ -2133,7 +2224,7 @@ static K kamend3_(K d, K i, K f) {
             _k(i2);
             PROPAGATE_RESULT(k_(d_));
             _k(i0);
-            break;
+            break; }
           default: _k(t); _k(i0); e=KERR_TYPE; goto cleanup;
           }
           break;
@@ -2228,7 +2319,7 @@ static K kamend4_(K d, K i, K f, K y) {
   i32 sm=32,sp=0,*pi;
   sf *stack=0;
   static int dd=0;
-  if(++dd>maxr) { e=KERR_STACK; --dd; goto cleanup; }
+  if(++dd>maxr || (!(dd&7)&&stack_low())) { e=KERR_STACK; --dd; goto cleanup; }
 
 #define PROPAGATE_RESULT(x) do { \
     if(sp == 1) { _k(pf->d); pf->d=(x); break; } \
@@ -2970,7 +3061,7 @@ u64 khashcb(K x) {
 i32 kcmprcb(K a,K x) {
   i32 r=0,at=ta,xt=tx;
   static int d=0;
-  if(++d>maxr) { --d; return KERR_STACK; }
+  if(++d>maxr || (!(d&7)&&stack_low())) { --d; return KERR_STACK; }
   if(ISF(a)) at=7;
   else if(s(a)==0x80) at=5;
   if(ISF(x)) xt=7;
@@ -2992,7 +3083,7 @@ i32 kcmprcb(K a,K x) {
 K kcpcb(K x) {
   K r=KERR_TYPE,p;
   static int d=0;
-  if(++d>maxr) { --d; return KERR_STACK; }
+  if(++d>maxr || (!(d&7)&&stack_low())) { --d; return KERR_STACK; }
   switch(s(x)) {
   case 0x80: r=dcp(x); break;
   case 0x81: p=kcp(x&(K)0xff00ffffffffffff); if(E(p)) r=p; else r=set_sx(p,0x81); break;

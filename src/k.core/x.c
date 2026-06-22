@@ -7,6 +7,21 @@
 #include <math.h>
 #include <ctype.h>
 
+/* FUZZING-only per-eval allocation budget (companion to gk_budget's loop cap).
+ * Charges bytes against gk_alloc_budget (defined in p.c, reset per top-level
+ * eval in repl.c); on overrun, take xmalloc's normal OOM path -- printf+exit(1),
+ * just reached in ms instead of after seconds of allocating toward the OS cap,
+ * so big-structure inputs (88888888#x etc.) become fast exits, not AFL hangs.
+ * Compiles to nothing without FUZZING.  exit(1) (not return 0): xmalloc never
+ * returns NULL, callers don't null-check, so returning 0 would be a false crash. */
+#ifdef FUZZING
+extern long gk_alloc_budget;
+#define GK_CHARGE(n) do{ gk_alloc_budget-=(long)(n); if(gk_alloc_budget<0){ \
+  printf("error: xmalloc(): allocation budget exceeded\n"); exit(1); } }while(0)
+#else
+#define GK_CHARGE(n) ((void)0)
+#endif
+
 /*
  * compile with -DBUDDY to enable buddy allocator
  * default: use system malloc/free
@@ -95,6 +110,7 @@ static inline void buddy_free(uint32_t lv, uint64_t x) {
 
 void* xmalloc(size_t s) {
   if(!s) s=1;
+  GK_CHARGE(s);
 
   uint32_t lv = buddy_level(s);
 
@@ -152,6 +168,7 @@ void* xcalloc(size_t n, size_t s) {
 void* xrealloc(void *p, size_t s) {
   if(!p) return xmalloc(s);
   if(!s) { xfree(p); return xmalloc(1); }
+  GK_CHARGE(s);
 
   uint64_t base = (uint64_t)p - 8;
   uint32_t old_lv = *(uint32_t*)base;
@@ -189,6 +206,7 @@ void* xrealloc(void *p, size_t s) {
 
 void* xmalloc(size_t s) {
   void *p=0;
+  GK_CHARGE(s);
   if(!(p=malloc(s))) {
     printf("error: xmalloc(): memory allocation failed\n");
     exit(1);
@@ -202,6 +220,7 @@ void xfree(void *p) {
 
 void* xcalloc(size_t n, size_t s) {
   void *p=0;
+  GK_CHARGE(n*s);
   if(!(p=calloc(n,s))) {
     printf("error: xcalloc(): memory allocation failed\n");
     exit(1);
@@ -211,6 +230,7 @@ void* xcalloc(size_t n, size_t s) {
 
 void* xrealloc(void *p, size_t s) {
   void *p2=0;
+  GK_CHARGE(s);
   if(!(p2=realloc(p,s))) {
     printf("error: xrealloc(): memory allocation failed\n");
     exit(1);

@@ -29,7 +29,6 @@ static char *spt,*spT;
 K ks,gs,cs;
 K ktree,C,Z,D;
 K locals[LOCALSMAX];
-int localsi;
 
 /* global variable cache (GCACHEN + the inline gcache_get fast path live in
    scope.h so name-resolution callers can short-circuit before the call chain) */
@@ -40,7 +39,7 @@ void gcache_clear(void) {
   i(GCACHEN,gcachek[i]=0;gcachev[i]=0)
 }
 
-void scope_init(int argc, char **argv) {
+void scope_init(char **args, int nargs) {
   char hn[256];
   K a;
   ks=scope_newk(null,t(4,sp("")));
@@ -62,9 +61,12 @@ void scope_init(int argc, char **argv) {
 #else
   gethostname(hn,256);
 #endif
-  if(argc>1) {
-    a=tn(0,argc-2); K *pa=px(a);
-    i(argc-2,char *a_=argv[i+2];pa[i]=tnv(3,strlen(a_),xmemdup(a_,1+strlen(a_))))
+  /* .z.i (k3 _i): the user arguments after the script -- interpreter name,
+   * flags, and the script path itself are all excluded (main() collects them,
+   * so flag position is irrelevant).  Empty list when no args were given. */
+  if(nargs>0) {
+    a=tn(0,nargs); K *pa=px(a);
+    i(nargs,char *a_=args[i];pa[i]=tnv(3,strlen(a_),xmemdup(a_,1+strlen(a_))))
   }
   else a=tn(0,0);
   spt=sp("t");
@@ -420,10 +422,13 @@ K scope_set(K s, K n, K v) {
   K *ps=px(s);
   if(1==ik(ps[5])) { /* scope dict vals are borrowed, make copy */
     K d=ps[1]; K *pd=px(d);
-    K v=kcp(pd[1]); if(E(v)) return v;
-    v=kresize(v,ik(pd[2]));
-    n(v)=n(pd[1]);
-    pd[1]=v;
+    /* cv (not v) so we don't shadow the param: on copy failure (e.g. a stack
+     * error mid deep-copy of a value holding a lambda) the value-to-assign v is
+     * owned here and must be freed, else it leaks. */
+    K cv=kcp(pd[1]); if(E(cv)) { _k(v); return cv; }
+    cv=kresize(cv,ik(pd[2]));
+    n(cv)=n(pd[1]);
+    pd[1]=cv;
     ps[5]=t(1,0);
   }
   if(4==T(n)) return scope_set_(s,sk(n),v);

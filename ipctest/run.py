@@ -43,11 +43,35 @@ TIMEOUT_SOLO_S  = 10
 SETTLE_S        = 0.1   # let server flush before kill
 
 # Pairs whose server uses the forking listener (`\m f`). gk's fork-per-
-# connection mode is POSIX-only; on Windows the server prints
-# `fork: not supported on windows` and never binds, so these pairs
-# can't run there. Skip rather than fail.
+# connection mode is POSIX-only; a _WIN32 build (native Windows, OR native
+# MinGW run under MSYS) prints `fork: not supported on windows` and never
+# binds, so these pairs can't run there. Skip rather than fail -- decided by
+# probing the gk binary (fork_supported), because os.name is ambiguous on
+# MSYS2: a native-MinGW gk has no fork, but an msys/Cygwin-runtime gk does,
+# and the msys python3 reports os.name=='posix' either way.
 FORK_PAIRS = frozenset(["06", "07", "12", "13", "14"])
-SKIP_PAIRS = FORK_PAIRS if os.name == "nt" else frozenset()
+
+
+def fork_supported():
+    """True if THIS gk binary's forking listener works.  `gk -f PORT` binds and
+    then exits 0 on stdin EOF for a POSIX/Cygwin/MSYS-runtime build; a _WIN32
+    build fails the fork-mode bind and exits nonzero.  Probing the binary is more
+    reliable than guessing from the platform (see FORK_PAIRS note)."""
+    s = socket.socket()
+    s.bind(("127.0.0.1", 0))
+    port = s.getsockname()[1]
+    s.close()
+    try:
+        r = subprocess.run([GK, "-q", "-f", str(port)],
+                           stdin=subprocess.DEVNULL,
+                           stdout=subprocess.DEVNULL,
+                           stderr=subprocess.DEVNULL,
+                           timeout=WAIT_LISTENER_S + 5)
+        return r.returncode == 0
+    except subprocess.TimeoutExpired:
+        return True   # bound and stayed up -> supported
+    except OSError:
+        return True   # can't probe; let the real run surface any error
 
 
 def listener_up():
@@ -223,13 +247,15 @@ def main():
               file=sys.stderr)
         return 2
 
+    skip_pairs = frozenset() if fork_supported() else FORK_PAIRS
+
     results = []
     pairs = ["01", "02", "03", "04", "05", "06", "07", "08", "09",
              "11", "12", "13", "14", "15", "16"]
     nskip = 0
     for n in pairs:
-        if n in SKIP_PAIRS:
-            print(f"pair {n}: SKIP (forking listener unsupported on windows)")
+        if n in skip_pairs:
+            print(f"pair {n}: SKIP (forking listener unsupported by this gk build)")
             nskip += 1
             continue
         run_pair(n, results)

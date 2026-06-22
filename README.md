@@ -1,4 +1,4 @@
-# gk
+<img src="gk.png" alt="gk" width="200">
 
 **gk** is an interpreter for an array programming language in the tradition of [k](https://en.wikipedia.org/wiki/K_(programming_language)) (Arthur Whitney).
 
@@ -12,6 +12,7 @@ The design of gk is inspired by k3, with additional ideas from [Stevan Apter](ht
 |-----|----------------|
 | [doc/tutorial.md](doc/tutorial.md) | Short hands-on REPL tour for newcomers |
 | [doc/ref.md](doc/ref.md) | Language reference (types, primitives, builtins, syntax) |
+| [doc/v3.md](doc/v3.md) | v3 changes and migration from v2 |
 | [doc/v2.md](doc/v2.md) | v2 changes and migration from v1 |
 | [doc/v1.md](doc/v1.md) | v1 changes and migration from v0 |
 | [doc/k3.md](doc/k3.md) | If you already know k3: main dialect differences |
@@ -32,7 +33,7 @@ make test
 
 ```
 $ ./gk
-gk-v2.2.0 Copyright (c) 2023-2026 Charles Hall
+gk-v3.0.0 Copyright (c) 2023-2026 Charles Hall
 
   1+2
 3

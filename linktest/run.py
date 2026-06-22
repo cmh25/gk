@@ -82,7 +82,11 @@ def compile_lib(cc, src, out, workdir, implib=None):
         cmd.append("/Fe:" + out)
     else:
         cmd = [cc, "-O2", "-shared"]
-        if os.name != "nt":
+        # PE is position-independent already; -fPIC just warns there. Skip it on
+        # any Windows-y target (Cygwin/MSYS report 'posix'+cygwin/msys platform;
+        # native MinGW reports os.name 'nt').
+        pe = os.name == "nt" or sys.platform in ("cygwin", "msys")
+        if not pe:
             cmd += ["-fPIC"]
         if sys.platform == "darwin":
             # macOS won't leave gk_* undefined in a -shared object by default;
@@ -90,6 +94,10 @@ def compile_lib(cc, src, out, workdir, implib=None):
             # them via -export_dynamic).
             cmd += ["-undefined", "dynamic_lookup"]
         cmd += ["-o", out, src]
+        if implib:
+            # Cygwin: resolve the gk_* callbacks against gk's import library
+            # (PE DLLs can't carry undefined externals).  Must follow src.
+            cmd.append(implib)
     return subprocess.run(cmd, cwd=workdir, stdout=subprocess.PIPE,
                           stderr=subprocess.STDOUT)
 
@@ -108,7 +116,12 @@ def main():
         return 0
 
     test = os.path.join("linktest", "test.k")
-    implib = os.path.join(ROOT, "gk.lib")  # Windows: gk's import lib (if built)
+    # PE targets can't leave gk_* undefined in the plugin DLL; they link against
+    # gk's import library.  The format follows the COMPILER, not the OS: MSVC
+    # consumes gk.lib; GNU ld (Cygwin / MSYS2-msys / MinGW-w64) consumes
+    # libgk.dll.a (emitted by the makefile's --out-implib).  Self-selecting via
+    # os.path.isfile: on real POSIX (ELF/Mach-O) neither file exists -> None.
+    implib = os.path.join(ROOT, "gk.lib" if is_msvc(cc) else "libgk.dll.a")
     implib = implib if os.path.isfile(implib) else None
 
     with tempfile.TemporaryDirectory() as td:

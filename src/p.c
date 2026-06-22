@@ -38,13 +38,14 @@ int STOP,EFLAG=1,SIGNAL;
 K EXIT;
 #ifdef FUZZING
 long gk_budget=GK_BUDGET;
+long gk_alloc_budget=GK_ALLOC_BUDGET;
 #endif
 int opencode=1;
 char *pfile="";
 int gline,glinei,gline0,gline0i,fileline;
 char *glinep,*gline0p;
 
-#define PARAMSMAX 1024
+#define PARAMSMAX EVALDEPTH
 K params[PARAMSMAX];
 int paramsi;
 void pinit(void) { i(PARAMSMAX,params[i]=st(0x81,tn(0,32))) }
@@ -726,7 +727,7 @@ cleanup:
   return e;
 }
 
-static K A0[1024][256];
+static K A0[EVALDEPTH][256];
 
 /* File-verb postfix-adverb application (0xcc monad `5:x`, 0xcd dyad
    `a 0:x`), kept out of pgreduce_ so its cases stay tiny.  A postfix adverb
@@ -775,7 +776,7 @@ K pgreduce_(K x0, int *quiet) {
   K x=px0[0]; K *px=px(x); /* values */
   int w,valence;
   if(STOP) { STOP=0; return kerror("stop"); }
-  if(++d>1+maxr) { --d; return kerror("stack"); } /* must be one greater than fne_() */
+  if(++d>1+maxr || (!(d&7)&&stack_low())) { --d; return kerror("stack"); } /* must be one greater than fne_() */
   /* Value-stack depth is bounded by the token count: every branch below does
      at most one net push (*pA++) per token, so depth <= nx.  Allocate nx + a
      small pad (was nx*10, a 10x over-provision).  Statements with <= ~240
@@ -2839,7 +2840,7 @@ static int is_assign_verb(K v) {
 
 static void mark_lvalues(pgs *s, pn *a, int d) {
   if(!a || s->overflow) return;
-  if(d>maxr) { s->overflow=1; return; }  /* tree too deep: a recursive walk (this,
+  if(d>maxr || (!(d&7)&&stack_low())) { s->overflow=1; return; }  /* tree too deep: a recursive walk (this,
                                bc, can_inline_call) would overflow the C stack.  Flag
                                it -> bc bails, pgparse raises "stack".  Piggybacks on
                                the traversal bc already does, so no extra pass. */

@@ -35,7 +35,7 @@ K irecur2(K(*ff)(K,K), K a, K x) {
   K r;
   i32 sm=32,sp=0;
   static i32 d=0;
-  if(++d>maxr) { --d; return KERR_STACK; }
+  if(++d>maxr || (!(d&7)&&stack_low())) { --d; return KERR_STACK; }
   if(!ta&&!tx&&!s(a)&&!s(x)&&na!=nx) { --d; return KERR_LENGTH; }
   sf *stack=xmalloc(sizeof(sf)*sm);
   stack[sp++]=(sf){tn(0,IS0(a)?na:nx),a,x,0};

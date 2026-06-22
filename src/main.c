@@ -9,6 +9,8 @@
 #include "win_unistd.h"
 #define WIN32_LEAN_AND_MEAN
 #include <windows.h>
+#include <io.h>      /* _setmode, _fileno */
+#include <fcntl.h>   /* _O_BINARY */
 #else
 #include <unistd.h>
 #include <signal.h>
@@ -36,8 +38,21 @@ static void usage(char *s) {
 
 int main(int argc, char **argv) {
   K r=0;
-  int i,quiet=0,iter_port=0,fork_port=0;
-  char *a,*script=0;
+  int i,quiet=0,iter_port=0,fork_port=0,nargs=0;
+  char *a,*script=0,**args;
+#ifdef _WIN32
+  /* gk prints LF, never CRLF: put stdout/stderr in binary mode so the Windows
+   * CRT doesn't translate '\n' -> '\r\n'.  gk's output is then byte-identical on
+   * every platform, and binary data written to stdout isn't corrupted.  (The
+   * console renders a bare '\n' as a proper newline, so interactive output and
+   * the REPL are unaffected -- this only stops the CRLF rewrite.) */
+  _setmode(_fileno(stdout), _O_BINARY);
+  _setmode(_fileno(stderr), _O_BINARY);
+#endif
+  /* .z.i collects every non-flag token after the script.  Flags (-q/-i/-f)
+   * are consumed wherever they appear, so flag position is irrelevant */
+  args=malloc((argc>1?argc:1)*sizeof(*args));
+  if(!args) { fprintf(stderr,"gk: out of memory\n"); exit(1); }
   for(i=1;i<argc;++i) {
     a=argv[i];
     if(a[0]=='-') {
@@ -58,10 +73,14 @@ int main(int argc, char **argv) {
       }
       else usage(argv[0]);
     }
-    else { script=a; break; }
+    else if(!script) script=a;  /* first non-flag token is the script */
+    else args[nargs++]=a;       /* remaining non-flags are user args (.z.i) */
   }
   setvbuf(stdout, NULL, _IONBF, 0);
-  if(!quiet) fprintf(stderr, "gk-v2.3.0 Copyright (c) 2023-2026 Charles Hall\n\n");
+  setvbuf(stderr, NULL, _IONBF, 0);  /* glibc has this by default; Windows pipes
+    don't -- without it, buffered stderr (prompts/errors) races the unbuffered
+    stdout (results) and the merged transcript reorders intermittently */
+  if(!quiet) fprintf(stderr, "gk-v3.0.0 Copyright (c) 2023-2026 Charles Hall\n\n");
 #ifdef _WIN32
   SetConsoleCtrlHandler(ctlc,TRUE);
 #else
@@ -69,7 +88,8 @@ int main(int argc, char **argv) {
   signal(SIGPIPE,SIG_IGN);  /* ipc: don't die when writing to a closed peer */
 #endif
   kinit();
-  scope_init(argc,argv);
+  scope_init(args,nargs);
+  free(args);
   fninit();
   pinit();
   if(ipc_init()<0) { fprintf(stderr,"gk: ipc_init failed\n"); exit(1); }

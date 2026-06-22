@@ -1,10 +1,10 @@
-gk
+/gk
+/ndiff
 *.o
 *~
 *.swp
 *.swo
-k.a
-kd.a
+*.a
 *.obj
 *.exe
 *.lib

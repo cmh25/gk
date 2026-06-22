@@ -28,7 +28,11 @@
    empty (the gk build publishes them by name via --dynamic-list /
    -export_dynamic). This keeps the declaration here and the definition in
    ffi.c agreeing on linkage (MSVC C2375 otherwise). */
-#if defined(_WIN32)
+/* Cygwin builds PE/COFF (like MSVC/MinGW): a DLL can't leave gk_* undefined to
+   resolve at dlopen time the way ELF does, so it needs the same dllexport (host)
+   / dllimport (client) treatment as _WIN32, even though Cygwin's gcc does not
+   define _WIN32. */
+#if defined(_WIN32) || defined(__CYGWIN__) || defined(__MSYS__)
 #  if defined(GK_BUILD)
 #    define GK_API __declspec(dllexport)
 #  else
@@ -42,7 +46,7 @@
    nothing by default, so 2: (GetProcAddress) can't find an unmarked function;
    GK_FN adds the needed __declspec(dllexport). No-op on POSIX (ELF/Mach-O
    export non-static functions already). Usage:  GK_FN K add(K x, K y){...}  */
-#if defined(_WIN32)
+#if defined(_WIN32) || defined(__CYGWIN__) || defined(__MSYS__)
 #  define GK_FN __declspec(dllexport)
 #else
 #  define GK_FN

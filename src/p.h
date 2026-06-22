@@ -82,6 +82,14 @@ extern char *pfile;
  * AFL hang, and never touches the shipping binary (no FUZZING -> no counter). */
 extern long gk_budget;
 #define GK_BUDGET 1000000L
+/* Companion allocation budget: the iteration cap above only counts loop turns,
+ * so it can't catch a SINGLE primitive that allocates/copies a huge structure
+ * (e.g. 88888888#x, big take/drop/arith) -- those march toward the OS memory
+ * cap for seconds, which AFL flags as a hang.  Cap total bytes xmalloc'd per
+ * top-level eval; on overrun take xmalloc's existing OOM path (printf+exit(1)),
+ * just reached in ms instead of after seconds of thrashing.  FUZZING-only. */
+extern long gk_alloc_budget;
+#define GK_ALLOC_BUDGET (64L*1024*1024)
 #endif
 extern int gline,glinei,gline0,gline0i,fileline;
 extern char *glinep,*gline0p;

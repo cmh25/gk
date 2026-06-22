@@ -86,7 +86,7 @@ K builtin(K f, K a, K x) {
   if(s(a)==0x40) if(4==(a=vlookup(a))) { _k(x); return KERR_VALUE; }
   if(s(x)==0x40) if(4==(x=vlookup(x))) { _k(a); return KERR_VALUE; }
 
-  if(++d>maxr) { --d; _k(a); _k(x); return KERR_STACK; }
+  if(++d>maxr || (!(d&7)&&stack_low())) { --d; _k(a); _k(x); return KERR_STACK; }
 
   if(1==T(f)) {
     /* int-index builtin: 0xc7 dyad / 0xc6 monad, ik(f) = table index */
@@ -1135,7 +1135,15 @@ MC1D(cosh_,cosh,coshf)
 MC1D(tanh_,tanh,tanhf)
 MC1D(erf_,erf,erff)
 MC1D(erfc_,erfc,erfcf)
-MC1D(gamma_,tgamma,tgammaf)
+/* gamma has poles at the non-positive integers and at -inf; the value there is
+   undefined, so it must be NaN (C99/C11 F.10.5.4 -- tgamma(negative integer)
+   and tgamma(-inf) return NaN).  glibc obeys this, but newlib (Cygwin) returns
+   +inf instead, which diverges per-platform.  Guard the poles ourselves so
+   gamma is deterministic everywhere: `x<0 && x==floor(x)` catches the negative
+   integers and -inf (floor(-inf)==-inf) while leaving 0 (->+inf) and NaN alone. */
+static double gktgamma(double x) { return (x<0.0 && x==floor(x)) ? NAN : tgamma(x); }
+static float  gktgammaf(float x) { return (x<0.0f && x==floorf(x)) ? (float)NAN : tgammaf(x); }
+MC1D(gamma_,gktgamma,gktgammaf)
 MC1D(lgamma_,lgamma,lgammaf)
 MC1D(rint_,rint,rintf)
 MC1D(trunc_,trunc,truncf)
@@ -1639,7 +1647,7 @@ static K serialize(K x, char **b, char **v, i64 *n, i64 *m) {
   double *pxf;
   static int d;
   if(!x) return KERR_TYPE;
-  if(++d>maxr) { --d; return KERR_STACK; }
+  if(++d>maxr || (!(d&7)&&stack_low())) { --d; return KERR_STACK; }
   i32 t=tx,st=s(x),si=sizeof(i32),sd=sizeof(double),sn=sizeof(u64),ii,*pxi;
   i64 dv;
   *n+=3*sizeof(i32);
@@ -2102,8 +2110,9 @@ cleanup:
 
 /* Caller must xfree() (or free()) the result. NULL if unset. */
 static char* ge(char *k) {
-#ifdef _WIN32
-  /* _dupenv_s mallocs; caller frees with free() */
+#ifdef _MSC_VER
+  /* MSVC deprecates getenv; _dupenv_s mallocs (ge_free uses free()).  MinGW
+     (incl. msvcrt-based MINGW64, which has no _dupenv_s) takes the getenv path. */
   char *p=0; _dupenv_s(&p,0,k); return p;
 #else
   char *p=getenv(k);
@@ -2113,7 +2122,7 @@ static char* ge(char *k) {
 
 static void ge_free(char *p) {
   if(!p) return;
-#ifdef _WIN32
+#ifdef _MSC_VER
   free(p);
 #else
   xfree(p);

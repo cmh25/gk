@@ -7,7 +7,7 @@
 #include "repl.h"
 #include "fe.h"
 
-K fnestack[1024];
+K fnestack[EVALDEPTH];   /* per-lambda-call stack; depth-indexed, must match A0/params (k.h) */
 int fnestacki=-1;
 static char* spf;
 
@@ -283,7 +283,7 @@ K fne_(K f, K x, char *av) {
   static int d=0;
   u64 n,nn;
 
-  if(++d>maxr) { r=KERR_STACK; --d; goto cleanup; }
+  if(++d>maxr || (!(d&7)&&stack_low())) { r=KERR_STACK; --d; goto cleanup; }
 
   pf=px(f);
   px=px(x);
@@ -381,14 +381,18 @@ K fne_(K f, K x, char *av) {
                   (which never runs through fne_) should survive to the REPL. */
     opencode=opencode0;
     --fnestacki;
+    /* closure detection: a returned lambda or dict-of-lambdas captures this
+       scope's locals.  fne_ reuses f's persistent scope (pf[2]) as the
+       activation record, so EVERY exit path must run the epilogue below to
+       restore pd[1]/ps[5]/nx -- otherwise a re-entrant activation of the same
+       f (e.g. recursion, or a projection/closure result re-applied) sees a
+       corrupted scope and frees the still-borrowed merged-args plist (UAF).
+       When scope_cp fails (KERR_STACK on a circular/deep scope) we therefore
+       drop the closure and goto the epilogue with the error as the result,
+       rather than restoring partially and skipping it.  Mirrors fne_fast. */
     if(0xc3==s(r)) {
       K closurescope=scope_cp(cs);
-      if(E(closurescope)) {
-        pd=px(ps[1]); pd[1]=pd1save; --localsi;
-        _k(cs); cs=cs0;
-        _k(r); r=closurescope;
-        goto cleanup;
-      }
+      if(E(closurescope)) { _k(r); r=closurescope; goto lam_cleanup; }
       K *pc=px(closurescope); pc[3]=t(1,1);
       r=closure(r,cs,closurescope);
       _k(closurescope);
@@ -401,18 +405,19 @@ K fne_(K f, K x, char *av) {
       i(n(v),if(0xc3==s(pvv[i]))++c)
       if(c&&c==n(v)) {
         K closurescope=scope_cp(cs);
-        if(E(closurescope)) {
-          pd=px(ps[1]); pd[1]=pd1save; --localsi;
-          _k(cs); cs=cs0;
-          _k(r); r=closurescope;
-          goto cleanup;
-        }
+        if(E(closurescope)) { _k(r); r=closurescope; goto lam_cleanup; }
         K *pc=px(closurescope); pc[3]=t(1,1);
         i(n(v),pvv[i]=closure(pvv[i],cs,closurescope))
         _k(closurescope);
       }
     }
 
+lam_cleanup:
+    pd=px(ps[1]);   /* ps[1] may have been refreshed during the body (a var read
+                       via scope_get_ swaps the path-bound scope dict from the
+                       ktree -- _k(ps[1]);ps[1]=q), freeing the dict pd was cached
+                       from at entry.  Re-fetch before touching it, as fne_fast's
+                       cleanup does, or the writes below are a use-after-free. */
     if(ik(ps[5])==0) _k(pd[1]);
     pd[1]=pd1save;
     ps[5]=ps5save;
@@ -529,7 +534,7 @@ K fne(K f, K x, char *av) {
 static K fapply_impl(K f, K x, char *av_outer);
 K fapply(K f, K x, char *av_outer) {
   static int d=0;
-  if(++d>maxr) { --d; _k(f); _k(x); return KERR_STACK; }
+  if(++d>maxr || (!(d&7)&&stack_low())) { --d; _k(f); _k(x); return KERR_STACK; }
   K r=fapply_impl(f,x,av_outer);
   --d;
   return r;

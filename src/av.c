@@ -15,7 +15,7 @@ static K avdoi(K f, K a, K x, i64 ai, i64 xi, char *av) {
   static int d=0;
   Ta=ta; if(s(a)) { if(!VST(a)) return kerror("type"); Ta=15; }
   Tx=tx; if(s(x)) { if(!VST(x)) return kerror("type"); Tx=15; }
-  if(++d>maxr) { --d; return kerror("stack"); } /* stack */
+  if(++d>maxr || (!(d&7)&&stack_low())) { --d; return kerror("stack"); } /* stack */
   if(ai==-1) a_=k_(a);
   else {
     switch(Ta) {
@@ -382,7 +382,7 @@ K avdo(K f, K a, K x, char *av) {
   int isprim=!s(f) && !T(f);      /* numeric primitive verb code */
   static int d=0;
 
-  if(++d>maxr) { --d; _k(f); _k(a); _k(x); return kerror("stack"); }
+  if(++d>maxr || (!(d&7)&&stack_low())) { --d; _k(f); _k(a); _k(x); return kerror("stack"); }
 
   if(0x85==s(a)||0x85==s(x)) { _k(f); _k(a); _k(x); r=kerror("type"); }
   else if(n>32) { _k(f); _k(a); _k(x); r=kerror("length"); }

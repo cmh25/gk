@@ -5,7 +5,7 @@
 #include "scope.h"
 #include "p.h"
 
-extern K fnestack[1024];
+extern K fnestack[EVALDEPTH];
 extern int fnestacki;
 
 #define FN_VALENCE(v) (ik(v)&0xff)
