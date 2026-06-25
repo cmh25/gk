@@ -8,9 +8,19 @@ ifneq (,$(filter CLANG%,$(MSYSTEM)))
 CCBIN=clang
 endif
 
+# FreeBSD ships clang as cc and has no gcc
+ifeq ($(shell uname -s),FreeBSD)
+CCBIN=cc
+endif
+
+# OpenBSD ships clang as cc and has no gcc
+ifeq ($(shell uname -s),OpenBSD)
+CCBIN=cc
+endif
+
 LTO := $(shell $(CCBIN) -flto=auto -E -x c /dev/null >/dev/null 2>&1 && echo -flto=auto || echo -flto)
 CC=$(CCBIN) -O3 -march=native $(LTO) $(MEM) -I.
-CCD=gcc -g -Wall -Wformat=2 -Wextra -Wformat-security -Wno-format-nonliteral -Wpedantic -I.
+CCD=$(CCBIN) -g -Wall -Wformat=2 -Wextra -Wformat-security -Wno-format-nonliteral -Wpedantic -I.
 CCA=afl-clang-fast -g -O0 -fsanitize=address,undefined -fno-omit-frame-pointer -fno-optimize-sibling-calls -shared-libasan -I.
 CCF=afl-clang-fast -g -O2 -I.
 CFILES=$(addprefix $(SRC)/,p.c lex.c timer.c k.c main.c repl.c dict.c scope.c fn.c b.c v.c av.c ms.c h.c pnp.c fe.c lzw.c md5.c sha1.c sha2.c aes256.c io.c irecur.c la.c nt.c ipc.c tmr.c watch.c ffi.c)
@@ -23,6 +33,16 @@ endif
 
 ifeq ($(shell uname -s),Darwin)
 DLEXPORT=-Wl,-export_dynamic
+endif
+
+# FreeBSD: dlopen/dlsym live in libc (no -ldl); lld honors --dynamic-list.
+ifeq ($(shell uname -s),FreeBSD)
+DLEXPORT=-Wl,--dynamic-list=ffi.list
+endif
+
+# OpenBSD: dlopen/dlsym live in libc (no -ldl); lld honors --dynamic-list.
+ifeq ($(shell uname -s),OpenBSD)
+DLEXPORT=-Wl,--dynamic-list=ffi.list
 endif
 
 UNAME_S:=$(shell uname -s)

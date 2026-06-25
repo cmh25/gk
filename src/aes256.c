@@ -202,7 +202,7 @@ static void cipher(state *s, unsigned char* rk) {
 }
 
 static char* hex(const unsigned char *b, size_t n) {
-  char h[16]="0123456789abcdef";
+  static const char h[]="0123456789abcdef";
   size_t i;
   char *r=xmalloc(1+n*2);
   for(i=0;i<n;i++) {

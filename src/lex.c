@@ -39,7 +39,7 @@ static int gn_(void) {
     case 0:
       if(!*p) s=10;
       else if(*p=='0') s=1;
-      else if(isdigit(*p)) s=4;
+      else if(isdigit((unsigned char)*p)) s=4;
       else if(*p=='-') s=5;
       else if(*p=='.') s=7;
       else s=10;
@@ -50,7 +50,7 @@ static int gn_(void) {
       else if(*p=='N'||*p=='I') s=3;
       else if(*p=='e'||*p=='E') s=8;
       else if(*p=='.') s=6;
-      else if(isdigit(*p)) s=4;
+      else if(isdigit((unsigned char)*p)) s=4;
       else if(*p=='j') s=13;  /* 0j */
       else s=11;
       break;
@@ -58,7 +58,7 @@ static int gn_(void) {
     case 3: if(*p=='j') s=13; else s=11; break;  /* 0Nj/0Ij/-0Ij */
     case 4:
       if(!*p) s=11;
-      else if(isdigit(*p)) s=4;
+      else if(isdigit((unsigned char)*p)) s=4;
       else if(*p=='e'||*p=='E') s=8;
       else if(*p=='.') s=6;
       else if(*p=='j') s=13;  /* 1j */
@@ -67,22 +67,22 @@ static int gn_(void) {
     case 5:
       if(!*p) s=10;
       else if(*p=='0') s=1;
-      else if(isdigit(*p)) s=4;
+      else if(isdigit((unsigned char)*p)) s=4;
       else if(*p=='.') s=7;
       else s=10;
       break;
     case 6:
       if(!*p) s=12;
-      else if(isdigit(*p)) s=9;
+      else if(isdigit((unsigned char)*p)) s=9;
       else if(*p=='e'||*p=='E') s=8;
       else s=12;
       break;
-    case 7: if(*p&&isdigit(*p)) s=9; else s=10; break;
+    case 7: if(*p&&isdigit((unsigned char)*p)) s=9; else s=10; break;
     case 8:
       /* exponent: 'e' then digits, or 'e' then a sign *followed by a digit*.
          A sign not followed by a digit (e.g. 2.0e+'x) means 'e' is the f32
          suffix and the sign is a separate operator token. */
-      if(*p&&(isdigit(*p)||((*p=='-'||*p=='+')&&isdigit((unsigned char)p[1])))) { ep=p-1; s=9; break; }
+      if(*p&&(isdigit((unsigned char)*p)||((*p=='-'||*p=='+')&&isdigit((unsigned char)p[1])))) { ep=p-1; s=9; break; }
       /* 'e' not followed by exponent digits => float32 suffix; the 'e' is at
          p-1, the mantissa/sentinel token is q..p-1 (mirrors 0N/0I handling) */
       if(p==q+1) return 0;
@@ -100,7 +100,7 @@ static int gn_(void) {
       return 1;
     case 9:
       if(!*p) s=12;
-      else if(isdigit(*p)) s=9;
+      else if(isdigit((unsigned char)*p)) s=9;
       else if(*p=='e'||*p=='E') s=8;
       /* A '.' after exponent digits can't be part of a (integral) exponent.
          If the mantissa before the exponent 'e' had a decimal point, that 'e'
@@ -156,10 +156,10 @@ static int gn(pgs *pgs) {
   double *fv=0;
   char *q;
   r0=gn_();
-  if(*p&&isblank(*p)) {
+  if(*p&&isblank((unsigned char)*p)) {
     q=p;
-    while(*p&&isblank(*p))++p;
-    if((*p&&isdigit(*p))||(S2(p)&&(*p=='.'||*p=='-')&&isdigit(p[1]))) { /* convert to vector */
+    while(*p&&isblank((unsigned char)*p))++p;
+    if((*p&&isdigit((unsigned char)*p))||(S2(p)&&(*p=='.'||*p=='-')&&isdigit((unsigned char)p[1]))) { /* convert to vector */
       if(r0==1||r0==4) { if(r0==4) lng=1; imm<<=1; iv=xrealloc(iv,imm*sizeof(int64_t)); nl=xrealloc(nl?nl:0,imm); nl[ic]=0; iv[ic++]=iii; }
       else if(r0==2) { fm<<=1; fv=xrealloc(fv,fm*sizeof(double)); fv[fc++]=fff; }
       else if(r0==5) { e32=1; fm<<=1; fv=xrealloc(fv,fm*sizeof(double)); fv[fc++]=eee; }
@@ -167,9 +167,9 @@ static int gn(pgs *pgs) {
     }
     p=q;
     if(iv) {
-      while(*p&&isblank(*p)) {
+      while(*p&&isblank((unsigned char)*p)) {
         q=p;
-        while(*p&&isblank(*p))++p;
+        while(*p&&isblank((unsigned char)*p))++p;
         r=gn_();
         if(r==1||r==4) {
           if(r==4) lng=1;
@@ -201,9 +201,9 @@ static int gn(pgs *pgs) {
       }
     }
     if(fv) {
-      while(*p&&isblank(*p)) {
+      while(*p&&isblank((unsigned char)*p)) {
         q=p;
-        while(*p&&isblank(*p))++p;
+        while(*p&&isblank((unsigned char)*p))++p;
         r=gn_();
         if(r==1) {
           /* preserve null/inf when promoting int64 to double */
@@ -320,8 +320,8 @@ static int gname(pgs *pgs) {
   int s=*p=='.';
   while(1) {
     if(!*p) break;
-    if(!s) { if(isalpha(*p)) { ++p; s=1; } else break; }
-    else { if(isalnum(*p)) ++p; else if(*p=='.') { ++p; s=0; } else break; }
+    if(!s) { if(isalpha((unsigned char)*p)) { ++p; s=1; } else break; }
+    else { if(isalnum((unsigned char)*p)) ++p; else if(*p=='.') { ++p; s=0; } else break; }
   }
   if(*p) { c=*p; *p=0; q0=sp(q); *p=c; }
   /* Issue #2 Pass 6: name no longer slurps trailing adverbs --
@@ -358,7 +358,7 @@ static int gsym_(void) {
       if(!*p) return 0;
       if(*p=='"') { ++q; s=2; }
       else if(*p=='.') s=4;
-      else if(isalpha(*p)) s=3;
+      else if(isalpha((unsigned char)*p)) s=3;
       else s=1;
       break;
     case 1:
@@ -380,11 +380,11 @@ static int gsym_(void) {
     case 3:
       if(!*p) return 0;
       if(*p=='.') s=4;
-      else if(!isalnum(*p)) s=1;
+      else if(!isalnum((unsigned char)*p)) s=1;
       break;
     case 4:
       if(!*p) return 0;
-      if(isalnum(*p)) s=3;
+      if(isalnum((unsigned char)*p)) s=3;
       else s=1;
       break;
     }
@@ -403,7 +403,7 @@ static int gsym(pgs *pgs) {
   // but the problem is its possible to scan right up to a /comment, which has to be
   // preceeded by a space. hence the q=p/p=q stuff.
   q=p;
-  while(*p&&isblank(*p))++p;
+  while(*p&&isblank((unsigned char)*p))++p;
   if(*p=='`') {
     if(r==1) {
       sm<<=1;
@@ -422,7 +422,7 @@ static int gsym(pgs *pgs) {
       }
       else { p=q; break; }
       q=p;
-      while(*p&&isblank(*p))++p;
+      while(*p&&isblank((unsigned char)*p))++p;
       if(*p!='`') { p=q; break; }
     }
   }
@@ -466,17 +466,17 @@ static int gc(pgs *pgs) {
       else if(*p=='r') { ss[j++]='\r'; s=0; }
       else if(*p=='"') { ss[j++]='\"'; s=0; }
       else if(*p=='\\') { ss[j++]='\\'; s=0; }
-      else if(isdigit(*p)&&*p<='7') { o=*p-'0'; s=2; } /* octal */
+      else if(isdigit((unsigned char)*p)&&*p<='7') { o=*p-'0'; s=2; } /* octal */
       else { ss[j++]=*p; s=0; }
       break;
     case 2: /* octal */
-      if(isdigit(*p)&&*p<='7') { o*=8; o+=*p-'0'; s=3; }
+      if(isdigit((unsigned char)*p)&&*p<='7') { o*=8; o+=*p-'0'; s=3; }
       else if(*p=='\\') { ss[j++]=o; s=1; }
       else if(*p=='"') { ss[j++]=o; s=10; }
       else { ss[j++]=o; ss[j++]=*p; s=0; }
       break;
     case 3: /* octal */
-      if(isdigit(*p)&&*p<='7') { o*=8; o+=*p-'0'; ss[j++]=o; s=0; }
+      if(isdigit((unsigned char)*p)&&*p<='7') { o*=8; o+=*p-'0'; ss[j++]=o; s=0; }
       else if(*p=='\\') { ss[j++]=o; s=1; }
       else if(*p=='"') { ss[j++]=o; s=10; }
       else { ss[j++]=o; ss[j++]=*p; s=0; }
@@ -515,6 +515,8 @@ static int gf(pgs *pgs) {
     if(s!=2) {
       if(first && *p=='/') { ++p; while(*p&&*p!='\n') ++p; continue; }
       if(*p== ' ' && p[1] && p[1]=='/') { p+=2; while(*p&&*p!='\n') ++p; continue; }
+      /* `/` right after an opener ( [ { is prefix-position (no left operand) -> comment */
+      if(p>q && (p[-1]=='('||p[-1]=='['||p[-1]=='{') && *p=='/') { ++p; while(*p&&*p!='\n') ++p; continue; }
     }
     first=0;
 
@@ -601,7 +603,7 @@ static int gback(pgs *pgs, int load) {
     push(pgs,T015,252);
     p+=2;
     if(*p) {
-      while(*p&&isblank(*p))++p;
+      while(*p&&isblank((unsigned char)*p))++p;
       q=p;
       while(*p&&*p!='\n')++p;
       if(*p) {
@@ -621,10 +623,10 @@ static int gback(pgs *pgs, int load) {
     push(pgs,T015,251);
     p+=2;
     if(*p) {
-      while(*p&&isblank(*p))++p;
+      while(*p&&isblank((unsigned char)*p))++p;
       q=p;
-      if(*p&&isdigit(*p)) {
-        while(*p&&isdigit(*p))++p;
+      if(*p&&isdigit((unsigned char)*p)) {
+        while(*p&&isdigit((unsigned char)*p))++p;
         if(*p) {
           c=*p; *p=0;
           int prec=xatoi(q);
@@ -652,10 +654,10 @@ static int gback(pgs *pgs, int load) {
     push(pgs,T015,248);
     p+=3;
     if(*p) {
-      while(*p&&isblank(*p))++p;
+      while(*p&&isblank((unsigned char)*p))++p;
       q=p;
-      if(*p&&isdigit(*p)) {
-        while(*p&&isdigit(*p))++p;
+      if(*p&&isdigit((unsigned char)*p)) {
+        while(*p&&isdigit((unsigned char)*p))++p;
         if(*p) {
           c=*p; *p=0;
           int zc=xatoi(q);
@@ -670,10 +672,10 @@ static int gback(pgs *pgs, int load) {
     push(pgs,T015,247);
     p+=2;
     if(*p) {
-      while(*p&&isblank(*p))++p;
+      while(*p&&isblank((unsigned char)*p))++p;
       q=p;
-      if(*p&&isdigit(*p)) {
-        while(*p&&isdigit(*p))++p;
+      if(*p&&isdigit((unsigned char)*p)) {
+        while(*p&&isdigit((unsigned char)*p))++p;
         if(*p) {
           c=*p; *p=0;
           int e=xatoi(q);
@@ -689,7 +691,7 @@ static int gback(pgs *pgs, int load) {
     push(pgs,T015,246);
     p+=2;
     if(*p) {
-      while(*p&&isblank(*p))++p;
+      while(*p&&isblank((unsigned char)*p))++p;
       q=p;
       while(*p&&*p!='\n')++p;
       if(*p) {
@@ -711,18 +713,18 @@ static int gback(pgs *pgs, int load) {
    * as whitespace, so a bare '\m i' at buffer end is recognized. */
   else if(S3(p)&&p[1]=='m'&&p[2]&&strchr(" \n\t",p[2])) {
     p+=2;
-    while(*p&&isblank(*p))++p;
+    while(*p&&isblank((unsigned char)*p))++p;
     int sub=0;                                    /* 'i' or 'f', 0 if none */
     if((*p=='i'||*p=='f') && (!p[1] || strchr(" \n\t",p[1]))) {
       sub=*p;
       ++p;                                        /* consume sub letter only;
                                                      leave '\n' for outer loop */
-      while(*p&&isblank(*p))++p;
+      while(*p&&isblank((unsigned char)*p))++p;
     }
     push(pgs,T015, sub=='f' ? 244 : sub=='i' ? 245 : 243);
-    if(sub && *p && isdigit(*p)) {
+    if(sub && *p && isdigit((unsigned char)*p)) {
       q=p;
-      while(*p&&isdigit(*p))++p;
+      while(*p&&isdigit((unsigned char)*p))++p;
       if(*p) {
         c=*p; *p=0;
         int port=xatoi(q);
@@ -768,6 +770,8 @@ K lex(pgs *pgs, int load) {
       /* skip comments */
       if(first && *q=='/') { ++q; while(*q&&*q!='\n') ++q; continue; }
       if(*q== ' ' && q[1] && q[1]=='/') { q+=2; while(*q&&*q!='\n') ++q; continue; }
+      /* `/` right after an opener ( [ { is prefix-position -> comment */
+      if(q>pgs->p && (q[-1]=='('||q[-1]=='['||q[-1]=='{') && *q=='/') { ++q; while(*q&&*q!='\n') ++q; continue; }
       first=0;
       if(*q=='\n') {
         first=1;
@@ -820,14 +824,14 @@ K lex(pgs *pgs, int load) {
   p0=p1=p=pgs->p;
   while(1) {
     if(!*p) { push(pgs,T020,0); break; }
-    b=isblank(*p);
-    while(*p&&isblank(*p)) ++p;
+    b=isblank((unsigned char)*p);
+    while(*p&&isblank((unsigned char)*p)) ++p;
     p1=p;
     if(*p=='\r') ++p;
     else if(*p=='\n') { ++p; if(f) push(pgs,T014,null); push(pgs,T013,0); f=1; ++line; p0=p1+1; continue; }
     else if(*p==';') { ++p; if(f) push(pgs,T014,0); push(pgs,T012,0); f=1; continue; }
-    else if((b||f)&&*p=='/') { ++p; while(*p&&*p!='\n')++p; }
-    else if(S2(p)&&isdigit(*p)&&p[1]==':') {
+    else if((b||f||(p>pgs->p&&(p[-1]=='('||p[-1]=='['||p[-1]=='{')))&&*p=='/') { ++p; while(*p&&*p!='\n')++p; }
+    else if(S2(p)&&isdigit((unsigned char)*p)&&p[1]==':') {
       /* file verbs de-glued: emit bare 0xcc; a following adverb tokenizes as
          a standalone 0x85 and folds through pgreduce_ cases 0xcc/0xcd. */
       char s[3]={*p,':',0}; p+=2; push(pgs,T015,t(4,st(0xcc,sp(s))));
@@ -837,7 +841,7 @@ K lex(pgs *pgs, int load) {
       if(S2(p)&&strchr("'/\\",p[1])) getmv(pgs,-3,0xc1);
       else if(S2(p)&&p[1]==':') { push(pgs,T015,t(1,st(0xce,*p))); p+=2; }
       else if(!(b|f)&&(pgs->lt==T014||pgs->lt==T017||pgs->lt==T019)&&!pgs->ll) { ++p; push(pgs,T015,'-'); }
-      else if((S2(p)&&isdigit(p[1])) || (S3(p)&&p[1]=='.'&&isdigit(p[2]))) { if(!gn(pgs)) goto parseerror; }
+      else if((S2(p)&&isdigit((unsigned char)p[1])) || (S3(p)&&p[1]=='.'&&isdigit((unsigned char)p[2]))) { if(!gn(pgs)) goto parseerror; }
       else { ++p; push(pgs,T015,'-'); }
     }
     else if(f&&*p=='\\') {
@@ -862,12 +866,12 @@ K lex(pgs *pgs, int load) {
       ++p;
       continue;
     }
-    else if((*p&&isdigit(*p))||(S2(p)&&*p=='.'&&isdigit(p[1]))) { if(!gn(pgs)) goto parseerror; }
+    else if((*p&&isdigit((unsigned char)*p))||(S2(p)&&*p=='.'&&isdigit((unsigned char)p[1]))) { if(!gn(pgs)) goto parseerror; }
     else if(*p&&strchr("'/\\",*p)) getmv(pgs,-3,0x85); /* ??? */
     else if(*p&&strchr(P,*p)) {
       if(S2(p)&&strchr("'/\\",p[1])) getmv(pgs,-3,0xc1);
       else if(S2(p)&&p[1]==':') { push(pgs,T015,t(1,st(0xce,*p))); p+=2; }
-      else if(S2(p)&&*p=='.'&&isalpha(p[1])) gname(pgs);
+      else if(S2(p)&&*p=='.'&&isalpha((unsigned char)p[1])) gname(pgs);
       else { push(pgs,T015,*p); ++p; } }
     else if(*p=='(') { ++p; push(pgs,T016,0); }
     else if(*p==')') { ++p; push(pgs,T017,0); }
@@ -876,7 +880,7 @@ K lex(pgs *pgs, int load) {
     else if(*p=='{') { if(!gf(pgs)) goto parseerror; }
     else if(*p=='`') { if(!gsym(pgs)) goto parseerror; }
     else if(*p=='"') gc(pgs);
-    else if(isalpha(*p)) gname(pgs);
+    else if(isalpha((unsigned char)*p)) gname(pgs);
     else goto parseerror;
     f=0;
   }

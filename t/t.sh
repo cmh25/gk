@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 # Usage: t.sh [stdin]
 #   (no arg)  run each test as a file argument   (file mode)
 #   stdin     feed each test on stdin            (REPL mode)

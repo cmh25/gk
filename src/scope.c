@@ -162,16 +162,16 @@ int scope_vktp(char *x) {
     switch(s) {
     case 0:
       if(*x=='.') s=1;
-      else if(isalpha(*x)) s=2;
+      else if(isalpha((unsigned char)*x)) s=2;
       else v=0;
       break;
     case 1:
-      if(isalpha(*x)) s=2;
+      if(isalpha((unsigned char)*x)) s=2;
       else v=0;
       break;
     case 2:
       if(*x=='.') s=1;
-      else if(!isalnum(*x)) v=0;
+      else if(!isalnum((unsigned char)*x)) v=0;
       break;
     }
     ++x;

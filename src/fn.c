@@ -74,11 +74,11 @@ K fncp(K x) {
 
 K fnd(K f) {
   K p,r=0,*pf;
-  char *ff=0,*b,**v,*g,*h;
+  char *ff=0,*ff0=0,*b,**v,*g,*h;
   int j,s,n,q,vx,vy,vz,ffq=0,first=1,params=1;
   int bm=32,vm=32;
   pf=px(f);
-  ff=px(pf[0]);
+  ff=px(pf[0]); ff0=ff;
   s=j=n=q=vx=vy=vz=0;
   if(!*ff) return r;
   if(*ff!='{') return r;
@@ -88,6 +88,7 @@ K fnd(K f) {
     /* skip comments */
     if(s!=2 && first && *ff=='/') { ++ff; while(*ff&&*ff!='\n') ++ff; --ff; continue; }
     if(s!=2 && *ff== ' ' && ff[1] && ff[1]=='/') { ff+=2; while(*ff&&*ff!='\n') ++ff; --ff; continue; }
+    if(s!=2 && ff>ff0 && (ff[-1]=='('||ff[-1]=='['||ff[-1]=='{') && *ff=='/') { ++ff; while(*ff&&*ff!='\n') ++ff; --ff; continue; }
     first=0; if(*ff=='\n') first=1;
 
     if(*ff=='"') { params=0; while(*ff&&*ff=='"') ff=xeqs(ff); }
@@ -98,7 +99,7 @@ K fnd(K f) {
       else { r=KERR_PARSE; goto cleanup; }
       break;
     case 1:
-      while(*ff&&isblank(*ff))++ff;
+      while(*ff&&isblank((unsigned char)*ff))++ff;
       if(*ff=='"') while(*ff&&*ff=='"') ff=xeqs(ff);
       if(!*ff) { r=KERR_PARSE; goto cleanup; }
       if(*ff=='}') s=2;
@@ -106,24 +107,24 @@ K fnd(K f) {
       else if(*ff=='['&&params) s=3;
       else if(*ff=='.') s=11;
       else if(*ff=='`') s=101;
-      else if(isalpha(*ff)) { s=7; SB(b,bm,j,*ff); j++; }
+      else if(isalpha((unsigned char)*ff)) { s=7; SB(b,bm,j,*ff); j++; }
       else if((i8)*ff<0) { r=KERR_PARSE; goto cleanup; }
       else s=6;
       params=0;
       break;
     case 101:
-      if(isalnum(*ff)) s=101;
+      if(isalnum((unsigned char)*ff)) s=101;
       else s=1;
       break;
     case 2:
       r=KERR_PARSE; goto cleanup;
     case 3:
-      if(isalpha(*ff)) { s=4; SB(b,bm,j,*ff); j++; ffq=1; }
+      if(isalpha((unsigned char)*ff)) { s=4; SB(b,bm,j,*ff); j++; ffq=1; }
       else if(*ff==']') s=5;
       else { r=KERR_PARSE; goto cleanup; }
       break;
     case 4:
-      if(isalnum(*ff)) { s=4; SB(b,bm,j,*ff); j++; }
+      if(isalnum((unsigned char)*ff)) { s=4; SB(b,bm,j,*ff); j++; }
       else if(*ff==']') {
         s=5; SB(b,bm,j,0); j=0; SB(v,vm,q,sp(b)); q++;
       }
@@ -136,24 +137,24 @@ K fnd(K f) {
       else if(*ff=='{') { n++; s=8; }
       else if(*ff=='.') s=15;
       else if(*ff=='`') s=105;
-      else if(isalpha(*ff)) { s=7; SB(b,bm,j,*ff); j++; }
+      else if(isalpha((unsigned char)*ff)) { s=7; SB(b,bm,j,*ff); j++; }
       else s=6;
       break;
     case 105:
-      if(isalnum(*ff)) s=105;
+      if(isalnum((unsigned char)*ff)) s=105;
       else s=5;
       break;
     case 6:
       if(*ff=='}') s=2;
       else if(*ff=='.') s=16;
       else if(*ff=='`') s=106;
-      else if(isalpha(*ff)) { s=7; SB(b,bm,j,*ff); j++; }
+      else if(isalpha((unsigned char)*ff)) { s=7; SB(b,bm,j,*ff); j++; }
       else if(*ff=='{') { n++; s=8; }
       else if((i8)*ff<0) { r=KERR_PARSE; goto cleanup; }
       else s=6;
       break;
     case 106:
-      if(isalnum(*ff)) s=106;
+      if(isalnum((unsigned char)*ff)) s=106;
       else if(*ff=='`') s=106;
       else if(*ff=='}') s=2;
       else s=6;
@@ -167,7 +168,7 @@ K fnd(K f) {
           if(!vz && !strcmp(b,"z")) { if(!vx) { vx=1; SB(v,vm,q,sp("x")); q++; } if(!vy) { vy=1; SB(v,vm,q,sp("y")); q++; } vz=1; SB(v,vm,q,sp("z")); q++; }
         }
       }
-      else if(isalnum(*ff)) { SB(b,bm,j,*ff); j++; }
+      else if(isalnum((unsigned char)*ff)) { SB(b,bm,j,*ff); j++; }
       else if(*ff=='{') {
         s=10; SB(b,bm,j,0); j=0;
         if(!ffq) { /* no implicit xyz if there are formal parameters */
@@ -198,19 +199,19 @@ K fnd(K f) {
       else if(*ff=='{') n++; /* nested function */
       break;
     case 11: /* .z.s */
-      if(isalnum(*ff)) s=11;
+      if(isalnum((unsigned char)*ff)) s=11;
       else if(*ff=='.') s=11;
       else if(*ff=='}') s=2;
       else s=1;
       break;
     case 15: /* .z.s */
-      if(isalnum(*ff)) s=15;
+      if(isalnum((unsigned char)*ff)) s=15;
       else if(*ff=='.') s=15;
       else if(*ff=='}') s=2;
       else s=5;
       break;
     case 16: /* .z.s */
-      if(isalnum(*ff)) s=16;
+      if(isalnum((unsigned char)*ff)) s=16;
       else if(*ff=='.') s=16;
       else if(*ff=='}') s=2;
       else s=6;
@@ -232,7 +233,7 @@ K fnd(K f) {
   /* parse */
   h=px(pf[0]);
   ++h;
-  while(*h&&isblank(*h))++h;
+  while(*h&&isblank((unsigned char)*h))++h;
   if(*h&&*h=='[') while(*h&&*h++!=']');
   g=xcalloc(1,5+strlen(h));
   memcpy(g,h,1+strlen(h));
@@ -298,7 +299,13 @@ K fne_(K f, K x, char *av) {
      2 args regardless of inner valence) and let avdo handle valence
      itself.  The each case is what enables stacked partial-apply of
      an adverbed lambda, e.g. {x+y*z}'[2]'[3]'[4]. */
-  int proj_av = av && *av && av[0]=='\'' && av[1]==0;
+  /* Project (lift av to an outer 0xda) for each `'`, and for over/scan
+     `/`/`\\` when the inner valence is >=3 -- those have no fold/seeded
+     overload at that valence, so fewer args (or a gap) is under-application
+     and must yield a projection, matching `'` and plain lambdas. (At
+     valence 1/2, `/`/`\\` consume 1-2 args as fold/seed; leave to avdo.) */
+  int proj_av = av && *av && av[1]==0 &&
+                (av[0]=='\'' || ((av[0]=='/'||av[0]=='\\') && n>=3));
   if((nx<n||nn<n) && (!av||!*av||proj_av)) { /* project */
     /* Issue #2 Pass 3b-5: produce 0xd9(lambda, pargs) projection
        wrapper instead of legacy 0xc4 3-tuple.  Pass 4 extension:

@@ -36,12 +36,18 @@
  * too, so it truncates ("...") spuriously. */
 extern uintptr_t stack_floor;        /* eval guard (more reserve) */
 extern uintptr_t stack_floor_print;  /* kprint_ guard (less reserve, deeper) */
+extern uintptr_t stack_floor_sub;    /* error-subconsole eval guard (between the two) */
+extern int ecount;                   /* >0 while inside a stack-error subconsole (repl.c) */
 void stack_guard_init(void);
 #ifdef ASAN_ENABLED
 static inline int stack_low(void) { return 0; }
 static inline int stack_print_low(void) { return 0; }
 #else
-static inline int stack_low(void) { char probe; return (uintptr_t)&probe <= stack_floor; }
+/* A stack-error subconsole opens IN PLACE (the recursion that tripped the guard is
+ * still live on the C stack; only \ unwinds it), so at ecount>0 eval would re-trip
+ * at stack_floor immediately.  Use the deeper stack_floor_sub there so \\ / simple
+ * commands run, while keeping a safe reserve below it. */
+static inline int stack_low(void) { char probe; return (uintptr_t)&probe <= (ecount?stack_floor_sub:stack_floor); }
 static inline int stack_print_low(void) { char probe; return (uintptr_t)&probe <= stack_floor_print; }
 #endif
 

@@ -1,4 +1,5 @@
 #include "io.h"
+#include "endian.h"
 #ifdef _WIN32
 #undef rc
 #define WIN32_LEAN_AND_MEAN
@@ -98,7 +99,7 @@ static K fopen_(K x, char *m, FILE **fp) {
 #ifdef _WIN32
 static K fsize_(K x, size_t *bs) {
   K r=null;
-  char b[2]={},*s=b;
+  char b[2]={0},*s=b;
   struct _stat64 t;
   if(tx==4) s=sk(x);
   else if (tx==3) s[0]=ck(x);
@@ -335,29 +336,29 @@ static K zerocolon2(K a, K x) {
         g=z[u];
         z[u]=0;
         if(ppc[i]=='I') {
-          pz=z+pqi[i]-1; while(pz>z && isspace(*pz)) --pz; pz[1]=0;
-          pz=z; while(isspace(*pz)) ++pz;
+          pz=z+pqi[i]-1; while(pz>z && isspace((unsigned char)*pz)) --pz; pz[1]=0;
+          pz=z; while(isspace((unsigned char)*pz)) ++pz;
           i32 *pi=px(prk[j]);
           pi[k]=xatoi(pz);
           j++;
         }
         else if(ppc[i]=='F') {
-          pz=z+pqi[i]-1; while(pz>z && isspace(*pz)) --pz; pz[1]=0;
-          pz=z; while(isspace(*pz)) ++pz;
+          pz=z+pqi[i]-1; while(pz>z && isspace((unsigned char)*pz)) --pz; pz[1]=0;
+          pz=z; while(isspace((unsigned char)*pz)) ++pz;
           double *pd=px(prk[j]);
           pd[k]=xstrtod(pz);
           j++;
         }
         else if(ppc[i]=='J') {
-          pz=z+pqi[i]-1; while(pz>z && isspace(*pz)) --pz; pz[1]=0;
-          pz=z; while(isspace(*pz)) ++pz;
+          pz=z+pqi[i]-1; while(pz>z && isspace((unsigned char)*pz)) --pz; pz[1]=0;
+          pz=z; while(isspace((unsigned char)*pz)) ++pz;
           i64 *pj=px(prk[j]);
           pj[k]=xatol(pz);
           j++;
         }
         else if(ppc[i]=='E') {
-          pz=z+pqi[i]-1; while(pz>z && isspace(*pz)) --pz; pz[1]=0;
-          pz=z; while(isspace(*pz)) ++pz;
+          pz=z+pqi[i]-1; while(pz>z && isspace((unsigned char)*pz)) --pz; pz[1]=0;
+          pz=z; while(isspace((unsigned char)*pz)) ++pz;
           float *pe=px(prk[j]);
           pe[k]=(float)xstrtod(pz);
           j++;
@@ -368,8 +369,8 @@ static K zerocolon2(K a, K x) {
           j++;
         }
         else if(ppc[i]=='S') {
-          pz=z+pqi[i]-1; while(pz>z && isspace(*pz)) --pz; pz[1]=0;
-          pz=z; while(isspace(*pz)) ++pz;
+          pz=z+pqi[i]-1; while(pz>z && isspace((unsigned char)*pz)) --pz; pz[1]=0;
+          pz=z; while(isspace((unsigned char)*pz)) ++pz;
           char **psym=px(prk[j]);
           psym[k]=sp(pz);
           j++;
@@ -430,6 +431,8 @@ static K onecolon1(K x) {
   n=read(fd,&st,sizeof(i32)); if(n==-1) return ferr(s,errno);
   n=read(fd,&pad,sizeof(i32)); if(n==-1) return ferr(s,errno);
   n=read(fd,&c,sizeof(u64)); if(n==-1) return ferr(s,errno);
+  gk_ld_arr(&t,&t,1,sizeof(i32)); /* header is little-endian on disk */
+  gk_ld_arr(&c,&c,1,sizeof(u64));
   if(t!=-1&&t!=-2&&t!=-3) { close(fd); return twocolon1(x); }
   if(t==-1) len=c*sizeof(int);
   else if(t==-2) len=c*sizeof(double);
@@ -444,6 +447,12 @@ static K onecolon1(K x) {
   r=tnv(-t,c,24+(char*)v);
   ((ko*)(b(48)&r))->m=1;
   n(r)=c;
+  if(GK_BIG_ENDIAN) { /* on-disk data is little-endian; swap mmap'd data in
+                         place on BE (private+writable map). Compile-time
+                         elided on LE, so zero-copy is preserved there. */
+    size_t esz = (t==-1)?sizeof(i32) : (t==-2)?sizeof(double) : 1;
+    if(esz>1) gk_ld_arr(24+(char*)v,24+(char*)v,c,esz);
+  }
   close(fd);
   return r;
 }
@@ -548,23 +557,23 @@ static K onecolon2(K a, K x) {
         }
         else if(ppc[j]=='s') {
           if(z+sizeof(short)>ze) { e=KERR_LENGTH; goto cleanup; }
-          short tmp; memcpy(&tmp, z, sizeof(tmp)); ((i32*)px(rk))[i] = (i32)tmp;
+          short tmp; gk_ld_arr(&tmp, z, 1, sizeof(tmp)); ((i32*)px(rk))[i] = (i32)tmp;
         }
         else if(ppc[j]=='i') {
           if(z+sizeof(i32)>ze) { e=KERR_LENGTH; goto cleanup; }
-          i32 tmp; memcpy(&tmp, z, sizeof(tmp)); ((i32*)px(rk))[i] = tmp;
+          i32 tmp; gk_ld_arr(&tmp, z, 1, sizeof(tmp)); ((i32*)px(rk))[i] = tmp;
         }
         else if(ppc[j]=='j') {
           if(z+sizeof(i64)>ze) { e=KERR_LENGTH; goto cleanup; }
-          i64 tmp; memcpy(&tmp, z, sizeof(tmp)); ((i64*)px(rk))[i] = tmp;
+          i64 tmp; gk_ld_arr(&tmp, z, 1, sizeof(tmp)); ((i64*)px(rk))[i] = tmp;
         }
         else if(ppc[j]=='e') {
           if(z+sizeof(float)>ze) { e=KERR_LENGTH; goto cleanup; }
-          float tmp; memcpy(&tmp, z, sizeof(tmp)); ((float*)px(rk))[i] = tmp;
+          float tmp; gk_ld_arr(&tmp, z, 1, sizeof(tmp)); ((float*)px(rk))[i] = tmp;
         }
         else if(ppc[j]=='f') {
           if(z+sizeof(double)>ze) { e=KERR_LENGTH; goto cleanup; }
-          double tmp; memcpy(&tmp, z, sizeof(tmp)); ((double*)px(rk))[i] = tmp;
+          double tmp; gk_ld_arr(&tmp, z, 1, sizeof(tmp)); ((double*)px(rk))[i] = tmp;
         }
         else if(ppc[j]=='C') {
           if(z+pqi[j]>ze) { e=KERR_LENGTH; goto cleanup; }
@@ -574,8 +583,8 @@ static K onecolon2(K a, K x) {
           if((z+pqi[j])>=ze+1) { e=KERR_LENGTH; goto cleanup; }
           g=z[pqi[j]];
           z[pqi[j]]=0;
-          pz=z+strlen(z)-1; while(pz>z && isspace(*pz)) --pz; pz[1]=0;
-          pz=z; while(isspace(*pz))++pz;
+          pz=z+strlen(z)-1; while(pz>z && isspace((unsigned char)*pz)) --pz; pz[1]=0;
+          pz=z; while(isspace((unsigned char)*pz))++pz;
           ((char**)px(rk))[i]=sp(pz);
           z[pqi[j]]=g;
         }
@@ -636,6 +645,10 @@ static K onecolon2(K a, K x) {
       if(ferror(fp)) e=kerror("io");
       else e=KERR_LENGTH;
       goto cleanup;
+    }
+    { /* file bytes are little-endian; swap to native on big-endian hosts */
+      size_t esz = (ck(a)=='i'||ck(a)=='e') ? 4 : (ck(a)=='j'||ck(a)=='f') ? 8 : 1;
+      if(esz>1) gk_ld_arr((void*)px(r),(void*)px(r),N/esz,esz);
     }
     break;
   default: r=KERR_TYPE;
@@ -765,7 +778,7 @@ static K twocolon2(K a, K x) {
   if(!h) h=linkdlopen(fn);
   if(!h) { xfree(fn); xfree(en); return KERR_DOMAIN; }
 #ifdef _WIN32
-  fp=(void*)GetProcAddress((HMODULE)h,en);
+  fp=(void*)(uintptr_t)GetProcAddress((HMODULE)h,en); /* func->object ptr via uintptr_t (ISO C) */
 #else
   fp=dlsym(h,en);
 #endif
@@ -858,6 +871,7 @@ static K fivecolon2(K a, K x) {
       if(ioe) return ferr("",errno);
       return KERR_LENGTH;
     }
+    gk_ld_arr(&t,&t,1,sizeof(int)); /* header type is little-endian on disk */
     if(t>0) { fclose(fp); return KERR_TYPE; }
     if(t!=tx) { fclose(fp); return KERR_TYPE; }
     if(fread(&st,sizeof(int),1,fp)!=1) {
@@ -878,6 +892,7 @@ static K fivecolon2(K a, K x) {
       if(ioe) return ferr("",errno);
       return KERR_LENGTH;
     }
+    gk_ld_arr(&c,&c,1,sizeof(u64)); /* element count is little-endian on disk */
     VSIZE((i64)c);
     p=bd_(x);
     if(E(p)) { fclose(fp); e=p; goto cleanup; }
@@ -888,7 +903,7 @@ static K fivecolon2(K a, K x) {
     EC(fopen_(a,"rb+",&fp));
     fseek(fp,sizeof(int)*4,SEEK_SET); /* skip header,type,subtype,pad */
     n=c+((tx>0||s(x))?1:nx);
-    fwrite(&n,sizeof(u64),1,fp); /* update count */
+    { u64 le_n; gk_st_arr(&le_n,&n,1,sizeof(u64)); fwrite(&le_n,sizeof(u64),1,fp); } /* update count (little-endian on disk) */
     e=fwclose_(0,0,fp); fp=0;
     if(E(e)) goto cleanup;
     r=n>(size_t)INT32_MAX?tj((i64)n):t(1,n); /* big count: long atom, not i32-truncated */

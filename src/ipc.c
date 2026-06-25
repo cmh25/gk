@@ -1,8 +1,12 @@
 /* ipc.c - IPC over TCP.
  *
- * Wire format (little-endian only for v1):
+ * Wire format (always little-endian, on every host):
  *
- *   off 0  arch     u8   1 = little-endian; anything else -> close conn
+ *   off 0  arch     u8   1 = little-endian wire; anything else -> close conn.
+ *                        All hosts emit LE: the u32/u64 length fields go
+ *                        through endian.h (gk_st_arr/gk_ld_arr) and the
+ *                        bd_ payload is itself LE-canonical, so big-endian
+ *                        hosts interoperate (incl. cross-arch).
  *   off 1  msgtype  u8   0=async, 1=sync request, 2=sync response,
  *                        3=sync error
  *   off 2  version  u8   1; future-proofing for protocol changes
@@ -27,6 +31,7 @@
  */
 
 #include "ipc.h"
+#include "endian.h"
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
@@ -370,8 +375,8 @@ int ipc_stdin_getc(void) {
       continue;
     }
 
-    if(wr >= WAIT_OBJECT_0 && wr < WAIT_OBJECT_0 + (DWORD)(1 + n_socks)) {
-      DWORD idx = wr - WAIT_OBJECT_0;
+    DWORD idx = wr - WAIT_OBJECT_0;  /* unsigned: WAIT_FAILED/ABANDONED wrap high -> caught below */
+    if(idx < (DWORD)(1 + n_socks)) {
       if(idx == 0) {
         /* stdin event - ring_pop will service it on the next iteration */
       } else {
@@ -674,6 +679,9 @@ static void ipc_child_loop(int cfd) {
 #endif
 
 static void handle_accept(int lfd, int lmode) {
+#ifdef _WIN32
+  (void)lmode;  /* IPC_MODE_FORK is POSIX-only; lmode is unused on Windows */
+#endif
   struct sockaddr_in sa;
   socklen_t          sl = sizeof sa;
   sock_t cfd = accept(lfd, (struct sockaddr*)&sa, &sl);
@@ -756,11 +764,11 @@ static int parse_header(ipc_conn *c) {
   if(reserved != 0)              return -1;
   if(msgtype > MSG_SYNC_ERR)     return -1;
   if(version == IPC_VERSION_V1) {
-    u32 m32; memcpy(&m32, c->hdr + 4, 4);
+    u32 m32; gk_ld_arr(&m32, c->hdr + 4, 1, 4);
     msglen = m32; hdrsz = IPC_HDR_V1;
     if(msglen > IPC_MAX_MSG)     return -1;
   } else if(version == IPC_VERSION_V2) {
-    memcpy(&msglen, c->hdr + 4, 8);
+    gk_ld_arr(&msglen, c->hdr + 4, 1, 8);
     hdrsz = IPC_HDR_V2;
     if(msglen >= IPC_MAX_MSG2)   return -1;
   } else                         return -1;
@@ -815,12 +823,12 @@ static int send_frame(int fd, u8 msgtype, const void *payload, u64 plen) {
   if(plen + IPC_HDR_V1 <= IPC_MAX_MSG) {       /* v1: old-peer compatible */
     u32 total = (u32)(IPC_HDR_V1 + plen);
     hdr[2] = IPC_VERSION_V1;
-    memcpy(hdr + 4, &total, 4);
+    gk_st_arr(hdr + 4, &total, 1, 4);
     hsz = IPC_HDR_V1;
   } else {                                      /* v2: u64 length */
     u64 total = IPC_HDR_V2 + plen;
     hdr[2] = IPC_VERSION_V2;
-    memcpy(hdr + 4, &total, 8);
+    gk_st_arr(hdr + 4, &total, 1, 8);
     hsz = IPC_HDR_V2;
   }
   if(write_all(fd, hdr, (size_t)hsz) < 0) return -1;

@@ -119,7 +119,14 @@ def kill_proc(proc):
     if proc.poll() is None:
         try:
             if os.name == "posix":
-                os.killpg(os.getpgid(proc.pid), 9)
+                # The server is its own session/group leader
+                # (start_new_session=True below), so its pgid == proc.pid.
+                # Kill the group by proc.pid directly: os.getpgid(proc.pid)
+                # raises EPERM on OpenBSD, where getpgid() across sessions is
+                # not permitted (POSIX-allowed; Linux/FreeBSD are lenient). The
+                # old getpgid form silently swallowed that EPERM, leaving the
+                # server alive to poison the next pair with "client timed out".
+                os.killpg(proc.pid, 9)
             else:
                 proc.kill()
         except OSError:

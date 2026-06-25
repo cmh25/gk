@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
 if [ "$CORE" = "" ]; then CORE=k.core; fi
 if [ "$CORE" != "k.core" ]; then echo "valgrind tests not available for $CORE core"; exit 0; fi

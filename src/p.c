@@ -236,7 +236,7 @@ static void printerror(K v, K x0, int i) {
       // have to advance the error indicator by the length of [a;b;c]
       n=0;
       if(*ff0=='{') { ++n; ++ff0; }
-      while(*ff0&&isspace(*ff0)) { ++n; ++ff0; }
+      while(*ff0&&isspace((unsigned char)*ff0)) { ++n; ++ff0; }
       if(*ff0=='[') {
         ++n; ++ff0;
         while(*ff0 && *ff0!=']') { ++ff0; ++n; }
@@ -1366,6 +1366,7 @@ K pgreduce_(K x0, int *quiet) {
             a=reduce(a);
             if(a && a<EMAX) a=kerror(E[a]);
           }
+          if(!a) a=null; /* a 0x0 (reduced-to-nothing / transient) arg is nul, as rl() does */
           /* Args may already be bare error K's pushed by an earlier
              token in this same frame (e.g. KERR_TYPE=3 from `2+\``).
              Errors have s==0, so the s(a) block above misses them.

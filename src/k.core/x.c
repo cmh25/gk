@@ -354,18 +354,18 @@ char* xunesc(char *p) {
         case '"': ss[j++]='"';  s=0; break;
         case '\\': ss[j++]='\\'; s=0; break;
         default:
-          if(isdigit(*p) && *p<='7') { o=*p-'0'; s=2; }
+          if(isdigit((unsigned char)*p) && *p<='7') { o=*p-'0'; s=2; }
           else { ss[j++]=*p; s=0; }
           break;
       }
       break;
     case 2: /* octal */
-      if(isdigit(*p)&&*p<='7') { o*=8; o+=*p-'0'; s=3; }
+      if(isdigit((unsigned char)*p)&&*p<='7') { o*=8; o+=*p-'0'; s=3; }
       else if(*p=='\\') { ss[j++]=o; s=1; }
       else { ss[j++]=o; ss[j++]=*p; s=0; }
       break;
     case 3: /* octal */
-      if(isdigit(*p)&&*p<='7') { o*=8; o+=*p-'0'; ss[j++]=o; s=0; }
+      if(isdigit((unsigned char)*p)&&*p<='7') { o*=8; o+=*p-'0'; ss[j++]=o; s=0; }
       else if(*p=='\\') { ss[j++]=o; s=1; }
       else { ss[j++]=o; ss[j++]=*p; s=0; }
       break;

@@ -42,7 +42,14 @@ i32 zeroclamp;
  * every call (not the hot path) so it can use the headroom eval left it. */
 #define STACK_MARGIN_EVAL  (1024UL*1024)
 #define STACK_MARGIN_PRINT (64UL*1024)
-uintptr_t stack_floor, stack_floor_print;
+/* Error-subconsole eval floor.  A stack error opens a subconsole IN PLACE without
+ * unwinding the recursion that tripped the guard (so you can inspect at the error
+ * point; only \ unwinds).  That subconsole sits right at stack_floor, so evaluating
+ * even `\\` would re-trip stack_low immediately.  Give it a deeper floor: enough
+ * headroom below stack_floor to run \\ / simple commands, yet far enough above the
+ * true bottom to absorb the every-8th-frame probe gap (~8 * worst ~10KB level). */
+#define STACK_MARGIN_SUB   (256UL*1024)
+uintptr_t stack_floor, stack_floor_print, stack_floor_sub;
 
 void stack_guard_init(void) {
   /* The danger threshold must be the REAL low end of the stack plus a margin --
@@ -77,6 +84,7 @@ void stack_guard_init(void) {
 #endif
   stack_floor       = lo + STACK_MARGIN_EVAL;
   stack_floor_print = lo + STACK_MARGIN_PRINT;
+  stack_floor_sub   = lo + STACK_MARGIN_SUB;
 }
 
 static char *P=":+-*%&|<>=~.!@?#_^,$'/\\";
@@ -201,8 +209,8 @@ static i32 vname(char *s, i32 n) {
   i32 i,a=1,v=1;
   if(s[0]=='.'&&n>1) a=0;
   for(i=0;i<n;i++) {
-    if(a && !isalpha(s[i])) v=0;
-    else if(!isalnum(s[i]) && s[i]!='.') v=0;
+    if(a && !isalpha((unsigned char)s[i])) v=0;
+    else if(!isalnum((unsigned char)s[i]) && s[i]!='.') v=0;
     if(s[i]=='.') a=1;
     else a=0;
   }

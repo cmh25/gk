@@ -1,4 +1,5 @@
 #include "b.h"
+#include "endian.h"
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
@@ -436,7 +437,7 @@ K ss(K a, K x) {
       s=strlen(pxc);
       for(i=0;i<na;i++) {
         if((m=ss_(pac,pxc,na,s,i))) {
-          if((i==0||!isalpha(pac[i-1])) && ((i+m<na&&!isalpha(pac[i+m]))||i+m==na)) {
+          if((i==0||!isalpha((unsigned char)pac[i-1])) && ((i+m<na&&!isalpha((unsigned char)pac[i+m]))||i+m==na)) {
             if(n==nr) { r=kresize(r,n<<1); prj=px(r); }
             prj[n++]=i;
             i+=m-1;
@@ -1677,31 +1678,31 @@ static K serialize(K x, char **b, char **v, i64 *n, i64 *m) {
     if(nm>VMAX) nm=VMAX;
     *m=nm; *b=xrealloc(*b,(size_t)*m); *v=*b+dv; dv=*v-*b;
   }
-  memcpy(*v,&t,si); *v+=si;
-  memcpy(*v,&st,si); *v+=si;
+  gk_st_arr(*v,&t,1,si); *v+=si;
+  gk_st_arr(*v,&st,1,si); *v+=si;
   memset(*v,0,si); *v+=si; /* pad to 8 byte alignment for double */
   switch(t) {
-  case  1: ii=ik(x); memcpy(*v,&ii,si); *v+=si; break;
-  case  2: memcpy(*v,&fk(x),sd); *v+=sd; break;
-  case  8: memcpy(*v,&jk(x),sd); *v+=sd; break;
-  case  9: { float ef=ek(x); memcpy(*v,&ef,si); *v+=si; } break;
+  case  1: ii=ik(x); gk_st_arr(*v,&ii,1,si); *v+=si; break;
+  case  2: gk_st_arr(*v,&fk(x),1,sd); *v+=sd; break;
+  case  8: gk_st_arr(*v,&jk(x),1,sd); *v+=sd; break;
+  case  9: { float ef=ek(x); gk_st_arr(*v,&ef,1,si); *v+=si; } break;
   case  3: cc=ck(x); memcpy(*v,&cc,1); *v+=1; break;
   case  4: pxc=sk(x); memcpy(*v,pxc,1+strlen(pxc)); *v+=1+strlen(pxc); break;
   case  6: case 10: break;
-  case -4: PXS; memcpy(*v,&nx,sn); *v+=sn; i(nx,memcpy(*v,pxs[i],1+strlen(pxs[i]));*v+=1+strlen(pxs[i])); break;
-  case -3: PXC; memcpy(*v,&nx,sn); *v+=sn; memcpy(*v,pxc,nx); *v+=nx; break;
-  case -2: PXF; memcpy(*v,&nx,sn); *v+=sn; memcpy(*v,pxf,nx*sd); *v+=nx*sd; break;
-  case -8: { i64 *pxj=px(x); memcpy(*v,&nx,sn); *v+=sn; memcpy(*v,pxj,nx*sd); *v+=nx*sd; } break;
-  case -9: { float *pxe=px(x); memcpy(*v,&nx,sn); *v+=sn; memcpy(*v,pxe,nx*si); *v+=nx*si; } break;
-  case -1: PXI; memcpy(*v,&nx,sn); *v+=sn; memcpy(*v,pxi,nx*si); *v+=nx*si; break;
+  case -4: PXS; gk_st_arr(*v,&nx,1,sn); *v+=sn; i(nx,memcpy(*v,pxs[i],1+strlen(pxs[i]));*v+=1+strlen(pxs[i])); break;
+  case -3: PXC; gk_st_arr(*v,&nx,1,sn); *v+=sn; memcpy(*v,pxc,nx); *v+=nx; break;
+  case -2: PXF; gk_st_arr(*v,&nx,1,sn); *v+=sn; gk_st_arr(*v,pxf,nx,sd); *v+=nx*sd; break;
+  case -8: { i64 *pxj=px(x); gk_st_arr(*v,&nx,1,sn); *v+=sn; gk_st_arr(*v,pxj,nx,sd); *v+=nx*sd; } break;
+  case -9: { float *pxe=px(x); gk_st_arr(*v,&nx,1,sn); *v+=sn; gk_st_arr(*v,pxe,nx,si); *v+=nx*si; } break;
+  case -1: PXI; gk_st_arr(*v,&nx,1,sn); *v+=sn; gk_st_arr(*v,pxi,nx,si); *v+=nx*si; break;
   case  0: PXK;
     if(0xc3==s(x))  {
       /* don't serialize lambda scope or parse result */
-      memcpy(*v,&nx,sizeof(u64)); *v+=sizeof(u64);;
+      gk_st_arr(*v,&nx,1,sizeof(u64)); *v+=sizeof(u64);;
       i(nx,p=serialize((i==1||i==2)?null:pxk[i],b,v,n,m); if(E(p)) { --d; return p;})
     }
     else {
-      memcpy(*v,&nx,sn); *v+=sn;
+      gk_st_arr(*v,&nx,1,sn); *v+=sn;
       i(nx,p=serialize(pxk[i],b,v,n,m); if(E(p)) { --d; return p;})
     }
     break;
@@ -1810,22 +1811,22 @@ static K deserialize(char **b,u64 *m) {
   char cc,**prs,*prc;
   double ff,*prf;
   if(n<si*3) return KERR_LENGTH;
-  memcpy(&t,*b,si); *b+=si;
-  memcpy(&st,*b,si); *b+=si;
+  gk_ld_arr(&t,*b,1,si); *b+=si;
+  gk_ld_arr(&st,*b,1,si); *b+=si;
   *b+=si; /* pad to 8 byte alignment for double */
   n-=3*si;
   switch(t) {
-  case  1: if(n<si) return KERR_LENGTH; memcpy(&ii,*b,si); r=t(1,(u32)ii); *b+=si; break;
-  case  2: if(n<sd) return KERR_LENGTH; memcpy(&ff,*b,sd); r=t2(ff); *b+=sd; break;
-  case  8: if(n<sd) return KERR_LENGTH; { i64 jj; memcpy(&jj,*b,sd); r=tj(jj); *b+=sd; } break;
-  case  9: if(n<si) return KERR_LENGTH; { float ef; memcpy(&ef,*b,si); r=te(ef); *b+=si; } break;
+  case  1: if(n<si) return KERR_LENGTH; gk_ld_arr(&ii,*b,1,si); r=t(1,(u32)ii); *b+=si; break;
+  case  2: if(n<sd) return KERR_LENGTH; gk_ld_arr(&ff,*b,1,sd); r=t2(ff); *b+=sd; break;
+  case  8: if(n<sd) return KERR_LENGTH; { i64 jj; gk_ld_arr(&jj,*b,1,sd); r=tj(jj); *b+=sd; } break;
+  case  9: if(n<si) return KERR_LENGTH; { float ef; gk_ld_arr(&ef,*b,1,si); r=te(ef); *b+=si; } break;
   case  3: if(n<1) return KERR_LENGTH; memcpy(&cc,*b,1); r=t(3,(u8)cc); *b+=1; break;
   case  4: if(n<1+strlen(*b)) return KERR_LENGTH; r=t(4,sp(*b)); *b+=1+strlen(*b); break;
   case  6: r=null; break;
   case 10: r=inull; break;
   case -4:
     if(n<sn) return KERR_LENGTH;
-    memcpy(&count,*b,sn);
+    gk_ld_arr(&count,*b,1,sn);
     *b+=sn; n-=sn;
     /* min 1 byte/elem (the trailing nul); guards i32 overflow in PRS too */
     if(count>n||count>=(u64)VMAX) return KERR_LENGTH;
@@ -1833,40 +1834,40 @@ static K deserialize(char **b,u64 *m) {
     i(nr,size_t len=strnlen(*b,n); if(n<len) return KERR_LENGTH; prs[i]=sp(*b); n-=1+len; *b+=1+len) break;
   case -3:
     if(n<sn) return KERR_LENGTH;
-    memcpy(&count,*b,sn);
+    gk_ld_arr(&count,*b,1,sn);
     *b+=sn; n-=sn;
     if(count>n||count>=(u64)VMAX) return KERR_LENGTH;
     PRC(count);
     memcpy(prc,*b,nr); *b+=nr; break;
   case -2:
     if(n<sn) return KERR_LENGTH;
-    memcpy(&count,*b,sn);
+    gk_ld_arr(&count,*b,1,sn);
     *b+=sn; n-=sn;
     if(count>n/sd||count>=(u64)VMAX) return KERR_LENGTH;
     PRF(count);
-    memcpy(prf,*b,nr*sd); *b+=nr*sd; break;
+    gk_ld_arr(prf,*b,nr,sd); *b+=nr*sd; break;
   case -8:
     if(n<sn) return KERR_LENGTH;
-    memcpy(&count,*b,sn);
+    gk_ld_arr(&count,*b,1,sn);
     *b+=sn; n-=sn;
     if(count>n/sd||count>=(u64)VMAX) return KERR_LENGTH;
-    { i64 *prj; PRJ(count); memcpy(prj,*b,nr*sd); *b+=nr*sd; } break;
+    { i64 *prj; PRJ(count); gk_ld_arr(prj,*b,nr,sd); *b+=nr*sd; } break;
   case -9:
     if(n<sn) return KERR_LENGTH;
-    memcpy(&count,*b,sn);
+    gk_ld_arr(&count,*b,1,sn);
     *b+=sn; n-=sn;
     if(count>n/si||count>=(u64)VMAX) return KERR_LENGTH;
-    { float *pre; PRE(count); memcpy(pre,*b,nr*si); *b+=nr*si; } break;
+    { float *pre; PRE(count); gk_ld_arr(pre,*b,nr,si); *b+=nr*si; } break;
   case -1:
     if(n<sn) return KERR_LENGTH;
-    memcpy(&count,*b,sn);
+    gk_ld_arr(&count,*b,1,sn);
     *b+=sn; n-=sn;
     if(count>n/si||count>=(u64)VMAX) return KERR_LENGTH;
     PRI(count);
-    memcpy(pri,*b,nr*si); *b+=nr*si; break;
+    gk_ld_arr(pri,*b,nr,si); *b+=nr*si; break;
   case  0:
     if(n<sn) return KERR_LENGTH;
-    memcpy(&count,*b,sn);
+    gk_ld_arr(&count,*b,1,sn);
     *b+=sn; n-=sn;
     /* every nested element occupies at least 3*sizeof(i32) bytes (header) */
     if(count>n/(3*si)||count>=(u64)VMAX) return KERR_LENGTH;

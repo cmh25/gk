@@ -128,7 +128,7 @@ static FILE *ofopen_script(char *path, char *buf, size_t n, char **out) {
 K load(char *fn, int load) {
   FILE *fp=0; K r,e=null;
   K cs0,gs0,d0,zfp0=0;
-  int c,f,s=0,space=0;
+  int c,f,s=0,space=0,op=0;
   size_t i=0,j=0,m=32;
   char *b,*pfile0,*rfn=fn;
   char rbuf[4096],cbuf[4096];
@@ -190,7 +190,7 @@ K load(char *fn, int load) {
         else if(c=='{') ++ccount; else if(ccount&&c=='}') --ccount;
         else if(c=='"') qcount=s=1;
         else if(f&&c=='\\') ++f;
-        else if((space||f==1)&&c=='/') s=2;
+        else if((space||f==1||op)&&c=='/') s=2; /* op: `/` right after an opener ( [ { is a comment */
         if(!isblank(c)&&c!='\\') f=0;
         break;
       case 1:
@@ -202,7 +202,7 @@ K load(char *fn, int load) {
         if(c=='\n') s=0;
         break;
       }
-      space=isblank(c);
+      space=isblank(c); op=(c=='('||c=='['||c=='{');
     }
     if(f==2) { break; }
     if(c==EOF) { break; } /* have to unwind to free memory */
@@ -289,7 +289,7 @@ cleanup:
 
 static int H;
 static K repl_(void) {
-  int c,f,s=0,space=0; size_t i=0,j=0,m=32; char *b; K r;
+  int c,f,s=0,space=0,op=0; size_t i=0,j=0,m=32; char *b; K r;
   const char *prompt="  ";
   b=xmalloc(m+2);
   pcount=scount=ccount=qcount=0;
@@ -309,7 +309,7 @@ static K repl_(void) {
         else if(c=='{') ++ccount; else if(ccount&&c=='}') --ccount;
         else if(c=='"') qcount=s=1;
         else if(f&&c=='\\') ++f;
-        else if((space||f==1)&&c=='/') s=2;
+        else if((space||f==1||op)&&c=='/') s=2; /* op: `/` right after an opener ( [ { is a comment */
         if(!isblank(c)&&c!='\\') f=0;
         break;
       case 1:
@@ -321,7 +321,7 @@ static K repl_(void) {
         if(c=='\n') s=0;
         break;
       }
-      space=isblank(c);
+      space=isblank(c); op=(c=='('||c=='['||c=='{');
     }
     if(isatty(STDIN_FILENO) && i>=4095) {
         xfree(b);
