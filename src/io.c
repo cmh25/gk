@@ -40,6 +40,25 @@ static K ferr(char *f, i32 e) {
   return r;
 }
 
+#ifdef _WIN32
+/* Like ferr, but for the Win32 API (GetLastError + FormatMessage) rather than
+   errno.  Used by the native onecolon1 file-mapping path. */
+static K wferr(char *f) {
+  K r;
+  char *b,buf[256];
+  DWORD e=GetLastError(),k;
+  k=FormatMessageA(FORMAT_MESSAGE_FROM_SYSTEM|FORMAT_MESSAGE_IGNORE_INSERTS,
+                   0,e,0,buf,sizeof(buf),0);
+  while(k && (buf[k-1]=='\n'||buf[k-1]=='\r'||buf[k-1]==' ')) buf[--k]=0;
+  if(!k) snprintf(buf,sizeof(buf),"win32 error %lu",(unsigned long)e);
+  b=xmalloc(strlen(f)+strlen(buf)+3);
+  sprintf(b,"%s: %s",f,buf);
+  r=kerror(b);
+  xfree(b);
+  return r;
+}
+#endif
+
 static FILE* fopen__(FILE **fp, const char *p, const char *m) {
 #ifdef _WIN32
   if(fopen_s(fp, p, m)) *fp = 0;
@@ -404,13 +423,65 @@ K zerocolon(K a, K x) {
   return r;
 }
 
-#if defined(_WIN32) || defined(FUZZING)
 static K twocolon1(K x);
+#if defined(FUZZING)
+/* Deterministic full-read fallback for AFL (no zero-copy maps under fuzzing). */
 static K onecolon1(K x) {
   return twocolon1(x);
 }
+#elif defined(_WIN32)
+/* Native Windows file mapping: PAGE_WRITECOPY/FILE_MAP_COPY is the exact
+   equivalent of POSIX MAP_PRIVATE|PROT_READ|PROT_WRITE (copy-on-write), so
+   amends hit private pages just like the POSIX path.  The view survives
+   closing both the file and mapping handles, so the free path (k.core/k.c)
+   only needs UnmapViewOfFile on the base -- no stored handle.  Windows is
+   LE-only, so the big-endian swap the POSIX path does is not needed. */
+static K onecolon1(K x) {
+  K r;
+  i32 t;
+  u64 c;
+  char *s,hdr[24];
+  HANDLE fh,mh;
+  void *v;
+  size_t len;
+  DWORD rd;
+  if((tx==4&&!strlen(sk(x))) || (tx==-3&&!nx)) return KERR_LENGTH;
+  if(tx==4) s=sk(x);
+  else if(tx==-3) s=px(x);
+  else return KERR_TYPE;
+  fh=CreateFileA(s,GENERIC_READ,FILE_SHARE_READ,0,OPEN_EXISTING,FILE_ATTRIBUTE_NORMAL,0);
+  if(fh==INVALID_HANDLE_VALUE) return wferr(s);
+  if(!ReadFile(fh,hdr,24,&rd,0)) { K e=wferr(s); CloseHandle(fh); return e; }
+  /* A mappable vector always has a 24-byte header + data, so a file shorter
+     than 24 bytes can only be a serialized atom/small object -- hand it to 2:
+     (matches the POSIX path, whose short-read-tolerant header parse falls
+     through to twocolon1 for any non -1/-2/-3 type). */
+  if(rd<24) { CloseHandle(fh); return twocolon1(x); }
+  if(hdr[0]!=3 && hdr[0]!=2) { CloseHandle(fh); return kerror("header"); } /* v3 + v1's v2 */
+  memcpy(&t,hdr+4,sizeof(i32));
+  memcpy(&c,hdr+16,sizeof(u64));
+  gk_ld_arr(&t,&t,1,sizeof(i32)); /* header is little-endian on disk */
+  gk_ld_arr(&c,&c,1,sizeof(u64));
+  if(t!=-1&&t!=-2&&t!=-3) { CloseHandle(fh); return twocolon1(x); }
+  if(t==-1) len=c*sizeof(int);
+  else if(t==-2) len=c*sizeof(double);
+  else len=c*sizeof(char);
+  /* span header+data (24+len); see the POSIX path for why the 24 must be in
+     the mapping.  CreateFileMapping with maxsize 0 uses the file size, so a
+     truncated/corrupt header that claims more than the file holds makes
+     MapViewOfFile fail cleanly rather than fault on access. */
+  mh=CreateFileMappingA(fh,0,PAGE_WRITECOPY,0,0,0);
+  if(!mh) { K e=wferr(s); CloseHandle(fh); return e; }
+  v=MapViewOfFile(mh,FILE_MAP_COPY,0,0,24+len);
+  if(!v) { K e=wferr(s); CloseHandle(mh); CloseHandle(fh); return e; }
+  CloseHandle(mh);
+  CloseHandle(fh);
+  r=tnv(-t,c,24+(char*)v);
+  ((ko*)(b(48)&r))->m=1;
+  n(r)=c;
+  return r;
+}
 #else
-static K twocolon1(K x);
 static K onecolon1(K x) {
   K r;
   i32 fd,t,st,pad;

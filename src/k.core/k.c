@@ -5,7 +5,10 @@
 #include "v.h"
 #include "av.h"
 #include "x.h"
-#ifndef _WIN32
+#ifdef _WIN32
+#define WIN32_LEAN_AND_MEAN
+#include <windows.h>
+#else
 #include <sys/mman.h>
 #endif
 
@@ -65,18 +68,21 @@ static void __k(K x) {
   // allocate a small local work stack (spills to g_stack if needed)
   ko *k=(ko*)(b(48)&x);
   if(tx) {
-#ifndef _WIN32  // TODO: mmap on windows?
     if(k->m) {  // mapped object (from onecolon1: base = k->v-24, span 24+data)
+      char *base=(char*)k->v - 24;
+#ifdef _WIN32
+      UnmapViewOfFile(base);  // unmaps the whole view from base; length implicit
+#else
       size_t len;
       if(tx == -1) len = 24 + nx*sizeof(int);
       else if(tx == -2) len = 24 + nx*sizeof(double);
       else if(tx == -3) len = 24 + nx*sizeof(char);
       else { fprintf(stderr,"unexpected mmap'd type\n"); exit(1); }
-      munmap((char*)k->v - 24, len);
+      munmap(base, len);
+#endif
       xfree(k);
     }
     else
-#endif
     { if(tx!=2&&tx!=8) xfree(k->v); xfree(k); }
     return;
   }
@@ -98,17 +104,20 @@ static void __k(K x) {
           push_sf(&stack, &sp, &cap, local, cap0, px[i], 0);
       }
     }
-#ifndef _WIN32  // TODO: mmap on windows?
     else if(k->m) {  // mapped object (from onecolon1: base = k->v-24, span 24+data)
+      char *base=(char*)k->v - 24;
+#ifdef _WIN32
+      UnmapViewOfFile(base);  // unmaps the whole view from base; length implicit
+#else
       size_t len;
       if(tx == -1) len = 24 + nx*sizeof(int);
       else if(tx == -2) len = 24 + nx*sizeof(double);
       else if(tx == -3) len = 24 + nx*sizeof(char);
       else { fprintf(stderr,"unexpected mmap'd type\n"); exit(1); }
-      munmap((char*)k->v - 24, len);
+      munmap(base, len);
+#endif
       xfree(k);
     }
-#endif
     else { if(tx!=2&&tx!=8) xfree(k->v); xfree(k); }
   }
 }
