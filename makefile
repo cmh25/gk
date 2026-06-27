@@ -83,7 +83,6 @@ testp:
 
 clean:
 	rm -f t/[0-9]* t/[dev][0-9]*
-	rm -f t64/[0-9]* t64/[de][0-9]*
 	rm -f gk ndiff libgk.dll.a *.o
 
 .PHONY: all gk gkd test testv testp clean

@@ -1767,7 +1767,9 @@ static K amend_snapshot(K r) {
  * at ~50 scattered fe->store sites.  Consumes args like fe; returns the
  * snapshotted result (or an fe/kcp error, which amend_snapshot passes through). */
 static K amend_fe(K f, K a, K x, char *av) {
-  return amend_snapshot(fe(f,a,x,av));
+  K r=amend_snapshot(fe(f,a,x,av));
+  gcache_clear();
+  return r;
 }
 
 static K kamend3_(K d, K i, K f) {

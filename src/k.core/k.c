@@ -237,6 +237,7 @@ i32 kcmprz(K a, K x, i32 tol) {
     a=f->a;
     x=f->x;
 
+    if(a==x) { --sp; continue; } /* identical tagged word: same heap object or same inline atom -> equal (r stays 0); skips full element walk, e.g. converge fixed-point match(v,v) */
     if(s(a)||s(x)) r=kcmprcb(a,x);
     else if(aa<ax) r=-1;
     else if(aa>ax) r= 1;
