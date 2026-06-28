@@ -28,10 +28,12 @@ K atcb(K a,K x) {
   if(++d>maxr || (!(d&7)&&stack_low())) { --d; return KERR_STACK; }
   if(!a||!x) { --d; return KERR_TYPE; }
   if(4==ta&&!s(a)) { /* `d"a"  `f"x" */
-    if(4==(a=vlookup(a))) {
+    a=vlookup(a);
+    if(4==a) {           /* undefined name: empty for `f"x", type error otherwise */
        if(3==tx) { --d; return tn(0,0); }
        else { --d; return KERR_TYPE; }
      }
+    if(E(a)) { --d; return a; }  /* other vlookup errors (e.g. KERR_LENGTH) propagate */
     _k(a);
   }
   if(0x80==s(a)) { /* dict */

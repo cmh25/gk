@@ -8,7 +8,6 @@
 #include "lex.h"
 #include "timer.h"
 #include "repl.h"
-#include "pnp.h"
 #include "fn.h"
 #include "b.h"
 #include "av.h"

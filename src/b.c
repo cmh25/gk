@@ -84,8 +84,8 @@ K builtin(K f, K a, K x) {
   static i32 d=0;
 
   if(0x85==s(a)||0x85==s(x)) { _k(a); _k(x); return KERR_TYPE; }
-  if(s(a)==0x40) if(4==(a=vlookup(a))) { _k(x); return KERR_VALUE; }
-  if(s(x)==0x40) if(4==(x=vlookup(x))) { _k(a); return KERR_VALUE; }
+  if(s(a)==0x40) { a=vlookup(a); if(E(a)) { _k(x); return a; } }
+  if(s(x)==0x40) { x=vlookup(x); if(E(x)) { _k(a); return x; } }
 
   if(++d>maxr || (!(d&7)&&stack_low())) { --d; _k(a); _k(x); return KERR_STACK; }
 

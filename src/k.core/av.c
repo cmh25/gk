@@ -131,8 +131,8 @@ K overd(i32 f, K x) {
   Tx=tx; if(!Tx&&s(x)) { if(!vstcb(x)) return KERR_TYPE; Tx=15; }
   if(Tx==1||Tx==2||Tx==3||Tx==4||Tx==8||Tx==9) return k_(x);
   if(Tx==15) return kcp(x);
-  if(f==18 && Tx<0 && nx>=2) return k_(x);                          /* ,/ of a flat vector is the vector (joining its scalars rebuilds it) */
-  if(f==18 && Tx==0 && nx>=2) { r=raze_(x); if(r) return r; r=0; }  /* fast raze (,/) for uniform lists; 0 = heterogeneous, fall through */
+  if(f==18 && Tx<0 && nx>=2) return k_(x);  /* ,/ of a flat vector is the vector (joining its scalars rebuilds it) */
+  if(f==18 && Tx==0 && nx>=2) { r=raze_(x); if(r) return r; }  /* fast raze (,/) for uniform lists */
   if(Tx<=0&&!nx) {
     ff=P[f];
     if(strchr("+*&|",ff)) {

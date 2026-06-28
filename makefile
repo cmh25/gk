@@ -23,7 +23,7 @@ CC=$(CCBIN) -O3 -march=native $(LTO) $(MEM) -I.
 CCD=$(CCBIN) -g -Wall -Wformat=2 -Wextra -Wformat-security -Wno-format-nonliteral -Wpedantic -I.
 CCA=afl-clang-fast -g -O0 -fsanitize=address,undefined -fno-omit-frame-pointer -fno-optimize-sibling-calls -shared-libasan -I.
 CCF=afl-clang-fast -g -O2 -I.
-CFILES=$(addprefix $(SRC)/,p.c lex.c timer.c k.c main.c repl.c dict.c scope.c fn.c b.c v.c av.c ms.c h.c pnp.c fe.c lzw.c md5.c sha1.c sha2.c aes256.c io.c irecur.c la.c nt.c ipc.c tmr.c watch.c ffi.c)
+CFILES=$(addprefix $(SRC)/,p.c lex.c timer.c k.c main.c repl.c dict.c scope.c fn.c b.c v.c av.c ms.c h.c fe.c lzw.c md5.c sha1.c sha2.c aes256.c io.c irecur.c la.c nt.c ipc.c tmr.c watch.c ffi.c)
 COREFILES=$(CORE)/k.c $(CORE)/v.c $(CORE)/av.c $(CORE)/sort.c $(CORE)/rand.c $(CORE)/sym.c $(CORE)/x.c
 
 ifeq ($(shell uname -s),Linux)

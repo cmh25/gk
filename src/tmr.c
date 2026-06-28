@@ -193,7 +193,11 @@ static K tmr_state(void) {
   K *p = px(r);
   p[0] = t2(timer_interval_s);
   if(timer_fn) p[1] = k_(timer_fn);
-  else         p[1] = fnnew("{}");
+  else {
+    /* fnnew("{}") can stack error if we're in deep recursion. */
+    p[1] = fnnew("{}");
+    if(E(p[1])) { K e = p[1]; p[1] = 0; _k(r); return e; }
+  }
   return r;
 }
 
