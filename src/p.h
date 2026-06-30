@@ -2,6 +2,7 @@
 #define P_H
 
 #include "k.h"
+#include <signal.h>   /* sig_atomic_t (STOP is set by the Ctrl-C signal handler) */
 
 #define T000   0 /* $a */
 #define T001   1 /* s */
@@ -68,7 +69,10 @@ typedef struct {
 } pgs;
 
 extern int quiet,RETURN;
-extern int STOP,EFLAG,SIGNAL;
+/* STOP is set asynchronously by the Ctrl-C handler (main.c), so it's the textbook
+ * volatile sig_atomic_t -- the only correct type for a flag a signal handler writes. */
+extern volatile sig_atomic_t STOP;
+extern int EFLAG,SIGNAL;
 extern K EXIT;
 extern int opencode;
 extern char *pfile;

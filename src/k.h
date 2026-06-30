@@ -39,7 +39,10 @@ extern uintptr_t stack_floor_print;  /* kprint_ guard (less reserve, deeper) */
 extern uintptr_t stack_floor_sub;    /* error-subconsole eval guard (between the two) */
 extern int ecount;                   /* >0 while inside a stack-error subconsole (repl.c) */
 void stack_guard_init(void);
-#ifdef ASAN_ENABLED
+#if defined(ASAN_ENABLED) || defined(__EMSCRIPTEN__)
+/* WASM: &local is a linear-memory address, not a real SP, and the OS stack-bounds
+ * query in stack_guard_init() has no Emscripten branch -- disable the RSP guard and
+ * let the maxr count-cap (lowered in kinit) govern depth instead, as under ASAN. */
 static inline int stack_low(void) { return 0; }
 static inline int stack_print_low(void) { return 0; }
 #else

@@ -172,7 +172,11 @@ K load(char *fn, int load) {
   b=xmalloc(m+2);
   pcount=scount=ccount=qcount=0;
   f=1; s=0;
-  pfile0=pfile; pfile=fn;
+  /* In the WASM REPL leave pfile empty so error context reads like the interactive
+   * REPL ("type error / src / ^") instead of leaking the temp filename ("in stdin:1
+   * / ..."): printerror prints the "in FILE:N" line only when pfile is non-empty
+   * (p.c). .z.filepath still gets the real fn below. */
+  pfile0=pfile; pfile = wasm ? "" : fn;
   zfp0=scope_set_z_filepath(fn);  /* .z.filepath; restored at cleanup */
   cs0=k_(cs);
   gs0=k_(gs);
@@ -217,24 +221,24 @@ K load(char *fn, int load) {
       if(E(r)) {
         if(r<EMAX) r=kerror(E[r]);
         if(glinep&&gline0p&&strcmp(glinep,gline0p)) {
-          printf("%s ... + %d in %s:%d\n",gline0p,gline0,fn,gline0+gline+1);
+          if(!wasm) printf("%s ... + %d in %s:%d\n",gline0p,gline0,fn,gline0+gline+1);
           kprint(r,"","\n","");
           printf("%s\n",glinep);
           i(gline0i,putc(' ',stderr)); putc('^',stderr); putc('\n',stderr);
           pfile=pfile0;
           if(glinep) { xfree(glinep); glinep=0; }
           if(gline0p) { xfree(gline0p); gline0p=0; }
-          fprintf(stderr,"load: %s ... + %d\n",fn,gline0+gline+1);
+          if(!wasm) fprintf(stderr,"load: %s ... + %d\n",fn,gline0+gline+1);
         }
         else {
-          printf("in %s:%d\n",fn,fileline+1);
+          if(!wasm) printf("in %s:%d\n",fn,fileline+1);
           kprint(r,"","\n","");
           if(glinep) printf("%s\n",glinep);
           i(gline0i,putc(' ',stderr)); putc('^',stderr); putc('\n',stderr);
           pfile=pfile0;
           if(glinep) { xfree(glinep); glinep=0; }
           if(gline0p) { xfree(gline0p); gline0p=0; }
-          fprintf(stderr,"load: %s ... + %d\n",fn,fileline+1);
+          if(!wasm) fprintf(stderr,"load: %s ... + %d\n",fn,fileline+1);
         }
         e=kerror("domain");
         goto cleanup;
@@ -248,7 +252,7 @@ K load(char *fn, int load) {
         K rr=pgreduce(r,1);
         --DEPTH;
         if(E(rr)&&EFLAG) {
-          fprintf(stderr,"load: %s ... + %d\n",fn,newfileline);
+          if(!wasm) fprintf(stderr,"load: %s ... + %d\n",fn,newfileline);
           prfree(r);
           e=rr;
           goto cleanup;
@@ -268,7 +272,7 @@ K load(char *fn, int load) {
   pfile=pfile0;
   if(EXIT) { e=kerror("abort"); goto cleanup; }
   if(pcount||scount||ccount||qcount) {
-    fprintf(stderr,"load: %s ... + %d\n",fn,newfileline);
+    if(!wasm) fprintf(stderr,"load: %s ... + %d\n",fn,newfileline);
     fprintf(stderr,"open error\n");
     b[i]=0;
     if(i) --i;
@@ -288,9 +292,14 @@ cleanup:
 }
 
 static int H;
+int wasm=0;
 static K repl_(void) {
   int c,f,s=0,space=0,op=0; size_t i=0,j=0,m=32; char *b; K r;
   const char *prompt="  ";
+  /* WASM (no stdin): an error opened this subconsole IN PLACE; don't print a prompt
+   * or block on stdin -- signal EXIT so the in-flight statement unwinds cleanly. The
+   * error was already printed by printerror before we got here. */
+  if(wasm) { if(!EXIT) EXIT=t(1,0); return null; }
   b=xmalloc(m+2);
   pcount=scount=ccount=qcount=0;
   f=1; s=0;

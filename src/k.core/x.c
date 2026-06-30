@@ -17,7 +17,7 @@
 #ifdef FUZZING
 extern long gk_alloc_budget;
 #define GK_CHARGE(n) do{ gk_alloc_budget-=(long)(n); if(gk_alloc_budget<0){ \
-  printf("error: xmalloc(): allocation budget exceeded\n"); exit(1); } }while(0)
+  printf("wsfull\n"); exit(1); } }while(0)
 #else
 #define GK_CHARGE(n) ((void)0)
 #endif
@@ -118,7 +118,7 @@ void* xmalloc(size_t s) {
   if(lv >= BUDDY_LEVELS) {
     void *p = malloc(s + 8);
     if(!p) {
-      printf("error: xmalloc(): memory allocation failed\n");
+      printf("wsfull\n");
       exit(1);
     }
     *(uint32_t*)p = BUDDY_SYS;
@@ -130,7 +130,7 @@ void* xmalloc(size_t s) {
     /* fallback to system malloc */
     void *p = malloc(s + 8);
     if(!p) {
-      printf("error: xmalloc(): memory allocation failed\n");
+      printf("wsfull\n");
       exit(1);
     }
     *(uint32_t*)p = BUDDY_SYS;
@@ -177,7 +177,7 @@ void* xrealloc(void *p, size_t s) {
     /* system malloc - use system realloc */
     void *p2 = realloc((void*)base, s + 8);
     if(!p2) {
-      printf("error: xrealloc(): memory allocation failed\n");
+      printf("wsfull\n");
       exit(1);
     }
     *(uint32_t*)p2 = BUDDY_SYS;
@@ -208,7 +208,7 @@ void* xmalloc(size_t s) {
   void *p=0;
   GK_CHARGE(s);
   if(!(p=malloc(s))) {
-    printf("error: xmalloc(): memory allocation failed\n");
+    printf("wsfull\n");
     exit(1);
   }
   return p;
@@ -222,7 +222,7 @@ void* xcalloc(size_t n, size_t s) {
   void *p=0;
   GK_CHARGE(n*s);
   if(!(p=calloc(n,s))) {
-    printf("error: xcalloc(): memory allocation failed\n");
+    printf("wsfull\n");
     exit(1);
   }
   return p;
@@ -232,7 +232,7 @@ void* xrealloc(void *p, size_t s) {
   void *p2=0;
   GK_CHARGE(s);
   if(!(p2=realloc(p,s))) {
-    printf("error: xrealloc(): memory allocation failed\n");
+    printf("wsfull\n");
     exit(1);
   }
   return p2;

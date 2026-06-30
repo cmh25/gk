@@ -884,7 +884,17 @@ K while_(K x) {
   K e,a,*px=px(x),p,r=null;
   i32 i,q;
   if(nx<2) return KERR_VALENCE;
-  if(0x81==s(x)) return null; // all constants, nothing to do
+  if(0x81==s(x)) {
+    K cc=px[0]; i32 tc=T(cc);
+    if(tc!=1 && tc!=8) return KERR_TYPE;
+    if(!(tc==8 ? jk(cc) : ik(cc))) return null;   /* false condition: 0 iterations */
+    for(;;) {  /* while[1;1] */
+#ifdef FUZZING
+      if(--gk_budget<0) return kerror("limit");
+#endif
+      if(STOP) { STOP=0; return kerror("stop"); }
+    }
+  }
   a=pgreduce_(px[nx-1],&q);
   if(ta!=1 && ta!=8) { _k(a); return KERR_TYPE; }
   i64 c = ta==8 ? jk(a) : ik(a); _k(a);   /* accept a long (j) condition, not just int */

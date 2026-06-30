@@ -1,0 +1,221 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>gk</title>
+<link rel="icon" href="favicon.ico" sizes="16x16 32x32 48x48">
+<style>
+  :root { color-scheme: dark; }
+  /* Full-height flex column: header + samples pinned at top, #out fills the middle and
+     scrolls, #bar (input + clear) pinned at the bottom of the viewport. */
+  html, body { height:100%; }
+  body { margin:0; height:100dvh; display:flex; flex-direction:column; overflow:hidden;
+         font:14px/1.5 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+         background:#0e0f12; color:#d6d9df; }
+  header { flex:none; padding:10px 18px; border-bottom:1px solid #23262d; }
+  header img { display:block; height:40px; width:auto; border-radius:6px; }
+  #demos { flex:none; padding:8px 18px; border-bottom:1px solid #23262d; }
+  #demos label { color:#7d828c; font-size:12px; margin-right:8px; }
+  #demos select { font:inherit; background:#1a1d24; color:#9aa4b2; border:1px solid #2a2e37;
+                  border-radius:6px; padding:4px 10px; cursor:pointer; }
+  #demos select:hover { background:#242833; color:#d6d9df; }
+  /* Output is a native <textarea>: soft-wraps and reflows on resize natively, and renders
+     megabytes efficiently — which a DOM-span transcript couldn't. Monochrome (no per-line
+     color), readonly but selectable for copy. */
+  #out { flex:1; min-height:0; box-sizing:border-box; width:100%; resize:none;
+         font:inherit; background:#0e0f12; color:#d6d9df; border:0; outline:none;
+         padding:14px 18px; }
+  #bar { flex:none; display:flex; gap:8px; align-items:flex-start; padding:10px 18px;
+         border-top:1px solid #23262d; background:#0e0f12; }
+  #src { flex:1; box-sizing:border-box; font:inherit; background:#15171c;
+         color:#d6d9df; border:1px solid #2a2e37; border-radius:6px; padding:8px 10px;
+         resize:vertical; min-height:40px; }
+  #clear { font:inherit; background:#1a1d24; color:#9aa4b2; border:1px solid #2a2e37;
+           border-radius:6px; padding:8px 14px; cursor:pointer; }
+  #clear:hover { background:#242833; color:#d6d9df; }
+  /* Spinner doubles as the stop button: a centered floating card with a spinning
+     ring while gk is running. Hover reddens it — click anywhere on it to kill the
+     worker and stop a runaway evaluation. */
+  #spin { position:fixed; left:50%; top:50%; transform:translate(-50%,-50%);
+          z-index:10; display:none; flex-direction:column; align-items:center; gap:10px;
+          padding:22px 26px; border-radius:12px; cursor:pointer;
+          background:rgba(20,22,28,.92); border:1px solid #2a2e37;
+          box-shadow:0 8px 30px rgba(0,0,0,.55); }
+  #spin.run { display:flex; }
+  #spin .ring { width:40px; height:40px; border-radius:50%;
+          border:3px solid #2a2e37; border-top-color:#7aa2f7; animation:spin .8s linear infinite; }
+  #spin .lbl { font-size:12px; color:#9aa4b2; }
+  #spin:hover .ring { border-top-color:#f7768e; }
+  #spin:hover .lbl  { color:#f7768e; }
+  @keyframes spin { to { transform:rotate(360deg); } }
+  .hint { color:#5a5f6a; font-size:12px; }
+</style>
+</head>
+<body>
+<header>
+  <img src="gk.png" alt="gk">
+</header>
+<div id="demos">
+  <label for="samples">samples</label>
+  <select id="samples">
+    <option value="" selected>choose one…</option>
+  </select>
+</div>
+<textarea id="out" readonly spellcheck="false"></textarea>
+<div id="bar">
+  <textarea id="src" placeholder="Enter to run, Shift+Enter for a newline" autofocus></textarea>
+  <button id="clear">clear</button>
+</div>
+<div id="spin" title="click to stop">
+  <div class="ring"></div>
+  <div class="lbl">click to stop</div>
+</div>
+
+<script>
+const out = document.getElementById('out');
+const src = document.getElementById('src');
+const spin = document.getElementById('spin');
+
+// Output is a native <textarea>: it renders megabytes of text efficiently and soft-wraps
+// + reflows on resize natively — so no DOM-span layout limits, no wrap/measure machinery,
+// and no MAXLINE cap (gk's own `wsfull` bounds how much it can produce). The cost is
+// monochrome output (no per-line color). Appends are coalesced per animation frame so a
+// burst of output lines stays O(n), and we only auto-scroll when already at the bottom.
+let pending = '', flushQueued = false;
+function flush() {
+  flushQueued = false;
+  if (!pending) return;
+  const atBottom = out.scrollHeight - out.scrollTop - out.clientHeight < 4;
+  out.value += pending;
+  pending = '';
+  if (atBottom) out.scrollTop = out.scrollHeight;
+}
+function emit(text) {                       // 2nd arg (old color class) is now ignored
+  pending += text.endsWith('\n') ? text : text + '\n';
+  if (!flushQueued) { flushQueued = true; requestAnimationFrame(flush); }
+}
+
+// Resize: freeze the textarea's width during the drag so its CONTENT can't re-wrap on
+// every frame (visibility:hidden doesn't reliably suppress a native textarea's reflow —
+// freezing the width does). Release the width (one reflow) + scroll to the bottom when
+// the drag settles. A window-edge drag delivers no mouseup to the page, so we can't
+// detect release; the debounce (resize paused) is the only signal — a longer pause
+// avoids a mid-drag hold triggering an early reflow. While frozen, the content doesn't
+// re-wrap; the window edge just clips/gaps how much of it shows (normal window behavior).
+let resizing = false, resizeTimer = null;
+function endResize() {
+  if (!resizing) return;
+  resizing = false;
+  clearTimeout(resizeTimer);
+  out.style.width = '';                  // release -> textarea reflows once
+  out.scrollTop = out.scrollHeight;      // always scroll to the bottom after the reflow
+}
+window.addEventListener('resize', () => {
+  if (!resizing) { resizing = true; out.style.width = out.getBoundingClientRect().width + 'px'; }
+  clearTimeout(resizeTimer);
+  resizeTimer = setTimeout(endResize, 400);
+});
+window.addEventListener('pointerup', endResize);
+window.addEventListener('mouseup', endResize);
+
+// gk runs in a Web Worker (worker.js) so a runaway loop can't freeze the page.
+let worker, running = false, spinTimer = null;
+
+function makeWorker(showBanner) {
+  worker = new Worker('worker.js');
+  worker.onmessage = e => {
+    const { type, s } = e.data;
+    if (type === 'out' || type === 'err') emit(s, null);  // stderr same color (like a terminal)
+    else if (type === 'done') endRun();
+    else if (type === 'exited') {            // gk hit a fatal exit (e.g. wsfull); restart clean
+      endRun();
+      worker.terminate();
+      emit('(session reset)', null);
+      makeWorker(false);                     // fresh gk instance, no banner
+      src.focus();
+    }
+  };
+  worker.postMessage({ cmd: 'boot', showBanner });
+}
+makeWorker(true);
+
+let runningSrc = '';
+function run(text) {
+  if (running) return;                       // one eval at a time; spinner shows it's busy
+  emit(text.replace(/^/gm, '  '), 'in');     // echo input, indented to match gk's prompt
+  running = true; runningSrc = text;
+  spinTimer = setTimeout(() => spin.classList.add('run'), 150);  // no flash for instant evals
+  worker.postMessage({ cmd: 'eval', src: text });
+}
+function endRun() {
+  running = false;
+  clearTimeout(spinTimer);
+  spin.classList.remove('run');
+}
+// Click the spinner to stop: terminate the (possibly looping) worker and start a
+// fresh one — the only way to interrupt a synchronous infinite loop in wasm.
+function stop() {
+  if (!running) return;
+  const looped = runningSrc;
+  worker.terminate();
+  endRun();
+  // Mirror gk's Ctrl-C output: "stop", the interrupted source line, and a caret.
+  // (The worker is hard-killed mid-loop so it can't print this itself; we know the
+  // source that was running, so we reconstruct it.)
+  emit('stop', null);
+  emit(looped.split('\n')[0], null);
+  emit('^', null);
+  makeWorker(false);            // fresh gk session, no banner
+  src.focus();
+}
+spin.onclick = stop;
+
+// Command history. Up/Down recall previous inputs — but only when the cursor is on
+// the first/last line, so arrows still move within multi-line input as usual.
+const history = [];
+let histIdx = 0;      // index into history; === history.length means "live draft"
+let draft = '';
+function caretAtFirstLine() { return src.value.slice(0, src.selectionStart).indexOf('\n') === -1; }
+function caretAtLastLine()  { return src.value.slice(src.selectionEnd).indexOf('\n') === -1; }
+function setInput(v) { src.value = v; src.selectionStart = src.selectionEnd = v.length; }
+
+// Enter runs the input; Shift+Enter inserts a newline (multi-line input).
+src.addEventListener('keydown', e => {
+  if (e.key === 'Enter' && !e.shiftKey) {
+    e.preventDefault();
+    const t = src.value.replace(/\n$/, '');
+    if (t.trim()) {
+      if (history[history.length - 1] !== t) history.push(t);   // no consecutive dupes
+      histIdx = history.length; draft = '';
+      run(t); src.value = '';
+    }
+  } else if (e.key === 'ArrowUp' && caretAtFirstLine() && histIdx > 0) {
+    e.preventDefault();
+    if (histIdx === history.length) draft = src.value;          // stash the unsubmitted draft
+    setInput(history[--histIdx]);
+  } else if (e.key === 'ArrowDown' && caretAtLastLine() && histIdx < history.length) {
+    e.preventDefault();
+    setInput(++histIdx === history.length ? draft : history[histIdx]);
+  }
+});
+
+// Samples dropdown: each entry is just the code; selecting it drops it into the
+// input (edit and/or Enter to run).
+const samples = ['1+2 3 4', '1 2 3+4 5 6', '&prime !30', '+/!100', '*/1+!5', '|"hello world"', 'draw[10;1.0]'];
+const sampleSel = document.getElementById('samples');
+for (const code of samples) {
+  const o = document.createElement('option');
+  o.value = o.textContent = code;
+  sampleSel.appendChild(o);
+}
+sampleSel.addEventListener('change', e => {
+  if (e.target.value) { src.value = e.target.value; src.focus(); }
+  e.target.selectedIndex = 0;   // reset back to the placeholder
+});
+
+// Clear the output transcript (command history is kept).
+document.getElementById('clear').onclick = () => { pending = ''; out.value = ''; src.focus(); };
+</script>
+</body>
+</html>

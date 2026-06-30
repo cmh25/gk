@@ -1,0 +1,33 @@
+name: Deploy web REPL to Pages
+
+# Publishes the web/ folder (the gk WebAssembly REPL) as the GitHub Pages site.
+# The prebuilt gk.js / gk.wasm in web/ are committed and served as-is — no build step.
+on:
+  push:
+    branches: [main]
+    paths: ['web/**', '.github/workflows/pages.yml']
+  workflow_dispatch:        # lets you trigger a deploy by hand from the Actions tab
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: web            # serve web/ as the site root
+      - id: deployment
+        uses: actions/deploy-pages@v4

@@ -33,7 +33,8 @@ static int inkl,inpl;
 
 int RETURN;
 int quiet;
-int STOP,EFLAG=1,SIGNAL;
+volatile sig_atomic_t STOP;
+int EFLAG=1,SIGNAL;
 K EXIT;
 #ifdef FUZZING
 long gk_budget=GK_BUDGET;

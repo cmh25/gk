@@ -105,6 +105,9 @@ void kinit(void) {
    * fall back to a small count cap to keep deep recursion off the real stack. */
   maxr=100;
 #endif
+#ifdef __EMSCRIPTEN__
+  maxr=1000;
+#endif
   /* reserved */
   R_NUL=sp("nul");
   R_DRAW=sp("draw");

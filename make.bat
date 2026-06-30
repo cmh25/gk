@@ -18,6 +18,8 @@ cl obj\*.obj obj\core\*.obj /Fe:gk /link /LTCG /STACK:8388608
 exit /b 0
 
 :test
+if not exist gk.exe call "%~f0"
+if errorlevel 1 exit /b 1
 if not exist ndiff.exe cl /nologo /O2 src\ndiff.c /Fe:ndiff.exe
 if exist ndiff.obj del ndiff.obj
 cd t
@@ -27,6 +29,8 @@ cd ..
 exit /b 0
 
 :testp
+if not exist gk.exe call "%~f0"
+if errorlevel 1 exit /b 1
 cd t
 call p.bat
 cd ..

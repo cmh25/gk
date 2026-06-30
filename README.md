@@ -2,6 +2,8 @@
 
 **gk** is an interpreter for an array programming language in the tradition of [k](https://en.wikipedia.org/wiki/K_(programming_language)) (Arthur Whitney).
 
+▶ **[Try gk in your browser](https://cmh25.github.io/gk/)** — a full REPL running entirely in WebAssembly, no install.
+
 If you know **APL**, **J**, or **q**, much of the feel will be familiar. If you are new to array languages, work through the **[tutorial](doc/tutorial.md)** first, then use the [reference manual](doc/ref.md) for complete detail.
 
 The design of gk is inspired by k3, with additional ideas from [Stevan Apter](https://nsl.com/). Other open-source **k**-like languages are listed in [implementations](doc/implementations.md).

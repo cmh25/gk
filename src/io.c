@@ -1486,6 +1486,9 @@ static K threecolon2(K a, K x) {
 
 K threecolon(K a, K x) {
   K r;
+#ifdef __EMSCRIPTEN__
+  (void)a; (void)x; return null;
+#endif
   if(a) r=threecolon2(a,x);
   else r=threecolon1(x);
   return r;
@@ -1517,16 +1520,17 @@ static K fourcolon2(K a, K x) {
 
 K fourcolon(K a, K x) {
   K r;
+#ifdef __EMSCRIPTEN__
+  if(a) { (void)x; return null; }
+  return fourcolon1(x);
+#endif
   if(a) r=fourcolon2(a,x);
   else r=fourcolon1(x);
   return r;
 }
 
 static K eightcolon1(K x) {
-  K r=t(1,(u32)tx);
-  if(0xc3==s(x)) r=t(1,7); /* 0xc4 retired in Pass 4 */
-  if(0x80==s(x)) r=t(1,5);
-  return r;
+  (void)x; return KERR_VALENCE;
 }
 
 static K eightcolon2(K a, K x) {
@@ -1536,6 +1540,10 @@ static K eightcolon2(K a, K x) {
 
 K eightcolon(K a, K x) {
   K r;
+#ifdef __EMSCRIPTEN__
+  if(a) { (void)x; return null; }
+  return eightcolon1(x);
+#endif
   if(a) r=eightcolon2(a,x);
   else r=eightcolon1(x);
   return r;
