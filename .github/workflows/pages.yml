@@ -4,7 +4,7 @@ name: Deploy web REPL to Pages
 # The prebuilt gk.js / gk.wasm in web/ are committed and served as-is — no build step.
 on:
   push:
-    branches: [main]
+    branches: [master]
     paths: ['web/**', '.github/workflows/pages.yml']
   workflow_dispatch:        # lets you trigger a deploy by hand from the Actions tab
 
