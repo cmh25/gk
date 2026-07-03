@@ -857,7 +857,7 @@ static K kamendi3d(K d, K i, K f) {
   i32 sm=32,sp=0;
   sf *stack=0;
   static int dd=0;
-  if(++dd>maxr || (!(dd&7)&&stack_low())) { e=KERR_STACK; --dd; goto cleanup; }
+  if(++dd>maxr || (!(dd&7)&&stack_low())) { e=KERR_STACK; goto cleanup; }
 
   ti=T(i);
 
@@ -941,6 +941,7 @@ static K kamendi3d(K d, K i, K f) {
   --dd;
   return knorm(d);
 cleanup:
+  --dd;
   if(stack) xfree(stack);
   if(p) _k(p);
   _k(d); _k(i); _k(f);
@@ -955,7 +956,7 @@ static K kamendi3v(K d, K i, K f) {
   i32 sm=32,sp=0;
   sf *stack=0;
   static int dd=0;
-  if(++dd>maxr || (!(dd&7)&&stack_low())) { e=KERR_STACK; --dd; goto cleanup; }
+  if(++dd>maxr || (!(dd&7)&&stack_low())) { e=KERR_STACK; goto cleanup; }
 
   td=T(d);
   ti=T(i);
@@ -1042,6 +1043,7 @@ static K kamendi3v(K d, K i, K f) {
   --dd;
   return knorm(d);
 cleanup:
+  --dd;
   if(stack) xfree(stack);
   _k(d); _k(i); _k(f);
   return e;
@@ -1115,7 +1117,7 @@ static K kamendi4d(K d, K i, K f, K y) {
   sf *stack=0;
   static int dd=0;
 
-  if(++dd>maxr || (!(dd&7)&&stack_low())) { e=KERR_STACK; --dd; goto cleanup; }
+  if(++dd>maxr || (!(dd&7)&&stack_low())) { e=KERR_STACK; goto cleanup; }
 
   ti=T(i);
   ty=T(y);
@@ -1287,6 +1289,7 @@ continue_outer:;
   --dd;
   return d;
 cleanup:
+  --dd;
   if(stack) xfree(stack);
   if(p) _k(p);
   _k(d); _k(i); _k(f); _k(y);
@@ -1323,7 +1326,7 @@ static K kamendi4v(K d, K i, K f, K y) {
   i32 sm=32,sp=0;
   sf *stack=0;
   static int dd=0;
-  if(++dd>maxr || (!(dd&7)&&stack_low())) { e=KERR_STACK; --dd; goto cleanup; }
+  if(++dd>maxr || (!(dd&7)&&stack_low())) { e=KERR_STACK; goto cleanup; }
 
   td=T(d);
   ti=T(i);
@@ -1699,6 +1702,7 @@ static K kamendi4v(K d, K i, K f, K y) {
   --dd;
   return knorm(d);
 cleanup:
+  --dd;
   if(stack) xfree(stack);
   _k(d); _k(i); _k(f); _k(y);
   return e;
@@ -1782,7 +1786,7 @@ static K kamend3_(K d, K i, K f) {
   i32 sm=32,sp=0,*pi;
   sf *stack=0;
   static int dd=0;
-  if(++dd>maxr || (!(dd&7)&&stack_low())) { e=KERR_STACK; --dd; goto cleanup; }
+  if(++dd>maxr || (!(dd&7)&&stack_low())) { e=KERR_STACK; goto cleanup; }
 
 #define PROPAGATE_RESULT(x) do { \
     if(sp == 1) { _k(pf->d); pf->d=(x); break; } \
@@ -2260,6 +2264,7 @@ freeframe:
   --dd;
   return knorm(d);
 cleanup:
+  --dd;
   if(stack) {
     while(sp--) {
       _k(stack[sp].d);
@@ -2332,7 +2337,7 @@ static K kamend4_(K d, K i, K f, K y) {
   i32 sm=32,sp=0,*pi;
   sf *stack=0;
   static int dd=0;
-  if(++dd>maxr || (!(dd&7)&&stack_low())) { e=KERR_STACK; --dd; goto cleanup; }
+  if(++dd>maxr || (!(dd&7)&&stack_low())) { e=KERR_STACK; goto cleanup; }
 
 #define PROPAGATE_RESULT(x) do { \
     if(sp == 1) { _k(pf->d); pf->d=(x); break; } \
@@ -2879,6 +2884,7 @@ freeframe:
   --dd;
   return knorm(d);
 cleanup:
+  --dd;
   if(stack) {
     while(sp--) {
       _k(stack[sp].d);
@@ -3070,6 +3076,8 @@ u64 khashcb(K x) {
   }
   return r;
 }
+
+int stack_lowcb(void) { return stack_low(); }
 
 i32 kcmprcb(K a,K x) {
   i32 r=0,at=ta,xt=tx;

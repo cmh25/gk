@@ -329,15 +329,15 @@ K fne_(K f, K x, char *av) {
     --d;
     return wrap_proj(t, args);
   }
-  if(nx!=n && nx!=1 && n!=0 && (!av||!*av)) { r=KERR_VALENCE; goto cleanup; }
+  if(nx!=n && nx!=1 && n!=0 && (!av||!*av)) { r=KERR_VALENCE; --d; goto cleanup; }
   if(av&&*av) {
-    if(inc) { r=KERR_VALENCE; goto cleanup; } /* TODO: {y}'[!5;] */
+    if(inc) { r=KERR_VALENCE; --d; goto cleanup; } /* TODO: {y}'[!5;] */
     if(n==0) r=avdo(k_(f),0,k_(x),av);
     else if(n==1) {
       if(nx==1) r=avdo(k_(f),0,k_(px[0]),av);
       else if(0x81==s(x)) r=avdo(k_(f),0,k_(x),av);
       else if(!strcmp(av,"'")) r=avdo(k_(f),0,k_(x),av);
-      else { r=KERR_VALENCE; goto cleanup; }
+      else { r=KERR_VALENCE; --d; goto cleanup; }
     }
     else if(n==2) {
       /* Issue #2 Pass 9: dyadic avdo on `'` zips two args (eachfe
@@ -356,13 +356,13 @@ K fne_(K f, K x, char *av) {
       else if(nx==2) r=avdo(k_(f),0,k_(x),av);
       else if(nx==1) r=avdo(k_(f),0,k_(px[0]),av);
       else if(0x81==s(x)) r=avdo(k_(f),0,k_(x),av);
-      else { r=KERR_VALENCE; goto cleanup; }
+      else { r=KERR_VALENCE; --d; goto cleanup; }
     }
     else if(0x81==s(x)) r=avdo(k_(f),0,k_(x),av);
     else { r=KERR_VALENCE; --d; goto cleanup; }
   }
   else {
-    if(6==T(pf[2])) { K p=fnd(f); if(p) { _k(f); _k(x); return p; } fmidx=FN_FMIDX(pf[3]); }
+    if(6==T(pf[2])) { K p=fnd(f); if(p) { _k(f); _k(x); --d; return p; } fmidx=FN_FMIDX(pf[3]); }
     /* force-monad fast path: {Vx} collapses to the monadic primitive,
        skipping scope setup + pgreduce.  fmidx!=0 holds the FM[] index;
        valence is 1 so the lone arg is px[0]. */

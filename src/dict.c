@@ -107,13 +107,12 @@ int dcmp(K d0, K d1) {
   pd0=px(d0); k0=pd0[0]; v0=pd0[1]; pk0=px(k0); pv0=px(v0);
   pd1=px(d1); k1=pd1[0]; v1=pd1[1]; pk1=px(k1); pv1=px(v1);
   for(;;) {
+    int c;
     if(i==n(k0) && i==n(k1)) break;
     else if(i==n(k0) && i<n(k1)) {r=r?r:-1;break;}    /* count */
     else if(i<n(k0) && i==n(k1)) {r=r?r:1;break;}     /* count */
-    else if(strcmp(pk0[i],pk1[i])<0) {r=-1;break;}    /* key */
-    else if(strcmp(pk0[i],pk1[i])>0) {r=1;break;}     /* key */
-    else if(kcmpr(pv0[i],pv1[i])<0) {r=-1;break;}     /* value */
-    else if(kcmpr(pv0[i],pv1[i])>0) {r=1;break;}      /* value */
+    else if((c=strcmp(pk0[i],pk1[i]))) {r=c<0?-1:1;break;}     /* key */
+    else if((c=kcmpr(pv0[i],pv1[i]))) {r=c<0?-1:1;break;}      /* value */
     ++i;
   }
   return r;

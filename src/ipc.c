@@ -146,9 +146,7 @@ int ipc_init(void) {
 /* ipc_shutdown is defined near the bottom of this file (after the static
  * conn table, send_scratch, and close_conn_at it needs to touch). */
 
-/* Connection-table sizing (used by both the multiplexer and the impl). */
-#define MAX_CONNS    256
-#define POLL_BATCH   (1 + MAX_CONNS)   /* listen + all conns */
+/* MAX_CONNS / POLL_BATCH live in ipc.h so repl.c's POLL_MAX stays in sync. */
 
 /* Hoisted up so the win32 multiplexer can distinguish the listen sockets
  * (which want FD_ACCEPT) from accepted/client conns (which want FD_READ
@@ -230,26 +228,30 @@ static void close_inherited_fds(int keep) {
  *
  *   reader thread          repl_getc / WaitForMultipleObjects
  *      |                       |
- *   ReadFile(stdin)            wait set: [stdin_event,
- *      |                                  WSAEvent(listen_iter_fd),
- *   ring_push(bytes)                      WSAEvent(conn_fd)...]
+ *   ReadFile(stdin)            wait set: [stdin_event, net_event]
  *      |                       |
- *   SetEvent(stdin_event)      stdin_event fires -> drain ring;
- *                              socket events -> WSAEnumNetworkEvents,
- *                              translate to revents, ipc_handle_pollfd.
+ *   ring_push(bytes)           stdin_event fires -> drain ring;
+ *      |                       net_event fires -> WSAEnumNetworkEvents
+ *   SetEvent(stdin_event)      each snapshot socket, translate to
+ *                              revents, ipc_handle_pollfd.
  *
  * stdin_event is a manual-reset Win32 Event:
  *   - reader thread sets it whenever bytes are pushed or EOF is hit;
  *   - ring_pop resets it once it's drained the ring AND eof isn't set.
- * The IPC socket events are created/torn down per wait iteration with
- * WSAEventSelect, which is slightly wasteful but keeps the code small
- * and avoids per-conn lifecycle bookkeeping. */
+ * net_event is ONE manual-reset WSAEvent shared by every pollable socket
+ * (WSAEventSelect allows many sockets per event object). Sharing keeps
+ * the WaitForMultipleObjects set at 2 handles however many conns are
+ * live, so all MAX_CONNS get serviced -- the old one-event-per-socket
+ * scheme capped out at 63 (MAXIMUM_WAIT_OBJECTS). Sockets are
+ * (re)associated per wait iteration, which is slightly wasteful but
+ * keeps the code small and avoids per-conn lifecycle bookkeeping;
+ * association re-records already-pending conditions (data to read,
+ * pending accept), so nothing that fired while detached is lost. */
 
 #ifdef _WIN32
 
-#define STDIN_WAIT_BUDGET (MAXIMUM_WAIT_OBJECTS - 1)  /* leave slot for stdin */
-
 static HANDLE           stdin_event = NULL;       /* manual-reset */
+static WSAEVENT         net_event   = WSA_INVALID_EVENT; /* shared by all sockets */
 static HANDLE           reader_th   = NULL;
 static CRITICAL_SECTION ring_cs;
 static unsigned char   *ring        = NULL;
@@ -318,39 +320,38 @@ int ipc_stdin_init(void) {
   InitializeCriticalSection(&ring_cs);
   stdin_event = CreateEvent(NULL, TRUE /*manual reset*/, FALSE, NULL);
   if(!stdin_event) return -1;
+  net_event = WSACreateEvent();  /* manual-reset, non-signaled; needs the
+                                    WSAStartup done in ipc_init */
+  if(net_event == WSA_INVALID_EVENT) return -1;
   reader_th = CreateThread(NULL, 0, reader_main, NULL, 0, NULL);
   return reader_th ? 0 : -1;
 }
 
-/* Snapshot the currently pollable IPC sockets and create a WSAEvent for
- * each. socks[i] is the SOCKET; events[i] is the parallel Win32 event
- * handle (which is what WaitForMultipleObjects waits on). Capped at
- * STDIN_WAIT_BUDGET because WaitForMultipleObjects tops out at 64 handles
- * total; if a user ever has >63 active conns at once, the older ones will
- * still drain but with a slight latency. */
-static int build_socket_events(WSAEVENT *events, sock_t *socks) {
-  struct pollfd tmp[POLL_BATCH];
-  int n = ipc_extra_pollfds(tmp, POLL_BATCH);
-  if(n > STDIN_WAIT_BUDGET) n = STDIN_WAIT_BUDGET;
+/* Snapshot the currently pollable IPC sockets and associate each with the
+ * shared net_event. No count cap: the wait set is 2 handles regardless.
+ * pfd[] (caller-supplied, POLL_BATCH entries) keeps the snapshot so the
+ * wake path can enumerate exactly what was associated. */
+static int associate_socket_events(struct pollfd *pfd) {
+  int n = ipc_extra_pollfds(pfd, POLL_BATCH);
   for(int i = 0; i < n; i++) {
-    events[i] = WSACreateEvent();
-    socks[i]  = (sock_t)tmp[i].fd;
     long mask = FD_READ | FD_CLOSE;
-    if((int)socks[i] == listen_iter_fd ||
-       (int)socks[i] == listen_fork_fd) mask |= FD_ACCEPT;
+    if((int)pfd[i].fd == listen_iter_fd ||
+       (int)pfd[i].fd == listen_fork_fd) mask |= FD_ACCEPT;
     /* WSAEventSelect implicitly sets the socket non-blocking, which is
      * already true for ours. It does NOT auto-restore blocking on detach,
      * so the un-WSAEventSelect at teardown leaves them as-is. */
-    WSAEventSelect(socks[i], events[i], mask);
+    WSAEventSelect((SOCKET)pfd[i].fd, net_event, mask);
   }
   return n;
 }
 
-static void teardown_socket_events(WSAEVENT *events, sock_t *socks, int n) {
-  for(int i = 0; i < n; i++) {
-    WSAEventSelect(socks[i], NULL, 0);
-    WSACloseEvent(events[i]);
-  }
+/* Detach the snapshot from net_event before returning to the caller (the
+ * nested sync-wait in ipc_send_sync WSAPolls these same sockets; keep the
+ * old invariant that no association outlives ipc_stdin_getc's wait).
+ * Handlers dispatched this iteration may have closed some fds already;
+ * WSAEventSelect on a dead socket just fails, which is fine. */
+static void teardown_socket_events(struct pollfd *pfd, int n) {
+  for(int i = 0; i < n; i++) WSAEventSelect((SOCKET)pfd[i].fd, NULL, 0);
 }
 
 int ipc_stdin_getc(void) {
@@ -360,41 +361,40 @@ int ipc_stdin_getc(void) {
     if(r ==  1) return (int)c;
     if(r == -1) return -1;
 
-    HANDLE  handles[MAXIMUM_WAIT_OBJECTS];
-    sock_t  socks  [STDIN_WAIT_BUDGET];
-    handles[0]  = stdin_event;
-    int n_socks = build_socket_events((WSAEVENT*)(handles + 1), socks);
-    int    tms  = tmr_timeout_ms();
-    DWORD  wms  = (tms < 0) ? INFINITE : (DWORD)tms;
-    DWORD wr = WaitForMultipleObjects((DWORD)(1 + n_socks), handles,
-                                       FALSE, wms);
+    struct pollfd pfd[POLL_BATCH];
+    int n_socks = associate_socket_events(pfd);
+    HANDLE handles[2];
+    handles[0] = stdin_event;
+    handles[1] = net_event;
+    int    tms = tmr_timeout_ms();
+    DWORD  wms = (tms < 0) ? INFINITE : (DWORD)tms;
+    DWORD  wr  = WaitForMultipleObjects(2, handles, FALSE, wms);
 
-    if(wr == WAIT_TIMEOUT) {
-      teardown_socket_events((WSAEVENT*)(handles + 1), socks, n_socks);
-      tmr_maybe_fire();
-      continue;
-    }
-
-    DWORD idx = wr - WAIT_OBJECT_0;  /* unsigned: WAIT_FAILED/ABANDONED wrap high -> caught below */
-    if(idx < (DWORD)(1 + n_socks)) {
-      if(idx == 0) {
-        /* stdin event - ring_pop will service it on the next iteration */
-      } else {
-        int si = (int)(idx - 1);
+    if(wr == WAIT_OBJECT_0 + 1) {
+      /* Net activity. Reset BEFORE enumerating: anything that fires on a
+       * socket after its own WSAEnumNetworkEvents below re-signals
+       * net_event, so the next wait returns immediately -- no lost
+       * wakeups. Enumerate the whole snapshot (the shared event can't
+       * say which socket fired) and dispatch every ready one. */
+      WSAResetEvent(net_event);
+      for(int i = 0; i < n_socks; i++) {
         WSANETWORKEVENTS ev;
-        if(WSAEnumNetworkEvents(socks[si], handles[idx], &ev) == 0) {
+        if(WSAEnumNetworkEvents((SOCKET)pfd[i].fd, NULL, &ev) == 0) {
           short rev = 0;
           if(ev.lNetworkEvents & (FD_READ|FD_ACCEPT)) rev |= POLLIN;
           if(ev.lNetworkEvents & FD_CLOSE)            rev |= POLLHUP;
-          if(rev) ipc_handle_pollfd((int)socks[si], rev);
+          if(rev) ipc_handle_pollfd((int)pfd[i].fd, rev);
         }
       }
-      teardown_socket_events((WSAEVENT*)(handles + 1), socks, n_socks);
-      tmr_maybe_fire();
-    } else {
-      teardown_socket_events((WSAEVENT*)(handles + 1), socks, n_socks);
+    } else if(wr != WAIT_OBJECT_0 && wr != WAIT_TIMEOUT) {
+      /* WAIT_FAILED / WAIT_ABANDONED */
+      teardown_socket_events(pfd, n_socks);
       return -1;
     }
+    /* wr == WAIT_OBJECT_0: stdin_event fired -- ring_pop services it on
+     * the next iteration, after the teardown below. */
+    teardown_socket_events(pfd, n_socks);
+    tmr_maybe_fire();
   }
 }
 
@@ -1486,6 +1486,7 @@ void ipc_shutdown(void) {
   /* Reader thread is blocked in ReadFile(stdin); we can't unblock it
    * cleanly without closing the console handle. Let process exit drop it. */
   if(stdin_event) { CloseHandle(stdin_event); stdin_event = NULL; }
+  if(net_event != WSA_INVALID_EVENT) { WSACloseEvent(net_event); net_event = WSA_INVALID_EVENT; }
   WSACleanup();
 #endif
 }

@@ -1949,7 +1949,7 @@ Other k implementations may take different approaches, and it may be possible to
 |---------|-------------|---------|
 | `abs x` | absolute value | `abs -5` → `5` |
 | `sqrt x` | square root | `sqrt 4` → `2.0` |
-| `sqr x` | square | `sqr 3` → `9` |
+| `sqr x` | square | `sqr 3` → `9.0` |
 | `exp x` | e^x | `exp 1` → `2.718...` |
 | `log x` | natural log | `log 2.718` → `1.0` |
 | `floor x` | floor | `floor 3.7` → `3` |
@@ -2011,6 +2011,7 @@ Other k implementations may take different approaches, and it may be possible to
 | `a in x` | `1` if `a` is an item of `x`, else `0` | `2 in 1 2 3` → `1` |
 | `a lin x` | element-wise `in` — for each item of `a` | `2 4 lin 1 2 3` → `1 0` |
 | `a dv x` | drop items of `a` equal to value `x` | `1 2 3 2 4 dv 2` → `1 3 4` |
+| `a dvl x` | drop items of `a` equal to any value in list `x` | `1 2 3 4 dvl 2 3` → `1 4` |
 | `a di x` | drop items of `a` at index/indices `x` | `1 2 3 4 5 di 1 3` → `1 3 5` |
 | `a sv x` | scalar from vector — decode digits `x` in base `a` | `10 sv 1 2 3 4` → `1234` |
 | `a vs x` | vector from scalar — encode `x` in base `a` | `10 vs 1234` → `1 2 3 4` |
@@ -2028,6 +2029,8 @@ Other k implementations may take different approaches, and it may be possible to
 | `zb x` | compress bytes | |
 | `bz x` | decompress bytes | `db bz zb bd 1 2 3` → `1 2 3` |
 | `val x` | valence (argument count) of a function | `val{x+y}` → `2` |
+| `4: x` | type code of `x` | `4:1 2 3` → `-1` |
+| `5: x` | printable form of `x` | `5:1 2 3` → `"1 2 3"` |
 | `md5 x` | MD5 digest (hex string) | `md5"abc"` → `"900150983cd24fb0d6963f7d28e17f72"` |
 | `sha1 x` | SHA-1 digest | |
 | `sha2 x` | SHA-256 digest | |
@@ -2045,6 +2048,7 @@ Time builtins use an epoch of **2035-01-01** (Julian day `0` is a Monday).
 | `gtime x` | GMT date-time from timestamp → `YYYYMMDD HHMMSS` | `gtime 0` → `20350101 0` |
 | `ltime x` | local date-time from timestamp (timezone-dependent) | |
 | `lt x` | local timestamp (days since 2035, float) | |
+| `tl x` | GMT timestamp from local timestamp (inverse of `lt`) | |
 | `jd x` | Julian day number from `YYYYMMDD` | `jd 20231225` → `-4025` |
 | `dj x` | `YYYYMMDD` from Julian day number | `dj 0` → `20350101` |
 | `sleep x` | sleep `x` milliseconds | |
@@ -2059,14 +2063,14 @@ Time builtins use an epoch of **2035-01-01** (Julian day `0` is a Monday).
 
 | Builtin | Description |
 |---------|-------------|
-| `0: x` | read lines from file |
-| `a 0: x` | write lines to file |
-| `1: x` | read k data from file |
-| `a 1: x` | write k data to file |
-| `2: x` | read serialized k data from file |
+| `0: x` | read lines from file `x` |
+| `a 0: x` | write lines `x` to file `a` (file on the left) |
+| `1: x` | read k data from file `x` |
+| `a 1: x` | write k data `x` to file `a` |
+| `2: x` | read serialized k data from file `x` |
 | `f 2: (e;t)` | link object code — see below |
-| `6: x` | read bytes from file |
-| `a 6: x` | write bytes to file |
+| `6: x` | read bytes from file `x` |
+| `a 6: x` | write bytes `x` to file `a`; `(,a) 6: x` appends |
 
 #### Link Object Code — `f 2: (e;t)`
 
@@ -2256,8 +2260,13 @@ slice) as one vector of that type — `c` char, `i` int, `j` i64, `e` f32,
 |---------|-------------|
 | `\l file` | load file (searches `GKPATH`, see below) |
 | `\t expr` | time expression |
-| `\p n` | set print precision |
+| `\p n` | set print precision (`\p` queries) |
+| `\zc n` | zero-clamp: print near-zero floats as `0.0` (`\zc` queries) |
+| `\e n` | error flag: `1` = suspend into a debug sub-REPL on error (`\e` queries) |
+| `\d ns` | change current namespace (`\d` queries) |
+| `\m i PORT`, `\m f PORT` | start IPC listener, inline/forking (`\m` queries) — see [IPC](#ipc) |
 | `\v` | list variables |
+| `\V` | list variables with type/count/refcount and values |
 | `\\` | exit |
 
 In the **interactive** top-level REPL, **`\`** alone (then Enter) prints a **help index** of further `\`-topics, for example `\0` (data), `\+` (verbs), `\'` (adverbs), `\_` (reserved), `\.` (assign / control / debug), `\:` (I/O), `\-` (client/server), `` \` `` (OS), `\?` (commands). At nested prompts (e.g. debug under `\e 1`), a lone `\` is **abort**, not this menu.
@@ -2363,7 +2372,7 @@ client (in another gk):
 ```
   h:3:("localhost";5555)
   h 4:"2+2"            / sync: -> 4
-  h 4:(`g;1 2 3)       / sync: apply server-side g to 1 2 3 -> 6
+  h 4:(`f;1 2 3)       / sync: apply server-side f to 1 2 3 -> 6
   h 3:"a::42"          / async: no reply
   3:h                  / close
 ```

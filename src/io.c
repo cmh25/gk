@@ -4,6 +4,7 @@
 #undef rc
 #define WIN32_LEAN_AND_MEAN
 #include <windows.h>
+#include <io.h>
 #define strtok_r strtok_s
 #else
 #include <fcntl.h>
@@ -164,12 +165,20 @@ static K b0colon(K x) {
 static char* readstdin(u64 *n) {
   u64 max = 1024, m = 0;
   char *b = xmalloc(max);
-  int c;
-  while((c = getchar()) != '\n') {
+  char c;
+  /* Raw 1-byte reads, matching the repl's poll_getc: stdio buffering on stdin
+     must stay empty (see repl.c) */
+  for(;;) {
+#ifdef _WIN32
+    int r = _read(0, &c, 1);
+#else
+    ssize_t r = read(STDIN_FILENO, &c, 1);
+#endif
+    if(r <= 0 || c == '\n') break;
     if(m + 1 >= max) {
       max<<=1; b = xrealloc(b, max);
     }
-    b[m++] = (char)c;
+    b[m++] = c;
   }
   b[m] = '\0';
   if (n) *n = m;

@@ -66,6 +66,13 @@ K ipc_listen(int port, int mode);
  * or 0 if that slot is not currently bound. */
 int ipc_listen_port_for(int mode);
 
+/* Connection-table sizing, here so repl.c's poll array can't drift from it.
+ * The worst-case pollable set is 2 listeners (\m i and \m f can be active at
+ * once) + every conn -- hence the 2, not 1. poll() has no FD_SETSIZE-style
+ * cap, so the practical per-process limit is ulimit -n, not this constant. */
+#define MAX_CONNS  4096
+#define POLL_BATCH (2 + MAX_CONNS)
+
 /* Fill in up to `max` extra pollfd entries with (listen_fd | client_fds).
  * Returns the number written. Each entry has events=POLLIN and revents=0. */
 int ipc_extra_pollfds(struct pollfd *fds, int max);

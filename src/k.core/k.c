@@ -163,6 +163,8 @@ K tj(i64 x) {
   return t(8,k);
 }
 
+extern i32 maxr;            /* eval depth cap (kinit lowers it under ASAN/wasm) */
+extern int stack_lowcb(void); /* RSP stack guard, same as the eval sites */
 K ki(i32 i, K a, K x, i64 ai, i64 xi) {
   K r=0,*pak,*pxk,a_=0;
   char *pac,*pxc,**pas,**pxs;
@@ -171,11 +173,7 @@ K ki(i32 i, K a, K x, i64 ai, i64 xi) {
   float *pae,*pxe;
   double *paf,*pxf;
   static i32 d=0;
-#ifdef ASAN_ENABLED
-  if(++d>40) { --d; return KERR_STACK; }
-#else
-  if(++d>100) { --d; return KERR_STACK; }
-#endif
+  if(++d>maxr || (!(d&7)&&stack_lowcb())) { --d; return KERR_STACK; }
   if(a&&ai!=-1) { /* a is indexed */
     if(x&&xi!=-1) { /* x is indexed */
       switch(ta) {
@@ -496,11 +494,7 @@ u64 khash(K x) {
   double *pxf,f;
   char *pxc,**pxs;
   static i32 d=0;
-#ifdef ASAN_ENABLED
-  if(++d>40) { --d; return KERR_STACK; }
-#else
-  if(++d>100) { --d; return KERR_STACK; }
-#endif
+  if(++d>maxr || (!(d&7)&&stack_lowcb())) { --d; return KERR_STACK; }
   if(s(x)) { --d; return khashcb(x); }
   switch(tx) {
   case  1: r=r+(u64)(u32)ik(x)*2654435761U; break;

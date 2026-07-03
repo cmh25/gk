@@ -302,7 +302,7 @@ static K eachparamfe(K f, K x) {
       pp[j]=T(pq[j])||s(pq[j]) ? k_(pq[j]) : k_(((K*)px(pq[j]))[i]);
     }
     t=fe(k_(f),0,k_(p),"");
-    if(E(t)) { _k(p); _k(q); _k(r); return kerror("valence"); }
+    if(E(t)) { _k(p); _k(q); _k(r); return t; }
     pr[i]=t;
   }
   _k(p); _k(q);

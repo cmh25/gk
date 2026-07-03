@@ -374,7 +374,7 @@ static void canonicalize_svd(K U, K S, K V) {
   m=n(U);
 
   /* 1. sort singular values descending, reorder columns of U and V */
-  for(i=0;i<n-1;i++){
+  for(i=0;i+1<n;i++){   /* i+1<n, not i<n-1: n is u64, n-1 underflows at n=0 */
     u64 max_i=i;
     double max_s=((double*)px(((K*)px(S))[i]))[i];
     for(j=i+1;j<n;j++){
@@ -439,6 +439,7 @@ K svd_(K x) {
   m = n(x);
   if(s(pxk[0]) || (T(pxk[0])!=0 && T(pxk[0])!=-1 && T(pxk[0])!=-2)) return kerror("type");
   n = n(pxk[0]);
+  if(!n) return kerror("length");
   if(la_dimoversize(n(x), n(pxk[0]))) return kerror("length");
   for(i=0;i<m;i++) {
     K row = pxk[i];
@@ -451,7 +452,7 @@ K svd_(K x) {
   for(i=0;i<m;i++) {
     K row = k_(pxk[i]);
     if(T(row)==0) row=k(3,t2(1.0),row);
-    if(E(row)) { xfree(A0); return kerror("type"); }
+    if(E(row)) { xfree(A0); return row; }
     int isf = (T(row)==-2);
     for(j=0;j<n;j++)
       A0[(size_t)i*n + j] = isf ? ((double*)px(row))[j] : fi(((int*)px(row))[j]);
@@ -479,7 +480,7 @@ K svd_(K x) {
     for(i=0;i<m;i++) {
       K row = k_(pxk[i]);
       if(T(row)==0) row=k(3,t2(1.0),row);
-      if(E(row)) return kerror("type");
+      if(E(row)) { e=row; goto cleanup; }
       int isf = (T(row)==-2);
       for(j=0;j<n;j++)
         a[i][j] = isf ? ((double*)px(row))[j] : fi(((int*)px(row))[j]);
@@ -492,7 +493,7 @@ K svd_(K x) {
       for(j=0;j<m;j++) {
         K row = k_(pxk[j]);
         if(T(row)==0) row=k(3,t2(1.0),row);
-        if(E(row)) return kerror("type");
+        if(E(row)) { e=row; goto cleanup; }
         int isf = (T(row)==-2);
         a[i][j] = isf ? ((double*)px(row))[i] : fi(((int*)px(row))[i]);
         _k(row);
@@ -701,7 +702,7 @@ K lu_(K x) {
   for(i = 0; i < m; i++) {
     K row = k_(pxk[i]);
     if(T(row)==0) row=k(3,t2(1.0),row);
-    if(E(row)) return kerror("type");
+    if(E(row)) { e=row; goto cleanup; }
     int isf = (T(row) == -2);
     for(j = 0; j < n; j++) {
       double v = isf ? ((double*)px(row))[j] : fi(((int*)px(row))[j]);
@@ -858,7 +859,7 @@ K qr_(K x) {
   for(i=0;i<m;i++) {
     K row = k_(pxk[i]);
     if(T(row)==0) row=k(3,t2(1.0),row);
-    if(E(row)) { xfree(A); xfree(A0); return kerror("type"); }
+    if(E(row)) { xfree(A); xfree(A0); return row; }
     int isf = (T(row)==-2);
     for(j=0;j<n;j++) {
       double v = isf ? ((double*)px(row))[j] : fi(((int*)px(row))[j]);
@@ -1085,7 +1086,7 @@ K rref_(K x) {
   for(i = 0; i < m; i++) {
     K row = k_(pxk[i]);
     if(T(row) == 0) row = k(3, t2(1.0), row);
-    if(E(row)) { xfree(a); xfree(a0); return kerror("type"); }
+    if(E(row)) { xfree(a); xfree(a0); return row; }
     int isf = (T(row) == -2);
     for(j = 0; j < n; j++) {
       double v = isf ? ((double*)px(row))[j] : fi(((int*)px(row))[j]);
@@ -1206,7 +1207,7 @@ K det_(K x) {
   for(i = 0; i < m; i++) {
     K row = k_(pxk[i]);
     if(T(row) == 0) row = k(3, t2(1.0), row);
-    if(E(row)) { xfree(a); xfree(a0); return kerror("type"); }
+    if(E(row)) { xfree(a); xfree(a0); return row; }
     int isf = (T(row) == -2);
     for(j = 0; j < m; j++) {
       double v = isf ? ((double*)px(row))[j] : fi(((int*)px(row))[j]);

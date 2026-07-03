@@ -37,11 +37,11 @@
  *
  * NOTE: stdio buffering on stdin must remain empty across calls. The only
  * other stdin reader in the tree is readstdin() in io.c (used by 0:""),
- * which is called from the evaluator *after* the repl has consumed the
- * trailing '\n', so stdio's buffer starts empty there. If anything else
- * starts pulling bytes from stdin, this comment needs revisiting.
+ * which also does raw 1-byte read(2)s for the same reason -- via stdio it
+ * would buffer ahead and swallow the rest of a piped script. If anything
+ * else starts pulling bytes from stdin, keep it off stdio too.
  */
-#define POLL_MAX 258                       /* 1 stdin + 1 listen + 256 conns */
+#define POLL_MAX (1 + POLL_BATCH)          /* stdin + all ipc fds (ipc.h) */
 static int poll_getc(void) {
   struct pollfd pfd[POLL_MAX];
   for(;;) {
