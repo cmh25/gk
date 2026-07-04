@@ -61,7 +61,7 @@ void scope_init(char **args, int nargs) {
 #else
   gethostname(hn,256);
 #endif
-  /* .z.i (k3 _i): the user arguments after the script -- interpreter name,
+  /* .z.i (classic k _i): the user arguments after the script -- interpreter name,
    * flags, and the script path itself are all excluded (main() collects them,
    * so flag position is irrelevant).  Empty list when no args were given. */
   if(nargs>0) {

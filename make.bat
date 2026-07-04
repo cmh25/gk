@@ -3,9 +3,9 @@ setlocal
 set CFILES=src\p.c src\lex.c src\timer.c src\k.c src\main.c src\repl.c src\dict.c src\systime.c src\scope.c src\fn.c src\b.c src\v.c src\av.c src\ms.c src\h.c src\fe.c src\lzw.c src\md5.c src\sha1.c src\sha2.c src\aes256.c src\io.c src\irecur.c src\la.c src\nt.c src\ipc.c src\tmr.c src\watch.c src\ffi.c
 set COREFILES=src\k.core\k.c src\k.core\v.c src\k.core\av.c src\k.core\sort.c src\k.core\rand.c src\k.core\sym.c src\k.core\x.c
 
-if "%1%"=="test" goto test
-if "%1%"=="testp" goto testp
-if "%1%"=="clean" goto clean
+if "%~1"=="test" goto test
+if "%~1"=="testp" goto testp
+if "%~1"=="clean" goto clean
 
 if not "%VSCMD_ARG_TGT_ARCH%"=="x64" ( echo error: not an x64 toolchain ^(VSCMD_ARG_TGT_ARCH=%VSCMD_ARG_TGT_ARCH%^), run vcvars64.bat first & exit /b 1 )
 if not exist obj\core md obj\core

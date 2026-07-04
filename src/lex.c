@@ -717,20 +717,22 @@ static int gback(pgs *pgs, int load) {
     int sub=0;                                    /* 'i' or 'f', 0 if none */
     if((*p=='i'||*p=='f') && (!p[1] || strchr(" \n\t",p[1]))) {
       sub=*p;
-      ++p;                                        /* consume sub letter only;
-                                                     leave '\n' for outer loop */
+      ++p;    /* consume sub letter only; leave '\n' for outer loop */
       while(*p&&isblank((unsigned char)*p))++p;
     }
+    /* the optional arg must be a literal port: \m i 5555. An expression
+       (\m i CP) is a parse error rather than silently degrading to a
+       query plus a stray expression. '/' starts a comment. */
+    if(sub && *p && !strchr("\n/",*p) && !isdigit((unsigned char)*p)) return -1;
     push(pgs,T015, sub=='f' ? 244 : sub=='i' ? 245 : 243);
     if(sub && *p && isdigit((unsigned char)*p)) {
       q=p;
       while(*p&&isdigit((unsigned char)*p))++p;
-      if(*p) {
-        c=*p; *p=0;
-        int port=xatoi(q);
-        push(pgs,T014,t(1,(u32)port));
-        *p=c;
-      }
+      if(*p && !strchr(" \n\t/",*p)) return -1;  /* \m i 4+4: junk after digits */
+      c=*p; *p=0;                                 /* also fine at end-of-buffer */
+      int port=xatoi(q);
+      push(pgs,T014,t(1,(u32)port));
+      *p=c;
     }
     else push(pgs,T014,null);                     /* no port -> query */
   }
@@ -845,7 +847,9 @@ K lex(pgs *pgs, int load) {
       else { ++p; push(pgs,T015,'-'); }
     }
     else if(f&&*p=='\\') {
-      if(!gback(pgs,load)) {
+      int gb=gback(pgs,load);
+      if(gb<0) goto parseerror;                   /* recognized but malformed (\m i EXPR) */
+      if(!gb) {
         if(opencode) {
 #ifdef FUZZING
           if(system("echo fuzz_sandbox_stubbed")){} /* rc ignored: shell errors do not break lex */

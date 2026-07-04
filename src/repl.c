@@ -292,6 +292,7 @@ cleanup:
 }
 
 static int H;
+void repl_suppress_help(void) { H=0; }
 int wasm=0;
 static K repl_(void) {
   int c,f,s=0,space=0,op=0; size_t i=0,j=0,m=32; char *b; K r;

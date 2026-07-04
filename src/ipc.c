@@ -40,6 +40,7 @@
 #include "k.core/x.h"
 #include "k.core/rand.h"
 #include "k.h"
+#include "repl.h"
 #include "scope.h"
 #include "fn.h"
 #include "p.h"
@@ -467,6 +468,14 @@ typedef struct {
                           queues in the kernel instead of re-entering
                           dispatch. */
   K     sync_response; /* deserialized payload; valid iff sync_have */
+  u32   gen;           /* creation stamp. deliver_message runs arbitrary
+                          handler code that can close conns: close_conn_at
+                          swap-deletes table slots and the kernel reuses fd
+                          numbers, so neither a conns[] pointer/index nor a
+                          bare fd is stable across dispatch. (fd,gen)
+                          re-lookup is how recv_step and dispatch_{sync,
+                          async} detect that "their" conn moved, died, or
+                          was replaced mid-handler. */
   /* client-only: dedup key. matches q's behavior of returning the same
    * handle for repeated 3:(host;port) on the same target rather than
    * burning a new socket each time. */
@@ -477,6 +486,17 @@ typedef struct {
 /* listen_{iter,fork}_{fd,port} are defined above the win32 multiplexer block. */
 static ipc_conn conns[MAX_CONNS];
 static int      conn_count  =  0;
+static u32      conn_gen    =  0;   /* monotonically stamps ipc_conn.gen */
+
+/* Re-locate a conn by (fd,gen) after code that may have dispatched (and so
+ * closed/moved/replaced table entries). Returns index, or -1 if the conn
+ * this (fd,gen) pair was captured from no longer exists -- including the
+ * case where the fd number now belongs to a different, newer conn. */
+static int find_conn_gen(int fd, u32 gen) {
+  for(int i = 0; i < conn_count; i++)
+    if(conns[i].fd == fd && conns[i].gen == gen) return i;
+  return -1;
+}
 
 /* Report the bound port for one slot, 0 if inactive. The two slots
  * are independent; callers that want to summarize both query each. */
@@ -731,6 +751,7 @@ static void handle_accept(int lfd, int lmode) {
     ipc_conn *c = &conns[conn_count++];
     memset(c, 0, sizeof *c);
     c->fd = (int)cfd;
+    c->gen = ++conn_gen;
     c->is_client = 0;
     ipc_child_loop((int)cfd);                /* never returns */
   }
@@ -742,6 +763,7 @@ static void handle_accept(int lfd, int lmode) {
   ipc_conn *c = &conns[conn_count++];
   memset(c, 0, sizeof *c);
   c->fd = (int)cfd;
+  c->gen = ++conn_gen;
   c->is_client = 0;
 }
 
@@ -969,30 +991,48 @@ static void mark_in_dispatch(int fd, int v) {
   if(ix >= 0) conns[ix].in_dispatch = (u8)(v ? 1 : 0);
 }
 
+/* Mark the conn as in-dispatch and snapshot its gen in one scan. The gen is
+ * how the epilogues find "their" conn again: the handler may close it (entry
+ * gone) or the fd may be reused by a brand-new conn (gen differs) -- clearing
+ * or replying by bare fd would then hit a stranger. */
+static u32 mark_in_dispatch_gen(int fd) {
+  int ix = find_conn(fd);
+  if(ix < 0) return 0;
+  conns[ix].in_dispatch = 1;
+  return conns[ix].gen;
+}
+
+/* Clear in_dispatch on the conn this dispatch was started for -- and only
+ * that conn. No-op if it died or was replaced during the handler. */
+static void unmark_in_dispatch_gen(int fd, u32 gen) {
+  int ix = find_conn_gen(fd, gen);
+  if(ix >= 0) conns[ix].in_dispatch = 0;
+}
+
 static void dispatch_async(int fd, K msg) {
   /* Async dispatch has no remote caller waiting on the result, so
    * handler errors can't be surfaced to the peer. Under \e 0 they're
    * silently dropped here; under \e 1 the user gets a debug sub-REPL
    * inside apply1 and the eventual return value is dropped on the
    * floor either way. */
-  mark_in_dispatch(fd, 1);
+  u32 gen = mark_in_dispatch_gen(fd);
   scope_set_z_w(fd);
   K h = get_handler(".m.s");
-  if(E(h)) { scope_set_z_w(0); mark_in_dispatch(fd, 0); _k(msg); return; }
+  if(E(h)) { scope_set_z_w(0); unmark_in_dispatch_gen(fd, gen); _k(msg); return; }
   K r = apply1(h, msg);
   scope_set_z_w(0);
-  mark_in_dispatch(fd, 0);
+  unmark_in_dispatch_gen(fd, gen);
   if(E(r)) { if(r >= EMAX) _k(r); }
   else _k(r);
 }
 
 static void dispatch_sync(int fd, K msg) {
-  mark_in_dispatch(fd, 1);
+  u32 gen = mark_in_dispatch_gen(fd);
   scope_set_z_w(fd);
   K h = get_handler(".m.g");
   if(E(h)) {
     scope_set_z_w(0);
-    mark_in_dispatch(fd, 0);
+    unmark_in_dispatch_gen(fd, gen);
     send_error(fd, h);
     if(h >= EMAX) _k(h);
     _k(msg);
@@ -1000,19 +1040,25 @@ static void dispatch_sync(int fd, K msg) {
   }
   K r = apply1(h, msg);
   scope_set_z_w(0);
-  mark_in_dispatch(fd, 0);
-  /* "abort" out of the handler means the user typed `\` to exit a
-   * debug sub-REPL that was opened (under \e 1) for an error inside
-   * the handler. The error itself was already printed and dismissed
-   * by the user; forwarding the literal "abort" string would land
-   * on the peer's top-level REPL where an abort-as-expression-value
-   * fires help(0) (see repl.c). Treat it as "discarded" and answer
-   * the peer with null instead. */
-  if(E(r) && r >= EMAX && sk(r) == sp("abort")) {
-    _k(r);
-    send_value(fd, MSG_SYNC_RSP, null);
+  /* The handler can close this conn (or the peer can die and a new peer
+   * can be accepted onto the same fd number) while it runs. Replying to
+   * the bare fd would then answer the wrong peer -- or write into a
+   * closed descriptor. If our (fd,gen) conn is gone, there is no one
+   * waiting for this response: drop it. One scan clears the flag and
+   * validates the reply target. */
+  int ix = find_conn_gen(fd, gen);
+  if(ix < 0) {
+    if(E(r)) { if(r >= EMAX) _k(r); }
+    else _k(r);
     return;
   }
+  conns[ix].in_dispatch = 0;
+  /* "abort" out of the handler means the user typed `\` to exit a
+   * debug sub-REPL that was opened (under \e 1) for an error inside
+   * the handler. Forward it to the peer like any other error -- the
+   * waiting client gets 'abort raised at its 4:, as in classic k. The
+   * receive side (ipc_send_sync) clears H so a remote abort landing
+   * at the peer's top-level REPL doesn't fire the help index. */
   if(E(r)) {
     send_error(fd, r);
     if(r >= EMAX) _k(r);
@@ -1134,8 +1180,14 @@ void ipc_init_ns(void) {
 }
 
 /* Drive the receive state machine for one ready fd.
- * Returns 0 to keep the connection, -1 to close it. */
+ * Returns 0 to keep the connection, -1 to close it.
+ * deliver_message runs handler code that can close/move/replace conns
+ * (close_conn_at swap-deletes; the kernel reuses fds), so after every
+ * deliver_message the conn is re-located by (fd,gen); if it is gone the
+ * drain loop stops -- there is nothing left that is ours to read. */
 static int recv_step(ipc_conn *c) {
+  int fd  = c->fd;
+  u32 gen = c->gen;
   for(;;) {
     /* phase 1: header. v1 is 8 bytes; a v2 header (version byte at off 2)
        needs 4 more, so recompute the target as bytes arrive. */
@@ -1158,6 +1210,9 @@ static int recv_step(ipc_conn *c) {
       if(parse_header(c) < 0) return -1;
       if(c->body_need == 0) {
         deliver_message(c);
+        int ix = find_conn_gen(fd, gen);
+        if(ix < 0) return 0;                   /* closed during dispatch */
+        c = &conns[ix];                        /* slot may have moved */
         reset_recv(c);
         continue;                              /* try to drain another msg */
       }
@@ -1178,6 +1233,9 @@ static int recv_step(ipc_conn *c) {
 
     /* full message in hand */
     deliver_message(c);
+    int ix = find_conn_gen(fd, gen);
+    if(ix < 0) return 0;                       /* closed during dispatch */
+    c = &conns[ix];                            /* slot may have moved */
     reset_recv(c);
     /* loop and try to drain another message that may already be buffered */
   }
@@ -1198,11 +1256,18 @@ void ipc_handle_pollfd(int fd, short revents) {
   }
   int idx = find_conn(fd);
   if(idx < 0) return;
+  u32 gen = conns[idx].gen;
 
   if(revents & POLLIN) {
-    if(recv_step(&conns[idx]) < 0) { close_conn_at(idx); return; }
+    if(recv_step(&conns[idx]) < 0) {
+      idx = find_conn_gen(fd, gen);            /* dispatch may have moved us */
+      if(idx >= 0) close_conn_at(idx);
+      return;
+    }
   }
   if(revents & (POLLHUP|POLLERR)) {
+    idx = find_conn_gen(fd, gen);              /* dispatch may have moved us */
+    if(idx < 0) return;
     close_conn_at(idx);
   }
 #endif
@@ -1323,6 +1388,7 @@ K ipc_open(K hp) {
   ipc_conn *c = &conns[conn_count++];
   memset(c, 0, sizeof *c);
   c->fd        = (int)fd;
+  c->gen       = ++conn_gen;
   c->is_client = 1;
   c->port      = p;
   /* hbuf is at most 255 bytes (host_cstr enforces); host[256] room incl NUL */
@@ -1426,6 +1492,9 @@ K ipc_send_sync(int fd, K msg) {
           size_t l = (size_t)n(v);
           char *b = xmalloc(l + 1);
           memcpy(b, p, l); b[l] = 0;
+          /* a remote 'abort (server operator typed \ at its debug prompt)
+           * must not fire this REPL's help index when it reaches top level */
+          if(!strcmp(b, "abort")) repl_suppress_help();
           result = kerror(b);
           xfree(b);
           _k(v);

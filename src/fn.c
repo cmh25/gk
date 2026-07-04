@@ -570,11 +570,7 @@ static K fapply_impl(K f, K x, char *av_outer) {
             this projection or partially apply the inner -- merge
             inline and recurse fapply on the inner.
          2. lx < val(f): not enough new args -> nest as
-            0xd9(f, new_args). This matches legacy 0xc4 nested
-            projection semantics (fne_'s nx<val branch) and the
-            way printers like k3 render f[;;2][1] as `f[;;2][1]`
-            and f[1][1][1] with one bracket per partial apply,
-            rather than flattening. */
+            0xd9(f, new_args). */
     K vf2=val(f);
     if(E(vf2)) { _k(f); _k(x); return vf2; }
     i32 vn2=ik(vf2); _k(vf2);

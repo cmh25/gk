@@ -145,6 +145,41 @@ static K fsize_(K x, size_t *bs) {
 #endif
 #endif
 
+/* VSIZE returns on failure, so it can't run where a live buffer would leak;
+   wrap it so readall_ can check a prospective size and free first. */
+static K vchk_(size_t n) { VSIZE((i64)n); return null; }
+
+/* Read stream fp to EOF into an xmalloc'd buffer (*pb, length *pn). bs (from
+   fsize_) is only a capacity hint: procfs/sysfs files stat as 0 bytes, and a
+   file can grow between the stat and the read, so trusting st_size drops
+   data. When the hint is exact this costs one extra fgetc over the old
+   single fread. Consumes nothing; on error the buffer is freed and the
+   error K returned. Returns null on success (*pb valid even when *pn==0). */
+static K readall_(FILE *fp, size_t bs, char **pb, size_t *pn) {
+  size_t cap = bs ? bs : 4096, n = 0, g;
+  char *b = xmalloc(cap);
+  *pb = 0;                        /* outputs defined on every path (analyzer) */
+  *pn = 0;
+  for(;;) {
+    if(n == cap) {                  /* buffer full: probe EOF before growing */
+      int c = fgetc(fp);
+      if(c == EOF) break;
+      K e = vchk_(cap << 1);
+      if(E(e)) { xfree(b); return e; }
+      cap <<= 1;
+      b = xrealloc(b, cap);
+      b[n++] = (char)c;
+    }
+    g = fread(b + n, 1, cap - n, fp);
+    n += g;
+    if(!g) break;                   /* EOF or error */
+  }
+  if(ferror(fp)) { xfree(b); return kerror("io"); }
+  *pb = b;
+  *pn = n;
+  return null;
+}
+
 static K b0colon(K x) {
   K *pxk,r=null;
   char *pc;
@@ -187,8 +222,8 @@ static char* readstdin(u64 *n) {
 static K zerocolon1(K x) {
   K r=0,e,*prk;
   FILE *fp;
-  size_t bs=0, n;
-  char *b, *line, *end;
+  size_t bs=0, n=0;
+  char *b=0, *line, *end;
   u32 i=0, m=2;
 
   if(tx!=3 && tx!=-3 && tx!=4) return KERR_TYPE;
@@ -198,18 +233,12 @@ static K zerocolon1(K x) {
     r=tnv(3,n,s);
     return r;
   }
-  EC(fopen_(x,"rb",&fp));
   EC(fsize_(x,&bs));
   VSIZE((i64)bs);
-  b=xmalloc(bs);
-  if((n=fread(b,1,bs,fp))!=bs) {
-    int ioe=ferror(fp);
-    fclose(fp);
-    xfree(b);
-    if(ioe) return kerror("io");
-    return KERR_LENGTH;
-  }
+  EC(fopen_(x,"rb",&fp));
+  e=readall_(fp,bs,&b,&n);
   fclose(fp);
+  if(E(e)) return e;
 
   PRK(m);
   line=b;
@@ -505,12 +534,18 @@ static K onecolon1(K x) {
   else return KERR_TYPE;
   fd=open(s,O_RDONLY);
   if(fd==-1) return ferr(s,errno);
-  n=read(fd,h,4); if(n==-1) return ferr(s,errno);
+  size_t have=0;
+  n=read(fd,h,4); if(n==-1) { K e=ferr(s,errno); close(fd); return e; } have+=(size_t)n;
+  n=read(fd,&t,sizeof(i32)); if(n==-1) { K e=ferr(s,errno); close(fd); return e; } have+=(size_t)n;
+  n=read(fd,&st,sizeof(i32)); if(n==-1) { K e=ferr(s,errno); close(fd); return e; } have+=(size_t)n;
+  n=read(fd,&pad,sizeof(i32)); if(n==-1) { K e=ferr(s,errno); close(fd); return e; } have+=(size_t)n;
+  n=read(fd,&c,sizeof(u64)); if(n==-1) { K e=ferr(s,errno); close(fd); return e; } have+=(size_t)n;
+  /* A mappable vector is [24-byte header][data]; a shorter file -- including
+     an empty one -- can only be a serialized atom/small object: hand it to 2:
+     (matches the Windows path). Checked before the magic byte so a short file
+     never parses uninitialized header fields. */
+  if(have<24) { close(fd); return twocolon1(x); }
   if(h[0]!=3 && h[0]!=2) { close(fd); return kerror("header"); } /* v3 + v1's v2 (additive) */
-  n=read(fd,&t,sizeof(i32)); if(n==-1) return ferr(s,errno);
-  n=read(fd,&st,sizeof(i32)); if(n==-1) return ferr(s,errno);
-  n=read(fd,&pad,sizeof(i32)); if(n==-1) return ferr(s,errno);
-  n=read(fd,&c,sizeof(u64)); if(n==-1) return ferr(s,errno);
   gk_ld_arr(&t,&t,1,sizeof(i32)); /* header is little-endian on disk */
   gk_ld_arr(&c,&c,1,sizeof(u64));
   if(t!=-1&&t!=-2&&t!=-3) { close(fd); return twocolon1(x); }
@@ -523,7 +558,7 @@ static K onecolon1(K x) {
      24 bytes of data unmapped whenever len was page-aligned (big vectors) -> SEGV.
      __k frees this via munmap(k->v-24, 24+len) -- keep the two in lockstep. */
   v=mmap(0,24+len,PROT_READ|PROT_WRITE,MAP_PRIVATE,fd,0);
-  if(v==(void*)-1) { r=ferr(s,errno); return r; }
+  if(v==(void*)-1) { r=ferr(s,errno); close(fd); return r; }
   r=tnv(-t,c,24+(char*)v);
   ((ko*)(b(48)&r))->m=1;
   n(r)=c;
@@ -753,23 +788,17 @@ K onecolon(K a, K x) {
 static K twocolon1(K x) {
   K r=0,e,p=0;
   FILE *fp;
-  char *b;
-  size_t n,bs=0;
+  char *b=0;
+  size_t n=0,bs=0;
   if((tx==4&&!strlen(sk(x))) || (tx==-3&&!nx)) return KERR_LENGTH;
   if(tx!=-3&&tx!=4) return KERR_TYPE;
-  EC(fopen_(x,"rb",&fp));
   EC(fsize_(x,&bs));
   VSIZE((i64)bs);
-  b=xmalloc(bs);
-  if((n=fread(b,1,bs,fp))!=bs) {
-    int ioe=ferror(fp);
-    fclose(fp);
-    xfree(b);
-    if(ioe) return kerror("io");
-    return KERR_LENGTH;
-  }
+  EC(fopen_(x,"rb",&fp));
+  e=readall_(fp,bs,&b,&n);
   fclose(fp);
-  if(b[0]!=3 && b[0]!=2) { xfree(b); return kerror("header"); } /* v3 + v1's v2 (additive) */
+  if(E(e)) return e;
+  if(n<1 || (b[0]!=3 && b[0]!=2)) { xfree(b); return kerror("header"); } /* v3 + v1's v2 (additive) */
   p=tnv(3,n,b);
   r=db_(p);
   _k(p);
@@ -1013,22 +1042,16 @@ K fivecolon(K a, K x) {
 static K sixcolon1(K x) {
   K r=0,e;
   FILE *fp;
-  char *b;
+  char *b=0;
   size_t n=0,bs=0;
   if(tx!=-3&&tx!=4) return KERR_TYPE;
   if((tx==4&&!strlen(sk(x))) || (tx==-3&&!nx)) return KERR_LENGTH;
-  EC(fopen_(x,"rb",&fp));
   EC(fsize_(x,&bs));
-  b=xmalloc(bs);
   VSIZE((i64)bs);
-  if((n=fread(b,1,bs,fp))!=bs) {
-    int ioe=ferror(fp);
-    fclose(fp);
-    xfree(b);
-    if(ioe) return kerror("io");
-    return KERR_LENGTH;
-  }
+  EC(fopen_(x,"rb",&fp));
+  e=readall_(fp,bs,&b,&n);
   fclose(fp);
+  if(E(e)) return e;
   r=tnv(3,n,b);
   return r;
 cleanup:

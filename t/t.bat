@@ -6,7 +6,7 @@ rem REPL-mode bugs (e.g. top-level :return, RETURN leaking from a called
 rem function) don't show in file mode, so the suite can be run both ways.
 rem Prompts go to stderr (discarded); stdout is compared to r%1.
 setlocal enabledelayedexpansion
-set mode=%1
+set mode=%~1
 set ec=0
 if not exist ..\ndiff.exe (
     echo ERROR: ..\ndiff.exe not built -- run make.bat first

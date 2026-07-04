@@ -12,5 +12,9 @@ extern int DEPTH,ecount,REPL,LOADLINE;
 extern int wasm;
 K load(char *fn, int load);
 K repl(void);
+/* Suppress the help index that a bare abort fires at the top-level REPL.
+ * Called by ipc.c when a remote 'abort arrives on a sync handle: the abort
+ * was typed at the SERVER's debug prompt, not here. */
+void repl_suppress_help(void);
 
 #endif /* REPL_H */

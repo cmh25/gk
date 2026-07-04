@@ -453,6 +453,24 @@ static K r44(K x) {
   K f0=px[0];
   K x1_=px[1];
 
+  /* $[c;t;f] and do/while/if in operand position (e.g. $[1;`t;`f],"x")
+     arrive here as a call node; standalone they never reach r44 (pgreduce
+     handles them at the c%32==19 / 0xd1-0xd3 cases). Their bracket group
+     must stay UNREDUCED -- cond branches and loop bodies evaluate lazily --
+     so route to the same evaluators the standalone path uses BEFORE the
+     eager arg-reduce below. A raw-char head (f0<256) can only be a verb;
+     error Ks are all < EMAX. */
+  if('$'==f0 && (0x41==s(x1_)||0x81==s(x1_)) && n(x1_)>2) {
+    r=cond_(x1_);
+    _k(x);
+    return r;
+  }
+  if((0xd1==s(f0)||0xd2==s(f0)||0xd3==s(f0)) && (0x41==s(x1_)||0x81==s(x1_))) {
+    r=builtin(f0,0,k_(x1_));
+    _k(x);
+    return r;
+  }
+
   /* fast path: f[a;b;...] where f is a simple variable resolving to a
      0xc3 lambda, 0xd9 projection, or 0xda wrapper, and the param list
      is 0x41 or 0x81.  Bypasses avb/strlen/strchr/snprintf and the

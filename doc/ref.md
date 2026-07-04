@@ -2565,11 +2565,15 @@ Assign a new lambda to wrap or replace the default:
   .m.s:{`0:x}             / async messages just get printed
 ```
 
-Handler errors on sync calls surface on the client as raised errors.
-Handler errors on async calls are dispatched per the server's `\e`
-setting: `\e 0` silently drops them, `\e 1` drops the server into a
-debug sub-REPL so you can inspect state (IPC dispatch pauses until
-you exit the sub-REPL with `\`).
+Handler errors follow the server's `\e` setting. Under `\e 0` a sync
+handler error is sent straight back to the client as a raised error;
+async handler errors are printed on the server and dropped. Under
+`\e 1` the error drops the server into a debug sub-REPL so you can
+inspect state — IPC dispatch (and any client blocked on a sync
+response) pauses until you exit the sub-REPL with `\`, at which point
+a waiting sync client receives `abort` as a raised error. Headless
+servers should run `\e 0` so a handler error can never leave a peer
+waiting.
 
 #### `.z.w`
 

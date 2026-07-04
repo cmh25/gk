@@ -859,8 +859,9 @@ K do_(K x) {
   if(nx<2) return KERR_VALENCE;
   if(0x81==s(x)) return null; // all constants, nothing to do
   a=pgreduce_(px[i],&q);
+  if(E(a)) return a;
   if(ta!=1 && ta!=8) { _k(a); return KERR_TYPE; }
-  c = ta==8 ? jk(a) : ik(a);   /* accept a long (j) count, not just int */
+  c = ta==8 ? jk(a) : ik(a);
   _k(a);
   if(c<0) return r;
   while(c-->0)
@@ -896,8 +897,9 @@ K while_(K x) {
     }
   }
   a=pgreduce_(px[nx-1],&q);
+  if(E(a)) return a;
   if(ta!=1 && ta!=8) { _k(a); return KERR_TYPE; }
-  i64 c = ta==8 ? jk(a) : ik(a); _k(a);   /* accept a long (j) condition, not just int */
+  i64 c = ta==8 ? jk(a) : ik(a); _k(a);
   while(c) {
 #ifdef FUZZING
     if(--gk_budget<0) return kerror("limit");
@@ -909,6 +911,7 @@ K while_(K x) {
       _k(p);
     }
     a=pgreduce_(px[nx-1],&q);
+    if(E(a)) return a;
     if(ta!=1 && ta!=8) { _k(a); return KERR_TYPE; }
     c = ta==8 ? jk(a) : ik(a); _k(a);
   }
@@ -925,8 +928,9 @@ K if_(K x) {
   if(nx<2) return KERR_VALENCE;
   if(0x81==s(x)) return null; // all constants, nothing to do
   a=pgreduce_(px[i],&q);
+  if(E(a)) return a;
   if(ta!=1 && ta!=8) { _k(a); return KERR_TYPE; }
-  i64 c = ta==8 ? jk(a) : ik(a); _k(a);   /* accept a long (j) condition, not just int */
+  i64 c = ta==8 ? jk(a) : ik(a); _k(a);
   if(c)
     for(i=nx-2;i>=0;i--) {
       p=pgreduce_(px[i],&q); if(!p)p=null;
@@ -945,9 +949,10 @@ static K cond81_(K x) {
   u32 i;
   for(i=0;i<nx;++i) {
     if(i<nx-1) {
-      a=k_(px[i++]);;
+      a=k_(px[i++]);
+      if(E(a)) return a;
       if(ta!=1 && ta!=8) { _k(a); return KERR_TYPE; }
-      i64 c = ta==8 ? jk(a) : ik(a); _k(a);   /* accept a long (j) condition, not just int */
+      i64 c = ta==8 ? jk(a) : ik(a); _k(a);
       if(c&&i<=nx-1) { _k(r); r=k_(px[i]); if(!r) r=null; break; }
     }
     else { r=k_(px[i]); if(!r) r=null; }
@@ -963,8 +968,9 @@ K cond_(K x) {
   for(i=nx-1;i>=0;--i) {
     if(i) {
       a=pgreduce_(px[i--],&q); if(!a) a=null;
+      if(E(a)) { _k(r); return a; }
       if(ta!=1 && ta!=8) { _k(a); return KERR_TYPE; }
-      i64 c = ta==8 ? jk(a) : ik(a); _k(a);   /* accept a long (j) condition, not just int */
+      i64 c = ta==8 ? jk(a) : ik(a); _k(a);
       if(c&&i>=0) { _k(r); r=pgreduce_(px[i],&q); if(!r) r=null; break; }
     }
     else { r=pgreduce_(px[i],&q); if(!r) r=null; }
