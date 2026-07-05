@@ -832,7 +832,7 @@ K lex(pgs *pgs, int load) {
     if(*p=='\r') ++p;
     else if(*p=='\n') { ++p; if(f) push(pgs,T014,null); push(pgs,T013,0); f=1; ++line; p0=p1+1; continue; }
     else if(*p==';') { ++p; if(f) push(pgs,T014,0); push(pgs,T012,0); f=1; continue; }
-    else if((b||f||(p>pgs->p&&(p[-1]=='('||p[-1]=='['||p[-1]=='{')))&&*p=='/') { ++p; while(*p&&*p!='\n')++p; }
+    else if((b||f||(p>pgs->p&&(p[-1]=='('||p[-1]=='['||p[-1]=='{')))&&*p=='/') { ++p; while(*p&&*p!='\n')++p; continue; }
     else if(S2(p)&&isdigit((unsigned char)*p)&&p[1]==':') {
       /* file verbs de-glued: emit bare 0xcc; a following adverb tokenizes as
          a standalone 0x85 and folds through pgreduce_ cases 0xcc/0xcd. */
