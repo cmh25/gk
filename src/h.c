@@ -126,6 +126,7 @@ void help(int a) {
 "list: x at y indexes giving appropriate null values instead of index error\n"
 "      x in y is 1 if x is an item of y; 0 otherwise (list: lin)\n"
 "      x dv y and x di y to delete by value and index (list: dvl)\n"
+"      x bin y binary search: count of items < y in ascending x (list: binl)\n"
 "      x sv v (scalar from vector) and x vs s (vector from scalar)\n"
 "      ci i (character from integer) and ic c (integer from character)\n"
 "      x sm y is string match. y can have *?[^-].\n"

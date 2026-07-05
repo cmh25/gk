@@ -1536,8 +1536,8 @@ if[~r2;`0:,"failed";exit 1]
 
 "135. number of permutations of n objects taken k at a time"
 fac:{[n]$[n>1; n * .z.f[n-1];1]}
-bin:{[n;k]fac[n]%fac[n-k]*fac[k]}
-pn:{[n;k]fac[k]*bin[n;k]}
+nck:{[n;k]fac[n]%fac[n-k]*fac[k]}
+pn:{[n;k]fac[k]*nck[n;k]}
 r:pn[5;3]
 r2:r~60.0
 if[~r2;`0:,"failed";exit 1]
@@ -1564,11 +1564,11 @@ if[~r2;`0:,"failed";exit 1]
 
 "142. number of combinations of n objects taken k at a time"
 fac:{[n]$[n>1; n * .z.f[n-1];1]}
-bin:{[n;k]fac[n]%fac[n-k]*fac[k]}
-r:bin[12;7]
+nck:{[n;k]fac[n]%fac[n-k]*fac[k]}
+r:nck[12;7]
 r2:r~792.0
 if[~r2;`0:,"failed";exit 1]
-r:bin[10;4]
+r:nck[10;4]
 r2:r~210.0
 if[~r2;`0:,"failed";exit 1]
 

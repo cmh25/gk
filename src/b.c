@@ -53,7 +53,7 @@ const binfo2 BDYAD[] = {
   {&R_LCM,lcm_},{&R_MODINV,modinv_},{&R_ROT,rot_},{&R_SHIFT,shift_},
   {&R_DOT,dotp},{&R_MUL,mul_},{&R_AT,at_},{&R_SM,sm},{&R_SS,ss},{&R_LSQ,lsq_},
   {&R_ENCRYPT,encrypt_},{&R_DECRYPT,decrypt_},{&R_RENAME,rename_},
-  {&R_SETENV,setenv_},{&R_IN,in_},{&R_DVL,dvl_},
+  {&R_SETENV,setenv_},{&R_IN,in_},{&R_DVL,dvl_},{&R_BIN,bin_},{&R_BINL,binl_},
 };
 const binfo1 BMONAD[] = {
   {&R_SLEEP,sleep_},{&R_IC,ic},{&R_CI,ci},{&R_DJ,dj},{&R_JD,jd},{&R_LT,lt},
@@ -2221,6 +2221,57 @@ K setenv_(K a, K x) {
   return null;
 cleanup:
   return e;
+}
+
+static inline i64 bin1j(void *v, i32 t, i64 n, i64 y) {
+  i64 lo=0,hi=n,m;
+  while(lo<hi) { m=lo+((hi-lo)>>1);
+    if(((t==-1)?(i64)((i32*)v)[m]:((i64*)v)[m])<y) lo=m+1; else hi=m; }
+  return lo;
+}
+static inline i64 bin1f(void *v, i32 t, i64 n, f64 y) {
+  i64 lo=0,hi=n,m;
+  f64 am;
+  while(lo<hi) { m=lo+((hi-lo)>>1);
+    am=(t==-1)?(f64)((i32*)v)[m]:(t==-8)?(f64)((i64*)v)[m]:(t==-2)?((f64*)v)[m]:(f64)((f32*)v)[m];
+    if(am<y) lo=m+1; else hi=m; }
+  return lo;
+}
+K bin_(K a, K x) {
+  if(s(a)||s(x)) return KERR_DOMAIN;
+  if(ta>0) return KERR_RANK;
+  if(ta!=-1&&ta!=-2&&ta!=-8&&ta!=-9) return KERR_DOMAIN;
+  if(tx!=1&&tx!=2&&tx!=8&&tx!=9) return KERR_TYPE;
+  void *v=px(a);
+  i64 c;
+  if((ta==-1||ta==-8)&&(tx==1||tx==8))
+    c=bin1j(v,ta,(i64)na,tx==1?(i64)ik(x):jk(x));
+  else
+    c=bin1f(v,ta,(i64)na,tx==1?(f64)ik(x):tx==8?(f64)jk(x):tx==2?fk(x):(f64)ek(x));
+  return na>BIGV?tj(c):t(1,(u32)c);
+}
+K binl_(K a, K x) {
+  K r=0;
+  i32 *pri=0;
+  i64 *prj=0;
+  if(!s(x)&&tx>0) return bin_(a,x);
+  if(s(a)||s(x)) return KERR_DOMAIN;
+  if(ta>0) return KERR_RANK;
+  if(ta!=-1&&ta!=-2&&ta!=-8&&ta!=-9) return KERR_DOMAIN;
+  if(tx!=-1&&tx!=-2&&tx!=-8&&tx!=-9) return KERR_TYPE;
+  void *v=px(a), *w=px(x);
+  i64 n=(i64)na, nn=(i64)nx, c;
+  int ints=(ta==-1||ta==-8)&&(tx==-1||tx==-8);
+  int big=n>(i64)BIGV;
+  if(big) { PRJ(nn); } else { PRI(nn); }
+  if(E(r)) return r;
+  for(i64 j=0;j<nn;++j) {
+    if(ints) c=bin1j(v,ta,n,tx==-1?(i64)((i32*)w)[j]:((i64*)w)[j]);
+    else { f64 y=tx==-1?(f64)((i32*)w)[j]:tx==-8?(f64)((i64*)w)[j]:tx==-2?((f64*)w)[j]:(f64)((f32*)w)[j];
+           c=bin1f(v,ta,n,y); }
+    if(big) prj[j]=c; else pri[j]=(i32)c;
+  }
+  return r;
 }
 
 K in_(K a, K x) {

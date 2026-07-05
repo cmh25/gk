@@ -2010,6 +2010,8 @@ Other k implementations may take different approaches, and it may be possible to
 | `a at x` | index `a` at `x`, yielding null for out-of-range instead of `index error` | `1 2 3 at 0 5` → `1 0N` |
 | `a in x` | `1` if `a` is an item of `x`, else `0` | `2 in 1 2 3` → `1` |
 | `a lin x` | element-wise `in` — for each item of `a` | `2 4 lin 1 2 3` → `1 0` |
+| `a bin x` | binary search: count of items of ascending numeric vector `a` less than atom `x` — exact hits give the item's index (like `a?x`), below range `0`, above range `#a`; `a`'s order is assumed, not verified | `1 3 5 7 9 bin 8` → `4` |
+| `a binl x` | element-wise `bin` — for each item of numeric vector `x` (`a bin/x`) | `1 3 5 7 9 binl 5 8 0` → `2 4 0` |
 | `a dv x` | drop items of `a` equal to value `x` | `1 2 3 2 4 dv 2` → `1 3 4` |
 | `a dvl x` | drop items of `a` equal to any value in list `x` | `1 2 3 4 dvl 2 3` → `1 4` |
 | `a di x` | drop items of `a` at index/indices `x` | `1 2 3 4 5 di 1 3` → `1 3 5` |
