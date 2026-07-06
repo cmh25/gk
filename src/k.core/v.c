@@ -1830,6 +1830,7 @@ K form(K a, K x) {
       r=tj((i64)strtoll(pxc,0,10));
       break;
     }
+    if(!jk(a) && tx==0) { r=irecur2(form,a,x); break; } /* list: recurse keeping the long tag (matches case 9) */
     { K ai=t(1,(u32)(i32)jk(a)); r=form(ai,x); _k(ai); }
     break;
   case 9: /* N.Me$x : N.M is width/precision. A NUMBER formats (delegates to
