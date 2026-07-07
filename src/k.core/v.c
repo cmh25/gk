@@ -488,11 +488,11 @@ static K lme(K a, K x, i8 op, K(*F)(K,K), i32 idx) {
     case  1: r=t(1,(u32)icmp(ik(a),ik(x),op)); break;
     case  2: r=t(1,cmpfft(fi(ik(a)),fk(x))==op); break;
     case  8: r=t(1,(u32)jcmp((i64)ik(a),jk(x),op)); break;
-    case  9: r=t(1,cmpffte(fi(ik(a)),(double)ek(x))==op); break;
+    case  9: r=t(1,cmpfft(fi(ik(a)),(double)ek(x))==op); break;
     case -1: PRI(nx); PXI; i(nx,*pri++=icmp(ik(a),*pxi++,op)) break;
     case -2: PRI(nx); PXF; f=fi(ik(a)); i(nx,*pri++=cmpfft(f,*pxf++)==op) break;
     case -8: PRI(nx); PXJ; { i64 A=(i64)ik(a); i(nx,pri[i]=jcmp(A,pxj[i],op)) } break;
-    case -9: PRI(nx); PXE; f=fi(ik(a)); i(nx,pri[i]=cmpffte(f,(double)pxe[i])==op) break;
+    case -9: PRI(nx); PXE; f=fi(ik(a)); i(nx,pri[i]=cmpfft(f,(double)pxe[i])==op) break;
     case  0: r=irecur2(F,a,x); break;
     default: return KERR_TYPE;
     } break;
@@ -501,11 +501,11 @@ static K lme(K a, K x, i8 op, K(*F)(K,K), i32 idx) {
     case  1: r=t(1,cmpfft(fk(a),fi(ik(x)))==op); break;
     case  2: r=t(1,cmpfft(fk(a),fk(x))==op); break;
     case  8: r=t(1,cmpfft(fk(a),fj(jk(x)))==op); break;
-    case  9: r=t(1,cmpffte(fk(a),(double)ek(x))==op); break;
+    case  9: r=t(1,cmpfft(fk(a),(double)ek(x))==op); break;
     case -1: PRI(nx); PXI; f=fk(a); i(nx,*pri++=cmpfft(f,fi(*pxi++))==op) break;
     case -2: PRI(nx); PXF; f=fk(a); i(nx,*pri++=cmpfft(f,*pxf++)==op) break;
     case -8: PRI(nx); PXJ; f=fk(a); i(nx,pri[i]=cmpfft(f,fj(pxj[i]))==op) break;
-    case -9: PRI(nx); PXE; f=fk(a); i(nx,pri[i]=cmpffte(f,(double)pxe[i])==op) break;
+    case -9: PRI(nx); PXE; f=fk(a); i(nx,pri[i]=cmpfft(f,(double)pxe[i])==op) break;
     case  0: r=irecur2(F,a,x); break;
     default: return KERR_TYPE;
     } break;
@@ -514,24 +514,24 @@ static K lme(K a, K x, i8 op, K(*F)(K,K), i32 idx) {
     case  1: r=t(1,(u32)jcmp(jk(a),(i64)ik(x),op)); break;
     case  2: r=t(1,cmpfft(fj(jk(a)),fk(x))==op); break;
     case  8: r=t(1,(u32)jcmp(jk(a),jk(x),op)); break;
-    case  9: r=t(1,cmpffte(fj(jk(a)),(double)ek(x))==op); break;
+    case  9: r=t(1,cmpfft(fj(jk(a)),(double)ek(x))==op); break;
     case -1: PRI(nx); PXI; { i64 A=jk(a); i(nx,pri[i]=jcmp(A,(i64)pxi[i],op)) } break;
     case -2: PRI(nx); PXF; f=fj(jk(a)); i(nx,pri[i]=cmpfft(f,pxf[i])==op) break;
     case -8: PRI(nx); PXJ; { i64 A=jk(a); i(nx,pri[i]=jcmp(A,pxj[i],op)) } break;
-    case -9: PRI(nx); PXE; f=fj(jk(a)); i(nx,pri[i]=cmpffte(f,(double)pxe[i])==op) break;
+    case -9: PRI(nx); PXE; f=fj(jk(a)); i(nx,pri[i]=cmpfft(f,(double)pxe[i])==op) break;
     case  0: r=irecur2(F,a,x); break;
     default: return KERR_TYPE;
     } break;
   case 9:
     switch(tx) {
-    case  1: r=t(1,cmpffte((double)ek(a),fi(ik(x)))==op); break;
-    case  2: r=t(1,cmpffte((double)ek(a),fk(x))==op); break;
-    case  8: r=t(1,cmpffte((double)ek(a),fj(jk(x)))==op); break;
-    case  9: r=t(1,cmpffte((double)ek(a),(double)ek(x))==op); break;
-    case -1: PRI(nx); PXI; f=(double)ek(a); i(nx,pri[i]=cmpffte(f,fi(pxi[i]))==op) break;
-    case -2: PRI(nx); PXF; f=(double)ek(a); i(nx,pri[i]=cmpffte(f,pxf[i])==op) break;
-    case -8: PRI(nx); PXJ; f=(double)ek(a); i(nx,pri[i]=cmpffte(f,fj(pxj[i]))==op) break;
-    case -9: PRI(nx); PXE; f=(double)ek(a); i(nx,pri[i]=cmpffte(f,(double)pxe[i])==op) break;
+    case  1: r=t(1,cmpfft((double)ek(a),fi(ik(x)))==op); break;
+    case  2: r=t(1,cmpfft((double)ek(a),fk(x))==op); break;
+    case  8: r=t(1,cmpfft((double)ek(a),fj(jk(x)))==op); break;
+    case  9: r=t(1,cmpfft((double)ek(a),(double)ek(x))==op); break;
+    case -1: PRI(nx); PXI; f=(double)ek(a); i(nx,pri[i]=cmpfft(f,fi(pxi[i]))==op) break;
+    case -2: PRI(nx); PXF; f=(double)ek(a); i(nx,pri[i]=cmpfft(f,pxf[i])==op) break;
+    case -8: PRI(nx); PXJ; f=(double)ek(a); i(nx,pri[i]=cmpfft(f,fj(pxj[i]))==op) break;
+    case -9: PRI(nx); PXE; f=(double)ek(a); i(nx,pri[i]=cmpfft(f,(double)pxe[i])==op) break;
     case  0: r=irecur2(F,a,x); break;
     default: return KERR_TYPE;
     } break;
@@ -561,11 +561,11 @@ static K lme(K a, K x, i8 op, K(*F)(K,K), i32 idx) {
     case  1: PRI(na); PAI; i(na,*pri++=icmp(*pai++,ik(x),op)) break;
     case  2: PRI(na); PAI; f=fk(x); i(na,*pri++=cmpfft(fi(*pai++),f)==op) break;
     case  8: PRI(na); PAI; { i64 X=jk(x); i(na,pri[i]=jcmp((i64)pai[i],X,op)) } break;
-    case  9: PRI(na); PAI; f=(double)ek(x); i(na,pri[i]=cmpffte(fi(pai[i]),f)==op) break;
+    case  9: PRI(na); PAI; f=(double)ek(x); i(na,pri[i]=cmpfft(fi(pai[i]),f)==op) break;
     case -1: PRI(nx); PAI; PXI; i(nx,*pri++=icmp(*pai++,*pxi++,op)) break;
     case -2: PRI(nx); PAI; PXF; i(nx,*pri++=cmpfft(fi(*pai++),*pxf++)==op) break;
     case -8: PRI(nx); PAI; PXJ; i(nx,pri[i]=jcmp((i64)pai[i],pxj[i],op)) break;
-    case -9: PRI(nx); PAI; PXE; i(nx,pri[i]=cmpffte(fi(pai[i]),(double)pxe[i])==op) break;
+    case -9: PRI(nx); PAI; PXE; i(nx,pri[i]=cmpfft(fi(pai[i]),(double)pxe[i])==op) break;
     case  0: r=each(idx,a,x); break;
     default: return KERR_TYPE;
     } break;
@@ -574,11 +574,11 @@ static K lme(K a, K x, i8 op, K(*F)(K,K), i32 idx) {
     case  1: PRI(na); PAF; f=fi(ik(x)); i(na,*pri++=cmpfft(*paf++,f)==op) break;
     case  2: PRI(na); PAF; f=fk(x); i(na,*pri++=cmpfft(*paf++,f)==op) break;
     case  8: PRI(na); PAF; f=fj(jk(x)); i(na,pri[i]=cmpfft(paf[i],f)==op) break;
-    case  9: PRI(na); PAF; f=(double)ek(x); i(na,pri[i]=cmpffte(paf[i],f)==op) break;
+    case  9: PRI(na); PAF; f=(double)ek(x); i(na,pri[i]=cmpfft(paf[i],f)==op) break;
     case -1: PRI(nx); PAF; PXI; i(nx,*pri++=cmpfft(*paf++,fi(*pxi++))==op) break;
     case -2: PRI(nx); PAF; PXF; i(nx,*pri++=cmpfft(*paf++,*pxf++)==op) break;
     case -8: PRI(nx); PAF; PXJ; i(nx,pri[i]=cmpfft(paf[i],fj(pxj[i]))==op) break;
-    case -9: PRI(nx); PAF; PXE; i(nx,pri[i]=cmpffte(paf[i],(double)pxe[i])==op) break;
+    case -9: PRI(nx); PAF; PXE; i(nx,pri[i]=cmpfft(paf[i],(double)pxe[i])==op) break;
     case  0: r=each(idx,a,x); break;
     default: return KERR_TYPE;
     } break;
@@ -587,24 +587,24 @@ static K lme(K a, K x, i8 op, K(*F)(K,K), i32 idx) {
     case  1: PRI(na); PAJ; { i64 X=(i64)ik(x); i(na,pri[i]=jcmp(paj[i],X,op)) } break;
     case  2: PRI(na); PAJ; f=fk(x); i(na,pri[i]=cmpfft(fj(paj[i]),f)==op) break;
     case  8: PRI(na); PAJ; { i64 X=jk(x); i(na,pri[i]=jcmp(paj[i],X,op)) } break;
-    case  9: PRI(na); PAJ; f=(double)ek(x); i(na,pri[i]=cmpffte(fj(paj[i]),f)==op) break;
+    case  9: PRI(na); PAJ; f=(double)ek(x); i(na,pri[i]=cmpfft(fj(paj[i]),f)==op) break;
     case -1: PRI(nx); PAJ; PXI; i(nx,pri[i]=jcmp(paj[i],(i64)pxi[i],op)) break;
     case -2: PRI(nx); PAJ; PXF; i(nx,pri[i]=cmpfft(fj(paj[i]),pxf[i])==op) break;
     case -8: PRI(nx); PAJ; PXJ; i(nx,pri[i]=jcmp(paj[i],pxj[i],op)) break;
-    case -9: PRI(nx); PAJ; PXE; i(nx,pri[i]=cmpffte(fj(paj[i]),(double)pxe[i])==op) break;
+    case -9: PRI(nx); PAJ; PXE; i(nx,pri[i]=cmpfft(fj(paj[i]),(double)pxe[i])==op) break;
     case  0: r=each(idx,a,x); break;
     default: return KERR_TYPE;
     } break;
   case -9:
     switch(tx) {
-    case  1: PRI(na); PAE; f=fi(ik(x)); i(na,pri[i]=cmpffte((double)pae[i],f)==op) break;
-    case  2: PRI(na); PAE; f=fk(x); i(na,pri[i]=cmpffte((double)pae[i],f)==op) break;
-    case  8: PRI(na); PAE; f=fj(jk(x)); i(na,pri[i]=cmpffte((double)pae[i],f)==op) break;
-    case  9: PRI(na); PAE; f=(double)ek(x); i(na,pri[i]=cmpffte((double)pae[i],f)==op) break;
-    case -1: PRI(nx); PAE; PXI; i(nx,pri[i]=cmpffte((double)pae[i],fi(pxi[i]))==op) break;
-    case -2: PRI(nx); PAE; PXF; i(nx,pri[i]=cmpffte((double)pae[i],pxf[i])==op) break;
-    case -8: PRI(nx); PAE; PXJ; i(nx,pri[i]=cmpffte((double)pae[i],fj(pxj[i]))==op) break;
-    case -9: PRI(nx); PAE; PXE; i(nx,pri[i]=cmpffte((double)pae[i],(double)pxe[i])==op) break;
+    case  1: PRI(na); PAE; f=fi(ik(x)); i(na,pri[i]=cmpfft((double)pae[i],f)==op) break;
+    case  2: PRI(na); PAE; f=fk(x); i(na,pri[i]=cmpfft((double)pae[i],f)==op) break;
+    case  8: PRI(na); PAE; f=fj(jk(x)); i(na,pri[i]=cmpfft((double)pae[i],f)==op) break;
+    case  9: PRI(na); PAE; f=(double)ek(x); i(na,pri[i]=cmpfft((double)pae[i],f)==op) break;
+    case -1: PRI(nx); PAE; PXI; i(nx,pri[i]=cmpfft((double)pae[i],fi(pxi[i]))==op) break;
+    case -2: PRI(nx); PAE; PXF; i(nx,pri[i]=cmpfft((double)pae[i],pxf[i])==op) break;
+    case -8: PRI(nx); PAE; PXJ; i(nx,pri[i]=cmpfft((double)pae[i],fj(pxj[i]))==op) break;
+    case -9: PRI(nx); PAE; PXE; i(nx,pri[i]=cmpfft((double)pae[i],(double)pxe[i])==op) break;
     case  0: r=each(idx,a,x); break;
     default: return KERR_TYPE;
     } break;
@@ -723,29 +723,10 @@ cleanup:
   return e;
 }
 
-/* floor with comparison tolerance: if x is tolerantly equal to the next integer up
-   (i.e. tolerantly equal to but actually less than it), floor to that integer. Keeps
-   `_` consistent with =/</> (cmpfft) per the K manual; exact floor is `_floor`. */
-static double floortol(double x) {
-  double f;
-  if(isnan(x)||isinf(x)) return x;
-  f=floor(x);
-  return cmpfft(x,f+1.0)==0 ? f+1.0 : f;
-}
-/* same, with f32-grade tolerance for real (type 9/-9) operands */
-static double floortolf(double x) {
-  double f;
-  if(isnan(x)||isinf(x)) return x;
-  f=floor(x);
-  return cmpffte(x,f+1.0)==0 ? f+1.0 : f;
-}
-/* floored modulo for K !: x - y*_(x%y), result takes the sign of the divisor b.
-   integers use a sign-aware C %; floats use the *tolerant* floor (floortol), so e.g.
-   1.8!0.2 is 0 not 0.2. b==0 -> null; b==-1 -> 0 (also dodges INT_MIN%-1 UB). */
 static inline i32 modi(i32 a, i32 b){ i32 r; if(!b) return INT32_MIN; if(b==-1) return 0; r=a%b; if(r&&((r<0)!=(b<0))) r+=b; return r; }
 static inline i64 modj(i64 a, i64 b){ i64 r; if(!b) return J_NULL; if(b==-1) return 0; r=a%b; if(r&&((r<0)!=(b<0))) r+=b; return r; }
-static inline double modd(double a, double b){ double r=a-b*floortol(a/b); return cmpfft(r,0.0)==0?0.0:r; }
-static inline float  mode(float a, float b){ float r=a-b*(float)floortolf((double)a/(double)b); return cmpffte((double)r,0.0)==0?0.0f:r; }
+static inline double modd(double a, double b){ double r=fmod(a,b); if(r&&((r<0)!=(b<0))) r+=b; return r; }
+static inline float  mode(float a, float b){ float r=fmodf(a,b); if(r&&((r<0)!=(b<0))) r+=b; return r; }
 /* rotate a vector by OFF: result[i] = x[(i+OFF) mod nx].  Hoist the modulo out
    of the loop into a start offset + wrap counter (ri), replacing a per-element
    idiv (cf. the take cyclic fix).  Guard nx==0: the modulo would divide by zero,
@@ -2157,7 +2138,7 @@ static K groupj(K x) {
     for(i=0;i<nx;i++) {
       pk++;
       h=khash(*pk)&q;
-      if(*pk) while(!h || (hk[h] && kcmprz(hk[h],*pk,0))) h=(h+1)&q;
+      if(*pk) while(!h || (hk[h] && kcmpr(hk[h],*pk))) h=(h+1)&q;
       hk[h]=*pk;
       hm[h]++;
     }
@@ -2165,7 +2146,7 @@ static K groupj(K x) {
     for(i=0;i<nx;i++) {
       pk++;
       h=khash(*pk)&q;
-      if(*pk) while(!h || (hk[h] && kcmprz(hk[h],*pk,0))) h=(h+1)&q;
+      if(*pk) while(!h || (hk[h] && kcmpr(hk[h],*pk))) h=(h+1)&q;
       p=ht[h];
       if(!p) {
         p=tn(8,hm[h]);
@@ -2403,7 +2384,7 @@ K group(K x) {
     for(i=0;i<nx;i++) {
       pk++;
       h=khash(*pk)&q;
-      if(*pk) while(!h || (hk[h] && kcmprz(hk[h],*pk,0))) h=(h+1)&q; /* h=0 iff *s=0 */
+      if(*pk) while(!h || (hk[h] && kcmpr(hk[h],*pk))) h=(h+1)&q; /* h=0 iff *s=0 */
       hk[h]=*pk;
       hm[h]++;
     }
@@ -2411,7 +2392,7 @@ K group(K x) {
     for(i=0;i<nx;i++) {
       pk++;
       h=khash(*pk)&q;
-      if(*pk) while(!h || (hk[h] && kcmprz(hk[h],*pk,0))) h=(h+1)&q; /* h=0 iff *s=0 */
+      if(*pk) while(!h || (hk[h] && kcmpr(hk[h],*pk))) h=(h+1)&q; /* h=0 iff *s=0 */
       p=ht[h];
       if(!p) {
         p=tn(1,hm[h]);
@@ -2754,7 +2735,7 @@ K unique(K x) {
     for(i=0;i<nx;i++) {
       pxk++;
       h=khash(*pxk)&q;
-      while(hk[h] && kcmprz(hk[h],*pxk,0)) h=(h+1)&q;
+      while(hk[h] && kcmpr(hk[h],*pxk)) h=(h+1)&q;
       if(!hk[h]) hk[h]=prk[j++]=k_(*pxk);
     }
     nr=j;
@@ -2883,9 +2864,6 @@ K count(K x) {
   return c>BIGV?tj((i64)c):t(1,(u32)c);
 }
 
-/* floor with comparison tolerance: if x is tolerantly equal to the next integer up
-   (i.e. tolerantly equal to but actually less than it), floor to that integer. Keeps
-   `_` consistent with =/</> (cmpfft) per the K manual; exact floor is `_floor`. */
 /* `_` (floor verb) float->long support.  promotej: a floored double promotes to
    a long iff it is finite AND lands outside int32 but inside int64 range, i.e.
    it is losslessly representable as a long.  +-inf, NaN, and beyond-int64
@@ -2913,26 +2891,26 @@ K floor__(K x) {
   case  1: r=x; break;
   case  8: r=k_(x); break;
   case  2:
-    f=floortol(fk(x));
+    f=floor(fk(x));
     if(promotej(f)) r=tj((i64)f);                            /* finite, fits long not int */
     else r=t(1,(u32)(f>=INT32_MAX?INT32_MAX:(f!=f||f<INT32_MIN)?INT32_MIN:(i32)f));
     break;
   case  9:
-    f=floortolf((double)ek(x));
+    f=floor((double)ek(x));
     if(promotej(f)) r=tj((i64)f);
     else r=t(1,(u32)(f>=INT32_MAX?INT32_MAX:(f!=f||f<INT32_MIN)?INT32_MIN:(i32)f));
     break;
   case -1: r=k_(x); break;
   case -8: r=k_(x); break;
   case -2: { int needj=0; PXF;
-    i(nx,if(promotej(floortol(pxf[i]))){needj=1;break;})
-    if(needj) { r=tn(8,nx); prj=(i64*)px(r); i(nx,prj[i]=ftoj(floortol(pxf[i]))) }
-    else { PRI(nx); i(nx,f=floortol(pxf[i]); pri[i]=(f!=f||f>=INT32_MAX||f<INT32_MIN)?(f>=INT32_MAX?INT32_MAX:INT32_MIN):(i32)f) }
+    i(nx,if(promotej(floor(pxf[i]))){needj=1;break;})
+    if(needj) { r=tn(8,nx); prj=(i64*)px(r); i(nx,prj[i]=ftoj(floor(pxf[i]))) }
+    else { PRI(nx); i(nx,f=floor(pxf[i]); pri[i]=(f!=f||f>=INT32_MAX||f<INT32_MIN)?(f>=INT32_MAX?INT32_MAX:INT32_MIN):(i32)f) }
     } break;
   case -9: { int needj=0; PXE;
-    i(nx,if(promotej(floortolf((double)pxe[i]))){needj=1;break;})
-    if(needj) { r=tn(8,nx); prj=(i64*)px(r); i(nx,prj[i]=ftoj(floortolf((double)pxe[i]))) }
-    else { PRI(nx); i(nx,f=floortolf((double)pxe[i]); pri[i]=(f!=f||f>=INT32_MAX||f<INT32_MIN)?(f>=INT32_MAX?INT32_MAX:INT32_MIN):(i32)f) }
+    i(nx,if(promotej(floor((double)pxe[i]))){needj=1;break;})
+    if(needj) { r=tn(8,nx); prj=(i64*)px(r); i(nx,prj[i]=ftoj(floor((double)pxe[i]))) }
+    else { PRI(nx); i(nx,f=floor((double)pxe[i]); pri[i]=(f!=f||f>=INT32_MAX||f<INT32_MIN)?(f>=INT32_MAX?INT32_MAX:INT32_MIN):(i32)f) }
     } break;
   case  0: r=irecur1(floor__,x); break;
   default: return KERR_TYPE;

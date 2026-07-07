@@ -101,16 +101,16 @@ i32* rcsortg8(i32 *g, i64 *a, u32 n, i32 down) {
 }
 
 /* ---- O(n) radix grade for floats (f32 type 9, f64 type 2) -----------------
-   Grade (`<`/`>`) on floats uses the EXACT comparator cmpffx (k.h), whose total
+   Grade (`<`/`>`) on floats uses the (exact) comparator cmpfft (k.h), whose total
    order is: NaN < -inf < negatives < +-0 < positives < +inf, with all NaNs equal.
    That is a total order on bit patterns once we map each float to an unsigned key:
 
      - flip the sign bit on a non-negative value, or flip ALL bits on a negative
        one.  This makes the IEEE bit pattern compare correctly as an unsigned int
        (negatives, in reverse bit order, sort below positives).
-     - NaN: cmpffx ties all NaNs at the very bottom, but the raw transform would
+     - NaN: cmpfft ties all NaNs at the very bottom, but the raw transform would
        split them by sign, so force key 0 (below -inf's key) for any NaN.
-     - +-0: cmpffx ties -0 and +0 (cmpff uses < / >), so normalize -0 to +0 before
+     - +-0: cmpfft ties -0 and +0 (cmpff uses < / >), so normalize -0 to +0 before
        transforming, otherwise -0's key would land just below +0's.
 
    The radix is a stable LSD counting sort over 16-bit digits (2 passes for the

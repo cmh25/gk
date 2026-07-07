@@ -228,8 +228,7 @@ K ki(i32 i, K a, K x, i64 ai, i64 xi) {
 }
 
 extern i32 kcmprcb(K a, K x);
-/* tol: 1=use float tolerance, 0=exact comparison */
-i32 kcmprz(K a, K x, i32 tol) {
+i32 kcmpr(K a, K x) {
   i32 r=0,*pai,*pxi;
   double *paf,*pxf;
   char *pac,*pxc,**pas,**pxs;
@@ -254,8 +253,8 @@ i32 kcmprz(K a, K x, i32 tol) {
     else if(ta==1 && ik(a)>ik(x)) r=1;
     else if(ta==8 && jk(a)<jk(x)) r=-1;
     else if(ta==8 && jk(a)>jk(x)) r=1;
-    else if(ta==9) r=tol?cmpffte(ek(a),ek(x)):cmpffx(ek(a),ek(x));
-    else if(ta==2) r=tol?cmpfft(fk(a),fk(x)):cmpffx(fk(a),fk(x));
+    else if(ta==9) r=cmpfft(ek(a),ek(x));
+    else if(ta==2) r=cmpfft(fk(a),fk(x));
     else if(ta==3 && ck(a)<ck(x)) r=-1;
     else if(ta==3 && ck(a)>ck(x)) r=1;
     else if(ta==4) r=strcmp(sk(a),sk(x));
@@ -285,7 +284,7 @@ i32 kcmprz(K a, K x, i32 tol) {
         if(i==na && i<nx) { r=-1; break; }
         if(i==nx && i<na) { r= 1; break; }
         if(i==na) break;
-        r=tol?cmpffte(pae[i],pxe[i]):cmpffx(pae[i],pxe[i]);
+        r=cmpfft(pae[i],pxe[i]);
         if(r) break;
       }
     }
@@ -295,7 +294,7 @@ i32 kcmprz(K a, K x, i32 tol) {
         if(i==na && i<nx) { r=-1; break; }
         if(i==nx && i<na) { r= 1; break; }
         if(i==na) break;
-        r=tol?cmpfft(paf[i],pxf[i]):cmpffx(paf[i],pxf[i]);
+        r=cmpfft(paf[i],pxf[i]);
         if(r) break;
       }
     }
@@ -341,10 +340,6 @@ i32 kcmprz(K a, K x, i32 tol) {
   }
   xfree(stack);
   return r;
-}
-
-i32 kcmpr(K a, K x) {
-  return kcmprz(a,x,1); /* use tolerance */
 }
 
 extern K kcpcb(K x);

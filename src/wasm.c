@@ -34,7 +34,7 @@ EMSCRIPTEN_KEEPALIVE void gk_init(void) {
   ipc_init_ns();
   wasm = 1;   /* no interactive error subconsole in a browser tab (no stdin) */
   /* The startup banner (same as main.c). To stdout so it shows in the REPL output. */
-  printf("gk-v3.0.0 Copyright (c) 2023-2026 Charles Hall\n\n");
+  printf("gk-v4.0.0 Copyright (c) 2023-2026 Charles Hall\n\n");
 }
 
 /* An eval error opens gk's interactive `>` debug subconsole IN PLACE (p.c:312-317:

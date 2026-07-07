@@ -1,5 +1,4 @@
-/ reshape 0N dimension inference and floor _ with
-/ comparison tolerance
+/ reshape 0N dimension inference; floor _ and float comparison are exact (no fp tolerance)
 
 / --- 0N k # x : rows of width k, count inferred, last row ragged ---
 0N 2#"asdf1234"
@@ -22,7 +21,7 @@
 .[#;(2 -1;"asdf1234");:]
 .[#;(0N 0;"asdf");:]
 
-/ --- the floor verb _ uses comparison tolerance (consistent with =,<,>); the floor builtin stays exact ---
+/ --- the floor verb _ is EXACT
 _1.9999999999999
 _1.999999999999
 _2.0000000000001
@@ -30,16 +29,16 @@ _-2.0000000000001
 _1.9999999999999 2.9999999999999 3.5
 _3.7
 _-4.6
-/ floor is now consistent with = (both tolerant)
+/ = is exact too (no fp comparison tolerance)
 2=1.9999999999999
 2=1.999999999999
 
-/ --- f32 (real) gets its own (f32-grade) comparison + floor tolerance ---
-/ round-off masked: (sqrt 2.0e)^2 is 1 ULP off 2.0e but compares/floors as 2
+/ --- f32 (real): comparison and floor both exact ---
+/ (sqrt 2.0e)^2 is 1 ULP off 2.0e: = says different, _ floors to 1
 ((sqrt 2.0e)*sqrt 2.0e)=2.0e
 _(sqrt 2.0e)*sqrt 2.0e
 2.0e~(sqrt 2.0e)*sqrt 2.0e
-/ but distinct f32 values stay distinct (~5-6 sig digits kept)
+/ distinct f32 values stay distinct
 1.0e=1.0001e
 1.0e=1.00001e
 1.0e=1.000001e

@@ -80,7 +80,7 @@ int main(int argc, char **argv) {
   setvbuf(stderr, NULL, _IONBF, 0);  /* glibc has this by default; Windows pipes
     don't -- without it, buffered stderr (prompts/errors) races the unbuffered
     stdout (results) and the merged transcript reorders intermittently */
-  if(!quiet) fprintf(stderr, "gk-v3.0.0 Copyright (c) 2023-2026 Charles Hall\n\n");
+  if(!quiet) fprintf(stderr, "gk-v4.0.0 Copyright (c) 2023-2026 Charles Hall\n\n");
 #ifdef _WIN32
   SetConsoleCtrlHandler(ctlc,TRUE);
 #else

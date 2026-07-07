@@ -1,4 +1,4 @@
-/ bin/binl: binary search (K2 _bin/_binl semantics, validated vs reference)
+/ bin/binl: binary search
 / result = count of items < x: exact hit -> its index, below -> 0, above -> #a
 \e 0
 1 3 5 7 9 bin 5

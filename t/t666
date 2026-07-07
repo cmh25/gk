@@ -15,7 +15,7 @@
 / --- divisor -1 -> always 0 (atom and vector; vector path was separately wrong) ---
 5!-1
 5 6!-1
-/ --- floats: floored, sign of divisor, tolerant (1.8!0.2 = 0 not 0.2) ---
+/ --- floats: floored, sign of divisor, EXACT (1.8!0.2 = ~0.2) ---
 5.0!-3.0
 5.0 7.0!-3.0
 1.8 -2.7!0.2

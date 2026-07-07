@@ -141,16 +141,8 @@ static inline i32 cmpff(double a, double x) {
        : (a)>(x) ?  1
        : 0;
 }
-#define GK_EPSILON 1e-13
-static inline i32 cmpffe(double a, double b) {
-  double da = a - b;
-  //double tol = GK_EPSILON * fabs(a + b);
-  double tol = GK_EPSILON * fmax(fabs(a + b), 1.0);
-
-  return (da >  tol) ?  1
-       : (da < -tol) ? -1
-       : 0;
-}
+/* total-order float comparison: NaN < -inf < finite < +inf.  exact -- fp
+   comparison tolerance removed, so =,<,>,~ agree with find/group/grade */
 static inline i32 cmpfft(double a, double b) {
   if(isnan(a) && !isnan(b)) return -1;
   if(isnan(b) && !isnan(a)) return  1;
@@ -164,56 +156,7 @@ static inline i32 cmpfft(double a, double b) {
   if(isinf(a)) return signbit(a) ? -1 : 1;
   if(isinf(b)) return signbit(b) ? 1 : -1;
 
-  return cmpffe(a,b);
-}
-
-/* f32 comparison tolerance. cmpfft's GK_EPSILON (1e-13) is a double-grade slack;
-   applied to f32 values widened to double it is far too tight to mean anything
-   (f32's ULP near 1.0 is ~1.2e-7), so f32 =,<,>,~,find,floor effectively compared
-   exactly. GK_EPSILON_F is a single-precision slack (~16 ULP, ~1.9e-6 relative): it
-   masks round-off (a few ULP, e.g. (sqrt 2.0e)^2 = 2.0e) while keeping ~5-6
-   significant digits distinct (1.0e != 1.0001e). Used wherever an operand is f32
-   (type 9/-9). Tunable: matching f64's ULP-slack would be ~450*FLT_EPSILON, but that
-   reaches the 4th decimal which is too coarse for a 7-digit type. */
-#define GK_EPSILON_F (16.0 * FLT_EPSILON)
-static inline i32 cmpffef(double a, double b) {
-  double da = a - b;
-  double tol = GK_EPSILON_F * fmax(fabs(a + b), 1.0);
-  return (da >  tol) ?  1
-       : (da < -tol) ? -1
-       : 0;
-}
-static inline i32 cmpffte(double a, double b) {
-  if(isnan(a) && !isnan(b)) return -1;
-  if(isnan(b) && !isnan(a)) return  1;
-  if(isnan(a) &&  isnan(b)) return  0;
-
-  if(isinf(a) && isinf(b)) {
-    if(signbit(a) && !signbit(b)) return -1;
-    if(!signbit(a) && signbit(b)) return  1;
-    return 0;
-  }
-  if(isinf(a)) return signbit(a) ? -1 : 1;
-  if(isinf(b)) return signbit(b) ? 1 : -1;
-
-  return cmpffef(a,b);
-}
-
-/* exact float comparison without tolerance - for group/unique operations */
-static inline i32 cmpffx(double a, double b) {
-  if(isnan(a) && !isnan(b)) return -1;
-  if(isnan(b) && !isnan(a)) return  1;
-  if(isnan(a) &&  isnan(b)) return  0;
-
-  if(isinf(a) && isinf(b)) {
-    if(signbit(a) && !signbit(b)) return -1;  /* -inf < +inf */
-    if(!signbit(a) && signbit(b)) return  1;
-    return 0;
-  }
-  if(isinf(a)) return signbit(a) ? -1 : 1;
-  if(isinf(b)) return signbit(b) ? 1 : -1;
-
-  return cmpff(a,b);  /* exact comparison, no tolerance */
+  return cmpff(a,b);
 }
 
 static inline double fi(i32 x) {
@@ -248,7 +191,6 @@ K t2(double x);
 K tj(i64 x);
 K ki(i32 i, K a, K x, i64 ai, i64 xi);
 i32 kcmpr(K a, K x);
-i32 kcmprz(K a, K x, i32 tol); /* tol: 1=use tolerance, 0=exact */
 K kcp(K x);
 K knorm(K x);
 K kmix(K x);
