@@ -13,7 +13,7 @@
 0j$3.9
 0j$2.0e
 
-/ long rejects non-digits (mirrors int $) -> domain
+/ long takes an optional -, blanks, and 0N/0I spellings
 .[$;(0j;"-5");:]
 .[$;(0j;"1,2");:]
 

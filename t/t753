@@ -1,0 +1,36 @@
+/ 2026-07-13 dot with an EMPTY right argument: two rulings.
+/ DATA: `.` takes a PATH, and an empty path of ANY type is the value
+/ itself (manual p.88/91: d . i is d@/i, and a fold over zero indices
+/ returns the seed; e333j and growler agree).  a . !0 used to convert the
+/ typed empty to its prototype atom and return a@0 -- silently the FIRST
+/ ELEMENT ("ab" . !0 was "a"); !0j accidentally already did the right
+/ thing, () always did.
+1 2 . !0
+1 2 . !0j
+1 2 . 0#0.0
+1 2 . ""
+1 2 . 0#`
+1 2 . ()
+"ab" . !0
+5 . !0
+5 . ()
+(1 2;3 4) . !0
+d:.((`a;7);(`b;8))
+d . !0
+d . 0#`
+d[]
+v3:9 8 7
+`v3 . !0
+/ FUNCTIONS: `.` takes an ARGUMENT LIST, and a typed empty still calls
+/ with that type's PROTOTYPE argument (t647 "prototype conformance",
+/ a . x = a[*x]); the long/real arms were missing -- f . !0j passed the
+/ empty vector itself as the argument.
+f:{1,x}
+f . 0#0
+f . 0#0.0
+f . ""
+f . 0#`
+f . !0j
+f . 0#2.0e
+f . ()
+\\

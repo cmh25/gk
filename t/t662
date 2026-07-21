@@ -180,7 +180,7 @@ db bd 0ne 0ie -0ie
 1.0 2.0e
 1.2 2.0e
 0#1.0 2.0e
-/ long+f32 and pure-f64 literals stay f64
-4:1j 2.0e
+/ `j` cannot be mixed with a float token (see t722); pure-f64 literals stay f64
+@[.;"1j 2.0e";:]
 4:1.0 2.0
 \\

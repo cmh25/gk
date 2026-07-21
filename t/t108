@@ -18,6 +18,6 @@ b
 a:!10
 a@nul
 nul@a
-1@nul
-nul@1
+@[.;"1@nul";:]   / an atom ranks on any index, even nul
+nul@1            / nul is the identity vector: nul@1 is 1
 \\

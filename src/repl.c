@@ -265,11 +265,6 @@ K load(char *fn, int load) {
     f=1; s=0;
     if(EXIT) { break; }
   }
-  D=d0;
-  _k(gs); gs=gs0;
-  _k(cs); cs=cs0;
-  gcache_clear(); /* gs may have changed during load */
-  pfile=pfile0;
   if(EXIT) { e=kerror("abort"); goto cleanup; }
   if(pcount||scount||ccount||qcount) {
     if(!wasm) fprintf(stderr,"load: %s ... + %d\n",fn,newfileline);
@@ -284,6 +279,17 @@ K load(char *fn, int load) {
     i(strlen(b+z+1),putc(' ',stderr)); putc('^',stderr); putc('\n',stderr);
   }
 cleanup:
+  /* EVERY exit runs this restore -- the error paths (bare `\` abort, a parse
+     error, an eval error such as `\\` inside a while) used to jump here PAST
+     it, leaking the cs0/gs0 refs taken at entry (the ks/gs scope tuples then
+     survived exit__'s teardown -- valgrind flagged them still-reachable on
+     t726) and leaving the CALLER in the loaded script's namespace when a \l
+     failed after a \d. */
+  D=d0;
+  _k(gs); gs=gs0;
+  _k(cs); cs=cs0;
+  gcache_clear(); /* gs may have changed during load */
+  pfile=pfile0;
   scope_restore_z_filepath(zfp0);
   fclose(fp);
   fileline=fileline0;

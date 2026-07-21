@@ -9,16 +9,15 @@ show0:{[t]                           / show
  l:+,$!j                             / labels
  m:1 -1(4:'t[])lin 0 -4              / data justifications
  n:(|/#')'{x,y}'[l;k]                / widths
- l:" ",//(-n)$l                      / padded labels
- k:" ",//(m*n)$k                     / padded data
- o:+," ",/n#\"-"                     / separators
+ l:" ",''(-n)$l                      / padded labels
+ k:" ",''(m*n)$k                     / padded data
+ o:+," ",'n#'"-"                     / separators
  p:&-2=4:'t[]                        / where float
- p@:&{|/"."in/x}'k p                 / where decimals
+ p@:&(|/"."in')'k p                  / where decimals
  q:(*&)''"."=k p                     / where decimals in
- r:q-&/'q dv\0                       / rotation matrix
- k:.[k;(p;);{y!x};r]                 / align on decimals
- t:{x,y,z}'[l;o;k]                   / pre result
- s:{,/t[;x]}'!#*t                    / result
+ r:q-&/'q dv'0                       / rotation matrix
+ k[p]:r!''k p                        / align on decimals
+ s:,'/l,'o,'k                        / result
  s}                                  / matrix
 
 show:{`0:,," ";{`0:x,,,"\n"}$[~(4:x)in 0 5;,5:x;5 5~4:'x;{x,'" ",'@[(#x)#"|";1;:;"+"],'y}. show0'x;show0 x]}

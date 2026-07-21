@@ -1,0 +1,32 @@
+/ 2026-07-13 rulings (match e333j):
+/ (1) a one-item fold is *y, f NEVER applied (K2 p.132) -- %/,-19 was
+/ float-converting the untouched item;
+/ (2) empty#empty yields the PROTOTYPE of the right argument (numeric
+/ arms used to give nul; char/sym were already right).
+%/,-19
+%/-19
+%\,-19
+%\-19
+%/,2.5
+%/2 4
+^/,5
+-/,7j
+()#!0
+()#0#0.0
+()#!0j
+()#0#2.0e
+()#0#" "
+()#0#`
+(0#0.0)#!0
+(!0)#0#0j
+()#"abc"
+()#`x`y
+(0#0.0)#(1 2;3 4)
+!0j
+4:!0j
+/ khash hash=eq for +-0.0 ATOMS in general lists (the hmul upgrade
+/ briefly split them: bits differ, kcmpr says equal)
+=(0.0;-0.0;5)
+?(0.0;-0.0;5)
+=(1.0 -0.0;1.0 0.0;2)
+\\

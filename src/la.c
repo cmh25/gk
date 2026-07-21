@@ -256,11 +256,38 @@ static inline int la_dimoversize(u64 rows, u64 cols) {
   return rows > (u64)INT32_MAX || cols > (u64)INT32_MAX;
 }
 
+/* deep copy widening int -> float64 as well (la_widen leaves int alone).
+   Used when a matrix has MIXED int/f64 rows: lsq transposes its design
+   matrix, and mixed rows flip to general-list columns, so make the rows
+   uniform f64 first. */
+static K la_widen_int(K x) {
+  K r; double *pr;
+  if(!x||s(x)) return k_(x);
+  i8 t=T(x);
+  if(t==1) return t2(fi(ik(x)));
+  if(t==-1) { r=tn(2,n(x)); pr=px(r); int *pi=px(x); i(n(x),pr[i]=fi(pi[i])) return r; }
+  if(t==0) { r=tn(0,n(x)); K *prk=px(r),*pp=px(x); i(n(x),prk[i]=la_widen_int(pp[i])) return r; }
+  return k_(x);
+}
+
+/* rows all -1/-2 but not all the SAME type? (the transpose would produce
+   type-0 columns) */
+static int la_mixedrows(K x) {
+  if(!x||s(x)||T(x)!=0||!n(x)) return 0;
+  K *p=px(x); i8 t0=T(p[0]);
+  if(t0!=-1&&t0!=-2) return 0;
+  int mix=0;
+  i(n(x), { i8 t=T(p[i]); if(t!=-1&&t!=-2) return 0; if(t!=t0) mix=1; })
+  return mix;
+}
+
 K lsq_(K a, K x) {
   { int _f=la_tflags(a)|la_tflags(x); if(_f&3) {
       K _a=la_widen(a), _x=la_widen(x); K _r=lsq_(_a,_x); _k(_a); _k(_x);
       if(E(_r) || !((_f&1)&&!(_f&6))) return _r;
       K _q=la_narrow(_r); _k(_r); return _q; } }
+  if(la_mixedrows(x)) {
+    K _x=la_widen_int(x); K _r=lsq_(a,_x); _k(_x); return _r; }
   K e=0, svdres=0, *psv, U=0, S=0, V=0, Sinv=0, Ut=0, Uy=0, Su=0, Vy=0, r=0, t=0;
   u64 i,j,n;
 
@@ -736,7 +763,9 @@ K lu_(K x) {
       for(j=0;j<m;j++) p[j]=NAN;
       ((K*)px(P))[i]=row;
     }
-    pr[0]=L; pr[1]=U; pr[2]=P;
+    pr[0]=k(1,0,P); pr[1]=L; pr[2]=U;  /* (+P;L;U), matching the normal path
+      below and the documented contract -- the old (L;U;P) order silently
+      returned wrongly-SHAPED slots for a non-square matrix and corrupted ldu */
     goto cleanup;
   }
 

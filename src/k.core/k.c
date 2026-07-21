@@ -21,6 +21,30 @@ K k(i32 i, K a, K x) {
   K r=0;
   if(a) { /* dyad */
     if(!x) { _k(a); return KERR_TYPE; }
+    /* inline int-atom arithmetic/compare: FD[1..10] except % on two plain
+       int atoms mirror the primitives' ta==1/tx==1 cases exactly -- PMT's
+       u32 wrap (+ - *), mamo's pick-a-or-x (& |), lme's signed icmp
+       (< > =), and match's value equality (~; two like-typed immediates
+       are equal iff bit-equal).  Immediate atoms need no _k, so skip the
+       dispatch chain and the primitives' prologues.  % stays on the
+       dispatch path (float result, div-by-zero semantics).  Any other
+       type/subtype falls through unchanged.  Revert = delete. */
+    if((u32)(i-1)<3u && (a>>48)==0x100 && (x>>48)==0x100) {
+      u32 va=(u32)a, vx=(u32)x;
+      return t(1, 1==i ? va+vx : 2==i ? va-vx : va*vx);
+    }
+    if((u32)(i-5)<8u && 11!=i && (a>>48)==0x100 && (x>>48)==0x100) {
+      i32 sa=(i32)(u32)a, sx_=(i32)(u32)x;
+      switch(i) {
+      case  5: return sa<sx_?a:x;         /* & min */
+      case  6: return sa>sx_?a:x;         /* | max */
+      case  7: return t(1,(u32)(sa<sx_)); /* < */
+      case  8: return t(1,(u32)(sa>sx_)); /* > */
+      case  9: return t(1,(u32)(sa==sx_));/* = */
+      case 12: return t(1,(u32)modi(sa,sx_)); /* ! mod: modrot's own modi (v.h) */
+      default: return t(1,(u32)(a==x));   /* ~ match */
+      }
+    }
     if(i>31&&i<64) r=each(i-32,a,x); /* a+'x */
     else if(i>63&&i<96) r=eachright(i-64,a,x); /* a+/x */
     else if(i>95&&i<128) r=eachleft(i-96,a,x); /* a+\x */
@@ -165,6 +189,9 @@ K tj(i64 x) {
 
 extern i32 maxr;            /* eval depth cap (kinit lowers it under ASAN/wasm) */
 extern int stack_lowcb(void); /* RSP stack guard, same as the eval sites */
+#ifdef FUZZING
+extern long gk_budget;      /* per-eval loop budget (p.c); reset in repl.c */
+#endif
 K ki(i32 i, K a, K x, i64 ai, i64 xi) {
   K r=0,*pak,*pxk,a_=0;
   char *pac,*pxc,**pas,**pxs;
@@ -244,6 +271,11 @@ i32 kcmpr(K a, K x) {
     x=f->x;
 
     if(a==x) { --sp; continue; } /* identical tagged word: same heap object or same inline atom -> equal (r stays 0); skips full element walk, e.g. converge fixed-point match(v,v) */
+    if(!a) a=t(6,0);  /* empty keeper slot: the null atom, as kcp reads it.
+       The literal (==null, k.c:16) rather than the global: it lets the static
+       analyzer compute T()==6 and prove the word never reaches the ta==0
+       deref arm, which the unknown-valued global does not. */
+    if(!x) x=t(6,0);
     if(s(a)||s(x)) r=kcmprcb(a,x);
     else if(aa<ax) r=-1;
     else if(aa>ax) r= 1;
@@ -320,11 +352,22 @@ i32 kcmpr(K a, K x) {
       }
     }
     else if(ta==0) {
-      if(na!=nx) { r=(na<nx)?-1:1; break; }
       PAK; PXK;
-      if(f->i==na) { --sp; continue; }
+      /* element-first, length only as the tiebreak -- exactly as every
+         flat-vector arm above.  The old `if(na!=nx)` upfront short-circuit
+         ordered RAGGED nested lists by length, so `<((1 2;9);(1 2;3;4))`
+         came out length-first (0 1) instead of element-first (1 0). */
+      u64 mn = na<nx?na:nx;
+      if(f->i==mn) {
+        if(na<nx) r=-1;
+        else if(na>nx) r=1;
+        else { --sp; continue; }   /* common prefix exhausted, equal length: equal */
+        break;
+      }
       K ai=pak[f->i],xi=pxk[f->i];
       ++f->i;
+      if(!ai) ai=t(6,0);  /* empty keeper slot (see top of loop) */
+      if(!xi) xi=t(6,0);
       if(s(ai)||s(xi)) {
         r=kcmprcb(ai,xi);
         if(r) break;
@@ -470,7 +513,7 @@ K kresize(K x, i64 n) {
   case -2: k->v=xrealloc(k->v,n*sizeof(double)); break;
   case -8: k->v=xrealloc(k->v,n*sizeof(i64)); break;
   case -9: k->v=xrealloc(k->v,n*sizeof(float)); break;
-  case -3: k->v=xrealloc(k->v,n); break;
+  case -3: k->v=xrealloc(k->v,n+1); ((char*)k->v)[n]=0; break;
   case -4: k->v=xrealloc(k->v,n*sizeof(char*)); break;
   case  0: k->v=xrealloc(k->v,n*sizeof(K)); break;
   }
@@ -489,18 +532,45 @@ u64 khash(K x) {
   double *pxf,f;
   char *pxc,**pxs;
   static i32 d=0;
+  /* Empty slots are real: parser keeper nodes (0xd0 and friends) carry NULL in
+     unfilled channels, and khashcb strips such a node to its payload and hands
+     it back here as a plain general list.  NULL reads as t0/no-subtype, so the
+     case-0 walk used to push it and then deref it via n(x_).  Read it as null,
+     the same substitution kcp makes, so a keeper still hashes and compares
+     equal to its copy. */
+  if(!x) x=null;
   if(++d>maxr || (!(d&7)&&stack_lowcb())) { --d; return KERR_STACK; }
-  if(s(x)) { --d; return khashcb(x); }
+#ifdef FUZZING
+  /* Per-top-level-call node budget (reset on the outermost entry, d==1).  It
+     bounds a single khash over a shared/cyclic DAG -- exponential-but-finite to
+     walk (a converge builds one cheaply, e.g. (,?,)''/ ) -- WITHOUT the
+     cross-call non-determinism a global budget caused: a global one, spent
+     across the many khash calls of one group/in/unique, made an equal value
+     hash to its real slot before exhaustion and to KERR_STACK after, so the
+     count and probe passes disagreed (a group() heap overflow).  Resetting per
+     call makes khash a pure function of its argument again -- the "tolerate any
+     u64, resolve by kcmpr" contract holds because equal values now always hash
+     alike within an operation. */
+  static long khash_budget;
+  if(d==1) khash_budget=1000000L;
+#endif
+  /* hold d ACROSS the callback: khashcb re-enters khash for the subtype's
+     payload, so releasing the depth first made the mutual recursion run at a
+     constant d -- neither the depth guard nor the budget (reset on d==1) could
+     ever fire, and a cyclic subtyped value blew the stack. */
+  if(s(x)) { r=khashcb(x); --d; return r; }
   switch(tx) {
-  case  1: r=r+(u64)(u32)ik(x)*2654435761U; break;
-  case  2: f=fk(x); memcpy(&bits,&f,8); r=r+bits*2654435761U; break;
-  case  8: r=r+(u64)jk(x)*2654435761U; break;
-  case  9: ef=ek(x); memcpy(&fb,&ef,4); r=r+(u64)fb*2654435761U; break;
-  case  3: r=r+(u64)ck(x)*2654435761U; break;
+  case  1: r=r+hmul((u32)ik(x)); break;
+  case  2: f=fk(x); if(f==0) f=0.0; /* -0.0 = 0.0 but bits differ: hash=eq */
+           memcpy(&bits,&f,8); r=r+hmul(bits); break;
+  case  8: r=r+hmul((u64)jk(x)); break;
+  case  9: ef=ek(x); if(ef==0) ef=0.0f;
+           memcpy(&fb,&ef,4); r=r+hmul((u64)fb); break;
+  case  3: r=r+hmul((u64)ck(x)); break;
   case  4: r=r+xfnv1a(sk(x),strlen(sk(x))); break;
   case  6: case 10: break;
   case  0: {
-    if(s(x)) { --d; return khashcb(x); }
+    if(s(x)) { r=khashcb(x); --d; return r; }
     typedef struct { K x; u64 h; size_t i; } sf;
     i32 sm=32,sp=0;
     sf *stack=xmalloc(sizeof(sf)*sm);
@@ -514,6 +584,14 @@ u64 khash(K x) {
       while(i<n) {
         K xi=pxk[i];
         i8 t=T(xi);
+#ifdef FUZZING
+        /* Charge the per-call node budget (see entry); bail like the depth
+           guard (KERR_STACK as the hash -- unique/group tolerate any u64 and
+           compare on collision, and the budget resets per call so equal values
+           bail identically). */
+        if(--khash_budget<0) { xfree(stack); --d; return KERR_STACK; }
+#endif
+        if(!xi) { xi=null; t=T(xi); }  /* empty keeper slot (see entry) */
         if(t==0 && !s(xi)) {
           if(sp==sm) stack=xrealloc(stack,sizeof(sf)*(sm*=2));
           stack[sp-1].i=i;
@@ -531,11 +609,12 @@ u64 khash(K x) {
     xfree(stack);
     break;
   }
-  case -1: PXI; i(nx,r^=r+(u64)(u32)pxi[i]*2654435761U) break;
-  case -2: PXF; i(nx,memcpy(&bits,&pxf[i],8); r^=r+bits*2654435761U) break;
-  case -8: PXJ; i(nx,r^=r+(u64)pxj[i]*2654435761U) break;
-  case -9: PXE; i(nx,memcpy(&fb,&pxe[i],4); r^=r+(u64)fb*2654435761U) break;
-  case -3: PXC; i(nx,r^=r+(u64)pxc[i]*2654435761U) break;
+  case -1: PXI; i(nx,r^=r+hmul((u32)pxi[i])) break;
+  case -2: PXF; i(nx,f=pxf[i]; if(f==0) f=0.0; memcpy(&bits,&f,8); r^=r+hmul(bits)) break;
+  case -8: PXJ; i(nx,r^=r+hmul((u64)pxj[i])) break;
+  case -9: PXE; i(nx,ef=pxe[i]; if(ef==0) ef=0.0f; memcpy(&fb,&ef,4); r^=r+hmul((u64)fb)) break;
+  case -3: PXC; r=r+xfnv1a(pxc,nx); break; /* per-char r^=r+hmul(c) mixed
+    too weakly: grouping 100k digit strings probed quadratically */
   case -4: PXS; i(nx,r^=r+xfnv1a(pxs[i],strlen(pxs[i]))) break;
   default:
     fprintf(stderr,"error: unsupported type in khash()\n");

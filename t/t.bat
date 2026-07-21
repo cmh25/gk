@@ -20,11 +20,16 @@ goto end
 
 :run
 if "%1"=="" exit /b
-if "%mode%"=="stdin" (..\gk < t%1 > %1 2>NUL) else (..\gk t%1 > %1 2>NUL)
+if "%mode%"=="stdin" (..\gk < t%1 > %1 2>e%1) else (..\gk t%1 > %1 2>e%1)
+set grc=!errorlevel!
 ..\ndiff r%1 %1 > d%1 2>&1
-if "%errorlevel%"=="0" (
+set drc=!errorlevel!
+set fail=0
+if not "!grc!"=="0" set fail=1
+if not "!drc!"=="0" set fail=1
+if "!fail!"=="0" (
     echo t%1: pass
-    del %1 d%1
+    del %1 d%1 e%1
 ) else (
     set /a ec+=1
     echo t%1: fail *****

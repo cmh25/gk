@@ -132,31 +132,28 @@ static inline K k_(K x) {
 #define VSIZE(x) do { i64 vsz_=(i64)(x); if(vsz_<0||vsz_==INT32_MAX||vsz_>=VMAX) return KERR_WSFULL; } while(0);
 #endif
 
-/* floating point comparision */
-static inline i32 cmpff(double a, double x) {
-  return isnan(a) && !isnan(x) ? -1
-       : isnan(x) && !isnan(a) ?  1
-       : isnan(a) && isnan(x)  ?  0
-       : (a)<(x) ? -1
-       : (a)>(x) ?  1
-       : 0;
-}
-/* total-order float comparison: NaN < -inf < finite < +inf.  exact -- fp
-   comparison tolerance removed, so =,<,>,~ agree with find/group/grade */
+/* cmpfft below decides NaN and +-inf ordering from bare IEEE comparisons.
+   -ffast-math (gcc/clang) and /fp:fast (MSVC) let the compiler assume no NaN
+   is ever present, which folds `a!=a` to 0 and silently mis-sorts NaN. */
+#if defined(__FAST_MATH__) || defined(_M_FP_FAST)
+#error "gk requires IEEE NaN/inf semantics: build without -ffast-math / /fp:fast"
+#endif
+
+/* total-order float comparison: NaN < -inf < finite < +inf. */
 static inline i32 cmpfft(double a, double b) {
-  if(isnan(a) && !isnan(b)) return -1;
-  if(isnan(b) && !isnan(a)) return  1;
-  if(isnan(a) &&  isnan(b)) return  0;
+  return ((b!=b)-(a!=a)) + ((a>b)-(a<b));
+}
 
-  if(isinf(a) && isinf(b)) {
-    if(signbit(a) && !signbit(b)) return -1;  /* -inf < +inf */
-    if(!signbit(a) && signbit(b)) return  1;
-    return 0;
-  }
-  if(isinf(a)) return signbit(a) ? -1 : 1;
-  if(isinf(b)) return signbit(b) ? 1 : -1;
-
-  return cmpff(a,b);
+/* hash-table index mixer (murmur3 finalizer).  A bare multiplicative hash
+   ((v*2654435761)&q) keeps only LOW product bits, which depend only on the
+   input's low bits -- and whole data classes have constant low bits
+   (integer-valued doubles: zero low mantissa, so =5.0-!100000 put every
+   element in one slot, a quadratic fuzz hang; stride-2^k ints/longs).
+   hmul(0)=0, which group/unique rely on for their "value 0 rests in
+   slot 0" convention. */
+static inline u64 hmul(u64 v) {
+  v ^= v>>33; v *= 0xff51afd7ed558ccdULL; v ^= v>>29;
+  return v;
 }
 
 static inline double fi(i32 x) {
@@ -176,6 +173,24 @@ static inline double fj(i64 x) {
   if(x == J_NULL)  return NAN;
   if(x == J_NINF)  return -INFINITY;
   return (double)x;
+}
+
+/* i32 -> i64 widening, sentinel-aware: 0N->0Nj, 0I->0Ij, -0I->-0Ij (the
+   width-conversion analog of fi(); a plain cast would turn 0N into the
+   ordinary long -2147483648). */
+static inline i64 ji(i32 x) {
+  if(x == INT32_MAX)    return J_INF;
+  if(x == INT32_MIN)    return J_NULL;
+  if(x == INT32_MIN+1)  return J_NINF;
+  return (i64)x;
+}
+
+/* i32 -> f32 widening, sentinel-aware (mirrors fi) */
+static inline float ei(i32 x) {
+  if(x == INT32_MAX)    return (float)INFINITY;
+  if(x == INT32_MIN)    return (float)NAN;
+  if(x == INT32_MIN+1)  return -(float)INFINITY;
+  return (float)x;
 }
 
 extern i32 precision;

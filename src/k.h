@@ -67,6 +67,9 @@ void kinit(void);
 const char* kprint_(K x, char *s, char *e, char *s0);
 void kprint(K x, char *s, char *e, char *s0);
 i32 kreserved(char *p);
+i32 kreserved_n(void);     /* number of reserved names (RTAB, k.c) */
+char *kreserved_i(i32 i);  /* i-th reserved name, interned */
+K kreserved_val(char *p);  /* the value a reserved name denotes; 0 if not reserved */
 K val(K x);
 K kamendi3(K d, K i, K f);
 K kamendi4(K d, K i, K f, K y);

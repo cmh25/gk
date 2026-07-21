@@ -110,7 +110,7 @@ i32* rcsortg8(i32 *g, i64 *a, u32 n, i32 down) {
        (negatives, in reverse bit order, sort below positives).
      - NaN: cmpfft ties all NaNs at the very bottom, but the raw transform would
        split them by sign, so force key 0 (below -inf's key) for any NaN.
-     - +-0: cmpfft ties -0 and +0 (cmpff uses < / >), so normalize -0 to +0 before
+     - +-0: cmpfft ties -0 and +0 (native < / >), so normalize -0 to +0 before
        transforming, otherwise -0's key would land just below +0's.
 
    The radix is a stable LSD counting sort over 16-bit digits (2 passes for the

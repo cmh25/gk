@@ -10,7 +10,7 @@ extern K (*FM[FMSIZE])(K);
 
 K plus(K a, K x);
 K minus(K a, K x);
-K times(K a, K x);
+K times_(K a, K x);
 K divide(K a, K x);
 K minand(K a, K x);
 K maxor(K a, K x);
@@ -22,6 +22,7 @@ K dot(K a, K x);
 K modrot(K a, K x);
 K at(K a, K x);
 K find(K a, K x);
+K findr(K a, K x);
 K take(K a, K x);
 K drop(K a, K x);
 K power(K a, K x);
@@ -47,5 +48,11 @@ K floor__(K x);
 K shape(K x);
 K enlist(K x);
 K format(K x);
+
+/* one-line scalar helpers shared by v.c, fuse.c, and the k() dispatch
+   inline (k.c) -- fast paths must call the SAME definitions the verbs do */
+static inline i32 icmp(i32 a,i32 b,i8 op) { return op<0?a<b:op>0?a>b:a==b; }
+static inline i32 jcmp(i64 a,i64 b,i8 op) { return op<0?a<b:op>0?a>b:a==b; }
+static inline i32 modi(i32 a, i32 b){ i32 r; if(!b) return INT32_MIN; if(b==-1) return 0; r=a%b; if(r&&((r<0)!=(b<0))) r+=b; return r; }
 
 #endif /* V_H */

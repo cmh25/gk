@@ -1,0 +1,72 @@
+/ khash/kcmpr on parser keeper nodes: AFL crash (fuzzer01 sig:11, x2),
+/ 2026-07-18.  Two independent defects, both in src/k.core/k.c.
+/
+/ 1. NULL keeper slot.  p.c builds a 0xd0 fixed-dyad keeper as (seed;verb),
+/    and the seed channel can be empty -- `b:(0[])0*` leaves 0xd0(NULL,0xc0'*').
+/    khashcb strips the subtype and hands the payload back to khash as a plain
+/    general list, where NULL reads as t0/no-subtype: the case-0 walk pushed it
+/    and then deref'd it via n(x_) -> SIGSEGV (si_addr 0x0).  khash now folds a
+/    NULL slot in as a constant and kcmpr orders it first, so equal values still
+/    hash alike and collisions still resolve.
+/    The b must be reached THROUGH a list -- a bare `?(b;1;b)` hashes the
+/    keeper by a path that never walked the payload, so the nesting is load-
+/    bearing, not incidental.
+b:(0[])0*
+?(,b;,b;,1)
+/ same shape via a different primitive
+c:(0[])0+
+?(,c;,c;,1)
+/ ordinary values still hash and compare unchanged (positive control)
+?(,1;,1;,2;,1)
+?(1 2;1 2;3 4)
+=(,1;,2;,1)
+(,1;,2)?/(,2;,1)
+/ keeper values keep their identity under match/unique
+b~b
+b~c
+#?(b;c;b)
+/
+/ 2. khash depth guard defeated.  khash released its depth counter BEFORE
+/    calling khashcb (`--d; return khashcb(x)`), but khashcb re-enters khash
+/    for the subtype payload -- so the mutual recursion ran at a constant d and
+/    neither the maxr guard nor the FUZZING node budget (reset on d==1) could
+/    ever fire.  A cyclic/deep subtyped value then blew the C stack at d~4078.
+/    d is now held across the callback.  Deeply nested keeper lists must come
+/    back with a value, not a crash:
+d:,,,,,,,,,,,,,,,,,,,,b
+#?(d;d)
+~[d;d]
+/
+/ 3. `.`` handed out the LIVE root (src/v.c).  ktree is the destination of
+/    every global store, so a value referencing it becomes a cycle the moment
+/    it is assigned -- the tree holds the name that holds the tree, and the
+/    refcount GC can never reclaim it.  Explicit list construction copies a
+/    shared dict, but adverb result collection SHARES, so the live root could
+/    be captured by any of '  \  ''  '/  /'  \'  @'  (43 forms measured) and
+/    stored.  Symptoms: !(*x) recursed to a stack error, and printing flooded
+/    "kprint: type error" (kprint nulls the dict capacity slot across its
+/    transpose, the walk re-enters dcp on that same dict, and dcp requires a
+/    t1 capacity).  `.` now snapshots at the source, which also retired
+/    scope_set_'s `v==ktree` gcopy -- that patch guarded the store side and
+/    could not see a root nested inside a fresh container.
+/    Two alternatives were measured and rejected: (a) giving ktree a refcount
+/    so the generic "copy if shared" tests stop skipping it (ktree->r is 0, a C
+/    global holds it with no reference) BREAKS t257 -- amend's CoW then sees the
+/    tree as shared, copies it, and writes are lost; (b) adding the capture rule
+/    to the adverb result paths fixed 41 of 43 forms but left the seeded-scan
+/    ones, i.e. it needs every present and future adverb to remember.
+/    The snapshot's .k lists the globals that existed when it was taken
+/    (b, c, d above) and NOT x itself -- x's absence is the fix:
+x:.'1#`
+#x
+!(*x)
+!(*x)[`k]
+/ same leak via a lambda result, and via the enlist route that always worked
+y:{.`}'1#0
+!(*y)
+z:,.`
+!(*z)
+/ a global that holds a snapshot is finite and serializable (was wsfull)
+do[8;w:.`]
+0<#bd w
+\\

@@ -11,6 +11,8 @@ static K avdoi(K f, K a, K x, i64 ai, i64 xi, char *av) {
   K r=0,*pak,*pxk,a_=0;
   char *pac,*pxc,**pas,**pxs; i8 Ta,Tx;
   int *pai,*pxi;
+  i64 *paj,*pxj;
+  float *pae,*pxe;
   double *paf,*pxf;
   static int d=0;
   Ta=ta; if(s(a)) { if(!VST(a)) return kerror("type"); Ta=15; }
@@ -23,7 +25,13 @@ static K avdoi(K f, K a, K x, i64 ai, i64 xi, char *av) {
     case -2: PAF; a_=t2(paf[ai]); break;
     case -3: PAC; a_=t(3,(u8)pac[ai]); break;
     case -4: PAS; a_=t(4,pas[ai]); break;
+    case -8: paj=px(a); a_=tj(paj[ai]); break;
+    case -9: pae=px(a); a_=te(pae[ai]); break;
     case  0: PAK; a_=k_(pak[ai]); break;
+    /* an unhandled left type must ERROR, not fall through with a_==0 --
+       that silently dropped the left argument (the -8/-9 gap made
+       `1 2j+/'(1 2;3 4)` fold monadically) */
+    default: --d; return kerror("type");
     }
   }
   if(xi==-1) r=avdo(k_(f),a_,k_(x),av);
@@ -33,6 +41,8 @@ static K avdoi(K f, K a, K x, i64 ai, i64 xi, char *av) {
     case -2: PXF; r=avdo(k_(f),a_,t2(pxf[xi]),av); break;
     case -3: PXC; r=avdo(k_(f),a_,t(3,(u8)pxc[xi]),av); break;
     case -4: PXS; r=avdo(k_(f),a_,t(4,pxs[xi]),av); break;
+    case -8: pxj=px(x); r=avdo(k_(f),a_,tj(pxj[xi]),av); break;
+    case -9: pxe=px(x); r=avdo(k_(f),a_,te(pxe[xi]),av); break;
     case  0: PXK; r=avdo(k_(f),a_,k_(pxk[xi]),av); break;
     default: r=kerror("type");
     }
@@ -101,26 +111,29 @@ static K over_fe(K f, K x, char *av) {
   pq[0]=k_(pxk[0]);
   for(u64 i=1;i<nx;i++) {
     p=pxk[i];
-    if(m==-1&&T(p)<=0) m=n(p);
+    /* !s(p): a subtyped value (dict, lambda, ...) is an ATOM here, like the
+       else-branch below already knew -- letting a dict seed m with its
+       internal slot count made a later genuine vector 'valence for no
+       reason (`{[a;b;c]c}/[0;d;10 20 30]`) */
+    if(m==-1&&T(p)<=0&&!s(p)) m=n(p);
     else if(m>=0&&T(p)<=0&&!s(p)&&m!=(i64)n(p)) { _k(q);  return kerror("valence"); }
-    if(T(p)<0&&!s(p)) { pq[i]=kmix(p); EC(pq[i]); }
+    /* on kmix failure return directly: the shared cleanup does n(p)=0/_k(p),
+       but p still aliases the caller's BORROWED plist element here */
+    if(T(p)<0&&!s(p)) { pq[i]=kmix(p); if(E(pq[i])) { e=pq[i]; _k(q); return e; } }
     else pq[i]=k_(p);
   }
-  if(m==1) r=fe(k_(f),0,k_(x),av);
-  else {
-    p=st(0x81,tn(0,nx)); pp=px(p);
-    r=k_(pxk[0]);
-    pp[0]=null;
-    for(i64 i=0;i<m;i++) {
-      _k(pp[0]); pp[0]=k_(r);
-      j1(nx,pp[j]=T(pq[j])>0||s(pq[j])?pq[j]:((K*)px(pq[j]))[i])
-      _k(r);
-      r=fe(k_(f),0,k_(p),av);
-      if(E(r)) { _k(pp[0]); e=r; goto cleanup; }
-    }
-    _k(pp[0]);
-    n(p)=0; _k(p);
+  p=st(0x81,tn(0,nx)); pp=px(p);
+  r=k_(pxk[0]);
+  pp[0]=null;
+  for(i64 i=0;i<m;i++) {
+    _k(pp[0]); pp[0]=k_(r);
+    j1(nx,pp[j]=T(pq[j])>0||s(pq[j])?pq[j]:((K*)px(pq[j]))[i])
+    _k(r);
+    r=fe(k_(f),0,k_(p),av);
+    if(E(r)) { _k(pp[0]); e=r; goto cleanup; }
   }
+  _k(pp[0]);
+  n(p)=0; _k(p);
   _k(q);
   return r;
 cleanup:
@@ -146,23 +159,21 @@ static K scan_fe(K f, K x, char *av) {
   pq[0]=k_(pxk[0]);
   for(u64 i=1;i<nx;i++) {
     p=pxk[i];
-    if(m==-1&&T(p)<=0) m=n(p);
+    /* !s(p) guards + direct-return on kmix failure: see over_fe above */
+    if(m==-1&&T(p)<=0&&!s(p)) m=n(p);
     else if(m>=0&&T(p)<=0&&!s(p)&&m!=(i64)n(p)) { _k(q);  return kerror("valence"); }
-    if(T(p)<0) { pq[i]=kmix(p); EC(pq[i]); }
+    if(T(p)<0&&!s(p)) { pq[i]=kmix(p); if(E(pq[i])) { e=pq[i]; _k(q); return e; } }
     else pq[i]=k_(p);
   }
-  if(m==1) r=fe(k_(f),0,k_(x),av);
-  else {
-    r=tn(0,m+1); prk=px(r);
-    p=st(0x81,tn(0,nx)); pp=px(p);
-    prk[0]=k_(pxk[0]);
-    for(i64 i=0;i<m;i++) {
-      pp[0]=prk[i];
-      j1(nx,pp[j]=T(pq[j])>0||s(pq[j])?pq[j]:((K*)px(pq[j]))[i])
-      prk[i+1]=fe(k_(f),0,k_(p),av); EC(prk[i+1]);
-    }
-    n(p)=0; _k(p);
+  r=tn(0,m+1); prk=px(r);
+  p=st(0x81,tn(0,nx)); pp=px(p);
+  prk[0]=k_(pxk[0]);
+  for(i64 i=0;i<m;i++) {
+    pp[0]=prk[i];
+    j1(nx,pp[j]=T(pq[j])>0||s(pq[j])?pq[j]:((K*)px(pq[j]))[i])
+    prk[i+1]=fe(k_(f),0,k_(p),av); EC(prk[i+1]);
   }
+  n(p)=0; _k(p);
   _k(q);
   return r;
 cleanup:
@@ -245,7 +256,9 @@ K overdfe(K f, K x, char *av) {
   if(tx<0) { t=kmix(x); if(E(t)) return t; x=t; }
   px=px(x);
   r=k_(px[0]);
-  i1(nx,p=fe(k_(f),r,k_(px[i]),av);r=0;EC(p);r=p)
+  /* apply the (adverbed) verb: avdo honors av (e.g. `,'` each-both) whereas fe
+     drops the adverb for a dyadic primitive -- so `,'/x` folds with `,'`. */
+  i1(nx,p=(av&&*av)?avdo(k_(f),r,k_(px[i]),av):fe(k_(f),r,k_(px[i]),av);r=0;EC(p);r=p)
   _k(t);
   return r;
 cleanup:
@@ -263,7 +276,8 @@ K scandfe(K f, K x, char *av) {
   r=tn(0,nx);
   prk=px(r);
   prk[0]=k_(px[0]);
-  i1(nx,prk[i]=fe(k_(f),k_(prk[i-1]),k_(px[i]),av);EC(prk[i]))
+  /* honor av (e.g. `,'` each-both), which fe drops for a dyadic primitive */
+  i1(nx,prk[i]=(av&&*av)?avdo(k_(f),k_(prk[i-1]),k_(px[i]),av):fe(k_(f),k_(prk[i-1]),k_(px[i]),av);EC(prk[i]))
   _k(t);
   return r;
 cleanup:
@@ -502,11 +516,21 @@ K avdo(K f, K a, K x, char *av) {
       if(!x) r=kerror("type");
       else if(av[n-1]=='\'') r=each(f,a,x,av2);
       else if(av[n-1]=='/') {
-        if(n>1 && (ta==1||ta==8) && 0xc3!=s(f)) r=overmonadn(k_(f),k_(a),k_(x),av2);
+        /* do-n only when f is monadic-ONLY (builtin monad, val-1
+           projection).  A dyad-capable f (primitive, dyadic builtin,
+           derived verb like (+\)) treats an int left as its LEFT
+           ARGUMENT -- each-right; do/while of a primitive-derived verb
+           is spelled with a forced-monad lambda (doc/digraphs.md). */
+        /* monadic-ONLY covers a val-1 LAMBDA too ({2*x}', val 1) -- the
+           list used to name subtypes instead of asking, so 3{2*x}'/1 2
+           valence-errored while gk's own 3{2*x}/1 2 gave 8 16. */
+        int fmon = !isprim && (0xc6==s(f) || ik(val(f))==1);
+        if(n>1 && (ta==1||ta==8) && fmon) r=overmonadn(k_(f),k_(a),k_(x),av2);
         else r=eachright(f,a,x,av2);
       }
       else if(av[n-1]=='\\') {
-        if(n>1 && (ta==1||ta==8) && 0xc3!=s(f)) r=scanmonadn(k_(f),k_(a),k_(x),av2);
+        int fmon = !isprim && (0xc6==s(f) || ik(val(f))==1);  /* see over above */
+        if(n>1 && (ta==1||ta==8) && fmon) r=scanmonadn(k_(f),k_(a),k_(x),av2);
         else r=eachleft(f,a,x,av2);
       }
       _k(f); _k(a); _k(x);
@@ -556,7 +580,13 @@ K avdo(K f, K a, K x, char *av) {
                   case -2: { double *p=(double*)px(target); pxn[j]=t2(p[i]); break; }
                   case -3: { char *p=(char*)px(target); pxn[j]=t(3,(u8)p[i]); break; }
                   case -4: { char **p=(char**)px(target); pxn[j]=t(4,p[i]); break; }
+                  case -8: { i64 *p=(i64*)px(target); pxn[j]=tj(p[i]); break; }
+                  case -9: { float *p=(float*)px(target); pxn[j]=te(p[i]); break; }
                   case  0: { K *p=(K*)px(target); pxn[j]=k_(p[i]); break; }
+                  /* every type the slot scan admits (!s, T<=0, n>1) is
+                     enumerated above; -8/-9 used to fall through here and
+                     pass the WHOLE vector each iteration (identical wrong
+                     rows).  Defensive only. */
                   default: pxn[j]=k_(target);
                   }
                 }
@@ -572,8 +602,19 @@ K avdo(K f, K a, K x, char *av) {
         }
         else r=each(f,0,x,av2);
       }
-      else if(av[n-1]=='/') r=overm(f,x,av2);
-      else if(av[n-1]=='\\') r=scanm(f,x,av2);
+      else if(av[n-1]=='/'||av[n-1]=='\\') {
+        /* Monadic multi-char adverb ending in / or \ : FOLD/SCAN the list with
+           the inner derived verb when THAT verb is a dyad -- i.e. the inner
+           adverb is each (') on a dyadic base, so `,'/x` == {x,'y}/x.  A monadic
+           inner (`,//` = over of raze, `,\/`, ...) still CONVERGEs via
+           overm/scanm, unchanged.  (Previously every multi-char fold converged,
+           so `,'/x` looped forever on non-fixpoint data.) */
+        i32 vf=ik(val(f)); u64 sf=s(f);
+        if(sf==0xc6||sf==0xcc||sf==0xc9||sf==0xce) vf=1; /* builtin-monads: effective valence 1 */
+        int fold = vf==2 && av2[strlen(av2)-1]=='\''; /* inner verb stays dyadic only through each */
+        if(av[n-1]=='/') r = fold ? overdfe(f,x,av2) : overm(f,x,av2);
+        else             r = fold ? scandfe(f,x,av2) : scanm(f,x,av2);
+      }
       _k(f); _k(x);
     }
   }
@@ -607,6 +648,7 @@ K scanmonadn(K f, K a, K x, char *av) {
   K r=0,e,p=0,*prk;
   i64 i = T(a)==8 ? jk(a) : ik(a), j=0;  /* do-n count: accept a long n as well as int */
   if(i<0) { e=kerror("domain"); goto cleanup; }
+  if(i==INT64_MAX) { e=kerror("limit"); goto cleanup; }  /* 1+i overflows -> tn(0,negative) -> ~2^64 alloc / segfault (n f\x, n=0Ij) */
   r=tn(0,1+i); prk=px(r);
   prk[j]=kcp2(x); if(E(prk[j])) { e=prk[j]; goto cleanup; } ++j;
   while(i>0) {

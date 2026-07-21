@@ -1,0 +1,43 @@
+/ AFL+ASan corpus sweep 2026-07-14 (round 5): bugs found by running the
+/ minimized AFL corpus (corpus_min2, ~30k coverage-unique inputs) through an
+/ ASan+UBSan build -- crashes/UB that plain AFL (which only sees SIGSEGV/hang)
+/ sailed past.  Error-path cases use the @[f;x;:] trap so a value prints.
+
+/ 1. sv/vs base conversion: the i64 Horner accumulator and mixed-radix place
+/    products overflowed signed i64 on an over-wide value -- UB (ubsan trap).
+/    Now computed in u64: the same defined-wrap result, no UB.
+2 sv 2 -9223372036854775808j 4
+24 60 60 sv 1 2 3
+2 sv 1 0 1 0 1
+2 sv 2 vs 100
+1 2 3~2 60 60 vs 3723
+
+/ 2. sv with an EMPTY base vector: `*\|a` was empty, so a count decrement
+/    underflowed to SIZE_MAX and the next reverse tried a ~2^64-byte alloc
+/    (silent death in production).  No places => decode is 0.
+(^10) sv 3
+(!0) sv 100
+
+/ 3. do-n scan `n f\x` with n = 0Ij (INT64_MAX): the result list was sized
+/    1+n, which overflowed to a negative count -> ~2^64 alloc -> SEGFAULT in
+/    production.  Now a clean `limit` error.
+@[{0Ij{x+1}\x};0;:]
+@[{9223372036854775807j{x}\x};0;:]
+
+/ 4. dyadic `$` (format) with a non-finite / out-of-i64-range width fed the
+/    float straight into a float->i64 cast -- UB.  inf/huge now `wsfull`
+/    (as production already returned via its post-cast check), nan `value`.
+@[{0ie$3.5};0;:]
+@[{1e30e$5};0;:]
+0.0e$"3.5"
+
+/ 5. a watch whose expression fails to PARSE leaked the error-line buffer
+/    (gline0p) on every fire -- the lexer freed the old glinep before
+/    reassigning but not gline0p.  Value check: the watch still fires and the
+/    good ones still work (leak is covered by the ASan sweep, not here).
+c:0
+watch(`a;"c+:1")
+a:1
+a:2
+c
+\\

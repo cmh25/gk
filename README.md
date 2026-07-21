@@ -14,6 +14,7 @@ The design of gk is inspired by k3, with additional ideas from [Stevan Apter](ht
 |-----|----------------|
 | [doc/tutorial.md](doc/tutorial.md) | Short hands-on REPL tour for newcomers |
 | [doc/ref.md](doc/ref.md) | Language reference (types, primitives, builtins, syntax) |
+| [doc/v5.md](doc/v5.md) | v5 changes and migration from v4 |
 | [doc/v4.md](doc/v4.md) | v4 changes and migration from v3 |
 | [doc/v3.md](doc/v3.md) | v3 changes and migration from v2 |
 | [doc/v2.md](doc/v2.md) | v2 changes and migration from v1 |
@@ -36,7 +37,7 @@ make test
 
 ```
 $ ./gk
-gk-v4.0.0 Copyright (c) 2023-2026 Charles Hall
+gk-v5.0.0 Copyright (c) 2023-2026 Charles Hall
 
   1+2
 3

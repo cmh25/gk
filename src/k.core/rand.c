@@ -2,32 +2,45 @@
 #include <stdlib.h>
 #include "x.h"
 
+/* xorshift state word: unsigned long, EXCEPT Windows where long is 32 bits
+   (LLP64) and the stream would diverge from the documented sequences.
+   BOTH streams (draw x/y/z and shuffle sx/sy/sz) must be this width -- the
+   shuffle stream first shipped as bare unsigned long and t343/t498/t576/
+   t609 failed on Windows. */
 #ifdef _WIN32
-  static unsigned long long x=123456789, y=362436069, z=521288629, t;
+typedef unsigned long long uxs;
 #else
-  static unsigned long x=123456789, y=362436069, z=521288629, t;
+typedef unsigned long uxs;
 #endif
 
-static int rr(unsigned int *s) {
-  unsigned int x;
-  unsigned int a = 0x9d2c5680;
-  unsigned int b = 0xefc60000;
-  *s *= 1103515245 + 12345;
-  x = *s;
-  x = x ^ (x >> 11);
-  x = x ^ (x << 7 & a);
-  x = x ^ (x << 15 & b);
-  x = x ^ (x >> 18);
-  return x>>1;
+static uxs x=123456789, y=362436069, z=521288629, t;
+
+/* shuffle's own xorshift generator, kept SEPARATE from the draw stream
+   (x/y/z) so fixing deal leaves documented roll sequences untouched -- the
+   original code likewise gave shuffle its own state, it was just BROKEN:
+   `*s *= 1103515245 + 12345` folded to a multiply by the EVEN constant
+   1103527590 (the intended `*s = *s*1103515245 + 12345` lost its `+`), so
+   the state gained a factor of 2 per call and hit 0 (mod 2^32) after 32
+   calls -- every deal after that returned the identity permutation,
+   forever, process-wide.  rand_reseed perturbs sx/sy/sz too so forked
+   children get distinct deals. */
+static uxs sx=88172645, sy=987654321, sz=43219876;
+
+static uxs snext(void) {
+  uxs st;
+  sx ^= sx << 16;
+  sx ^= sx >> 5;
+  sx ^= sx << 1;
+  st = sx; sx = sy; sy = sz;
+  sz = st ^ sx ^ sy;
+  return sz;
 }
 
 static void shuffle(int *a, int n) {
-  static unsigned int p=1;
   int i,j,t;
-  int rm=2147483647; /* instead of RAND_MAX */
   if(n>1) {
     for(i=0;i<n-1;i++) {
-      j = i + rr(&p) / (rm / (n - i) + 1);
+      j = i + (int)(snext() % (uxs)(n - i));   /* j in [i, n-1] */
       t = a[j];
       a[j] = a[i];
       a[i] = t;
@@ -119,4 +132,10 @@ void rand_reseed(unsigned long s) {
   if(!x) x = 1;
   if(!y) y = 1;
   if(!z) z = 1;
+  sx = 88172645UL  ^ (s * 40503UL);        /* shuffle's stream too, so a */
+  sy = 987654321UL ^ (s + 0x7f4a7c15UL);   /* forked child's deals differ */
+  sz = 43219876UL  ^ (s * 2246822519UL);
+  if(!sx) sx = 1;
+  if(!sy) sy = 1;
+  if(!sz) sz = 1;
 }

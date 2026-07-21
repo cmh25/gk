@@ -53,7 +53,7 @@ const binfo2 BDYAD[] = {
   {&R_LCM,lcm_},{&R_MODINV,modinv_},{&R_ROT,rot_},{&R_SHIFT,shift_},
   {&R_DOT,dotp},{&R_MUL,mul_},{&R_AT,at_},{&R_SM,sm},{&R_SS,ss},{&R_LSQ,lsq_},
   {&R_ENCRYPT,encrypt_},{&R_DECRYPT,decrypt_},{&R_RENAME,rename_},
-  {&R_SETENV,setenv_},{&R_IN,in_},{&R_DVL,dvl_},{&R_BIN,bin_},{&R_BINL,binl_},
+  {&R_SETENV,setenv_},{&R_IN,in_},{&R_LIN,lin_},{&R_DVL,dvl_},{&R_BIN,bin_},{&R_BINL,binl_},
 };
 const binfo1 BMONAD[] = {
   {&R_SLEEP,sleep_},{&R_IC,ic},{&R_CI,ci},{&R_DJ,dj},{&R_JD,jd},{&R_LT,lt},
@@ -172,7 +172,9 @@ K draw(K a, K x) {
     return r;
   }
   if(ta!=0 && ta!=1 && ta!=-1) { e=KERR_TYPE; goto cleanup; }
-  if(tx!=1 && tx!=2 && ta!=-1) { e=KERR_TYPE; goto cleanup; }
+  /* tx==9 (real): draw[n;1.0e] was the one hole in the roll/deal type grid --
+     `0?1.0e` worked (v.c's draw) but the named form type-errored */
+  if(tx!=1 && tx!=2 && tx!=8 && tx!=9 && ta!=-1) { e=KERR_TYPE; goto cleanup; }
   if(ta==1 && tx==1 && ik(x)==INT32_MIN) { e=KERR_WSFULL; goto cleanup; }
   if(ta==1 && tx==1 && ik(x)<0 && ik(a)>abs(ik(x))) { e=KERR_LENGTH; goto cleanup; }
   switch(ta) {
@@ -180,7 +182,9 @@ K draw(K a, K x) {
   case  1: n=ik(a); r=k(14,t(1,(u32)n),k_(x)); /* n?x */ break;
   case -1:
     switch(tx) {
-    case 1: case 2:
+    case 1: case 2: case 8: case 9: /* case 9 (real) was missing: a shaped
+      real draw draw[2 3;1.0e] type-errored though the scalar-count
+      draw[6;1.0e] and 0?1.0e worked */
       PAI; i(na,if(pai[i]<0){e=KERR_DOMAIN;goto cleanup;})
       p=k(21,3,k_(a)); EC(p); // */a
       q=k(14,p,k_(x)); EC(q); // p?x
@@ -213,13 +217,29 @@ K dotp(K a, K x) {
 }
 
 K at_(K a, K x) {
-  K r=0;
+  K r=0,e,*prk,*pak,*pxk;
   i32 *pri,*pai,*pxi;
   i64 *pxj,*paj,*prj;
   float *pae,*pre;
   double *prf,*paf;
   char *prc,*pac,**prs,**pas;
 
+  if(!a||!x) return KERR_TYPE;
+  if(0x80==s(a)) return k(13,k_(a),k_(x));  /* dict: @ already null-fills a missing key */
+  if(!s(a)&&4==ta) {                        /* symbol handle: deref, then index */
+    /* A handle can deref to another handle (`a:`b;`b:`a`), so this chain is
+       runtime data, not syntactic nesting -- a cycle recurses forever.  Bound
+       it with the shared depth guard (irecur2's list path already is); a cyclic
+       or pathologically long chain trips a stack error instead of overflowing. */
+    static int hd=0;
+    if(++hd>maxr || (!(hd&7)&&stack_low())) { --hd; return KERR_STACK; }
+    K v=vlookup(a);
+    if(E(v)) { --hd; return v==KERR_VALUE?at_(null,x):v; }  /* undefined handle -> nul, the identity vector */
+    r=at_(v,x); _k(v);
+    --hd;
+    return r;
+  }
+  if(!s(a)&&6==ta) return k(13,k_(a),k_(x)); /* nul: the identity vector has no out-of-range */
   if(s(a)||s(x)||aa) return KERR_RANK;
   if(tx==6) return k_(a);
   if(!tx&&!nx) return tn(0,0);
@@ -279,41 +299,65 @@ K at_(K a, K x) {
     case  0: r=irecur2(at_,a,x); break;
     default: r=KERR_TYPE;
     } break;
-  case  0: r=irecur2(at_,a,x); break;
+  case  0: /* list: index the top level (a conforms over x, never over a) */
+    PAK;
+    switch(tx) {
+    case  1: { i64 v=ik(x); r=(v<0||(u64)v>=na)?null:k_(pak[v]); } break;
+    case  8: { i64 v=jk(x); r=(v<0||(u64)v>=na)?null:k_(pak[v]); } break;
+    case -1: PRK(nx); PXI; i(nx, prk[i]=(pxi[i]<0||(u64)pxi[i]>=na)?null:k_(pak[pxi[i]])) break;
+    case -8: PRK(nx); pxj=px(x); i(nx, prk[i]=(pxj[i]<0||(u64)pxj[i]>=na)?null:k_(pak[pxj[i]])) break;
+    case  0: PRK(nx); PXK; i(nx, EC(prk[i]=at_(a,pxk[i]))) break;
+    default: r=KERR_TYPE;
+    } break;
   default: r=KERR_TYPE;
   }
   return knorm(r);
+cleanup:
+  _k(r);
+  return e;
 }
 
+/* Iterative glob with backtracking to the LAST star only (si/sj): when a
+   token mismatches, the last star eats one more subject char and matching
+   resumes after it.  One bookmark suffices -- any match reachable by giving
+   an earlier star a longer eat is also reachable from the last one.  The
+   old version recursed on every subject position per star, which went
+   exponential on runs of stars (fuzz: sm["a+;x";"a****...**[\]"] never
+   returned); this is O(an*xn) worst case.  Per-token semantics unchanged. */
 static i32 sm_(char *a, char *x, i64 an, i64 xn, i64 i, i64 j) {
-  i32 m=1;
-  for(;;++i,++j) {
-    if(i>=an&&j>=xn) break;
-    if(i>=an) { m=0; break; }
-    if(j>=xn) { m=0; break; }
-    if(x[j]=='?') continue;
-    if(x[j]=='*') {
-      if(++j==xn) { ++i; break; }
-      m=0; while(++i<an) if((m=sm_(a,x,an,xn,i,j))) break;
-    }
-    else if(x[j]=='[' && j+1<xn && x[j+1]==']') { ++j; ++j; } /* empty escaped? */
-    else if(x[j]=='[' && j+2<xn && x[j+2]==']') { /* escaped? */
-      ++j;
-      if(i<an&&a[i]!=x[j]) { m=0; break; }
-      ++j;
-    }
-    else if(x[j]=='[' && strchr(x+j,']')) {
-      if(x[++j]=='^') {
-        m=1; for(++j;j<xn&&x[j]!=']';j++) if(a[i]==x[j]) { m=0; break; }
+  i64 j2,si=-1,sj=-1;
+  i32 m;
+  while(i<an) {
+    if(j<xn && x[j]=='*') { sj=++j; si=i; continue; }  /* bookmark; eat zero first */
+    m=0; j2=j;
+    if(j<xn) {
+      if(x[j]=='?') { m=1; j2=j+1; }
+      else if(x[j]=='[' && j+2<xn && x[j+2]==']') { /* escaped: [c] literal (incl []]) */
+        m=a[i]==x[j+1]; j2=j+3;
       }
-      else {
-        m=0; for(;j<xn&&x[j]!=']';j++) if(a[i]==x[j]) { m=1; break; }
+      else if(x[j]=='[' && strchr(x+j,']')) {  /* unterminated [ stays literal */
+        j2=j+1;
+        if(x[j2]=='^') {
+          m=1; for(++j2;j2<xn&&x[j2]!=']';j2++) if(a[i]==x[j2]) { m=0; break; }
+        }
+        else if(j2+2<xn && x[j2+1]=='-') {                     /* [p-q] range, as in ss_ */
+          char p=x[j2]; char q=x[j2+2]; j2+=2;
+          m=a[i]>=p&&a[i]<=q;
+        }
+        else {
+          m=0; for(;j2<xn&&x[j2]!=']';j2++) if(a[i]==x[j2]) { m=1; break; }
+        }
+        while(j2<xn&&x[j2]!=']') ++j2;
+        ++j2;                                                  /* past the ']' */
       }
-      while(j<xn&&x[j]!=']') ++j;
+      else { m=a[i]==x[j]; j2=j+1; }
     }
-    else if(i<an&&j<xn&&a[i]!=x[j]) { m=0; break; }
+    if(m) { ++i; j=j2; }
+    else if(sj>=0) { j=sj; i=++si; }
+    else return 0;
   }
-  return m;
+  while(j<xn&&x[j]=='*') ++j;   /* only * matches "" */
+  return j>=xn;
 }
 
 K sm(K a, K x) {
@@ -374,27 +418,26 @@ static i64 ss_(char *a, char *x, i64 an, i64 xn, i64 i) {
   for(j=0;j<xn;j++) {
     if(k==an) break;
     if(x[j]=='?') { }
-    else if(x[j]=='[' && j+2<xn && x[j+2]=='[') { /* escaped */
+    else if(x[j]=='[' && j+2<xn && x[j+2]==']') { /* escaped: [c] literal */
       ++j;
-      if(k<an&&a[k]!=x[j]) { m=0; break; }
+      if(a[k]!=x[j]) { m=0; break; }
       ++j;
     }
-    else if(x[j]=='[' && strchr(x+j,'[')) {
+    else if(x[j]=='[' && strchr(x+j,']')) {  /* unterminated [ stays literal */
       if(x[++j]=='^') {
         m=1; for(++j;j<xn&&x[j]!=']';j++) if(a[k]==x[j]) { m=0; break; }
       }
-      else if(j+2<xn && x[j+1]=='-') {
-        char p=x[j++];
-        ++j;
-        char q=x[j++];
-        m=0; while(p<=q) { if(a[k]==p++) { m=1; break; } }
+      else if(j+2<xn && x[j+1]=='-') {              /* [p-q] range */
+        char p=x[j]; char q=x[j+2]; j+=2;
+        m=a[k]>=p&&a[k]<=q;
       }
       else {
         m=0; for(;j<xn&&x[j]!=']';j++) if(a[k]==x[j]) { m=1; break; }
       }
       while(j<xn&&x[j]!=']') ++j;
+      if(!m) break;
     }
-    else if(a[k]!=x[j]) break;
+    else if(a[k]!=x[j]) { m=0; break; }
     ++k;
   }
   return m&&j==xn ? k-i : 0;
@@ -596,13 +639,16 @@ static K vsj(K a, K x) {
   /* vector base = mixed radix; scalar value -> digit vector, vector value ->
      matrix (L rows x nval cols), mirroring the int path so long round-trips */
   u64 L=na; if(!L) return KERR_DOMAIN;
-  i64 *base=xmalloc(L*sizeof(i64)), *place=xmalloc(L*sizeof(i64));
+  /* place unsigned: the running product of bases overflows i64 for a wide
+     mixed radix -- UB -- so accumulate in u64 (bases are >=0 after the domain
+     check).  Downstream already reads place through (u64) casts. */
+  i64 *base=xmalloc(L*sizeof(i64)); u64 *place=xmalloc(L*sizeof(u64));
   for(u64 i=0;i<L;i++) {
     base[i]=vreadj(a,i);
     if(base[i]<0 || (i && base[i]<1)) { xfree(base); xfree(place); return KERR_DOMAIN; }
   }
   place[L-1]=1;
-  for(i32 i=(i32)L-2;i>=0;i--) place[i]=place[i+1]*base[i+1];
+  for(i32 i=(i32)L-2;i>=0;i--) place[i]=place[i+1]*(u64)base[i+1];
   for(u64 i=0;i<L;i++) if(place[i]==0) { xfree(base); xfree(place); return KERR_DOMAIN; }
   if(tx==1 || tx==8) {                       /* scalar value -> digit vector */
     u64 xx = tx==8 ? (u64)jk(x) : (u64)(i64)ik(x);
@@ -664,10 +710,14 @@ K sv(K a, K x) {
     if(tx==8) return tj(jk(x));
     if(tx==-1 || tx==-8) {
       i64 base = ta==8 ? jk(a) : (i64)ik(a);
-      i64 acc = 0, *pj; i32 *pi;
-      if(tx==-8) { pj=px(x); i(nx, acc=acc*base+pj[i]) }
-      else { pi=px(x); i(nx, acc=acc*base+pi[i]) }
-      return tj(acc);
+      /* Horner in u64: a value that doesn't fit i64 (base decode of a huge
+         digit string) overflows -- signed overflow is UB (traps under ubsan),
+         so accumulate unsigned, which wraps with defined 2's-complement bits
+         identical to the production result. */
+      u64 acc = 0, ub = (u64)base; i64 *pj; i32 *pi;
+      if(tx==-8) { pj=px(x); i(nx, acc=acc*ub+(u64)pj[i]) }
+      else { pi=px(x); i(nx, acc=acc*ub+(u64)(i64)pi[i]) }
+      return tj((i64)acc);
     }
   }
   /* mixed-radix vector base with a long base or long digits: i64, long
@@ -675,17 +725,20 @@ K sv(K a, K x) {
   if((ta==-8 || tx==-8) && (ta==-1 || ta==-8) && (tx==-1 || tx==-8)) {
     if(na!=nx) return KERR_LENGTH;
     u64 L=na; if(!L) return tj(0);
-    i64 *base=xmalloc(L*sizeof(i64)), *place=xmalloc(L*sizeof(i64)), acc=0;
+    /* place/acc unsigned: the place products and the weighted sum overflow
+       i64 on an over-wide value -- UB -- so compute in u64 (base is >=0 after
+       the domain check).  Same defined-wrap result as production. */
+    i64 *base=xmalloc(L*sizeof(i64)); u64 *place=xmalloc(L*sizeof(u64)), acc=0;
     for(u64 i=0;i<L;i++) {
       base[i]=vreadj(a,i);
       if(base[i]<0 || (i && base[i]<1)) { xfree(base); xfree(place); return KERR_DOMAIN; }
     }
     place[L-1]=1;
-    for(i32 i=(i32)L-2;i>=0;i--) place[i]=place[i+1]*base[i+1];
+    for(i32 i=(i32)L-2;i>=0;i--) place[i]=place[i+1]*(u64)base[i+1];
     for(u64 i=0;i<L;i++) if(place[i]==0) { xfree(base); xfree(place); return KERR_DOMAIN; }
-    for(u64 i=0;i<L;i++) acc += vreadj(x,i) * place[i];
+    for(u64 i=0;i<L;i++) acc += (u64)vreadj(x,i) * place[i];
     xfree(base); xfree(place);
-    return tj(acc);
+    return tj((i64)acc);
   }
   if(tx==0) {
     p=k(1,0,k_(x)); EC(p); /* flip */
@@ -702,6 +755,11 @@ K sv(K a, K x) {
     default: r=KERR_TYPE;
     } break;
   case -1:
+    /* empty base vector: `*\|a` is empty, so the n(p)--/n(s)-- below would
+       underflow the count to SIZE_MAX and the following reverse would try a
+       ~2^64-byte allocation.  No places => the decode is 0, matching the long
+       sv path's `if(!L) return tj(0)`. */
+    if(!na) { r=t(1,0); break; }
     switch(tx) {
     case  1:
       q=k(6,0,k_(a)); EC(q);          // |a
@@ -717,18 +775,22 @@ K sv(K a, K x) {
       r=tn(0,n(x)); prk=px(r);
       i(nr, prk[i]=sv(a,pxk[i]); EC(prk[i]))
       break;
-    case -1:
+    case -1: {
       pxi=px(x);
       if(na!=nx) { e=KERR_LENGTH; goto cleanup; }
-      q=k(6,0,k_(a)); EC(q);          // |a
+      u64 xn=nx;                      // x is the CALLER's vector -- its length
+      q=k(6,0,k_(a)); EC(q);          // |a   must be restored before we return
       s=k(22,3,q); q=0; EC(s);        // *\q
       n(s)--;
       q=k(6,0,s); s=0; EC(q);         // |p
-      n(x)--;
-      r=k(3,q,k_(x)); q=0; EC(r);     // q*x
+      n(x)=xn-1;                      // view x as its leading xn-1 digits for q*x
+      r=k(3,q,k_(x)); q=0;            // q*x  (borrows x at the shortened length)
+      n(x)=xn;                        // RESTORE before any error exit -- the old
+      EC(r);                          // n(x)-- left the caller's vector truncated
       r=k(21,1,r); EC(r);             // +/r
-      r=k(1,r,t(1,pxi[nx])); EC(r);
+      r=k(1,r,t(1,pxi[xn-1])); EC(r); // + the last digit
       break;
+    }
     default: r=KERR_TYPE;
     } break;
   case  8:
@@ -804,6 +866,9 @@ K sleep_(K x) {
   if(tx != 1 && tx != 2) return KERR_TYPE;
   double d = (tx == 1) ? (double)ik(x) : fk(x);
   if(!isfinite(d) || d < 0) return KERR_DOMAIN;
+#ifdef FUZZING
+  return null;  /* a fuzzed `sleep 5e17` is not a hang worth saving */
+#endif
 #ifdef _WIN32
   // Sleep expects DWORD ms. round float to nearest ms.
   i64 ms = (i64)llround(d);
@@ -873,6 +938,7 @@ K do_(K x) {
       EC(p);
       if(RETURN) return p;
       _k(p);
+      if(EXIT) return kerror("abort");
     }
   return r;
 cleanup:
@@ -909,6 +975,7 @@ K while_(K x) {
       EC(p);
       if(RETURN) return p;
       _k(p);
+      if(EXIT) return kerror("abort");
     }
     a=pgreduce_(px[nx-1],&q);
     if(E(a)) return a;
@@ -1079,8 +1146,8 @@ static K j2f(K x) {
  * when operands are pure int/real -- no f64 or long present). */
 static K i2e(K x) {
   K r; float *pre; i32 *pxi;
-  if(tx==1) return te((float)ik(x));
-  if(tx==-1) { r=tn(9,nx); pre=px(r); PXI; i(nx,pre[i]=(float)pxi[i]) return r; }
+  if(tx==1) return te(ei(ik(x)));
+  if(tx==-1) { r=tn(9,nx); pre=px(r); PXI; i(nx,pre[i]=ei(pxi[i])) return r; }
   return k_(x);
 }
 
@@ -1232,19 +1299,34 @@ K F(K a,K x) { \
 }
 MC2D(atan2_,atan2,eatan2_)
 
+/* `div` by zero yields infinity, exactly as `%` does (ref.md: "Division by zero
+   yields infinity, not an error") -- it used to raise `domain`, so two integer
+   ops with a zero divisor disagreed (`5%0` was 0i but `5 div 0` errored).  The
+   sign follows the numerator and 0 div 0 is null, again mirroring `%`, whose
+   0%0 is 0n.  Sentinels: 0I/0N are INT_MAX/INT_MIN, -0I is INT_MIN+1 (x.c).
+   The result width follows the usual promotion, so a long operand anywhere
+   gives 0Ij.  INT_MIN/-1 still overflows to `range`: that is a real overflow,
+   not a zero divisor. */
+static i32 divi_(i32 a, i32 b) {
+  if(b) return a/b;
+  return a>0 ? INT32_MAX : a<0 ? INT32_MIN+1 : INT32_MIN;
+}
+static i64 divj_(i64 a, i64 b) {
+  if(b) return a/b;
+  return a>0 ? INT64_MAX : a<0 ? INT64_MIN+1 : INT64_MIN;
+}
+
 /* integer ops. Accept int (type 1) and long (type 8); any long operand
-   promotes the result to long (computed in i64). Float is a type error. */
-#define MC2IO(F,F0,O,N) \
+   promotes the result to long (computed in i64). Float is a type error.
+   OI/OJ are the i32 and i64 combiners: a plain operator for and/or/xor, the
+   zero-aware helpers above for div. */
+#define MC2IO(F,F0,OI,OJ,N) \
 K F(K a, K x) { \
   K r=0; \
   i32 *pri,*pai,*pxi; \
   i64 *prj,*paj,*pxj; \
   if(s(a)||s(x)) return KERR_TYPE; \
-  if((N)) {  /* divide-by-zero -> domain; INT_MIN/-1 overflow -> range */ \
-    if(tx==1 && !ik(x)) return KERR_DOMAIN; \
-    if(tx==8 && !jk(x)) return KERR_DOMAIN; \
-    if(tx==-1) { PXI; i(nx,if(!pxi[i]) return KERR_DOMAIN) } \
-    if(tx==-8) { PXJ; i(nx,if(!pxj[i]) return KERR_DOMAIN) } \
+  if((N)) {  /* INT_MIN/-1 overflow -> range (zero divisor is handled in div*_) */ \
     if((ta==1 && INT32_MIN==ik(a)) || (ta==8 && INT64_MIN==jk(a))) { \
       if(tx==1 && -1==ik(x)) return KERR_RANGE; \
       if(tx==8 && -1==jk(x)) return KERR_RANGE; \
@@ -1265,37 +1347,37 @@ K F(K a, K x) { \
   switch(ta) { \
   case  1: \
     switch(tx) { \
-    case  1: r=t(1,(u32)(ik(a) O ik(x))); break; \
-    case  8: r=tj((i64)ik(a) O jk(x)); break; \
-    case -1: PRI(nx); PXI; i(nx,pri[i]=ik(a) O pxi[i]) break; \
-    case -8: PRJ(nx); PXJ; { i64 A=(i64)ik(a); i(nx,prj[i]=A O pxj[i]) } break; \
+    case  1: r=t(1,(u32)OI(ik(a),ik(x))); break; \
+    case  8: r=tj(OJ((i64)ik(a),jk(x))); break; \
+    case -1: PRI(nx); PXI; i(nx,pri[i]=OI(ik(a),pxi[i])) break; \
+    case -8: PRJ(nx); PXJ; { i64 A=(i64)ik(a); i(nx,prj[i]=OJ(A,pxj[i])) } break; \
     case  0: r=irecur2(F,a,x); break; \
     default: r=KERR_TYPE; \
     } break; \
   case  8: \
     switch(tx) { \
-    case  1: r=tj(jk(a) O (i64)ik(x)); break; \
-    case  8: r=tj(jk(a) O jk(x)); break; \
-    case -1: PRJ(nx); PXI; { i64 A=jk(a); i(nx,prj[i]=A O (i64)pxi[i]) } break; \
-    case -8: PRJ(nx); PXJ; { i64 A=jk(a); i(nx,prj[i]=A O pxj[i]) } break; \
+    case  1: r=tj(OJ(jk(a),(i64)ik(x))); break; \
+    case  8: r=tj(OJ(jk(a),jk(x))); break; \
+    case -1: PRJ(nx); PXI; { i64 A=jk(a); i(nx,prj[i]=OJ(A,(i64)pxi[i])) } break; \
+    case -8: PRJ(nx); PXJ; { i64 A=jk(a); i(nx,prj[i]=OJ(A,pxj[i])) } break; \
     case  0: r=irecur2(F,a,x); break; \
     default: r=KERR_TYPE; \
     } break; \
   case -1: \
     switch(tx) { \
-    case  1: PRI(na); PAI; i(na,pri[i]=pai[i] O ik(x)) break; \
-    case  8: PRJ(na); PAI; { i64 X=jk(x); i(na,prj[i]=(i64)pai[i] O X) } break; \
-    case -1: PRI(na); PAI; PXI; i(na,pri[i] = pai[i] O pxi[i]) break; \
-    case -8: PRJ(na); PAI; PXJ; i(na,prj[i]=(i64)pai[i] O pxj[i]) break; \
+    case  1: PRI(na); PAI; i(na,pri[i]=OI(pai[i],ik(x))) break; \
+    case  8: PRJ(na); PAI; { i64 X=jk(x); i(na,prj[i]=OJ((i64)pai[i],X)) } break; \
+    case -1: PRI(na); PAI; PXI; i(na,pri[i]=OI(pai[i],pxi[i])) break; \
+    case -8: PRJ(na); PAI; PXJ; i(na,prj[i]=OJ((i64)pai[i],pxj[i])) break; \
     case  0: r=avdo(biv(#F0),k_(a),k_(x),"'"); break; \
     default: r=KERR_TYPE; \
     } break; \
   case -8: \
     switch(tx) { \
-    case  1: PRJ(na); PAJ; { i64 X=(i64)ik(x); i(na,prj[i]=paj[i] O X) } break; \
-    case  8: PRJ(na); PAJ; { i64 X=jk(x); i(na,prj[i]=paj[i] O X) } break; \
-    case -1: PRJ(nx); PAJ; PXI; i(nx,prj[i]=paj[i] O (i64)pxi[i]) break; \
-    case -8: PRJ(nx); PAJ; PXJ; i(nx,prj[i]=paj[i] O pxj[i]) break; \
+    case  1: PRJ(na); PAJ; { i64 X=(i64)ik(x); i(na,prj[i]=OJ(paj[i],X)) } break; \
+    case  8: PRJ(na); PAJ; { i64 X=jk(x); i(na,prj[i]=OJ(paj[i],X)) } break; \
+    case -1: PRJ(nx); PAJ; PXI; i(nx,prj[i]=OJ(paj[i],(i64)pxi[i])) break; \
+    case -8: PRJ(nx); PAJ; PXJ; i(nx,prj[i]=OJ(paj[i],pxj[i])) break; \
     case  0: r=avdo(biv(#F0),k_(a),k_(x),"'"); break; \
     default: r=KERR_TYPE; \
     } break; \
@@ -1312,10 +1394,13 @@ K F(K a, K x) { \
   } \
   return knorm(r); \
 }
-MC2IO(div_,div,/,1)
-MC2IO(and_,and,&,0)
-MC2IO(or_,or,|,0)
-MC2IO(xor_,xor,^,0)
+#define OP_AND(a,b) ((a)&(b))
+#define OP_OR(a,b)  ((a)|(b))
+#define OP_XOR(a,b) ((a)^(b))
+MC2IO(div_,div,divi_,divj_,1)
+MC2IO(and_,and,OP_AND,OP_AND,0)
+MC2IO(or_,or,OP_OR,OP_OR,0)
+MC2IO(xor_,xor,OP_XOR,OP_XOR,0)
 
 K hypot_(K a,K x) {
   K r=0;
@@ -1427,17 +1512,13 @@ static inline i32 safe_rot(i32 v, i32 sh) {
 
 /* map an int/long shift count to the other width, preserving the
    0N / 0I / -0I sentinels (which select identity / max / 1) */
+/* widen a shift/rot count i32 -> i64, sentinel-aware.  (The reverse narrowing
+   helper became dead when shift/rot began promoting on an i64 count.) */
 static inline i64 shcount_i(i32 c) {
   if(c==INT32_MIN)   return J_NULL;
   if(c==INT32_MAX)   return J_INF;
   if(c==INT32_MIN+1) return J_NINF;
   return (i64)c;
-}
-static inline i32 shcount_j(i64 c) {
-  if(c==J_NULL) return INT32_MIN;
-  if(c==J_INF)  return INT32_MAX;
-  if(c==J_NINF) return INT32_MIN+1;
-  return (i32)c;
 }
 
 static inline i64 raw_rot64(i64 v, i64 sh) {
@@ -1466,9 +1547,11 @@ K rot_(K a, K x) {
   case 1:
     switch(tx) {
     case  1: r=t(1,(u32)safe_rot(ik(a),ik(x))); break;
-    case  8: r=t(1,(u32)safe_rot(ik(a),shcount_j(jk(x)))); break;
+    /* i64 count promotes to i64 (either-operand-i64 rule); the value widens
+       sentinel-aware, and a 64-bit rotate differs from a 32-bit one */
+    case  8: r=tj(safe_rot64(ji(ik(a)),jk(x))); break;
     case -1: PRI(nx); PXI; i(nx,pri[i]=safe_rot(ik(a),pxi[i])); break;
-    case -8: PRI(nx); PXJ; { i32 V=ik(a); i(nx,pri[i]=safe_rot(V,shcount_j(pxj[i]))) } break;
+    case -8: PRJ(nx); PXJ; { i64 V=ji(ik(a)); i(nx,prj[i]=safe_rot64(V,pxj[i])) } break;
     case  0: r=irecur2(rot_,a,x); break;
     default: r=KERR_TYPE;
     } break;
@@ -1484,9 +1567,9 @@ K rot_(K a, K x) {
   case -1:
     switch(tx) {
     case  1: PRI(na); PAI; i(na,pri[i]=safe_rot(pai[i],ik(x))); break;
-    case  8: PRI(na); PAI; { i32 S=shcount_j(jk(x)); i(na,pri[i]=safe_rot(pai[i],S)) } break;
+    case  8: PRJ(na); PAI; { i64 S=jk(x); i(na,prj[i]=safe_rot64(ji(pai[i]),S)) } break;
     case -1: PRI(na); PAI; PXI; i(na,pri[i]=safe_rot(pai[i],pxi[i])); break;
-    case -8: PRI(na); PAI; PXJ; i(na,pri[i]=safe_rot(pai[i],shcount_j(pxj[i]))); break;
+    case -8: PRJ(na); PAI; PXJ; i(na,prj[i]=safe_rot64(ji(pai[i]),pxj[i])); break;
     case  0: r=avdo(biv("rot"),k_(a),k_(x),"'"); break;
     default: r=KERR_TYPE;
     } break;
@@ -1553,9 +1636,12 @@ K shift_(K a, K x) {
   case 1:
     switch(tx) {
     case  1: r=t(1,(u32)safe_shift(ik(a),ik(x))); break;
-    case  8: r=t(1,(u32)safe_shift(ik(a),shcount_j(jk(x)))); break;
+    /* i64 count promotes the result to i64 (either-operand-i64 rule, matching
+       and/or/xor/div/gcd/lcm); the value widens sentinel-aware so 0N shift 3j
+       == 0Nj shift 3 */
+    case  8: r=tj(safe_shift64(ji(ik(a)),jk(x))); break;
     case -1: PRI(nx); PXI; i(nx,pri[i]=safe_shift(ik(a),pxi[i])); break;
-    case -8: PRI(nx); PXJ; { i32 V=ik(a); i(nx,pri[i]=safe_shift(V,shcount_j(pxj[i]))) } break;
+    case -8: PRJ(nx); PXJ; { i64 V=ji(ik(a)); i(nx,prj[i]=safe_shift64(V,pxj[i])) } break;
     case  0: r=irecur2(shift_,a,x); break;
     default: r=KERR_TYPE;
     } break;
@@ -1571,9 +1657,9 @@ K shift_(K a, K x) {
   case -1:
     switch(tx) {
     case  1: PRI(na); PAI; i(na,pri[i]=safe_shift(pai[i],ik(x))); break;
-    case  8: PRI(na); PAI; { i32 S=shcount_j(jk(x)); i(na,pri[i]=safe_shift(pai[i],S)) } break;
+    case  8: PRJ(na); PAI; { i64 S=jk(x); i(na,prj[i]=safe_shift64(ji(pai[i]),S)) } break;
     case -1: PRI(na); PAI; PXI; i(na,pri[i]=safe_shift(pai[i],pxi[i])); break;
-    case -8: PRI(na); PAI; PXJ; i(na,pri[i]=safe_shift(pai[i],shcount_j(pxj[i]))); break;
+    case -8: PRJ(na); PAI; PXJ; i(na,prj[i]=safe_shift64(ji(pai[i]),pxj[i])); break;
     case  0: r=irecur2(shift_,a,x); break;
     default: r=KERR_TYPE;
     } break;
@@ -1658,6 +1744,165 @@ noerr:
 K encrypt_(K a, K x) { return crypt_(aes256e,a,x); }
 K decrypt_(K a, K x) { return crypt_(aes256d,a,x); }
 
+/* A closure's captured environment, flattened into one dict.
+ *
+ * A lambda's scope slot[0] is the environment its FREE variables resolve
+ * against (see fncp_).  For a closure that is the enclosing lambda's frame; for
+ * a plain lambda it is a namespace scope.  Walk the chain from there collecting
+ * bindings, inner first so an inner name shadows an outer one, and STOP at the
+ * first namespace scope -- globals belong to the far side and are resolved
+ * there, exactly as they always were.  So a plain lambda captures nothing and
+ * its scope slot still serializes as `null`: non-closure blobs stay
+ * byte-identical, and the wire format is unchanged for them.
+ *
+ * Returns 0 when there is nothing to capture.  A frame holding the very lambda
+ * being serialized (or a ring member -- see fncap_strip below) is a cycle in
+ * the object graph, but never on the wire: the self is skipped and ring
+ * members ship env-less, so the blob is always acyclic and serialize's depth
+ * guard is only a backstop for pathological nesting. */
+/* fncap_ring: does this binding hold, anywhere on its conversion surface
+   (see the surface comment in fn.c), a lambda parented to sc -- a member of
+   the frame's reference ring?  Depth overflow answers yes: the strip below
+   copes, and shipping as-is would recurse around the ring. */
+static int fncap_ring(K w, K sc) {
+  static int d=0;
+  int r=0; u64 j; K *p;
+  if(++d>maxr) { --d; return 1; }
+  switch(s(w)) {
+  case 0xc3: { K scp=((K*)px(w))[2]; r=6!=T(scp)&&((K*)px(scp))[0]==sc; break; }
+  case 0xd9: case 0xd7: p=px(w); r=fncap_ring(p[0],sc)||fncap_ring(p[1],sc); break;
+  case 0xda: p=px(w); r=fncap_ring(p[0],sc); break;
+  case 0xc5: p=px(w); r=fncap_ring(p[0],sc); break; /* slot 0 = list of composed fns */
+  case 0x80: { p=px(w); K vl=p[1]; K *pv=px(vl);
+    for(j=0;j<n(vl)&&!r;++j) r=fncap_ring(pv[j],sc);
+    break; }
+  default:
+    if(0==T(w)&&(0==s(w)||0x81==s(w))) { p=px(w); for(j=0;j<n(w)&&!r;++j) r=fncap_ring(p[j],sc); }
+  }
+  --d;
+  return r;
+}
+
+/* Copy a ring-holding binding for shipping: rebuild the containers on the
+   surface -- wrapper chains, held-args lists, dicts -- sharing everything
+   that needs no change (serialize only reads them), with each ring member
+   replaced by a DEFINITION-ONLY lambda copy.  Env-less is the wire form of
+   "parented to the frame it travels in": the receiver's fnrestore re-parents
+   it to the restored frame, whose dict is this very blob, so the ring is
+   rebuilt on the far side with nothing cyclic ever on the wire.  Depth
+   overflow ships the node as-is; serialize's own depth guard then reports an
+   honest `stack` error. */
+static K fncap_strip(K w, K sc) {
+  static int d=0;
+  K r,*pr; u64 j;
+  if(++d>maxr) { --d; return k_(w); }
+  switch(s(w)) {
+  case 0xc3: {
+    K scp=((K*)px(w))[2];
+    if(6==T(scp)||((K*)px(scp))[0]!=sc) { r=k_(w); break; }
+    r=tn(0,4); pr=px(r);
+    pr[0]=k_(((K*)px(w))[0]);   /* definition text */
+    pr[1]=null; pr[2]=null; pr[3]=FN_VF(0,0);
+    r=st(0xc3,r);
+    break; }
+  case 0xd9: case 0xd7:
+    r=tn(0,2); pr=px(r);
+    pr[0]=fncap_strip(((K*)px(w))[0],sc);
+    pr[1]=fncap_strip(((K*)px(w))[1],sc);
+    r=st(s(w),r);
+    break;
+  case 0xda: case 0xc5:       /* 0xc5: slot 0 = list of composed fns */
+    r=tn(0,2); pr=px(r);
+    pr[0]=fncap_strip(((K*)px(w))[0],sc);
+    pr[1]=k_(((K*)px(w))[1]);   /* the adverb string */
+    r=st(s(w),r);
+    break;
+  case 0x80: {
+    K *pw=px(w); K ky=pw[0]; K vl=pw[1]; char **pk=px(ky); K *pv=px(vl);
+    r=dnew();
+    for(j=0;j<n(ky);++j) { K v2=fncap_strip(pv[j],sc); (void)dset(r,pk[j],v2); _k(v2); }
+    break; }
+  default:
+    if(0==T(w)&&(0==s(w)||0x81==s(w))) {
+      r=tn(0,n(w)); pr=px(r);
+      { K *pw=px(w); for(j=0;j<n(w);++j) pr[j]=fncap_strip(pw[j],sc); }
+      if(0x81==s(w)) r=st(0x81,r);
+    }
+    else r=k_(w);
+  }
+  --d;
+  return r;
+}
+
+static K fncap(K f) {
+  K *pf=px(f), sc, *ps, d=0, *pdk, ky, vl, *pvl, g, cs0, e;
+  char **pks;
+  u64 j;
+  if(6==T(pf[2])) return 0;      /* never realized -- nothing captured yet */
+  ps=px(pf[2]);
+  sc=ps[0];
+  while(sc && sc!=null) {
+    /* A scope frame is a 6-slot plist; ps[2]/ps[1] below assume it.  fncap
+       serializes closures that can originate from an untrusted db blob (or
+       capture a transient IPC-dispatch frame), so don't trust the shape: a
+       short/non-list frame ends the walk rather than over-reading. */
+    if(T(sc)!=0 || n(sc)<6) break;
+    ps=px(sc);
+    if(null!=ps[2]) break;       /* a namespace scope: globals stop here */
+    if(0x80==s(ps[1])) {
+      pdk=px(ps[1]); ky=pdk[0]; vl=pdk[1];
+      pks=px(ky); pvl=px(vl);
+      /* a forged scope dict can have keys longer than values (dget/dset index
+         values by a key slot); bound to the values count too */
+      for(j=0;j<n(ky)&&j<n(vl);++j) {
+        if(pvl[j]==f) continue;  /* the frame holds the very lambda we are
+                                    capturing for (`f:{...}` beside its own
+                                    definition).  Shipping it inside its own
+                                    environment is a cycle -- and it is already
+                                    being serialized, so skip it.  (A WRAPPER
+                                    around it -- `g:f 1` -- is a different
+                                    binding and must ship: it lands in the
+                                    ring branch below and goes env-less.) */
+        g=fn_inner(pvl[j]);
+        /* A sibling lambda that has never run has no environment of its own
+           yet, but its free names are this frame's.  Give it one NOW, against
+           the frame it lives in, so the recursive serialize below captures
+           them into ITS blob -- it then travels self-contained, and the
+           receiver never has to link it back to our frame (which is what would
+           make the object graph cyclic; see fnrestore). */
+        if(0xc3==s(g) && 6==T(((K*)px(g))[2])) {
+          cs0=cs; cs=k_(sc);
+          e=fnd(g);
+          _k(cs); cs=cs0;
+          if(e) { if(d) dfree(d); return 0; }  /* unparseable: capture nothing */
+        }
+        if(!d) d=dnew();
+        e=dget(d,pks[j]);
+        if(e) { _k(e); continue; }             /* inner shadows outer */
+        /* A binding holding a lambda parented to THIS frame -- bare, under a
+           wrapper, in a projection's held args, or nested in a list/dict
+           (closure_siblings / fnrestore made it a member of the frame's
+           reference ring) -- must ship env-less: capturing it as-is would
+           recurse around the ring -- serialize(f) captures g, whose blob
+           captures f, forever (mutually recursive siblings) -- until the
+           depth guard turned it into a `stack` error.  Its free names are
+           exactly this frame's bindings, which THIS blob already carries, and
+           the receiver's fnrestore re-parents an env-less lambda to the
+           restored frame -- rebuilding the ring on the far side, siblings and
+           recursion intact. */
+        if(fncap_ring(pvl[j],sc)) {
+          K g2=fncap_strip(pvl[j],sc);
+          (void)dset(d,pks[j],g2); _k(g2);
+          continue;
+        }
+        (void)dset(d,pks[j],pvl[j]);
+      }
+    }
+    sc=ps[0];
+  }
+  return d;
+}
+
 static K serialize(K x, char **b, char **v, i64 *n, i64 *m) {
   K p;
   char **pxs,*pxc,cc;
@@ -1667,6 +1912,17 @@ static K serialize(K x, char **b, char **v, i64 *n, i64 *m) {
   if(++d>maxr || (!(d&7)&&stack_low())) { --d; return KERR_STACK; }
   i32 t=tx,st=s(x),si=sizeof(i32),sd=sizeof(double),sn=sizeof(u64),ii,*pxi;
   i64 dv;
+  /* A 2:-linked C function (0xdc) holds a raw, process-local code pointer in
+     its slot 0 (io.c linkcall CALLs it).  Unlike a lambda (ships its text), a
+     dict, or a builtin verb (ships an index/name), there is nothing meaningful
+     to write down: the address is invalid in any other process, run, or after
+     the .so moves.  Serializing it would only ever produce a blob that db must
+     reject (and that a hostile peer forges into an arbitrary-call).  Refuse at
+     the source -- a value that cannot round-trip is not serializable data.
+     (Catches it nested too: a closure/list capturing a linked fn hits this.)
+     Not gated on t==0: db's reject is unconditional, so keep the two sides
+     symmetric rather than trusting a linked fn to always be list-shaped. */
+  if(st==0xdc) { --d; return KERR_TYPE; }
   *n+=3*sizeof(i32);
   K *pxk;
   switch(t) {
@@ -1713,13 +1969,25 @@ static K serialize(K x, char **b, char **v, i64 *n, i64 *m) {
   case -1: PXI; gk_st_arr(*v,&nx,1,sn); *v+=sn; gk_st_arr(*v,pxi,nx,si); *v+=nx*si; break;
   case  0: PXK;
     if(0xc3==s(x))  {
-      /* don't serialize lambda scope or parse result */
+      /* The parse result (slot 1) is rebuilt from the definition text on the
+         far side, so it is never shipped.  The scope (slot 2) is not shippable
+         either -- it chains up through the globals into the ktree, and is
+         cyclic -- but a CLOSURE's captured bindings are, so ship those as a
+         dict in its place (fncap above).  A plain lambda captures nothing and
+         still writes `null` here, exactly as before. */
+      K cap=fncap(x);
       gk_st_arr(*v,&nx,1,sizeof(u64)); *v+=sizeof(u64);;
-      i(nx,p=serialize((i==1||i==2)?null:pxk[i],b,v,n,m); if(E(p)) { --d; return p;})
+      i(nx,p=serialize(i==1?null:(i==2?(cap?cap:null):pxk[i]),b,v,n,m);
+           if(E(p)) { _k(cap); --d; return p;})
+      _k(cap);
     }
     else {
-      gk_st_arr(*v,&nx,1,sn); *v+=sn;
-      i(nx,p=serialize(pxk[i],b,v,n,m); if(E(p)) { --d; return p;})
+      /* a dict ships its 3 semantic slots (keys;values;capacity); the
+         hash-index cache (slot 4, dict.c) is runtime-only, so the wire
+         format is unchanged.  db re-adds a null slot on arrival. */
+      u64 nw=(0x80==st && nx>3)?3:nx;
+      gk_st_arr(*v,&nw,1,sn); *v+=sn;
+      i(nw,p=serialize(pxk[i],b,v,n,m); if(E(p)) { --d; return p;})
     }
     break;
   default: --d; return KERR_TYPE;
@@ -1727,12 +1995,6 @@ static K serialize(K x, char **b, char **v, i64 *n, i64 *m) {
   --d;
   return null;
 }
-
-/* Pre-Pass-3b-1 IPC/serialize encoded a primitive 2-arg projection
-   as 0xd4 (verb, args). Pass 3b-1 / Pass 4 replaced these with 0xd9
-   which has the same shape -- so the legacy fixup is just a subtype
-   rebrand. */
-static K bd_legacy_d4_to_d9(K r) { return r|(K)0xd9<<48; }
 
 /* Pre-Pass-3b-3 IPC/serialize encoded a builtin projection as 0xc8
    with shape (verb_sym_K, bound_arg, null).  Pass 3b-3 / Pass 4
@@ -1829,15 +2091,38 @@ static K deserialize(char **b,u64 *m) {
   if(n<si*3) return KERR_LENGTH;
   gk_ld_arr(&t,*b,1,si); *b+=si;
   gk_ld_arr(&st,*b,1,si); *b+=si;
+  /* The subtype is an 8-bit field (s(x) = x>>48 & 0xff); serialize never emits
+     more.  A hostile blob (untrusted IPC/db payload) that sets high bits gets
+     them OR'd into the K via `r|(K)st<<48` below -- past bit 55 that lands in
+     the TYPE field, forging e.g. an int atom into a fake heap vector with an
+     attacker-picked low-48 "pointer" (a type-confusion primitive: a crafted
+     st=0x30e8 on an int atom deserialized to 0x31e8000000000001, whose k_
+     dereferenced address 0x1).  Reject anything a real subtype can't be. */
+  if((u32)st > 0xff) return KERR_TYPE;
+  /* Whitelist the subtype to exactly what serialize emits: plain data (0), a
+     dict (0x80), a packed args plist (0x81), or a verb/function/projection
+     (0xc0..0xdc, each shape-validated further below).  Every OTHER value is an
+     INTERNAL-only tag the wire never legitimately carries -- a parse node
+     (0x40..0x45), a raw adverb (0x85), an eval state -- and the reducer/apply
+     machinery interprets those structurally, dereferencing the value's payload
+     as a pointer (a crafted t=1/st=0x41 int atom made the `$[...]` reducer read
+     its payload as a parse-node ko -> wild deref).  A hostile blob is the only
+     source; reject up front so no downstream consumer can be fed one. */
+  if(st && st!=0x80 && st!=0x81 && !(st>=0xc0 && st<=0xdc)) return KERR_TYPE;
   *b+=si; /* pad to 8 byte alignment for double */
   n-=3*si;
   switch(t) {
-  case  1: if(n<si) return KERR_LENGTH; gk_ld_arr(&ii,*b,1,si); r=t(1,(u32)ii); *b+=si; break;
-  case  2: if(n<sd) return KERR_LENGTH; gk_ld_arr(&ff,*b,1,sd); r=t2(ff); *b+=sd; break;
-  case  8: if(n<sd) return KERR_LENGTH; { i64 jj; gk_ld_arr(&jj,*b,1,sd); r=tj(jj); *b+=sd; } break;
-  case  9: if(n<si) return KERR_LENGTH; { float ef; gk_ld_arr(&ef,*b,1,si); r=te(ef); *b+=si; } break;
-  case  3: if(n<1) return KERR_LENGTH; memcpy(&cc,*b,1); r=t(3,(u8)cc); *b+=1; break;
-  case  4: if(n<1+strlen(*b)) return KERR_LENGTH; r=t(4,sp(*b)); *b+=1+strlen(*b); break;
+  /* every case must decrement n by exactly what it advances *b, not only by
+     the count-header: a nested list (case 0) threads the SAME n across its
+     siblings, so a payload left unsubtracted lets a later sibling's n<...
+     guard pass while *b has already run past a truncated buffer -- a heap
+     over-read on any corrupt/short blob (db of untrusted IPC data). */
+  case  1: if(n<si) return KERR_LENGTH; gk_ld_arr(&ii,*b,1,si); r=t(1,(u32)ii); *b+=si; n-=si; break;
+  case  2: if(n<sd) return KERR_LENGTH; gk_ld_arr(&ff,*b,1,sd); r=t2(ff); *b+=sd; n-=sd; break;
+  case  8: if(n<sd) return KERR_LENGTH; { i64 jj; gk_ld_arr(&jj,*b,1,sd); r=tj(jj); *b+=sd; n-=sd; } break;
+  case  9: if(n<si) return KERR_LENGTH; { float ef; gk_ld_arr(&ef,*b,1,si); r=te(ef); *b+=si; n-=si; } break;
+  case  3: if(n<1) return KERR_LENGTH; memcpy(&cc,*b,1); r=t(3,(u8)cc); *b+=1; n-=1; break;
+  case  4: { size_t len=strnlen(*b,n); if(len>=n) return KERR_LENGTH; r=t(4,sp(*b)); *b+=1+len; n-=1+len; } break;  /* strnlen not strlen: an untrusted (IPC) blob need not be nul-terminated within the buffer */
   case  6: r=null; break;
   case 10: r=inull; break;
   case -4:
@@ -1847,40 +2132,40 @@ static K deserialize(char **b,u64 *m) {
     /* min 1 byte/elem (the trailing nul); guards i32 overflow in PRS too */
     if(count>n||count>=(u64)VMAX) return KERR_LENGTH;
     PRS(count);
-    i(nr,size_t len=strnlen(*b,n); if(n<len) return KERR_LENGTH; prs[i]=sp(*b); n-=1+len; *b+=1+len) break;
+    i(nr,size_t len=strnlen(*b,n); if(len>=n) { _k(r); return KERR_LENGTH; } prs[i]=sp(*b); n-=1+len; *b+=1+len) break;  /* len>=n (not n<len, which strnlen makes impossible): need a nul WITHIN the remaining n bytes, else n-=1+len underflows.  _k(r): free the partially-built symbol vector on a mid-loop truncation, else it leaks (the only per-element return in deserialize). */
   case -3:
     if(n<sn) return KERR_LENGTH;
     gk_ld_arr(&count,*b,1,sn);
     *b+=sn; n-=sn;
     if(count>n||count>=(u64)VMAX) return KERR_LENGTH;
     PRC(count);
-    memcpy(prc,*b,nr); *b+=nr; break;
+    memcpy(prc,*b,nr); *b+=nr; n-=nr; break;
   case -2:
     if(n<sn) return KERR_LENGTH;
     gk_ld_arr(&count,*b,1,sn);
     *b+=sn; n-=sn;
     if(count>n/sd||count>=(u64)VMAX) return KERR_LENGTH;
     PRF(count);
-    gk_ld_arr(prf,*b,nr,sd); *b+=nr*sd; break;
+    gk_ld_arr(prf,*b,nr,sd); *b+=nr*sd; n-=nr*sd; break;
   case -8:
     if(n<sn) return KERR_LENGTH;
     gk_ld_arr(&count,*b,1,sn);
     *b+=sn; n-=sn;
     if(count>n/sd||count>=(u64)VMAX) return KERR_LENGTH;
-    { i64 *prj; PRJ(count); gk_ld_arr(prj,*b,nr,sd); *b+=nr*sd; } break;
+    { i64 *prj; PRJ(count); gk_ld_arr(prj,*b,nr,sd); *b+=nr*sd; n-=nr*sd; } break;
   case -9:
     if(n<sn) return KERR_LENGTH;
     gk_ld_arr(&count,*b,1,sn);
     *b+=sn; n-=sn;
     if(count>n/si||count>=(u64)VMAX) return KERR_LENGTH;
-    { float *pre; PRE(count); gk_ld_arr(pre,*b,nr,si); *b+=nr*si; } break;
+    { float *pre; PRE(count); gk_ld_arr(pre,*b,nr,si); *b+=nr*si; n-=nr*si; } break;
   case -1:
     if(n<sn) return KERR_LENGTH;
     gk_ld_arr(&count,*b,1,sn);
     *b+=sn; n-=sn;
     if(count>n/si||count>=(u64)VMAX) return KERR_LENGTH;
     PRI(count);
-    gk_ld_arr(pri,*b,nr,si); *b+=nr*si; break;
+    gk_ld_arr(pri,*b,nr,si); *b+=nr*si; n-=nr*si; break;
   case  0:
     if(n<sn) return KERR_LENGTH;
     gk_ld_arr(&count,*b,1,sn);
@@ -1893,10 +2178,63 @@ static K deserialize(char **b,u64 *m) {
   default: return KERR_TYPE;
   }
   *m=n;
+  /* Every subtype rides exactly ONE base type: serialize only ever emits 0xc3
+     on a list, 0xc6 on an int atom, 0xd8 on a symbol, and so on.  Each guard
+     below (and each consumer in fe.c/fn.c/k.c) reads the payload the way that
+     one pairing implies -- so pin the base type HERE, before any of them.
+     Checking shape alone is not enough, because every such check is itself
+     keyed on the base type and is simply SKIPPED on a mismatch: a list subtype
+     on an atom slid past the `t==0` guards (a t=2/0xc3 float atom reached
+     kprint_'s closure arm, which read the double's bits as a ko* -> SEGV; a
+     t=1/0xdc int atom rebuilt the arbitrary-call primitive the 0xdc reject
+     exists to kill), and symmetrically an atom subtype on a LIST slid past the
+     `t>0` guards (a t=0/0xc6 list skipped the BMONAD bound check, so apply
+     CALLed a table read off the end).  Deserializing 0xc0..0xdc x every base
+     type crashed in 68 combinations before this switch; the default arm makes
+     the pairing exhaustive, so a new subtype must name its base type to ship.
+     Reject rather than coerce: a mismatch is never a value serialize wrote. */
+  switch(st) {
+  case 0: break;                                    /* plain data: any base type */
+  case 0x80: case 0x81:                             /* dict; packed-args plist */
+  case 0xc3: case 0xc4: case 0xc5: case 0xc8:       /* lambda/closure; legacy projections; composition */
+  case 0xd0: case 0xd4: case 0xd5: case 0xd6:       /* fixed-dyad keeper; legacy primitive projections */
+  case 0xd7: case 0xd9: case 0xda:                  /* (f;args)/(f;av) wrappers */
+    if(t!=0) { _k(r); return KERR_TYPE; } break;
+  case 0xc1: case 0xc2:                             /* legacy modified verb: verb char + arg string */
+    if(t!=-3) { _k(r); return KERR_TYPE; } break;
+  case 0xc0: case 0xc6: case 0xc7:                  /* verb char; int-index builtins (payload = table index) */
+  case 0xce: case 0xcf:                             /* `+:` / `a+:` assign forms */
+    if(t!=1) { _k(r); return KERR_TYPE; } break;
+  case 0xc9: case 0xca: case 0xcb: case 0xcc: case 0xcd:
+  case 0xd1: case 0xd2: case 0xd3: case 0xd8:       /* name-based verbs: payload = interned symbol */
+    if(t!=4) { _k(r); return KERR_TYPE; } break;
+  case 0xdb: _k(r); return KERR_TYPE;               /* retired in Pass 1b (replaced by 0xda): no consumer */
+  case 0xdc: _k(r); return KERR_TYPE;               /* raw process-local code pointer: never deserializable */
+  default: _k(r); return KERR_TYPE;
+  }
+  /* Structural subtypes route the deserialized value to a handler that reads
+     fixed slots (fnrestore, the legacy converters); a hostile blob can bless
+     a short/empty list with such a subtype and drive those reads out of
+     bounds (a crafted 0xc3 on a <3-slot list overran fnrestore's pf[2]; a
+     0xd5/0xd6 on an empty list underflowed n(r)-1 to a huge arity).  The
+     converters that already length-check (c4/c8/d4) are fine; guard the rest
+     to the exact shape their serialize side emits before routing. */
   if(t==-3 && (st==0xc1 || st==0xc2)) {
-    /* legacy modified-verb K (see bd_legacy_mv_to_da above) */
+    /* legacy modified-verb K (see bd_legacy_mv_to_da above): a verb char
+       plus an argument string -- needs at least the verb byte */
+    if(!n(r)) { _k(r); return KERR_TYPE; }
     *m=n;
     return bd_legacy_mv_to_da(r, st==0xc2);
+  }
+  if(t==0 && st==0xc3) {
+    /* a closure ships its captured bindings as a dict in the scope slot; turn
+       them back into a frozen parent frame (fnrestore).  A plain lambda has
+       `null` there and passes straight through.  A serialized lambda is
+       always 4 slots (fncap ships n(x)) with slot 0 the definition TEXT (a
+       char vector, which fnd re-parses); a forged slot 0 of any other type is
+       dereferenced by fnd as a raw ko* (px(pf[0])) -> wild/OOB read. */
+    if(n(r)!=4 || T(((K*)px(r))[0])!=-3) { _k(r); return KERR_TYPE; }
+    return fnrestore(r|(K)0xc3<<48);
   }
   if(t==0 && st==0xc4) {
     /* legacy lambda projection (see bd_legacy_c4_to_d9 above) */
@@ -1906,13 +2244,82 @@ static K deserialize(char **b,u64 *m) {
     /* legacy builtin projection (see bd_legacy_c8_to_d9 above) */
     return bd_legacy_c8_to_d9(r);
   }
-  if(t==0 && st==0xd4) {
-    /* legacy primitive arity-2 projection (see bd_legacy_d4_to_d9) */
-    return bd_legacy_d4_to_d9(r);
-  }
+  /* Pre-Pass-3b-1 IPC/serialize encoded a primitive 2-arg projection as 0xd4
+     (verb, args).  Pass 3b-1 / Pass 4 replaced these with 0xd9, which has the
+     SAME shape, so the legacy fixup is a pure subtype rebrand -- and therefore
+     must satisfy 0xd9's own arity guard below.  It used to convert-and-return
+     right here, which skipped that guard: an empty list became a 0-slot 0xd9
+     whose consumers read slots 0 and 1 -> heap over-read.  Rebrand and fall
+     through instead, so the one guard covers both spellings by construction. */
+  if(t==0 && st==0xd4) st=0xd9;
   if(t==0 && (st==0xd5 || st==0xd6)) {
-    /* legacy primitive arity-3/4 projection (bd_legacy_d5d6_to_d9) */
+    /* legacy primitive arity-3/4 projection (bd_legacy_d5d6_to_d9): it forms
+       arity=n(r)-1, so an empty list underflows to a huge arity -- guard */
+    if(!n(r)) { _k(r); return KERR_TYPE; }
     return bd_legacy_d5d6_to_d9(r);
+  }
+  if(t==0 && st==0x80) {
+    /* a dict ships (keys; values; capacity).  dget/dset/dvals index the
+       values vector by a key-slot index bounded only against the KEY count,
+       so a hostile blob whose values vector is shorter than its keys vector
+       drives an out-of-bounds read/write; the 3 slots are also read
+       unconditionally (atcb/dotcb/valuecb), so a <3-slot forged dict
+       over-reads.  Reject anything that isn't a real dict shape here. */
+    if(!r || E(r) || n(r)<3) { _k(r); return KERR_TYPE; }
+    K *pk=px(r);
+    if(T(pk[0])!=-4 || n(pk[0])!=n(pk[1])) { _k(r); return KERR_TYPE; }
+    /* dicts ship 3 payload slots; the in-memory form carries a 4th (the
+       hash-index cache, dict.c).  Re-add it as null -- and drop any crafted
+       extra slots from a hostile blob, which dget/dset would otherwise
+       treat as a table. */
+    u64 j,n0=n(r);
+    K *pr4;
+    if(n0==3) { r=kresize(r,4); pr4=px(r); pr4[3]=null; }
+    else { pr4=px(r); for(j=3;j<n0;j++) { _k(pr4[j]); pr4[j]=null; } n(r)=4; }
+    /* Slot 2 is the key/value allocation capacity (dset's resize threshold).
+       The wire ships the SENDER's capacity (e.g. 64 after doubling), but the
+       receive-side vectors are rebuilt exactly count-sized.  A stale capacity
+       > the real allocation makes dset's append skip its resize and write past
+       the vector -- a heap overflow (and an arbitrary one from a hostile blob).
+       The rebuilt vectors are exactly count-sized, so the true capacity is the
+       key count; resetting it is always safe (next append just resizes). */
+    _k(pr4[2]); pr4[2]=t(1,(u32)n(pr4[0]));
+  }
+  /* The remaining structural subtypes attach to a t=0 list whose fixed slots
+     the apply/eval machinery (fe.c/fn.c) dereferences as verbs, args, or (for
+     0xdc) a raw C function pointer -- none re-checked downstream, because only
+     trusted internal code builds these.  A hostile db/IPC blob is the one
+     place untrusted bytes forge one, so validate the shape here:
+       (0xdc -- a raw process-local code pointer -- is rejected outright by the
+       base-type pin above, so it never reaches here.)
+       0xd9/0xda/0xd0/0xd7  (f;args)/(f;av) wrappers: consumers read slots 0,1.
+       0xc5  composition: fc reads slot 0 as a sub-list of verbs. */
+  if(t==0) {
+    u64 nlen=n(r);
+    switch(st) {
+    case 0xd9: case 0xda: case 0xd0: case 0xd7:
+      if(nlen<2) { _k(r); return KERR_TYPE; } break;
+    case 0xc5:
+      /* a composition is a 2-slot list: slot 0 the (non-empty) list of
+         composed fns, slot 1 the adverb char-vector.  Both slots are read
+         downstream -- kprint_ and the fe.c av-peel dereference px[1] (the av),
+         and fc reads px[0][n-1] -- so nlen>=1 was not enough: a 1-slot 0xc5
+         drove kprint_'s px[1] off the end of the list (heap over-read), and an
+         empty slot-0 list underflows fc's n(f)-1 to a -1 index.  Pin the exact
+         shape serialize emits (see p.c: tn(0,2), pw[0]=fn-list, pw[1]=tn(3,0)). */
+      if(nlen<2 || T(((K*)px(r))[0])!=0 || !n(((K*)px(r))[0])
+         || T(((K*)px(r))[1])!=-3) { _k(r); return KERR_TYPE; } break;
+    }
+  }
+  /* The int-index builtins (0xc6 monad, 0xc7 dyad) use the atom's payload
+     DIRECTLY as a BMONAD/BDYAD table index, so a forged index yields a garbage
+     function pointer that apply then CALLS (a second RCE beyond 0xdc) or that
+     print dereferences.  The base type is pinned to t=1 above; bound the index
+     itself here.  (0xc0 self-bounds via ck%32 plus a strlen guard, and the
+     name-based verbs just need the t=4 pin, so neither needs a check here.) */
+  switch(st) {
+  case 0xc6: if((u32)ik(r)>=(u32)NBMONAD) { _k(r); return KERR_TYPE; } break;
+  case 0xc7: if((u32)ik(r)>=(u32)NBDYAD)  { _k(r); return KERR_TYPE; } break;
   }
   return r|(K)st<<48;
 }
@@ -1987,11 +2394,13 @@ K bh_(K x) {
   switch(tx) {
   case -3:
     if(!nx) return tn(3,0);
-    PRC(1+nx/2); PXC;
-    if(nx==1) { sprintf(b,"0x0%c",pxc[0]); *prc=strtol(b,0,0); return r; }
-    if(nx%2) { sprintf(b,"0x0%c",pxc[0]); *prc++=strtol(b,0,0); prc++; }
+    /* hex is exactly two chars per byte, so odd input is malformed: it does
+       not round-trip (hb bh "abc" would be "0abc", not "abc").  The old code
+       tried to pad a leading zero but did it wrong (dropped/garbled a byte);
+       a length error is the honest answer. */
+    if(nx%2) return KERR_LENGTH;
+    PRC(nx/2); PXC;
     i(nx/2, sprintf(b,"0x%c%c",pxc[0],pxc[1]); *prc++=strtol(b,0,0); pxc+=2; )
-    nr--;
     break;
   case  0: r=irecur1(bh_,x); break;
   default: r=KERR_TYPE;
@@ -2065,10 +2474,11 @@ K bz_(K x) {
 }
 
 K md5_(K x) {
-  K r=0,e,*prk,*pxk;
+  K r=0,e,*prk;
   char *prc,*pxc,**pxs;
   if(s(x)) return KERR_TYPE;
-  if(tx==0) { PXK; i(nx,if(T(pxk[i])!=-3) return KERR_TYPE) }
+  /* general lists recurse via case 0/irecur1 below (a non-char/sym leaf
+     hits the default type error); no flat-list-only pre-check */
   switch(tx) {
   case -3: PRC(32); PXC; md5(prc,(u8*)pxc,nx); break;
   case  4: PRC(32); pxc=sk(x); md5(prc,(u8*)pxc,strlen(pxc)); break;
@@ -2083,10 +2493,11 @@ cleanup:
 }
 
 K sha1_(K x) {
-  K r=0,e,*prk,*pxk;
+  K r=0,e,*prk;
   char *prc,*pxc,**pxs;
   if(s(x)) return KERR_TYPE;
-  if(tx==0) { PXK; i(nx,if(T(pxk[i])!=-3) return KERR_TYPE) }
+  /* general lists recurse via case 0/irecur1 below (a non-char/sym leaf
+     hits the default type error); no flat-list-only pre-check */
   switch(tx) {
   case -3: PRC(40); PXC; sha1(prc,(u8*)pxc,nx); break;
   case  4: PRC(40); pxc=sk(x); sha1(prc,(u8*)pxc,strlen(pxc)); break;
@@ -2101,10 +2512,11 @@ cleanup:
 }
 
 K sha2_(K x) {
-  K r=0,e,*prk,*pxk;
+  K r=0,e,*prk;
   char *prc,*pxc,**pxs;
   if(s(x)) return KERR_TYPE;
-  if(tx==0) { PXK; i(nx,if(T(pxk[i])!=-3) return KERR_TYPE) }
+  /* general lists recurse via case 0/irecur1 below (a non-char/sym leaf
+     hits the default type error); no flat-list-only pre-check */
   switch(tx) {
   case -3: PRC(64); PXC; sha2(prc,(u8*)pxc,nx); break;
   case  4: PRC(64); pxc=sk(x); sha2(prc,(u8*)pxc,strlen(pxc)); break;
@@ -2234,7 +2646,10 @@ static inline i64 bin1f(void *v, i32 t, i64 n, f64 y) {
   f64 am;
   while(lo<hi) { m=lo+((hi-lo)>>1);
     am=(t==-1)?(f64)((i32*)v)[m]:(t==-8)?(f64)((i64*)v)[m]:(t==-2)?((f64*)v)[m]:(f64)((f32*)v)[m];
-    if(am<y) lo=m+1; else hi=m; }
+    /* total order: 0n sorts below everything (matches grade and the < verb),
+       but C < is always false on NaN, so a null in the haystack would stop
+       the search from ever moving right */
+    if(am<y || (isnan(am) && !isnan(y))) lo=m+1; else hi=m; }
   return lo;
 }
 K bin_(K a, K x) {
@@ -2274,6 +2689,19 @@ K binl_(K a, K x) {
   return r;
 }
 
+/* a lin x : elementwise whole-value membership -- (x?/a)<#x, the
+   elementwise twin of in_.  The batched x?/y fast path (findr, k.core/v.c)
+   hashes x once, so this is O(#a+#x). */
+K lin_(K a, K x) {
+  u64 n;
+  if(s(x)) return KERR_DOMAIN;
+  if(tx>0) return KERR_DOMAIN;
+  n=nx;
+  K t=k(78,k_(x),k_(a));     /* x?/a */
+  if(E(t)) return t;
+  return k(7,t,n>BIGV?tj((i64)n):t(1,(u32)n)); /* t<#x */
+}
+
 K in_(K a, K x) {
   u64 n;
   if(s(x)) return KERR_DOMAIN;
@@ -2308,6 +2736,7 @@ K exit__(K x) {
   ipc_shutdown();
   tmr_shutdown();
   watch_shutdown();
+  cc_shutdown();
   scope_free(cs);
   scope_free(gs);
   scope_free(ks);
@@ -2318,6 +2747,7 @@ K exit__(K x) {
   mfree();
   kexit();
   pexit();
+  link_shutdown();
 #ifdef FUZZING
   exit(0);
 #endif
@@ -2377,7 +2807,8 @@ K dir_(K x) {
       if(!q) { /* ktree path does not exist */
         t=dnew();
         (void)dset(d,sp(p),t);
-        if(!(fs=scope_find(pp))) { _k(es); es=scope_newk(es,t(4,sp(pp))); }
+        if(!(fs=scope_find(pp))) { _k(es); es=scope_newk(es,t(4,sp(pp)));
+          if(E(es)) { _k(d); xfree(s); xfree(ss); xfree(pp); return es; } }
         else { _k(es); es=k_(fs); }
         _k(d); d=t;
       }
@@ -2385,11 +2816,13 @@ K dir_(K x) {
         _k(d); d=q;
         t=scope_get(es,t(4,sp(p)));
         if(E(t)) { /* nope */
-          if(!(fs=scope_find(pp))) { _k(es); es=scope_newk(es,t(4,sp(pp))); }
+          if(!(fs=scope_find(pp))) { _k(es); es=scope_newk(es,t(4,sp(pp)));
+            if(E(es)) { _k(d); xfree(s); xfree(ss); xfree(pp); return es; } }
           else { _k(es); es=k_(fs); }
         }
         else if(!(fs=scope_find(pp))) {
           _k(es); es=scope_newk(es,t(4,sp(pp)));
+          if(E(es)) { _k(d); _k(t); xfree(s); xfree(ss); xfree(pp); return es; }
           K *pes=px(es);
           _k(pes[1]);
           pes[1]=k_(q);

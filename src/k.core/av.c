@@ -1,7 +1,9 @@
 #include "av.h"
+#include "fuse.h"
 #include <string.h>
 
 extern i32 vstcb(K x);
+extern K findr(K a, K x);
 
 static inline i32 av_isel(i32 a, i32 b, i8 op) {
   return op < 0 ? (a < b ? a : b) : (a > b ? a : b);
@@ -10,10 +12,10 @@ static inline i64 av_jsel(i64 a, i64 b, i8 op) {
   return op < 0 ? (a < b ? a : b) : (a > b ? a : b);
 }
 static inline float av_esel(float a, float b, i8 op) {
-  return cmpff(a, b) == op ? a : b;
+  return cmpfft(a, b) == op ? a : b;
 }
 static inline double av_fsel(double a, double b, i8 op) {
-  return cmpff(a, b) == op ? a : b;
+  return cmpfft(a, b) == op ? a : b;
 }
 
 // P=":+-*%&|<>=~.!@?#_^,$'/\\"
@@ -50,6 +52,7 @@ K eachright(i32 f, K a, K x) {
   K r=0,*prk,e;
   i8 Tx;
   if(f<0||f>22) return KERR_TYPE;
+  if(f==14) { r=findr(a,x); if(r) return r; }  /* batched x?/y (see v.c) */
   Tx=tx; if(!Tx&&s(x)) { if(!vstcb(x)) return KERR_TYPE; Tx=15; }
   if(Tx>0) r=k(f,k_(a),k_(x));
   else { PRK(nx); i(nx,prk[i]=ki(f,a,x,-1,i);EC(prk[i])) }
@@ -72,53 +75,7 @@ cleanup:
   return e;
 }
 
-/* Fast `,/x` (join-over / raze) for a general list x (Tx==0, nx>=2).
-   The generic fold does r=r,x[i] one item at a time -- O(n^2) copying.
-   We always know the result up front and build it in a single O(total) pass:
-     - all items general lists (T==0)  -> concatenate (share) into one list
-     - all items the same base scalar type (vectors and/or atoms of one of
-       int/float/char/sym/long/real) -> one flat vector of that type
-     - otherwise -> box every leaf into a general list (gk's join never
-       promotes numeric types; it boxes), then knorm -- exactly join()'s
-       box path.  This replaces the O(n^2) generic fold even for the mixed
-       case (e.g. `(...)`,1.0), which would otherwise re-box and re-copy a
-       growing accumulator quadratically.
-   Only a subtyped item (dict/function/...) returns 0 to fall through to the
-   generic fold, which knows those valences.  Results match join()
-   byte-for-byte (including the no-knorm pure-general-list case). */
-static K raze_(K x) {
-  K *pxk=(K*)px(x);
-  u64 nx_=n(x),total=0,j=0;
-  i8 B=0;          /* common scalar base type among non-list items (0=unset) */
-  int hasgl=0;     /* saw a general-list item (T==0) */
-  int hasva=0;     /* saw a vector/atom item (T!=0) */
-  int mismatch=0;  /* base types disagree */
-  i(nx_, K xi=pxk[i];
-        if(s(xi)) return 0;             /* subtyped item -> bail to generic */
-        i8 t=T(xi);
-        total += t<=0 ? n(xi) : 1;
-        if(t==0) hasgl=1;
-        else { i8 b=t<0?(i8)-t:t; if(!B) B=b; else if(B!=b) mismatch=1; hasva=1; })
-  if(hasgl && !hasva) {                  /* pure general lists -> share-concat, no knorm */
-    K r=tn(0,total); K *pr=(K*)px(r);
-    i(nx_, K xi=pxk[i]; K *pe=px(xi); u64 ni=n(xi); u64 q=0; while(q<ni) pr[j++]=k_(pe[q++]);)
-    return r;
-  }
-  if(!hasgl && !mismatch) switch(B) {    /* uniform scalar base -> flat vector */
-  case 1: { K r=tn(1,total); i32  *pr=px(r); i(nx_, K xi=pxk[i]; if(T(xi)<0){u64 ni=n(xi); memcpy(pr+j,px(xi),ni*sizeof(i32));    j+=ni;} else pr[j++]=ik(xi);) return r; }
-  case 2: { K r=tn(2,total); double*pr=px(r); i(nx_, K xi=pxk[i]; if(T(xi)<0){u64 ni=n(xi); memcpy(pr+j,px(xi),ni*sizeof(double)); j+=ni;} else pr[j++]=fk(xi);) return r; }
-  case 3: { K r=tn(3,total); char  *pr=px(r); i(nx_, K xi=pxk[i]; if(T(xi)<0){u64 ni=n(xi); memcpy(pr+j,px(xi),ni);              j+=ni;} else pr[j++]=ck(xi);) return r; }
-  case 4: { K r=tn(4,total); char **pr=px(r); i(nx_, K xi=pxk[i]; if(T(xi)<0){u64 ni=n(xi); memcpy(pr+j,px(xi),ni*sizeof(char*));  j+=ni;} else pr[j++]=sk(xi);) return r; }
-  case 8: { K r=tn(8,total); i64   *pr=px(r); i(nx_, K xi=pxk[i]; if(T(xi)<0){u64 ni=n(xi); memcpy(pr+j,px(xi),ni*sizeof(i64));    j+=ni;} else pr[j++]=jk(xi);) return r; }
-  case 9: { K r=tn(9,total); float *pr=px(r); i(nx_, K xi=pxk[i]; if(T(xi)<0){u64 ni=n(xi); memcpy(pr+j,px(xi),ni*sizeof(float));  j+=ni;} else pr[j++]=ek(xi);) return r; }
-  }
-  /* mixed types -> box each leaf into a general list (matches join's box path) */
-  { K r=tn(0,total); K *pr=(K*)px(r);
-    i(nx_, K xi=pxk[i]; i8 t=T(xi);
-          if(t<=0){ u64 ni=n(xi); u64 q=0; while(q<ni) pr[j++]=xi_(xi,q++,t); }
-          else pr[j++]=xi_(xi,0,t);)
-    return knorm(r); }
-}
+/* raze_ moved to fuse.c */
 
 K overd(i32 f, K x) {
   K r=0,*pxk,e,p;
@@ -172,6 +129,20 @@ K overd(i32 f, K x) {
     else if(ff==',') return k_(x);
     else return KERR_LENGTH;
   }
+  if(Tx<0&&nx==1) {
+    /* a one-item list folds to *y and f is never applied (K2 p.132) --
+       the float-forcing seeds below converted the untouched item
+       (%/,-19 was -19.0, not -19).  The type-0 arms already fall out of
+       their loops unapplied. */
+    switch(Tx) {
+    case -1: PXI; return t(1,(u32)*pxi);
+    case -2: PXF; return t2(*pxf);
+    case -8: PXJ; return tj(*pxj);
+    case -9: PXE; return te(*pxe);
+    case -3: PXC; return t(3,(u8)*pxc);
+    case -4: PXS; return t(4,(K)*pxs);
+    }
+  }
   switch(f) {
   case 1:
     switch(Tx) {
@@ -205,7 +176,7 @@ K overd(i32 f, K x) {
     case -1: PXI; { sf=fi(*pxi++); i(nx-1,sf/=fi(*pxi++)); r=t2(sf); } break;
     case -2: PXF; sf=*pxf++; i(nx-1,sf/=*pxf++); r=t2(sf); break;
     case -8: PXJ; { sf=fj(*pxj++); i(nx-1,sf/=fj(*pxj++)); r=t2(sf); } break;
-    case -9: PXE; { sf=(double)*pxe++; i(nx-1,sf/=(double)*pxe++); r=t2(sf); } break;
+    case -9: PXE; { float ef=*pxe++; i(nx-1,ef/=*pxe++); r=te(ef); } break;
     case  0: PXK; r=k_(*pxk++); i1(nx,p=ki(f,r,x,-1,i);_k(r);r=0;EC(p);r=p) break;
     case -3: PXC; r=t(3,(u8)*pxc++); i1(nx,p=ki(f,r,x,-1,i);_k(r);r=0;EC(p);r=p) break;
     case -4: PXS; r=t(4,(K)*pxs++); i1(nx,p=ki(f,r,x,-1,i);_k(r);r=0;EC(p);r=p) break;
@@ -310,7 +281,7 @@ K scand(i32 f, K x) {
     case -1: PRK(nx); PXI; *prk++=p=t(1,(u32)*pxi++); i1(nx,p=ki(f,p,x,-1,i);EC(p);*prk++=p) break;
     case -2: PRF(nx); PXF; sf=*pxf++; *prf++=sf; i(nx-1,sf/=*pxf++; *prf++=sf); break;
     case -8: PRK(nx); PXJ; *prk++=p=tj(*pxj++); i1(nx,p=ki(f,p,x,-1,i);EC(p);*prk++=p) break;
-    case -9: PRF(nx); PXE; sf=(double)*pxe++; *prf++=sf; i(nx-1,sf/=(double)*pxe++; *prf++=sf); break;
+    case -9: PRE(nx); PXE; { float ef=*pxe++; *pre++=ef; i(nx-1,ef/=*pxe++; *pre++=ef); } break;
     case  0: PRK(nx); PXK; *prk++=p=k_(*pxk++); i1(nx,p=ki(f,p,x,-1,i);EC(p);*prk++=p) break;
     case -3: PRK(nx); PXC; *prk++=p=t(3,(u8)*pxc++); i1(nx,p=ki(f,p,x,-1,i);EC(p);*prk++=p) break;
     case -4: PRK(nx); PXS; *prk++=p=t(4,(K)*pxs++); i1(nx,p=ki(f,p,x,-1,i);EC(p);*prk++=p) break;

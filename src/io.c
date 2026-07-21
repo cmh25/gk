@@ -175,6 +175,8 @@ static K readall_(FILE *fp, size_t bs, char **pb, size_t *pn) {
     if(!g) break;                   /* EOF or error */
   }
   if(ferror(fp)) { xfree(b); return kerror("io"); }
+  if(n == cap) b = xrealloc(b, cap + 1);
+  b[n] = 0;
   *pb = b;
   *pn = n;
   return null;
@@ -249,7 +251,7 @@ static K zerocolon1(K x) {
     /* normalize DOS endings: strip trailing '\r' before '\n' */
     if(len>0 && line[len-1]=='\r') len--;
     if(i==m) { m<<=1; r=kresize(r,m); prk=px(r); }
-    prk[i++]=tnv(3,len,xmemdup(line,len));
+    prk[i++]=tnv(3,len,xmemdup0(line,len));
     line=nl?nl+1:end;
   }
   xfree(b);
@@ -417,12 +419,12 @@ static K zerocolon2(K a, K x) {
           pz=z+pqi[i]-1; while(pz>z && isspace((unsigned char)*pz)) --pz; pz[1]=0;
           pz=z; while(isspace((unsigned char)*pz)) ++pz;
           float *pe=px(prk[j]);
-          pe[k]=(float)xstrtod(pz);
+          pe[k]=xstrtoe(pz);  /* f32-aware: 0ne/0ie/-0ie, dotted/exponent trailing-e */
           j++;
         }
         else if(ppc[i]=='C') {
           K *pcell=px(prk[j]);
-          pcell[k]=tnv(3,pqi[i],xmemdup(z,pqi[i]));
+          pcell[k]=tnv(3,pqi[i],xmemdup0(z,pqi[i]));
           j++;
         }
         else if(ppc[i]=='S') {
@@ -501,6 +503,16 @@ static K onecolon1(K x) {
   gk_ld_arr(&t,&t,1,sizeof(i32)); /* header is little-endian on disk */
   gk_ld_arr(&c,&c,1,sizeof(u64));
   if(t!=-1&&t!=-2&&t!=-3) { CloseHandle(fh); return twocolon1(x); }
+  /* Validate c against the real file size before computing len -- see the
+     POSIX path. CreateFileMapping's maxsize-0 sizes the mapping OBJECT to the
+     file, but MapViewOfFile's length arg (24+len) is what's actually mapped,
+     and a huge c overflows c*elemsize to a small len: a tiny view with
+     n(r)=c claiming billions of elements. Require the file to hold
+     [24 header][c*elemsize data] exactly. rd>=24 here so the file is >=24. */
+  { LARGE_INTEGER fsz; size_t esz=(t==-1)?sizeof(int):(t==-2)?sizeof(double):1;
+    if(!GetFileSizeEx(fh,&fsz)) { K e=wferr(s); CloseHandle(fh); return e; }
+    size_t avail=(size_t)fsz.QuadPart - 24;
+    if(c > avail/esz) { CloseHandle(fh); return KERR_LENGTH; } }
   if(t==-1) len=c*sizeof(int);
   else if(t==-2) len=c*sizeof(double);
   else len=c*sizeof(char);
@@ -549,6 +561,18 @@ static K onecolon1(K x) {
   gk_ld_arr(&t,&t,1,sizeof(i32)); /* header is little-endian on disk */
   gk_ld_arr(&c,&c,1,sizeof(u64));
   if(t!=-1&&t!=-2&&t!=-3) { close(fd); return twocolon1(x); }
+  /* Validate the on-disk count against the real file size BEFORE computing
+     len -- the header is untrusted (a crafted or truncated file), and a huge
+     c would (a) overflow c*elemsize to a small len, so mmap maps a tiny
+     region while n(r)=c claims billions of elements (any use reads off the
+     end -- a SEGV, and an out-of-bounds read of live memory before that), or
+     (b) with no overflow, claim more data than the file holds (SIGBUS past
+     EOF). The file is [24 header][c*elemsize data]; require exactly that.
+     The divide avoids the multiply overflow; have>=24 here so fsz>=24. */
+  { struct stat fst; size_t esz=(t==-1)?sizeof(int):(t==-2)?sizeof(double):1;
+    if(fstat(fd,&fst)==-1) { K e=ferr(s,errno); close(fd); return e; }
+    size_t avail=(size_t)fst.st_size - 24;
+    if(c > avail/esz) { close(fd); return KERR_LENGTH; } }
   if(t==-1) len=c*sizeof(int);
   else if(t==-2) len=c*sizeof(double);
   else if(t==-3) len=c*sizeof(char);
@@ -692,7 +716,7 @@ static K onecolon2(K a, K x) {
         }
         else if(ppc[j]=='C') {
           if(z+pqi[j]>ze) { e=KERR_LENGTH; goto cleanup; }
-          char *tmp=xmalloc(pqi[j]); memcpy(tmp,z,pqi[j]); ((K*)px(rk))[i]=tnv(3,pqi[j],tmp);
+          ((K*)px(rk))[i]=tnv(3,pqi[j],xmemdup0(z,pqi[j]));
         }
         else if(ppc[j]=='S') {
           if((z+pqi[j])>=ze+1) { e=KERR_LENGTH; goto cleanup; }
@@ -846,7 +870,30 @@ static void *linkdlopen(const char *p) {
     exported gk_* ABI, but its own symbols stay private (no collisions) */
 #endif
 }
+
+/* Every handle linkdlopen hands back, so link_shutdown can close them */
+static void **linkh; static u64 linkhn, linkhm;
+static void linkreg(void *h) {
+  if(linkhn==linkhm) { linkhm = linkhm ? linkhm*2 : 8; linkh = xrealloc(linkh,linkhm*sizeof(void*)); }
+  linkh[linkhn++] = h;
+}
 #endif
+
+/* Unlink every 2:-linked object, freeing the loader's per-library state.
+   MUST run last, immediately before exit(): */
+void link_shutdown(void) {
+#ifndef FUZZING
+  u64 j;
+  for(j=0;j<linkhn;++j) {
+#ifdef _WIN32
+    FreeLibrary((HMODULE)linkh[j]);
+#else
+    dlclose(linkh[j]);
+#endif
+  }
+  linkhn=linkhm=0; xfree(linkh); linkh=0;
+#endif
+}
 
 /* f 2:(e;t) -- Link Object Code. */
 static K twocolon2(K a, K x) {
@@ -886,14 +933,17 @@ static K twocolon2(K a, K x) {
   }
   if(!h) h=linkdlopen(fn);
   if(!h) { xfree(fn); xfree(en); return KERR_DOMAIN; }
+  linkreg(h); /* own the handle from here on -- every exit below is covered */
 #ifdef _WIN32
   fp=(void*)(uintptr_t)GetProcAddress((HMODULE)h,en); /* func->object ptr via uintptr_t (ISO C) */
 #else
   fp=dlsym(h,en);
 #endif
-  /* The handle is intentionally left open for the life of the process: a
-     linked function can be called any time after `f 2: ...` returns, so the
-     library must stay mapped.  K processes never unlink object code. */
+  /* The handle stays open for the life of the process: a linked function can
+     be called any time after `f 2: ...` returns, so the library must stay
+     mapped.  K processes never unlink object code -- there is no user-visible
+     unlink.  It IS closed at exit (link_shutdown, last thing before exit()),
+     once no K value can reference it. */
   if(!fp) { xfree(fn); xfree(en); return KERR_DOMAIN; }
   r=tn(0,3);
   K *pf=px(r);
@@ -1380,7 +1430,8 @@ static K b3colon(K x) {
   argv[1]="-c";
   argv[2]=xstrndup((char*)px(x),nx);
   argv[3]=0;
-  if(!fork()) execvp(argv[0],argv);
+  if(!fork()) { execvp(argv[0],argv); _exit(127); }  /* execvp returns only on
+    failure; without _exit the child falls through and runs the interpreter */
   xfree(argv[2]);
   return null;
 #endif
@@ -1416,6 +1467,7 @@ static K b4colon(K x) {
     dup2(out[1],1);
     close(out[1]);
     execvp(argv[0],argv);
+    _exit(127);  /* exec failed: terminate the child, don't run the interpreter */
   }
   waitpid(p,&status,0);
   sigprocmask(SIG_SETMASK, &prev, NULL);
@@ -1459,6 +1511,7 @@ static K b8colon(K x) {
     dup2(out[1],1); dup2(err[1],2);
     close(out[1]); close(err[1]);
     execvp(argv[0],argv);
+    _exit(127);  /* exec failed: terminate the child, don't run the interpreter */
   }
   waitpid(p,&status,0);
   sigprocmask(SIG_SETMASK, &prev, NULL);

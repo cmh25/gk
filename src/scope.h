@@ -36,6 +36,16 @@ void scope_free(K s);
 void scope_free_all(void);
 K scope_get(K s, K n);
 K scope_set(K s, K n, K v);
+/* The namespace a global reference inside the running function belongs to: the
+   first namespace scope on the current scope's parent chain, i.e. the namespace
+   the function was DEFINED in.  A fn defined under `\d foo` reaches foo's
+   globals no matter which namespace it is called from -- the caller's `\d` does
+   not follow the call.  At top level, and for a fn defined in the current
+   namespace, this is just gs.  Used by `::`/`+:` (p.c) and by the
+   by-reference amend family (k.c), which must agree with each other and with
+   the read side (which resolves through cs's parent chain). */
+K scope_home(void);
+
 K scope_cp(K s);
 K scope_find(char *x);
 int scope_vktp(char *x);

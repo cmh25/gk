@@ -428,6 +428,11 @@ int ipc_stdin_init(void) { return 0; }
 /* absolute cap (v2): the vector-length limit; beyond this the sender raises
  * 'length and a receiver drops the conn. */
 #define IPC_MAX_MSG2 ((u64)VMAX)
+/* Initial per-connection body allocation. The full message size comes from an
+ * untrusted header, so we allocate this much up front and grow toward the
+ * declared size only as bytes actually arrive (see parse_header / recv_step).
+ * A hostile header can no longer force a huge upfront alloc. */
+#define IPC_BODY_INIT ((u64)1<<16)   /* 64 KiB */
 
 #define MSG_ASYNC     0
 #define MSG_SYNC_REQ  1
@@ -797,9 +802,18 @@ static int parse_header(ipc_conn *c) {
   if(msglen < hdrsz)             return -1;
   c->body_need = (i64)(msglen - hdrsz);
   c->msgtype   = msgtype;
-  if(c->body_need > c->body_cap) {
-    c->body = xrealloc(c->body, (size_t)c->body_need);
-    c->body_cap = c->body_need;
+  /* Do NOT preallocate the full body_need: msglen is an UNTRUSTED header
+     field, and a hostile or buggy peer can declare any size up to the VMAX
+     gate above while sending far fewer bytes. Preallocating the claim let a
+     12-byte frame force an arbitrarily large xrealloc, which fails ->
+     'wsfull' -> exit(1): a remote DoS (one tiny frame kills the server).
+     Instead take a modest initial chunk and let recv_step grow the buffer as
+     bytes actually arrive, so allocation tracks real received data, never the
+     header's claim. A peer that wants us to hold N bytes must send N bytes. */
+  i64 want = c->body_need < (i64)IPC_BODY_INIT ? c->body_need : (i64)IPC_BODY_INIT;
+  if(want > c->body_cap) {
+    c->body = xrealloc(c->body, (size_t)want);
+    c->body_cap = want;
   }
   return 0;
 }
@@ -1110,8 +1124,11 @@ static void deliver_message(ipc_conn *c) {
      * any local sync waiter will be woken by the conn close that follows
      * if the stream is corrupt enough to matter. */
     if(msgtype == MSG_SYNC_REQ) {
-      const char *m = (msg < EMAX) ? E[msg] : sk(msg);
-      send_frame(fd, MSG_SYNC_ERR, m, (u32)strlen(m));
+      /* send_error bd-ENCODES the payload; the raw send_frame here shipped a
+         bare string, which the peer's unconditional db_ then failed to decode
+         -- so the waiter never woke, the exact hang this branch exists to
+         prevent. */
+      send_error(fd, msg);
     }
     if(msg >= EMAX) _k(msg);
     return;
@@ -1218,9 +1235,22 @@ static int recv_step(ipc_conn *c) {
       }
     }
 
-    /* phase 2: body */
+    /* phase 2: body. Grow the buffer toward body_need only as data arrives
+       (see parse_header): when the current capacity is full and more is
+       expected, double it, capped at body_need. Read at most min(body_cap,
+       body_need) - body_have: bounded by body_cap so we never index past the
+       allocation, and by body_need so we never read into the NEXT message
+       (reset_recv keeps a larger body_cap across messages, so a small message
+       after a large one has body_cap > body_need). */
+    if(c->body_have == c->body_cap && c->body_cap < c->body_need) {
+      i64 ncap = c->body_cap ? c->body_cap << 1 : (i64)IPC_BODY_INIT;
+      if(ncap > c->body_need) ncap = c->body_need;
+      c->body = xrealloc(c->body, (size_t)ncap);
+      c->body_cap = ncap;
+    }
+    i64 body_lim = c->body_cap < c->body_need ? c->body_cap : c->body_need;
     ssize_t r = sock_recv(c->fd, c->body + c->body_have,
-                                 (size_t)(c->body_need - c->body_have));
+                                 (size_t)(body_lim - c->body_have));
     if(r == 0) return -1;
     if(r <  0) {
       int e = sock_lasterr();
@@ -1423,7 +1453,7 @@ K ipc_send_async(int fd, K msg) {
   /* Rewrite 'wsfull -> 'length on the IPC send path to match k. */
   if(E(e)) return (e == KERR_WSFULL) ? KERR_LENGTH : e;
   if(over_ipclimit(len)) return KERR_LENGTH;
-  int rc = send_frame(fd, MSG_ASYNC, send_scratch, (u32)len);
+  int rc = send_frame(fd, MSG_ASYNC, send_scratch, len);
   if(rc < 0) {
     int last = sock_lasterr();
     int idx2 = find_conn(fd);
@@ -1450,7 +1480,7 @@ K ipc_send_sync(int fd, K msg) {
   /* Rewrite 'wsfull -> 'length on the IPC send path to match k. */
   if(E(e)) return (e == KERR_WSFULL) ? KERR_LENGTH : e;
   if(over_ipclimit(len)) return KERR_LENGTH;
-  int rc = send_frame(fd, MSG_SYNC_REQ, send_scratch, (u32)len);
+  int rc = send_frame(fd, MSG_SYNC_REQ, send_scratch, len);
   if(rc < 0) {
     int last = sock_lasterr();
     if(find_conn(fd) >= 0) close_conn_at(find_conn(fd));

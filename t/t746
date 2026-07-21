@@ -1,0 +1,173 @@
+/ 2026-07-12 file-audit fixes (tools/audit-2026-07-12.md).
+/ Results PRINT, so a failing diff shows the actual value.
+
+/ --- A1: long/real vectors through multi-char adverb chains (avdoi -8/-9)
++/'1 2j                        / -> 1 2j        (was: type error)
++/'1.0 2.0e                    / -> 1 2.0e      (was: type error)
+1 2j+/'(1 2;3 4)               / -> (2 3j;5 6j) (was 3 7: LEFT ARG DROPPED)
+1 2+/'(1 2;3 4)                / int baseline, unchanged
+{x+y}'[3 4]'[10 20j]           / -> (13 14j;23 24j) (was identical wrong rows)
+
+/ --- A2: a dict arg before a vector arg in valence-3+ over/scan
+dA2:.,(`a;1)
+{[a;b;c]c}/[0;dA2;10 20 30]    / -> 30          (was: valence error)
+{[a;b;c]c}\[0;dA2;10 20 30]    / -> 0 10 20 30
+
+/ --- A4: an adverbed builtin monad held as a VALUE
+gA4:sqrt/
+gA4 16.0                       / -> 1.0         (was: type error)
+(sqrt/)16.0
+sqrt/[16.0]
+(sin')1 2 3
+sqrt/16.0                      / infix always worked
+
+/ --- A5: a builtin DYAD left of `.` is the dot-APPLY target (known valence 2,
+/ so composing with a monadic `.` could only project).  `in . ,1` == `.[in;,1]`
+.[in;,1]
+in . ,1                        / -> in[1]       (was: type error)
+mul . (2;3)                    / -> 6
+sA5:mul . (2;3)                / assignment context
+sA5
+1+mul . (2;3)                  / -> 7           infix context
+in . (1;1 2 3)                 / -> 1
+draw . (3;10)                  / -> 3 draws
+fA5:in
+fA5 . ,1                       / the noun spelling, unchanged
+/ an AMBIVALENT verb keeps its real composition (valence set by context)
+4:."1 2 3"                     / -> -1   4: of the VALUE of the string
+val[4:.]                       / -> 2    the composition is a valence-2 value
+(4:.)"1 2 3"                   / -> -1
+5:.()
+
+/ --- A3: do-n / do-scan accept any monadic-only f, incl a val-1 lambda
+val[{2*x}']                    / -> 1
+3{2*x}'/1 2                    / -> 8 16        (was: valence error)
+3{2*x}'\1 2                    / -> the 4 steps
+3{2*x}/1 2                     / single-char form always worked
+
+/ --- F1: a symbol list at the start of a body is a VALUE, not parameters
+fF1:{`x`y}
+fF1[]                          / -> `x `y       (was: a valence-2 projection)
+fF1[7]
+{1;`x`y}[7]                    / this spelling always worked
+{`a2`x}[9]
+
+/ --- F2: a dotted global whose component is x/y/z is not a parameter
+aF2.y:42
+{aF2.y}[7]                     / -> 42          (was: a projection)
+dF2.b:5
+{x.b}dF2                       / -> 5   the HEAD x is still an implicit param
+
+/ --- F3: closures inside a 0xd7 seeded over/scan value convert
+uF3:{c:5;g:{x+c};3 g/}
+hF3:uF3[]
+hF3 2                          / -> 17          (was: value error)
+{c:5;g:{x+c};h:3 g/;{h x}}[][2]        / sibling through the snapshot
+{c:5;p:{x<c};h:p {x+1}/;{h x}}[][0]    / capturing while-PREDICATE seed -> 5
+(db bd hF3)2                           / and it survives the wire -> 17
+
+/ --- F4: a 2:-linked fn under an adverbed under-apply was double-freed
+/ (segfault after a few repeats).  The compiled-lib repro lives in linktest;
+/ this is the builtin-dyad analog of the same adverb route.
+1 2+/'(1 2;3 4)
+
+/ --- K1: a deep scatter stays scattered through a symbol level
+dK1:.((`a;.,(`x;.,(`p;1)));(`b;.,(`x;.,(`p;2))))
+rK1:.[dK1;(`a`b;`x;`p);:;10 20]
+rK1[`a;`x;`p]                  / -> 10   (both leaves used to become 10 20)
+rK1[`b;`x;`p]                  / -> 20
+
+/ --- K2: long/real y amended into a dict (was a SILENT no-op, no error)
+dK2:.((`a;1);(`b;2))
+@[dK2;`a`b;:;10 20j]
+@[dK2;`a`b;+;10 20j]
+@[dK2;nul;:;10 20j]
+@[dK2;(`a`b;`a);:;(10 20j;5)]  / the long sub-amend used to be skipped mid-list
+@[dK2;`a`b;:;1.5 2.5e]
+@[dK2;`a`b;:;10 20]            / int baseline, unchanged
+
+/ --- K3 is NOT a bug: nul is the IDENTITY VECTOR, so the old value amend
+/ hands f at index i really is nul@i == i
+nul . 2
+.[nul;2;{(x;99)}]              / -> 2 99   x is the old value, which IS 2
+.[nul;`a;{(x;99)}]             / a symbol index misses -> x is nul
+
+/ --- K4: an empty path element no-ops in 3-arg amend, as it does in 4-arg
+.[(1 2;3 4);(!0;0);{x+1}]      / -> unchanged   (was: index error)
+.[(1 2;3 4);(0#0j;0);{x+1}]
+.[(1 2;3 4);(!0;0);:;5]        / the 4-arg form always no-op'd
+
+/ --- N1/N2: slide.  A ragged tail is a LENGTH error (ref.md); a vector too
+/ short for even one pair yields () for EVERY stride.
+_[1;,;,"a"]
+_[2;,;,"a"]                    / -> ()          (was: valence error)
+_[2;,;"abcd"]
+ssr["Adam had a pear";"a";"the"]   / ssr rides the too-short case via ep
+@[{_[3;,;x]};"abcdef";:]       / ragged tail -> (1;"length")  (was "valence")
+
+/ --- N3: \V no longer truncates a vector's count through an i32 (the >2^31
+/ case needs gkvm; this just pins the display + restore)
+yN3:!200
+#yN3
+yN3[150]
+
+/ --- D1: draw's roll/deal grid accepts a real range
+draw[0;1.0e]                   / -> 0#0.0e      (was: type error)
+#draw[3;1.0e]
+0?1.0e                         / the `?` spelling always worked
+draw[0;1]
+draw[0;1j]
+
+/ --- P1: a parenthesized left-seeded partial dyad applies (it used to DROP
+/ its argument and hand back the derived verb)
+(5+)1 2 3                      / -> 6 7 8       (was: 5+)
+(5+)@1 2 3
+(2 3+)10 20                    / -> 12 23
+(5+/)1 2 3
+(1+)2
+fP1:5+
+fP1 1 2 3                      / the name-bound form always worked
+(2;5+;3)                       / a partial dyad is still a value in a list
+
+/ --- ROUND 2 (2026-07-12): k.core/v.c type-arm gaps
+/ flip is a noop for ANY plain vector; -8/-9 used to type-error
++1 2 3j                        / -> 1 2 3j      (was: type error)
++3#1.5e                        / -> real vector unchanged
++0#0j                          / -> empty long unchanged
++(1 2 3j;4 5 6j)               / genuine transpose still works
+/ char-vector min/max with a general list (mamo -3 arm used irecur2 not each)
+"ab"&(,"a";,"z")               / -> (,"a";,"b")  (was: length error)
+"ab"|(,"a";,"z")               / -> (,"a";,"z")
+/ f32 divide reduce/scan stay f32 (overd/scand -9 arm widened to f64)
+4:%/1 2 3.0e                   / -> 9 (f32 type; was 2 = f64)
+%/1 2 3.0e                     / -> 0.1666667e
+4:%\1 2 3.0e                   / -> 9
+%\1.0e 2.0e 4.0e               / -> the f32 scan
+/ sv (base-decode) must NOT truncate its shared value argument in place
+svc:10 20 30
+(2 3 4)sv svc                  / -> 230 (the decode)
+svc                           / -> 10 20 30  (was 10 20: n(x)-- never restored)
+/ bh (hex->bytes): odd-length hex is malformed (2 chars/byte, no round-trip)
+@[bh;"abc";:]                  / -> (1;"length")  (was garbage: dropped a byte)
+bh"0a0b0c0d"                   / even length -> the 4 bytes
+hb bh"0a0b0c0d"                / round-trips
+/ kcmpr: nested lists of unequal length compare ELEMENT-first, not length-first
+<((1 2;9);(1 2;3;4))           / -> 1 0  (prefix ties, 9>3; was 0 1 length-first)
+<((1 2;9);(1 2;3))             / equal-length control -> 1 0
+/ lu of a non-finite matrix keeps the (+P;L;U) tuple order (was L;U;P)
+{^x}'lu(3 2#1 2 3 4 5.0,%0.0)  / -> shapes (3 3;3 2;2 2), not (3 2;2 2;3 3)
+/ float-drop `a _ x` (round x to a multiple of a) over the full promotion matrix
+2.0_4j                         / f64 _ long  -> 4.0   (was: type error)
+2.0_4.1e                       / f64 _ f32   -> 4.0
+2.0e_4                         / f32 _ int   -> 4.0e  (f32 result)
+2.0e_4.0e                      / f32 _ f32   -> 4.0e
+2.0e_4.0                       / f32 _ f64   -> 4.0   (f64 dominates)
+2.0e_4j                        / f32 _ long  -> 4.0
+(4:2.0_4j;4:2.0e_4;4:2.0e_4j)  / result types: f64 f32 f64 -> 2 9 2
+-2.0_5j                        / negative multiple rounds UP -> 6.0
+2.0e_10 20 30j                 / vector, f32 _ long -> f64 result
+/ lcm i64 overflow saturates to 0Ij (J_INF), mirroring i32's clamp to 0I
+lcm[1000000000000j;999999999999j]  / -> 0Ij  (was a wrapped garbage number)
+lcm[3037000500j;3037000499j]       / just under 2^63, fits -> exact
+lcm[12;18]                         / normal case unaffected -> 36
+\\

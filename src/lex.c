@@ -15,6 +15,14 @@ static char *P=":+-*%&|<>=~.!@?#_^,$'/\\";
 static char *p,*p0,*p1;
 static int line;
 static int64_t iii;  /* lex in 64-bit space, clamp to 32-bit at end */
+static int nzi;      /* last int/long literal was a negative zero ("-0"/"-0j") */
+static int sent;     /* last int literal was a sentinel: 3 = "0I", 4 = "-0I" (0N rides
+                        the nl[] state-1 path).  Lets an unsuffixed infinity adopt an
+                        i64 vector's width (0I 2j -> 0Ij 2j), as the doc promises. */
+static double ddd;   /* last int literal's value as a double, from its own text:
+                        digits via xstrtod (2147483647 stays 2147483647.0), sentinel
+                        spellings as nan/inf.  Float promotion reads this, so a digit
+                        that lands on a sentinel bit pattern is not transmuted. */
 static double fff;
 static float eee;    /* float32 (e suffix) literal value */
 
@@ -34,6 +42,10 @@ static void push(pgs *s, int tt, K tv) {
 static int gn_(void) {
   char c,*q=p,*ep=0;  /* ep: position of an exponent 'e' (for f32-suffix backtrack) */
   int s=0;
+  int sente=0;        /* mantissa is a float sentinel (0n/0i/-0i): its 'e' is the
+                         f32 suffix, never an exponent -- a NaN/inf has none, so
+                         `0ne+5` must lex as 0ne then + 5, not 0n^(e+5). */
+  nzi=0; sent=0;
   while(1) {
     switch(s) {
     case 0:
@@ -54,7 +66,7 @@ static int gn_(void) {
       else if(*p=='j') s=13;  /* 0j */
       else s=11;
       break;
-    case 2: if(*p=='e'||*p=='E') s=8; else s=12; break;  /* 0ne/0ie/-0ie -> f32 */
+    case 2: if(*p=='e'||*p=='E') { sente=1; s=8; } else s=12; break;  /* 0ne/0ie/-0ie -> f32 */
     case 3: if(*p=='j') s=13; else s=11; break;  /* 0Nj/0Ij/-0Ij */
     case 4:
       if(!*p) s=11;
@@ -78,11 +90,19 @@ static int gn_(void) {
       else s=12;
       break;
     case 7: if(*p&&isdigit((unsigned char)*p)) s=9; else s=10; break;
-    case 8:
+    case 8: {
       /* exponent: 'e' then digits, or 'e' then a sign *followed by a digit*.
          A sign not followed by a digit (e.g. 2.0e+'x) means 'e' is the f32
          suffix and the sign is a separate operator token. */
-      if(*p&&(isdigit((unsigned char)*p)||((*p=='-'||*p=='+')&&isdigit((unsigned char)p[1])))) { ep=p-1; s=9; break; }
+      /* ...but a lone `0` glued to a sentinel letter (n/i/N/I) is the START of
+         a sentinel (0n/0i/0N/0I, incl. 0ne/0ie), not an exponent digit -- the
+         sentinel wins, so `5.0e+0ne` lexes as 5.0e + 0ne, not 5.0e+0 then a
+         dangling `ne`.  Only a SINGLE `0` triggers this: a multi-digit run
+         (10, 00, 05) has a digit at d[1], not a sentinel letter, so no valid
+         number literal (`5.0e+10n` stays `5.0e+10` + `n`) changes. */
+      char *d = (*p=='+'||*p=='-') ? p+1 : p;   /* first exponent-digit slot */
+      int lone0sent = d[0]=='0' && (d[1]=='n'||d[1]=='i'||d[1]=='N'||d[1]=='I');
+      if(!sente&&!lone0sent&&*p&&(isdigit((unsigned char)*p)||((*p=='-'||*p=='+')&&isdigit((unsigned char)p[1])))) { ep=p-1; s=9; break; }
       /* 'e' not followed by exponent digits => float32 suffix; the 'e' is at
          p-1, the mantissa/sentinel token is q..p-1 (mirrors 0N/0I handling) */
       if(p==q+1) return 0;
@@ -98,6 +118,7 @@ static int gn_(void) {
       *(p-1)=c;  /* restore 'e' */
       p--;       /* next token starts at the 'e' */
       return 1;
+    }
     case 9:
       if(!*p) s=12;
       else if(isdigit((unsigned char)*p)) s=9;
@@ -117,10 +138,13 @@ static int gn_(void) {
       if(p==q) return 0;
       c=*--p; *p=0;
       /* handle special int literals 0N, 0I, -0N, -0I */
-      if(!strcmp(q,"0N")||!strcmp(q,"-0N")) { iii=INT32_MIN; *p=c; return 3; }  /* 3 = null int literal */
-      else if(!strcmp(q,"0I")) iii=INT32_MAX;
-      else if(!strcmp(q,"-0I")) iii=INT32_MIN+1;
-      else iii=strtoll(q,NULL,10);  /* 64-bit, no clamp - defer to gn() */
+      if(!strcmp(q,"0N")||!strcmp(q,"-0N")) { iii=INT32_MIN; ddd=NAN; *p=c; return 3; }  /* 3 = null int literal */
+      else if(!strcmp(q,"0I")) { iii=INT32_MAX; ddd=INFINITY; sent=3; }
+      else if(!strcmp(q,"-0I")) { iii=INT32_MIN+1; ddd=-INFINITY; sent=4; }
+      else { iii=strtoll(q,NULL,10); if(INT64_MIN==iii) iii=INT64_MIN+1; ddd=xstrtod(q); nzi=(0==iii&&'-'==*q); }  /* 64-bit,
+                no clamp beyond strtoll's - defer to gn().  INT64_MIN (exact or
+                strtoll saturation) becomes -0Ij, never 0Nj: the null pattern is
+                reserved for the 0N spelling, as the i32 clamps also guarantee */
       *p=c;
       return 1;
     case 12: /* float */
@@ -135,7 +159,12 @@ static int gn_(void) {
       if(!strcmp(q,"0N")||!strcmp(q,"-0N")) iii=J_NULL;
       else if(!strcmp(q,"0I")) iii=J_INF;
       else if(!strcmp(q,"-0I")) iii=J_NINF;
-      else iii=strtoll(q,NULL,10);
+      else { iii=strtoll(q,NULL,10); if(INT64_MIN==iii) iii=INT64_MIN+1; }
+                                     /* no nzi: `j` types the token a long, and
+                                        longs have no signed zero -- -0j promotes
+                                        to +0.0, as (-0j)+0.0 does.  INT64_MIN
+                                        saturates to -0Ij, never 0Nj (see the
+                                        unsuffixed branch above) */
       *p=c;  /* restore 'j' */
       ++p;   /* consume it -- unlike the int terminator, 'j' is part of the literal */
       return 4;
@@ -150,8 +179,17 @@ static int gn_(void) {
 #define S4(x) ((x)[0]&&(x)[1]&&(x)[2]&&(x)[3])
 static int gn(pgs *pgs) {
   int r0,r,i;
+  char *p_lit=p;  /* start of the literal, for the error caret */
+  int fl=0;       /* saw a float token (bare decimal / exponent / `e` / 0n / 0i) */
   int64_t *iv=0;  /* collect in 64-bit space */
-  char *nl=0;     /* nl[i]=1 if iv[i] was 0N/-0N literal */
+  double *dv=0;   /* dv[i]: iv[i]'s value from its own text (ddd) -- what the token
+                     means in a float vector.  Not stored for `j` tokens: any `j`
+                     sets lng, and the lng promotion path never reads dv. */
+  char *nl=0;     /* nl[i]: 1 = iv[i] was a 0N/-0N literal, 2 = an untyped `-0`.
+                     `-0` has no type of its own, so it takes the vector's: 0 in
+                     an int/long vector, -0.0 in a float one.  State 2 rides here
+                     until the int->double promotion below consumes it.  A `-0j`
+                     is explicitly a long and never reaches state 2. */
   int ic=0,fc=0,imm=1,fm=1,lng=0,e32=0;  /* lng: any `j`; e32: any `e` (f32) */
   double *fv=0;
   char *q;
@@ -160,10 +198,10 @@ static int gn(pgs *pgs) {
     q=p;
     while(*p&&isblank((unsigned char)*p))++p;
     if((*p&&isdigit((unsigned char)*p))||(S2(p)&&(*p=='.'||*p=='-')&&isdigit((unsigned char)p[1]))) { /* convert to vector */
-      if(r0==1||r0==4) { if(r0==4) lng=1; imm<<=1; iv=xrealloc(iv,imm*sizeof(int64_t)); nl=xrealloc(nl?nl:0,imm); nl[ic]=0; iv[ic++]=iii; }
-      else if(r0==2) { fm<<=1; fv=xrealloc(fv,fm*sizeof(double)); fv[fc++]=fff; }
-      else if(r0==5) { e32=1; fm<<=1; fv=xrealloc(fv,fm*sizeof(double)); fv[fc++]=eee; }
-      else if(r0==3) { imm<<=1; iv=xrealloc(iv,imm*sizeof(int64_t)); nl=xrealloc(nl?nl:0,imm); nl[ic]=1; iv[ic++]=INT32_MIN; }
+      if(r0==1||r0==4) { if(r0==4) lng=1; imm<<=1; iv=xrealloc(iv,imm*sizeof(int64_t)); dv=xrealloc(dv?dv:0,imm*sizeof(double)); nl=xrealloc(nl?nl:0,imm); nl[ic]=nzi?2:sent; dv[ic]=r0==1?ddd:0; iv[ic++]=iii; }
+      else if(r0==2) { fl=1; fm<<=1; fv=xrealloc(fv,fm*sizeof(double)); fv[fc++]=fff; }
+      else if(r0==5) { fl=1; e32=1; fm<<=1; fv=xrealloc(fv,fm*sizeof(double)); fv[fc++]=eee; }
+      else if(r0==3) { imm<<=1; iv=xrealloc(iv,imm*sizeof(int64_t)); dv=xrealloc(dv?dv:0,imm*sizeof(double)); nl=xrealloc(nl?nl:0,imm); nl[ic]=1; dv[ic]=NAN; iv[ic++]=INT32_MIN; }
     }
     p=q;
     if(iv) {
@@ -173,26 +211,26 @@ static int gn(pgs *pgs) {
         r=gn_();
         if(r==1||r==4) {
           if(r==4) lng=1;
-          if(ic==imm) { imm<<=1; iv=xrealloc(iv,imm*sizeof(int64_t)); nl=xrealloc(nl,imm); }
-          nl[ic]=0; iv[ic++]=iii;
+          if(ic==imm) { imm<<=1; iv=xrealloc(iv,imm*sizeof(int64_t)); dv=xrealloc(dv,imm*sizeof(double)); nl=xrealloc(nl,imm); }
+          nl[ic]=nzi?2:sent; dv[ic]=r==1?ddd:0; iv[ic++]=iii;
         }
         else if(r==3) {
-          if(ic==imm) { imm<<=1; iv=xrealloc(iv,imm*sizeof(int64_t)); nl=xrealloc(nl,imm); }
-          nl[ic]=1; iv[ic++]=INT32_MIN;
+          if(ic==imm) { imm<<=1; iv=xrealloc(iv,imm*sizeof(int64_t)); dv=xrealloc(dv,imm*sizeof(double)); nl=xrealloc(nl,imm); }
+          nl[ic]=1; dv[ic]=NAN; iv[ic++]=INT32_MIN;
         }
         else if(r==2||r==5) {
+          fl=1;
           fm=imm;
           fv=xrealloc(fv,fm*sizeof(double));
           for(i=0;i<ic;i++) {
-            /* preserve null/inf when promoting int64 to double; 0N literal -> NAN, underflow -> -inf */
-            if(nl && nl[i]) fv[fc++]=NAN;
+            /* promote by spelling, not bit pattern: digits keep their text value
+               (2147483647 1 2 3.0 is 2147483647.0 ...), sentinel spellings their
+               meaning (0N -> nan, 0I/-0I -> +-inf, -0 -> -0.0) -- all via dv */
+            if(nl && 2==nl[i]) fv[fc++]=-0.0;   /* `-0 1.0` is -0.0 1.0 */
             else if(lng) fv[fc++]=fj(iv[i]);  /* long sentinels via fj; values cast */
-            else if(iv[i]==INT32_MIN) fv[fc++]=-INFINITY;  /* numeric underflow */
-            else if(iv[i]==INT32_MAX) fv[fc++]=INFINITY;
-            else if(iv[i]==INT32_MIN+1) fv[fc++]=-INFINITY;
-            else fv[fc++]=(double)iv[i];
+            else fv[fc++]=dv[i];
           }
-          xfree(iv); iv=0; ic=0; if(nl) { xfree(nl); nl=0; }
+          xfree(iv); iv=0; ic=0; if(dv) { xfree(dv); dv=0; } if(nl) { xfree(nl); nl=0; }
           if(fc==fm) { fm<<=1; fv=xrealloc(fv,fm*sizeof(double)); }
           if(r==5) { fv[fc++]=eee; e32=1; } else { fv[fc++]=fff; }
           break;
@@ -206,23 +244,23 @@ static int gn(pgs *pgs) {
         while(*p&&isblank((unsigned char)*p))++p;
         r=gn_();
         if(r==1) {
-          /* preserve null/inf when promoting int64 to double */
-          if(iii==INT32_MIN) fff=NAN;
-          else if(iii==INT32_MAX) fff=INFINITY;
-          else if(iii==INT32_MIN+1) fff=-INFINITY;
-          else fff=(double)iii;
+          /* promote by spelling: ddd is the token's text value (digits), or
+             +-inf for 0I/-0I, -0.0 for -0; a 0N here arrives as r==3 below */
           if(fc==fm) { fm<<=1; fv=xrealloc(fv,fm*sizeof(double)); }
-          fv[fc++]=fff;
+          fv[fc++]=nzi?-0.0:ddd;
         }
-        else if(r==4) {  /* long token in a float vector -> promote via fj; forces f64 */
+        else if(r==4) {  /* long token after a float token: rejected below */
+          lng=1;
           if(fc==fm) { fm<<=1; fv=xrealloc(fv,fm*sizeof(double)); }
           fv[fc++]=fj(iii);
         }
         else if(r==2) {
+          fl=1;
           if(fc==fm) { fm<<=1; fv=xrealloc(fv,fm*sizeof(double)); }
           fv[fc++]=fff;
         }
         else if(r==5) {  /* float32 token in a float vector */
+          fl=1;
           if(fc==fm) { fm<<=1; fv=xrealloc(fv,fm*sizeof(double)); }
           fv[fc++]=eee; e32=1;
         }
@@ -235,11 +273,31 @@ static int gn(pgs *pgs) {
       }
     }
   }
+  /* An unsuffixed token has no type of its own and takes the vector's -- which
+     is why `1 2 3j` is a long vector and `1.0 2 3.0e` is real.  A `j` suffix is
+     not a shape but an assertion, and no float vector can hold a long, so
+     mixing one with any float token is a parse error, not a promotion.  Write
+     `(1j;2.0)` for a mixed list.  (`e` may sit anywhere: an f32 vector's plain
+     decimals simply narrow, as `1.2e 3.0` and `1.0 2 3.0e` both do.) */
+  if(lng && fl) {
+    if(iv) xfree(iv);
+    if(dv) xfree(dv);
+    if(nl) xfree(nl);
+    if(fv) xfree(fv);
+    p=p_lit;   /* caret at the start of the literal */
+    return 0;
+  }
   if(ic && lng) {
-    /* long vector: no clamp; 0N literal -> J_NULL */
+    /* long vector: no clamp; 0N -> J_NULL, 0I/-0I -> J_INF/J_NINF (sentinels
+       adopt the vector's width, like the plain ints do) */
     K x=tn(8,ic);
     i64 *pj=px(x);
-    for(i=0;i<ic;i++) pj[i]=(nl && nl[i])?J_NULL:iv[i];
+    for(i=0;i<ic;i++) {
+      if(nl && 1==nl[i]) pj[i]=J_NULL;       /* state 2 (-0) is just 0 here */
+      else if(nl && 3==nl[i]) pj[i]=J_INF;
+      else if(nl && 4==nl[i]) pj[i]=J_NINF;
+      else pj[i]=iv[i];
+    }
     push(pgs,T014,x);
   }
   else if(ic) {
@@ -247,7 +305,7 @@ static int gn(pgs *pgs) {
     int *pi=px(x);
     /* clamp int64 to int32 here; underflow -> -0I, 0N literal preserved */
     for(i=0;i<ic;i++) {
-      if(nl && nl[i]) pi[i]=INT32_MIN;
+      if(nl && 1==nl[i]) pi[i]=INT32_MIN;   /* state 2 (-0) falls through: int 0 */
       else if(iv[i]>INT32_MAX) pi[i]=INT32_MAX;
       else if(iv[i]<=INT32_MIN) pi[i]=INT32_MIN+1;  /* underflow -> -0I */
       else pi[i]=(int)iv[i];
@@ -255,9 +313,9 @@ static int gn(pgs *pgs) {
     push(pgs,T014,x);
   }
   else if(fc) {
-    if(e32 && !lng) {  /* float32 vector: any e-suffix makes the literal real,
-                          narrowing plain-decimal / scientific f64 elements to
-                          f32 (1.0 2.0e -> real, like 1 2.0e). long+f32 stays f64. */
+    if(e32) {  /* float32 vector: any e-suffix makes the literal real, narrowing
+                  plain-decimal / scientific f64 elements to f32 (1.0 2.0e ->
+                  real, like 1 2.0e).  lng can't be set here -- j+float above. */
       K x=tn(9,fc);
       float *pe=px(x);
       i(fc,pe[i]=(float)fv[i])
@@ -282,6 +340,7 @@ static int gn(pgs *pgs) {
   else if(r0==2) push(pgs,T014,t2(fff));
   else if(r0==5) push(pgs,T014,te(eee));  /* scalar float32 */
   if(iv) xfree(iv);
+  if(dv) xfree(dv);
   if(nl) xfree(nl);
   if(fv) xfree(fv);
   return r0;
@@ -294,23 +353,11 @@ static int reserved(pgs *pgs, char *p, char *q) {
       push(pgs,T015,t(-3,st(0x85,tnv(3,strlen(q),xmemdup(q,1+strlen(q))))));
     return 1;
   }
-  /* int-index builtins (0xc6/0xc7): single bi_lookup over the b.c
-     BMONAD/BDYAD source-of-truth tables, emitting t(1,st(sub,idx)). */
-  { u64 sub; int bi=bi_lookup(p,&sub); if(bi>=0) { push(pgs,T015,t(1,st(sub,bi))); return 1; } }
-  if(p==R_DO) { push(pgs,T015,t(4,st(0xd1,q))); return 1; }
-  if(p==R_WHILE) { push(pgs,T015,t(4,st(0xd2,q))); return 1; }
-  if(p==R_IF) { push(pgs,T015,t(4,st(0xd3,q))); return 1; }
-  if(p==R_LIN) { push(pgs,T015,t(4,st(0xca,q))); return 1; }
-  if(p==R_DV) { push(pgs,T015,t(4,st(0xca,q))); return 1; }
-  if(p==R_DI) { push(pgs,T015,t(4,st(0xca,q))); return 1; }
-  if(p==R_EP) { push(pgs,T015,t(4,st(0xca,q))); return 1; }
-  if(p==R_CHOOSE) { push(pgs,T015,t(4,st(0xca,q))); return 1; }
-  if(p==R_ROUND) { push(pgs,T015,t(4,st(0xca,q))); return 1; }
-  if(p==R_GTIME) { push(pgs,T015,t(4,st(0xc9,q))); return 1; }
-  if(p==R_LTIME) { push(pgs,T015,t(4,st(0xc9,q))); return 1; }
-  if(p==R_TL) { push(pgs,T015,t(4,st(0xc9,q))); return 1; }
-  if(p==R_INV) { push(pgs,T015,t(4,st(0xc9,q))); return 1; }
-  if(p==R_SSR) { push(pgs,T015,t(4,st(0xcb,q))); return 1; }
+  /* everything else comes from kreserved_val (k.c): int-index builtins
+     (0xc6/0xc7 via the b.c BMONAD/BDYAD tables), do/while/if (0xd1-0xd3) and
+     the k.core fns (0xc9/0xca/0xcb).  nul is handled above -- it is a noun
+     (T014) with legacy adverb splitting, not a verb token. */
+  { K v=kreserved_val(p); if(v) { push(pgs,T015,v); return 1; } }
   return 0;
 }
 
@@ -627,6 +674,7 @@ static int gback(pgs *pgs, int load) {
       q=p;
       if(*p&&isdigit((unsigned char)*p)) {
         while(*p&&isdigit((unsigned char)*p))++p;
+        if(*p&&!strchr(" \n\t/",*p)) return -1;   /* junk after the digits */
         if(*p) {
           c=*p; *p=0;
           int prec=xatoi(q);
@@ -635,7 +683,11 @@ static int gback(pgs *pgs, int load) {
           *p=c;
         }
       }
-      else push(pgs,T014,null);
+      /* no argument -> query.  A non-numeric one is malformed: without this it
+         would be left on the line and reduce against the nul pushed here, so
+         `\p "x"` used to evaluate as `nul "x"` and echo its own argument. */
+      else if(!*p||*p=='\n') push(pgs,T014,null);
+      else return -1;
     }
   }
   else if(S3(p)&&p[1]=='v'&&p[2]=='\n') {
@@ -658,6 +710,7 @@ static int gback(pgs *pgs, int load) {
       q=p;
       if(*p&&isdigit((unsigned char)*p)) {
         while(*p&&isdigit((unsigned char)*p))++p;
+        if(*p&&!strchr(" \n\t/",*p)) return -1;   /* junk after the digits */
         if(*p) {
           c=*p; *p=0;
           int zc=xatoi(q);
@@ -665,7 +718,8 @@ static int gback(pgs *pgs, int load) {
           *p=c;
         }
       }
-      else push(pgs,T014,null);
+      else if(!*p||*p=='\n') push(pgs,T014,null);  /* no argument -> query */
+      else return -1;                              /* malformed (cf. \p) */
     }
   }
   else if(S3(p)&&p[1]=='e'&&p[2]&&strchr(" \n\t",p[2])) {
@@ -676,6 +730,7 @@ static int gback(pgs *pgs, int load) {
       q=p;
       if(*p&&isdigit((unsigned char)*p)) {
         while(*p&&isdigit((unsigned char)*p))++p;
+        if(*p&&!strchr(" \n\t/",*p)) return -1;   /* junk after the digits */
         if(*p) {
           c=*p; *p=0;
           int e=xatoi(q);
@@ -684,7 +739,8 @@ static int gback(pgs *pgs, int load) {
           *p=c;
         }
       }
-      else push(pgs,T014,null);
+      else if(!*p||*p=='\n') push(pgs,T014,null);  /* no argument -> query */
+      else return -1;                              /* malformed (cf. \p) */
     }
   }
   else if(S3(p)&&p[1]=='d'&&p[2]&&strchr(" \n\t",p[2])) {
@@ -806,6 +862,7 @@ K lex(pgs *pgs, int load) {
       if(gline0i<0) gline0i=0;
       if(glinep) xfree(glinep);
       glinep=strtok_r(q1,"\n",&tmp); if(glinep) glinep=xstrdup(glinep);
+      if(gline0p) xfree(gline0p);  /* free old before reassign, like glinep: a non-repl caller (watch_run) that errors but never reaches the repl's display+free leaks it every fire otherwise */
       gline0p=strtok_r(q0,"\n",&tmp); if(gline0p) gline0p=xstrdup(gline0p);
       return kerror("unmatched error");
     }
@@ -815,9 +872,10 @@ K lex(pgs *pgs, int load) {
     gline=fileline;
     gline0=line;
     glinei=q-q0; if(glinei<0) glinei=0;
-    gline0i=q-q1-2; if(gline0i<0) glinei=0;
+    gline0i=q-q1-2; if(gline0i<0) gline0i=0;
     if(glinep) xfree(glinep);
     glinep=strtok_r(q1,"\n",&tmp); if(glinep) glinep=xstrdup(glinep);
+    if(gline0p) xfree(gline0p);  /* free old before reassign, like glinep (see unmatched-error case) */
     gline0p=strtok_r(q0,"\n",&tmp); if(gline0p) gline0p=xstrdup(gline0p);
     return kerror("open error");
   }

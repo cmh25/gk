@@ -31,6 +31,9 @@
 #include "av.h"
 
 i32 maxr=MAXR;
+#ifdef FUZZING
+extern long gk_budget;      /* per-eval loop budget (p.c); reset in repl.c */
+#endif
 char *E[EMAX]={"nyi","rank","length","type","value","range","domain","valence","index","int","parse","stack","reserved","wsfull"};
 i32 zeroclamp;
 
@@ -90,7 +93,54 @@ void stack_guard_init(void) {
 static char *P=":+-*%&|<>=~.!@?#_^,$'/\\";
 
 /* reserved symbols */
-char *R_NUL,*R_DRAW,*R_DOT,*R_VS,*R_SV,*R_ATAN2,*R_DIV,*R_AND,*R_OR,*R_SHIFT,*R_ROT,*R_XOR,*R_HYPOT,*R_ENCRYPT,*R_DECRYPT,*R_SETENV,*R_RENAME,*R_SQR,*R_ABS,*R_SLEEP,*R_IC,*R_CI,*R_DJ,*R_JD,*R_LT,*R_LOG,*R_EXP,*R_SQRT,*R_FLOOR,*R_CEIL,*R_SIN,*R_COS,*R_TAN,*R_ASIN,*R_ACOS,*R_ATAN,*R_AT,*R_SS,*R_SM,*R_LSQ,*R_SINH,*R_COSH,*R_TANH,*R_ERF,*R_ERFC,*R_GAMMA,*R_LGAMMA,*R_RINT,*R_TRUNC,*R_NOT,*R_KV,*R_VK,*R_VAL,*R_BD,*R_DB,*R_HB,*R_BH,*R_ZB,*R_BZ,*R_MD5,*R_SHA1,*R_SHA2,*R_GETENV,*R_SVD,*R_LU,*R_QR,*R_LDU,*R_RREF,*R_DET,*R_MAG,*R_PRIME,*R_FACTOR,*R_GCD,*R_LCM,*R_MODINV,*R_EXIT,*R_DEL,*R_DO,*R_WHILE,*R_IF,*R_IN,*R_DVL,*R_BIN,*R_BINL,*R_LIN,*R_DVL,*R_DV,*R_DI,*R_GTIME,*R_LTIME,*R_TL,*R_MUL,*R_INV,*R_CHOOSE,*R_ROUND,*R_SSR,*R_EP,*R_TIMER,*R_WATCH;
+char *R_NUL,*R_DRAW,*R_DOT,*R_VS,*R_SV,*R_ATAN2,*R_DIV,*R_AND,*R_OR,*R_SHIFT,*R_ROT,*R_XOR,*R_HYPOT,*R_ENCRYPT,*R_DECRYPT,*R_SETENV,*R_RENAME,*R_SQR,*R_ABS,*R_SLEEP,*R_IC,*R_CI,*R_DJ,*R_JD,*R_LT,*R_LOG,*R_EXP,*R_SQRT,*R_FLOOR,*R_CEIL,*R_SIN,*R_COS,*R_TAN,*R_ASIN,*R_ACOS,*R_ATAN,*R_AT,*R_SS,*R_SM,*R_LSQ,*R_SINH,*R_COSH,*R_TANH,*R_ERF,*R_ERFC,*R_GAMMA,*R_LGAMMA,*R_RINT,*R_TRUNC,*R_NOT,*R_KV,*R_VK,*R_VAL,*R_BD,*R_DB,*R_HB,*R_BH,*R_ZB,*R_BZ,*R_MD5,*R_SHA1,*R_SHA2,*R_GETENV,*R_SVD,*R_LU,*R_QR,*R_LDU,*R_RREF,*R_DET,*R_MAG,*R_PRIME,*R_FACTOR,*R_GCD,*R_LCM,*R_MODINV,*R_EXIT,*R_DEL,*R_DO,*R_WHILE,*R_IF,*R_IN,*R_DVL,*R_BIN,*R_BINL,*R_LIN,*R_DV,*R_DI,*R_GTIME,*R_LTIME,*R_TL,*R_MUL,*R_INV,*R_CHOOSE,*R_ROUND,*R_SSR,*R_EP,*R_TIMER,*R_WATCH;
+
+/* reserved names -- single source of truth.  kinit() interns each name into
+   its R_* global, kreserved() scans it, and scope_init() builds the .r
+   namespace from it, so a name added here is automatically reserved and
+   listed by !.r */
+static const struct { char **p; const char *nm; } RTAB[] = {
+  {&R_NUL,"nul"},{&R_DRAW,"draw"},{&R_DOT,"dot"},{&R_VS,"vs"},{&R_SV,"sv"},
+  {&R_ATAN2,"atan2"},{&R_DIV,"div"},{&R_AND,"and"},{&R_OR,"or"},
+  {&R_SHIFT,"shift"},{&R_ROT,"rot"},{&R_XOR,"xor"},{&R_HYPOT,"hypot"},
+  {&R_ENCRYPT,"encrypt"},{&R_DECRYPT,"decrypt"},{&R_SETENV,"setenv"},
+  {&R_RENAME,"rename"},{&R_SQR,"sqr"},{&R_ABS,"abs"},{&R_SLEEP,"sleep"},
+  {&R_IC,"ic"},{&R_CI,"ci"},{&R_DJ,"dj"},{&R_JD,"jd"},{&R_LT,"lt"},
+  {&R_LOG,"log"},{&R_EXP,"exp"},{&R_SQRT,"sqrt"},{&R_FLOOR,"floor"},
+  {&R_CEIL,"ceil"},{&R_SIN,"sin"},{&R_COS,"cos"},{&R_TAN,"tan"},
+  {&R_ASIN,"asin"},{&R_ACOS,"acos"},{&R_ATAN,"atan"},{&R_AT,"at"},
+  {&R_SS,"ss"},{&R_SM,"sm"},{&R_LSQ,"lsq"},{&R_SINH,"sinh"},
+  {&R_COSH,"cosh"},{&R_TANH,"tanh"},{&R_ERF,"erf"},{&R_ERFC,"erfc"},
+  {&R_GAMMA,"gamma"},{&R_LGAMMA,"lgamma"},{&R_RINT,"rint"},
+  {&R_TRUNC,"trunc"},{&R_NOT,"not"},{&R_KV,"kv"},{&R_VK,"vk"},
+  {&R_VAL,"val"},{&R_BD,"bd"},{&R_DB,"db"},{&R_HB,"hb"},{&R_BH,"bh"},
+  {&R_ZB,"zb"},{&R_BZ,"bz"},{&R_MD5,"md5"},{&R_SHA1,"sha1"},
+  {&R_SHA2,"sha2"},{&R_GETENV,"getenv"},{&R_SVD,"svd"},{&R_LU,"lu"},
+  {&R_QR,"qr"},{&R_LDU,"ldu"},{&R_RREF,"rref"},{&R_DET,"det"},
+  {&R_MAG,"mag"},{&R_PRIME,"prime"},{&R_FACTOR,"factor"},{&R_GCD,"gcd"},
+  {&R_LCM,"lcm"},{&R_MODINV,"modinv"},{&R_EXIT,"exit"},{&R_DEL,"del"},
+  {&R_DO,"do"},{&R_WHILE,"while"},{&R_IF,"if"},{&R_IN,"in"},
+  {&R_BIN,"bin"},{&R_BINL,"binl"},{&R_LIN,"lin"},{&R_DVL,"dvl"},
+  {&R_DV,"dv"},{&R_DI,"di"},{&R_GTIME,"gtime"},{&R_LTIME,"ltime"},
+  {&R_TL,"tl"},{&R_MUL,"mul"},{&R_INV,"inv"},{&R_CHOOSE,"choose"},
+  {&R_ROUND,"round"},{&R_SSR,"ssr"},{&R_EP,"ep"},{&R_TIMER,"timer"},
+  {&R_WATCH,"watch"},
+};
+static const i32 NRTAB=sizeof(RTAB)/sizeof(*RTAB);
+i32 kreserved_n(void) { return NRTAB; }
+char *kreserved_i(i32 j) { return *RTAB[j].p; }
+
+/* reserved-name membership is checked on EVERY assignment (scope_set_), so
+   the test must be cheap: a small open-addressing set over the interned
+   pointers, filled by kinit right after it interns the R_* globals.  ~40%
+   load, so a lookup is 1-2 probes instead of a walk of the whole table
+   (which showed up at ~16% of a global-assign-heavy workload). */
+#define RHN 256
+static char *RHASH[RHN];
+static inline u32 rslot(char *p) {
+  u64 h=(u64)p; h^=h>>33; h*=0xff51afd7ed558ccd; h^=h>>29;
+  return (u32)h&(RHN-1);
+}
 
 void kinit(void) {
   /* Recursion is bounded by TWO independent caps (see k.h): stack_low() guards
@@ -109,105 +159,14 @@ void kinit(void) {
   maxr=1000;
 #endif
   /* reserved */
-  R_NUL=sp("nul");
-  R_DRAW=sp("draw");
-  R_DOT=sp("dot");
-  R_VS=sp("vs");
-  R_SV=sp("sv");
-  R_ATAN2=sp("atan2");
-  R_DIV=sp("div");
-  R_AND=sp("and");
-  R_OR=sp("or");
-  R_SHIFT=sp("shift");
-  R_ROT=sp("rot");
-  R_XOR=sp("xor");
-  R_HYPOT=sp("hypot");
-  R_ENCRYPT=sp("encrypt");
-  R_DECRYPT=sp("decrypt");
-  R_SETENV=sp("setenv");
-  R_RENAME=sp("rename");
-  R_SQR=sp("sqr");
-  R_ABS=sp("abs");
-  R_SLEEP=sp("sleep");
-  R_IC=sp("ic");
-  R_CI=sp("ci");
-  R_DJ=sp("dj");
-  R_JD=sp("jd");
-  R_LT=sp("lt");
-  R_LOG=sp("log");
-  R_EXP=sp("exp");
-  R_SQRT=sp("sqrt");
-  R_FLOOR=sp("floor");
-  R_CEIL=sp("ceil");
-  R_SIN=sp("sin");
-  R_COS=sp("cos");
-  R_TAN=sp("tan");
-  R_ASIN=sp("asin");
-  R_ACOS=sp("acos");
-  R_ATAN=sp("atan");
-  R_AT=sp("at");
-  R_SS=sp("ss");
-  R_SM=sp("sm");
-  R_LSQ=sp("lsq");
-  R_SINH=sp("sinh");
-  R_COSH=sp("cosh");
-  R_TANH=sp("tanh");
-  R_ERF=sp("erf");
-  R_ERFC=sp("erfc");
-  R_GAMMA=sp("gamma");
-  R_LGAMMA=sp("lgamma");
-  R_RINT=sp("rint");
-  R_TRUNC=sp("trunc");
-  R_NOT=sp("not");
-  R_KV=sp("kv");
-  R_VK=sp("vk");
-  R_VAL=sp("val");
-  R_BD=sp("bd");
-  R_DB=sp("db");
-  R_HB=sp("hb");
-  R_BH=sp("bh");
-  R_ZB=sp("zb");
-  R_BZ=sp("bz");
-  R_MD5=sp("md5");
-  R_SHA1=sp("sha1");
-  R_SHA2=sp("sha2");
-  R_GETENV=sp("getenv");
-  R_SVD=sp("svd");
-  R_LU=sp("lu");
-  R_QR=sp("qr");
-  R_LDU=sp("ldu");
-  R_RREF=sp("rref");
-  R_DET=sp("det");
-  R_MAG=sp("mag");
-  R_PRIME=sp("prime");
-  R_FACTOR=sp("factor");
-  R_GCD=sp("gcd");
-  R_LCM=sp("lcm");
-  R_MODINV=sp("modinv");
-  R_EXIT=sp("exit");
-  R_DEL=sp("del");
-  R_DO=sp("do");
-  R_WHILE=sp("while");
-  R_IF=sp("if");
-  R_IN=sp("in");
-  R_BIN=sp("bin");
-  R_BINL=sp("binl");
-  R_DVL=sp("dvl");
-  R_LIN=sp("lin");
-  R_DVL=sp("dvl");
-  R_DV=sp("dv");
-  R_DI=sp("di");
-  R_GTIME=sp("gtime");
-  R_LTIME=sp("ltime");
-  R_TL=sp("tl");
-  R_MUL=sp("mul");
-  R_INV=sp("inv");
-  R_CHOOSE=sp("choose");
-  R_ROUND=sp("round");
-  R_SSR=sp("ssr");
-  R_EP=sp("ep");
-  R_TIMER=sp("timer");
-  R_WATCH=sp("watch");
+  { i32 j;
+    for(j=0;j<NRTAB;j++) *RTAB[j].p=sp((char*)RTAB[j].nm);
+    for(j=0;j<NRTAB;j++) {
+      u32 s=rslot(*RTAB[j].p);
+      while(RHASH[s]&&RHASH[s]!=*RTAB[j].p) s=(s+1)&(RHN-1);
+      RHASH[s]=*RTAB[j].p;
+    }
+  }
 }
 
 static i32 vname(char *s, i32 n) {
@@ -302,8 +261,8 @@ static void pf_(double f) {
   else if(isnan(f)) mprintf("0n");
   else if(isinf(f)&&f<0.0) mprintf("-0i");
   else {
-    if(zeroclamp && fabs(f)<1e-12) f=0.0;
-    sprintf(ds,"%0.*g",precision,f==0.0?0.0:f);
+    if(zeroclamp && f!=0.0 && fabs(f)<1e-12) f=0.0;
+    sprintf(ds,"%0.*g",precision,f);
     if(!strchr(ds,'.')&&!strchr(ds,'e')) snprintf(ds+strlen(ds),sizeof(ds)-strlen(ds),".0");
     mprintf("%s",ds);
   }
@@ -325,8 +284,10 @@ static void pfa(K x, char *s, char *e) {
       else if(isnan(f)) { sprintf(ds,"0n"); a0=0; }
       else if(isinf(f)&&f<0.0) { sprintf(ds,"-0i"); a0=0; }
       else {
-        if(zeroclamp && fabs(f)<1e-12) f=0.0;
-        sprintf(ds,"%0.*g",precision,f==0.0?0.0:f); a0=ffix(ds,a0);
+        if(zeroclamp && f!=0.0 && fabs(f)<1e-12) f=0.0;
+        /* a bare "-0" lexes back as the int 0, so -0.0 carries its own `.0` */
+        if(f==0.0&&signbit(f)) { memcpy(ds,"-0.0",5); a0=0; }
+        else { sprintf(ds,"%0.*g",precision,f); a0=ffix(ds,a0); }
       }
       if(i==nx-1) {
         if(a0) snprintf(ds+strlen(ds),sizeof(ds)-strlen(ds),".0");
@@ -343,10 +304,10 @@ static void pfa(K x, char *s, char *e) {
 /* format a float32 into ds as a self-contained f32 literal (with `.`/exp +
    trailing `e`); whole numbers get `.0` so 1.0e prints, not 1e. */
 static void efmt(char *ds, float f) {
-  int p32 = precision<7?precision:7;  /* float32 ~7 sig digits */
+  int p32 = precision<9?precision:9;  /* float32: 9 sig digits round-trip (FLT_DECIMAL_DIG) */
   double d=(double)f;
-  if(zeroclamp && fabs(d)<1e-12) d=0.0;
-  sprintf(ds,"%0.*g",p32,d==0.0?0.0:d);
+  if(zeroclamp && d!=0.0 && fabs(d)<1e-12) d=0.0;
+  sprintf(ds,"%0.*g",p32,d);
   { size_t L=strlen(ds);
     if(!strchr(ds,'.')&&!strchr(ds,'e')&&!strchr(ds,'E')) { memcpy(ds+L,".0",2); L+=2; }
     memcpy(ds+L,"e",2); }  /* "e" + nul */
@@ -368,7 +329,7 @@ static void pe(K x, char *s, char *e) {
    their `e` form (0ne/0ie/-0ie) since the bare 0n/0i would be f64. */
 static void pea(K x, char *s, char *e) {
   char ds[256];
-  int p32 = precision<7?precision:7;
+  int p32 = precision<9?precision:9;
   float f,*pxe=px(x);
   if(!nx) { mprintf("%s0#0.0e%s",s,e); return; }
   if(1==nx) { mprintf("%s,",s); pe_(pxe[0]); mprintf("%s",e); return; }
@@ -380,8 +341,9 @@ static void pea(K x, char *s, char *e) {
     else if(isinf(f)&&f<0.0f) memcpy(ds,"-0ie",5);
     else {
       double d=(double)f;
-      if(zeroclamp && fabs(d)<1e-12) d=0.0;
-      sprintf(ds,"%0.*g",p32,d==0.0?0.0:d);
+      if(zeroclamp && d!=0.0 && fabs(d)<1e-12) d=0.0;
+      if(d==0.0&&signbit(d)) memcpy(ds,"-0.0",5);   /* bare "-0" would lex as int 0 */
+      else sprintf(ds,"%0.*g",p32,d);
       if(last) {  /* last element flags the vector's real type */
         { size_t L=strlen(ds);
           if(!strchr(ds,'.')&&!strchr(ds,'e')&&!strchr(ds,'E')) memcpy(ds+L,".0e",4);
@@ -551,7 +513,7 @@ const char* kprint_(K x, char *s, char *e, char *s0) {
       px=px(x);
       kprint_(px[0],s,"","");
       if(s(px[1])) kprint_(px[1],"",e,"");
-      else mprintf("%s%c%s","",P[ck(px[1])%32],e);
+      else { u32 c2=ck(px[1])%32; if(c2<strlen(P)) mprintf("%s%c%s","",P[c2],e); else mprintf("%s%s","",e); }
       break;
     case 0xd1: mprintf("%s%s%s",s,sk(x),e); break;
     case 0xd2: mprintf("%s%s%s",s,sk(x),e); break;
@@ -578,7 +540,11 @@ const char* kprint_(K x, char *s, char *e, char *s0) {
       sprintf(s2,"%s ",s0);
       px=px(x);
       K g=px[2]; px[2]=null;
+      /* hide the hash-index slot (dict.c) from the transpose, like the
+         capacity above; the transpose copies, so trimming is safe */
+      u64 n0=n(b(48)&x); if(n0>3) n(b(48)&x)=3;
       K y=k(1,0,k_(b(48)&x)); /* transpose */
+      if(n0>3) n(b(48)&x)=n0;
       if(E(y)) { if(y<EMAX) y=kerror(E[y]); kprint_(y,"kprint: ",e,s2); }
       else kprint_(y,"",e,s2);
       px[2]=g;
@@ -678,103 +644,24 @@ void kprint(K x, char *s, char *e, char *s0) {
 }
 
 i32 kreserved(char *p) {
-  if(p==R_NUL) return 1;
-  if(p==R_DRAW) return 1;
-  if(p==R_DOT) return 1;
-  if(p==R_VS) return 1;
-  if(p==R_SV) return 1;
-  if(p==R_ATAN2) return 1;
-  if(p==R_DIV) return 1;
-  if(p==R_AND) return 1;
-  if(p==R_OR) return 1;
-  if(p==R_SHIFT) return 1;
-  if(p==R_ROT) return 1;
-  if(p==R_XOR) return 1;
-  if(p==R_HYPOT) return 1;
-  if(p==R_ENCRYPT) return 1;
-  if(p==R_DECRYPT) return 1;
-  if(p==R_SETENV) return 1;
-  if(p==R_RENAME) return 1;
-  if(p==R_SQR) return 1;
-  if(p==R_ABS) return 1;
-  if(p==R_SLEEP) return 1;
-  if(p==R_IC) return 1;
-  if(p==R_CI) return 1;
-  if(p==R_DJ) return 1;
-  if(p==R_JD) return 1;
-  if(p==R_LT) return 1;
-  if(p==R_LOG) return 1;
-  if(p==R_EXP) return 1;
-  if(p==R_SQRT) return 1;
-  if(p==R_FLOOR) return 1;
-  if(p==R_CEIL) return 1;
-  if(p==R_SIN) return 1;
-  if(p==R_COS) return 1;
-  if(p==R_TAN) return 1;
-  if(p==R_ASIN) return 1;
-  if(p==R_ACOS) return 1;
-  if(p==R_ATAN) return 1;
-  if(p==R_AT) return 1;
-  if(p==R_SS) return 1;
-  if(p==R_SM) return 1;
-  if(p==R_LSQ) return 1;
-  if(p==R_SINH) return 1;
-  if(p==R_COSH) return 1;
-  if(p==R_TANH) return 1;
-  if(p==R_ERF) return 1;
-  if(p==R_ERFC) return 1;
-  if(p==R_GAMMA) return 1;
-  if(p==R_LGAMMA) return 1;
-  if(p==R_RINT) return 1;
-  if(p==R_TRUNC) return 1;
-  if(p==R_NOT) return 1;
-  if(p==R_KV) return 1;
-  if(p==R_VK) return 1;
-  if(p==R_VAL) return 1;
-  if(p==R_BD) return 1;
-  if(p==R_DB) return 1;
-  if(p==R_HB) return 1;
-  if(p==R_BH) return 1;
-  if(p==R_ZB) return 1;
-  if(p==R_BZ) return 1;
-  if(p==R_MD5) return 1;
-  if(p==R_SHA1) return 1;
-  if(p==R_SHA2) return 1;
-  if(p==R_GETENV) return 1;
-  if(p==R_SVD) return 1;
-  if(p==R_LU) return 1;
-  if(p==R_QR) return 1;
-  if(p==R_LDU) return 1;
-  if(p==R_RREF) return 1;
-  if(p==R_DET) return 1;
-  if(p==R_MAG) return 1;
-  if(p==R_PRIME) return 1;
-  if(p==R_FACTOR) return 1;
-  if(p==R_GCD) return 1;
-  if(p==R_LCM) return 1;
-  if(p==R_MODINV) return 1;
-  if(p==R_EXIT) return 1;
-  if(p==R_DEL) return 1;
-  if(p==R_DO) return 1;
-  if(p==R_WHILE) return 1;
-  if(p==R_IF) return 1;
-  if(p==R_IN) return 1;
-  if(p==R_DVL) return 1;
-  if(p==R_LIN) return 1;
-  if(p==R_DVL) return 1;
-  if(p==R_DV) return 1;
-  if(p==R_DI) return 1;
-  if(p==R_GTIME) return 1;
-  if(p==R_LTIME) return 1;
-  if(p==R_TL) return 1;
-  if(p==R_MUL) return 1;
-  if(p==R_INV) return 1;
-  if(p==R_CHOOSE) return 1;
-  if(p==R_ROUND) return 1;
-  if(p==R_SSR) return 1;
-  if(p==R_EP) return 1;
-  if(p==R_TIMER) return 1;
-  if(p==R_WATCH) return 1;
+  u32 s=rslot(p);
+  while(RHASH[s]) { if(RHASH[s]==p) return 1; s=(s+1)&(RHN-1); }
+  return 0;
+}
+
+/* the value a reserved name denotes -- exactly what the lexer emits for the
+   name (lex.c reserved()) and what .r maps it to (scope_init).  null for nul,
+   0 when the name is not reserved. */
+K kreserved_val(char *p) {
+  u64 sub; int bi;
+  if(p==R_NUL) return null;
+  if((bi=bi_lookup(p,&sub))>=0) return t(1,st(sub,bi));
+  if(p==R_DO) return t(4,st(0xd1,p));
+  if(p==R_WHILE) return t(4,st(0xd2,p));
+  if(p==R_IF) return t(4,st(0xd3,p));
+  if(p==R_DV||p==R_DI||p==R_EP||p==R_CHOOSE||p==R_ROUND) return t(4,st(0xca,p));
+  if(p==R_GTIME||p==R_LTIME||p==R_TL||p==R_INV) return t(4,st(0xc9,p));
+  if(p==R_SSR) return t(4,st(0xcb,p));
   return 0;
 }
 
@@ -1070,12 +957,12 @@ K kamendi3(K d, K i, K f) {
   if(!ISF(f)) { e=KERR_TYPE; goto cleanup; }
   if(4==T(d)&&!s(d)) {
     if('.'==*sk(d)||0==*sk(d)) kt=1;
-    K d2=scope_get(gs,d); sym=d; d=d2;
+    K d2=scope_get(scope_home(),d); sym=d; d=d2;  /* the fn's namespace, not the caller's */
     //if(!d) d=null;
     //EC(d);
     if(E(d)) d=null;
   }
-  if((T(d)<=0||T(d)==2) && 1<((ko*)(b(48)&d))->r) { K d2=kcp(d); EC(d2); _k(d); d=d2; }
+  if(T(d)<=0 && 1<((ko*)(b(48)&d))->r) { K d2=kcp(d); EC(d2); _k(d); d=d2; }
 
   if((s(d) && s(d)!=0x80 && !ISF(d))) { e=KERR_TYPE; goto cleanup; }
 
@@ -1102,16 +989,38 @@ K kamendi3(K d, K i, K f) {
 
   if(E(r)) return r;
   else if(sym && kt) { _k(r); if(nwatch) watch_fire_fq(sk(sym)); return sym; }
-  else if(sym) { K p=scope_set(gs,sym,r); if(E(p)) return p; _k(p); return sym; }
+  else if(sym) { K p=scope_set(scope_home(),sym,r); if(E(p)) return p; _k(p); return sym; }
   else return r;
 cleanup:
   _k(d); _k(i); _k(f);
   return e;
 }
 
+/* Alias guard for the value an amend STORES.  kamendi4v/kamendi4d mutate d's
+ * slots in place (gated by k->r, so an unshared d needs no
+ * copy) and they free the old slot BEFORE building the new value from y.
+ * That is only safe while y cannot reach d -- but it can: `a[i]:.\`` stores
+ * the live ktree, which contains a itself, so the kcp(y) that follows the
+ * free walks back into a and reads the freed slot.
+ * A fresh list can reach d too, via a held element: a[0]:(a;1).
+ * Only a general list (T==0) or a subtyped value (dict/fn/tree) can hold refs
+ * at all -- typed vectors and atoms cannot -- so snapshot exactly those, once,
+ * before the first free.  Every store then reads a private y, and (as before)
+ * they all see the SAME pre-amend value of y, not a progressively amended one.
+ * Consumes y; returns the snapshot, or the kcp error (caller EC's it). */
+static K amend_yalias(K y) {
+  if(0x80==s(y) || (!s(y) && T(y)==0)) {
+    K c=kcp(y); if(E(c)) return c;
+    _k(y); return c;
+  }
+  return y;
+}
+
 static K kamendi4d(K d, K i, K f, K y) {
   i32 *pyi,b=0;
   K r,e,*pdu,*pyu,v,*pv,p=0,*pp,t;
+  i64 *pyj;
+  float *pye;
   double *pyf;
   i8 ti,ty,Ty; char *pyc,**pys,**pis,*s;
   typedef struct { K i,y; u64 j; } sf;
@@ -1125,6 +1034,7 @@ static K kamendi4d(K d, K i, K f, K y) {
   ty=T(y);
   Ty=ty; if(s(y)) { if(!VST(y)) { e=KERR_TYPE; goto cleanup; } Ty=15; }
   if(s(i)) { e=KERR_TYPE; goto cleanup; }
+  y=amend_yalias(y); EC(y);
   if(ti!=4 && ti!=-4 && ti!=6 && ti!=0) { e=KERR_TYPE; goto cleanup; }
   if(d==ktree && i==null) { e=KERR_RESERVED; goto cleanup; }
   if(d==ktree && ti==4 && strlen(sk(i))==1 && strcmp(sk(i),"k")) { e=KERR_RESERVED; goto cleanup; }
@@ -1189,6 +1099,22 @@ static K kamendi4d(K d, K i, K f, K y) {
         e=dset(d,pis[j],r); _k(r); if(E(e)) goto cleanup;
       }
       break;
+    case -8: pyj=px(y);
+      if(n(i)!=n(y)) { e=KERR_LENGTH; goto cleanup; }
+      for(u64 j=0;j<n(i);++j) {
+        if(b) { t=dget(d,pis[j]);if(!t)t=null;r=amend_fe(k_(f),t,tj(pyj[j]),0);EC(r); }
+        else r=tj(pyj[j]);
+        e=dset(d,pis[j],r); _k(r); if(E(e)) goto cleanup;
+      }
+      break;
+    case -9: pye=px(y);
+      if(n(i)!=n(y)) { e=KERR_LENGTH; goto cleanup; }
+      for(u64 j=0;j<n(i);++j) {
+        if(b) { t=dget(d,pis[j]);if(!t)t=null;r=amend_fe(k_(f),t,te(pye[j]),0);EC(r); }
+        else r=te(pye[j]);
+        e=dset(d,pis[j],r); _k(r); if(E(e)) goto cleanup;
+      }
+      break;
     case  0: pyu=px(y);
       if(n(i)!=n(y)) { e=KERR_LENGTH; goto cleanup; }
       for(u64 j=0;j<n(i);++j) {
@@ -1197,11 +1123,15 @@ static K kamendi4d(K d, K i, K f, K y) {
         e=dset(d,pis[j],r); _k(r); if(E(e)) goto cleanup;
       }
       break;
+    /* an unmatched Ty must ERROR: falling out of the switch returned the
+       dict UNCHANGED with no error -- @[d;`a`b;:;10 20j] was a silent no-op
+       until the -8/-9 arms above were added */
+    default: e=KERR_TYPE; goto cleanup;
     } break;
   case  6:
     v=pdu[1]; pv=px(v);
     switch(Ty) {
-    case -1: case -2: case -3: case -4: case 0:
+    case -1: case -2: case -3: case -4: case -8: case -9: case 0:
       if(n(v)!=n(y)) { e=KERR_LENGTH; goto cleanup; }
       p=kmix(y); EC(p);
       pp=px(p);
@@ -1217,6 +1147,7 @@ static K kamendi4d(K d, K i, K f, K y) {
       if(b) i(n(v),r=amend_fe(k_(f),k_(pv[i]),k_(y),0);EC(r);_k(pv[i]);pv[i]=r)
       else i(n(v),_k(pv[i]);pv[i]=kcp(y);EC(pv[i]))
       break;
+    default: e=KERR_TYPE; goto cleanup; /* see the ti==-4 default above */
     } break;
   case  0: {
     stack=xmalloc(sizeof(sf)*sm);
@@ -1243,6 +1174,14 @@ static K kamendi4d(K d, K i, K f, K y) {
       case -4: pys=px(y_);
         if(n(i_)!=n(y_)) { e=KERR_LENGTH; goto cleanup; }
         i(n(i_),d=kamendi4d(d,k_(piu[i]),k_(f),t(4,pys[i]));EC(d))
+        break;
+      case -8: pyj=px(y_);
+        if(n(i_)!=n(y_)) { e=KERR_LENGTH; goto cleanup; }
+        i(n(i_),d=kamendi4d(d,k_(piu[i]),k_(f),tj(pyj[i]));EC(d))
+        break;
+      case -9: pye=px(y_);
+        if(n(i_)!=n(y_)) { e=KERR_LENGTH; goto cleanup; }
+        i(n(i_),d=kamendi4d(d,k_(piu[i]),k_(f),te(pye[i]));EC(d))
         break;
       case 1: case 2: case 3: case 4: case 6: case 8: case 9: case 15:
         while(pf->j<n(i_)) {
@@ -1317,7 +1256,10 @@ cleanup:
   if(b) { ASSIGN_LOOP(N, IDXEXPR, LHS, RHS, RAW, EXPECTED, KNPACK); } \
   else { DIRECT; }
 
-static K kamendi4v(K d, K i, K f, K y) {
+/* raw worker: recursive per-element calls skip knorm (a mixed-index amend
+   re-normalizing the whole base per index is quadratic -- an AFL hang at
+   183k indices); kamendi4v below normalizes once */
+static K kamendi4v_(K d, K i, K f, K y) {
   i32 *pii=0,*pdi,*pyi,b=0;
   K r,e,t,*pdu=0,*pyu;
   i64 *pdj,*pyj;
@@ -1329,12 +1271,34 @@ static K kamendi4v(K d, K i, K f, K y) {
   sf *stack=0;
   static int dd=0;
   if(++dd>maxr || (!(dd&7)&&stack_low())) { e=KERR_STACK; goto cleanup; }
+#ifdef FUZZING
+  /* per-call charge bounds the recursive fan-out over a shared index surface
+     (the iterative while(sp) loop below has its own per-node charge) */
+  if(--gk_budget<0) { e=kerror("limit"); goto cleanup; }
+#endif
 
   td=T(d);
   ti=T(i);
   ty=T(y);
   Ty=ty; if(s(y)) { if(!VST(y)) { e=KERR_TYPE; goto cleanup; } Ty=15; }
   if(s(i)) { e=KERR_TYPE; goto cleanup; }
+  y=amend_yalias(y); EC(y);   /* y may reach d; d is amended in place */
+
+  if(ti==-8 && n(d)<=(u64)INT32_MAX) {
+    /* narrow a long index vector to int: the long-index branch below
+       amends PER ELEMENT, re-walking the base each time -- quadratic
+       whenever the value type forces a base retype (a[b-0j]:b-1.0 at
+       777k elements was a fuzz hang); the int-index machinery is
+       vectorized.  Indices are range-checked against n(d) here so the
+       narrowing is lossless; >2^31 bases keep the per-element path. */
+    u64 nn=n(i); i64 *pij=px(i);
+    K ic=tn(1,nn); i32 *pic=px(ic);
+    for(u64 z=0;z<nn;z++) {
+      if(pij[z]<0||(u64)pij[z]>=n(d)) { _k(ic); e=KERR_INDEX; goto cleanup; }
+      pic[z]=(i32)pij[z];
+    }
+    _k(i); i=ic; ti=-1; /* i is consumed by this function, so the swap is clean */
+  }
 
   switch(ti) {
   case  1: if(ik(i)<0||(K)ik(i)>=n(d)) { e=KERR_INDEX; goto cleanup; } break;
@@ -1348,8 +1312,8 @@ static K kamendi4v(K d, K i, K f, K y) {
   if(ti==8||ti==-8) { /* long index into (possibly >2^31) vector */
     if(ti==-8) { /* long index vector: amend each position (reuses ti==8 base) */
       i64 *pij=px(i);
-      if(Ty<=0) { i(n(i), d=kamendi4v(d,tj(pij[i]),k_(f),xi_(y,i,Ty)); EC(d)) }
-      else       { i(n(i), d=kamendi4v(d,tj(pij[i]),k_(f),k_(y)); EC(d)) }
+      if(Ty<=0) { i(n(i), d=kamendi4v_(d,tj(pij[i]),k_(f),xi_(y,i,Ty)); EC(d)) }
+      else       { i(n(i), d=kamendi4v_(d,tj(pij[i]),k_(f),k_(y)); EC(d)) }
     }
     else { /* ti==8: single long position */
       i64 idx=jk(i);
@@ -1582,6 +1546,14 @@ static K kamendi4v(K d, K i, K f, K y) {
         if(b) i(n(i),r=amend_fe(k_(f),k_(pdu[pii[i]]),t2(pyf[i]),0); EC(r); _k(pdu[pii[i]]); pdu[pii[i]]=r)
         else i(n(i),_k(pdu[pii[i]]);pdu[pii[i]]=t2(pyf[i]))
         break;
+      case -8: pyj=px(y);
+        if(b) i(n(i),r=amend_fe(k_(f),k_(pdu[pii[i]]),tj(pyj[i]),0); EC(r); _k(pdu[pii[i]]); pdu[pii[i]]=r)
+        else i(n(i),_k(pdu[pii[i]]);pdu[pii[i]]=tj(pyj[i]))
+        break;
+      case -9: pye=px(y);
+        if(b) i(n(i),r=amend_fe(k_(f),k_(pdu[pii[i]]),te(pye[i]),0); EC(r); _k(pdu[pii[i]]); pdu[pii[i]]=r)
+        else i(n(i),_k(pdu[pii[i]]);pdu[pii[i]]=te(pye[i]))
+        break;
       case -3: pyc=px(y);
         if(b) i(n(i),r=amend_fe(k_(f),k_(pdu[pii[i]]),t(3,(u8)pyc[i]),0); EC(r); _k(pdu[pii[i]]); pdu[pii[i]]=r)
         else i(n(i),_k(pdu[pii[i]]);pdu[pii[i]]=t(3,(u8)pyc[i]))
@@ -1615,6 +1587,16 @@ static K kamendi4v(K d, K i, K f, K y) {
         if(b) i(n(d),r=amend_fe(k_(f),k_(pdu[i]),t2(pyf[i]),0); EC(r); _k(pdu[i]); pdu[i]=r)
         else i(n(d),_k(pdu[i]);pdu[i]=t2(pyf[i]))
         break;
+      case -8: pyj=px(y);
+        if(n(d)!=n(y)) { e=KERR_LENGTH; goto cleanup; }
+        if(b) i(n(d),r=amend_fe(k_(f),k_(pdu[i]),tj(pyj[i]),0); EC(r); _k(pdu[i]); pdu[i]=r)
+        else i(n(d),_k(pdu[i]);pdu[i]=tj(pyj[i]))
+        break;
+      case -9: pye=px(y);
+        if(n(d)!=n(y)) { e=KERR_LENGTH; goto cleanup; }
+        if(b) i(n(d),r=amend_fe(k_(f),k_(pdu[i]),te(pye[i]),0); EC(r); _k(pdu[i]); pdu[i]=r)
+        else i(n(d),_k(pdu[i]);pdu[i]=te(pye[i]))
+        break;
       case -3: pyc=px(y);
         if(n(d)!=n(y)) { e=KERR_LENGTH; goto cleanup; }
         if(b) i(n(d),r=amend_fe(k_(f),k_(pdu[i]),t(3,(u8)pyc[i]),0); EC(r); _k(pdu[i]); pdu[i]=r)
@@ -1635,6 +1617,12 @@ static K kamendi4v(K d, K i, K f, K y) {
       stack=xmalloc(sizeof(sf)*sm);
       stack[sp++]=(sf){i,y,0};
       while(sp) {
+#ifdef FUZZING
+        /* A shared (DAG) index surface re-walks each subtree along every path:
+           exponential-but-finite (a converge/reshape builds one cheaply), an
+           AFL hang.  Charge per node against the per-eval loop budget. */
+        if(--gk_budget<0) { e=kerror("limit"); goto cleanup; }
+#endif
         sf *pf=&stack[sp-1];
         K i_=pf->i;
         K y_=pf->y;
@@ -1643,19 +1631,27 @@ static K kamendi4v(K d, K i, K f, K y) {
         switch(Ty_) {
         case -1: pyi=px(y_);
           if(n(i_)!=n(y_)) { e=KERR_LENGTH; goto cleanup; }
-          i(n(i_),d=kamendi4v(d,k_(piu[i]),k_(f),t(1,(u32)pyi[i]));EC(d))
+          i(n(i_),d=kamendi4v_(d,k_(piu[i]),k_(f),t(1,(u32)pyi[i]));EC(d))
           break;
         case -2: pyf=px(y_);
           if(n(i_)!=n(y_)) { e=KERR_LENGTH; goto cleanup; }
-          i(n(i_),d=kamendi4v(d,k_(piu[i]),k_(f),t2(pyf[i]));EC(d))
+          i(n(i_),d=kamendi4v_(d,k_(piu[i]),k_(f),t2(pyf[i]));EC(d))
           break;
         case -3: pyc=px(y_);
           if(n(i_)!=n(y_)) { e=KERR_LENGTH; goto cleanup; }
-          i(n(i_),d=kamendi4v(d,k_(piu[i]),k_(f),t(3,(u8)pyc[i]));EC(d))
+          i(n(i_),d=kamendi4v_(d,k_(piu[i]),k_(f),t(3,(u8)pyc[i]));EC(d))
           break;
         case -4: pys=px(y_);
           if(n(i_)!=n(y_)) { e=KERR_LENGTH; goto cleanup; }
-          i(n(i_),d=kamendi4v(d,k_(piu[i]),k_(f),t(4,pys[i]));EC(d))
+          i(n(i_),d=kamendi4v_(d,k_(piu[i]),k_(f),t(4,pys[i]));EC(d))
+          break;
+        case -8: pyj=px(y_);
+          if(n(i_)!=n(y_)) { e=KERR_LENGTH; goto cleanup; }
+          i(n(i_),d=kamendi4v_(d,k_(piu[i]),k_(f),tj(pyj[i]));EC(d))
+          break;
+        case -9: pye=px(y_);
+          if(n(i_)!=n(y_)) { e=KERR_LENGTH; goto cleanup; }
+          i(n(i_),d=kamendi4v_(d,k_(piu[i]),k_(f),te(pye[i]));EC(d))
           break;
         case 1: case 2: case 3: case 4: case 6: case 8: case 9: case 15:
           while(pf->j<n(i_)) {
@@ -1667,7 +1663,7 @@ static K kamendi4v(K d, K i, K f, K y) {
               goto continue_outer;
             }
             else {
-              d=kamendi4v(d,k_(i2),k_(f),k_(y));
+              d=kamendi4v_(d,k_(i2),k_(f),k_(y));
               if(E(d)) { e=d; goto cleanup; }
             }
           }
@@ -1684,7 +1680,7 @@ static K kamendi4v(K d, K i, K f, K y) {
               goto continue_outer;
             }
             else {
-              d=kamendi4v(d,k_(i2),k_(f),k_(y2));
+              d=kamendi4v_(d,k_(i2),k_(f),k_(y2));
               if(E(d)) { e=d; goto cleanup; }
             }
           }
@@ -1702,13 +1698,15 @@ static K kamendi4v(K d, K i, K f, K y) {
   }
   _k(i); _k(f); _k(y);
   --dd;
-  return knorm(d);
+  return d;
 cleanup:
   --dd;
   if(stack) xfree(stack);
   _k(d); _k(i); _k(f); _k(y);
   return e;
 }
+
+static K kamendi4v(K d, K i, K f, K y) { return knorm(kamendi4v_(d,i,f,y)); }
 
 K kamendi4(K d, K i, K f, K y) {
   K r,e,sym=0;
@@ -1730,11 +1728,14 @@ K kamendi4(K d, K i, K f, K y) {
   if(!ISF(f)) { e=KERR_TYPE; goto cleanup; }
   if(4==T(d)) {
     if('.'==*sk(d)||0==*sk(d)) kt=1;
-    K d2=scope_get(gs,d); sym=d; d=d2;
+    K d2=scope_get(scope_home(),d); sym=d; d=d2;  /* the fn's namespace, not the caller's */
     if(E(d)) d=null;
-    else if((T(d)<=0||T(d)==2) && 1<((ko*)(b(48)&d))->r) { K d2=kcp(d); _k(d); d=d2; }
+    else if(T(d)<=0 && 1<((ko*)(b(48)&d))->r) { K d2=kcp(d); _k(d); d=d2; }
   }
-  else { K d2=kcp(d); _k(d); d=d2; }
+  /* value path: copy only when shared, like kamendi3.  r<=1 means our ref
+     plus at most the binding/pack we consume or overwrite, so at-amend
+     (always single-level, slot replacement only) can work in place. */
+  else if(T(d)<=0 && 1<((ko*)(b(48)&d))->r) { K d2=kcp(d); _k(d); d=d2; }
   EC(d);
 
   if(T(d)>0) { e=KERR_RANK; goto cleanup; }
@@ -1745,7 +1746,7 @@ K kamendi4(K d, K i, K f, K y) {
 
   if(E(r)) return r;
   else if(sym && kt) { _k(r); if(nwatch) watch_fire_fq(sk(sym)); return sym; }
-  else if(sym) { K p=scope_set(gs,sym,r); if(E(p)) return p; _k(p); return sym; }
+  else if(sym) { K p=scope_set(scope_home(),sym,r); if(E(p)) return p; _k(p); return sym; }
   else return r;
 cleanup:
   _k(d); _k(i); _k(f); _k(y);
@@ -1776,9 +1777,36 @@ static K amend_snapshot(K r) {
  * at ~50 scattered fe->store sites.  Consumes args like fe; returns the
  * snapshotted result (or an fe/kcp error, which amend_snapshot passes through). */
 static K amend_fe(K f, K a, K x, char *av) {
+#ifdef FUZZING
+  /* Every amend element-application funnels through here (kamendi3v's flat and
+     nested-index paths, kamendi3d, kamendi4v).  A huge or reshaped index
+     surface drives millions of these from a SINGLE amend call, which the outer
+     scan/loop's own per-iteration budget never reaches -- an AFL hang (fuzzer08
+     2026-07-17: kamendi3v, the sibling kamendi4v already charges but this one
+     did not).  Charge per application against the shared per-eval budget, the
+     same way kamendi4v charges per node. */
+  if(--gk_budget<0) { _k(f); _k(a); _k(x); return kerror("limit"); }
+#endif
   K r=amend_snapshot(fe(f,a,x,av));
   gcache_clear();
   return r;
+}
+
+/* Descent privatization for the path-amend walkers.  Every stack frame's
+   target is mutated in place (slot writes, dset, kamendi4v), so a child
+   fetched from a parent slot must be exclusively ours before its frame
+   runs: 1<r means someone besides the parent slot and this frame holds it
+   (b:C 0 must not see .[`C;0 2;:;v]) -- amend a copy instead; the normal
+   propagate writeback stores it into the parent slot.  Root frames are the
+   entry functions' decision.  Rule: mutate-in-place is always gated by
+   k->r.  Consumes t on success; on kcp error returns the error and leaves
+   t owned by the caller (the frame, so cleanup frees it). */
+static K amend_privatize(K t) {
+  if((!s(t)||0x80==s(t)) && T(t)<=0 && 1<((ko*)(b(48)&t))->r) {
+    K c=kcp(t); if(E(c)) return c;
+    _k(t); return c;
+  }
+  return t;
 }
 
 static K kamend3_(K d, K i, K f) {
@@ -1810,6 +1838,11 @@ static K kamend3_(K d, K i, K f) {
 
   while(sp) {
     sf *pf = &stack[sp-1];
+    if(sp>1 && !pf->r && !pf->ri && !pf->j) { /* fresh child frame */
+      K g=amend_privatize(pf->d);
+      if(E(g)) { e=g; goto cleanup; }
+      pf->d=g;
+    }
     K d_ = pf->d;
     K i_ = pf->i;
     K r_ = pf->r;
@@ -1862,7 +1895,12 @@ static K kamend3_(K d, K i, K f) {
         else if(T(ri_) == 6) {
           _k(pdu[pf->j]); pdu[pf->j]=k_(r_);
           _k(pf->r); pf->r=0;
-          if(++pf->j==n(d)) {
+          /* a nul iterates the FRAME's list d_, not the outermost target d --
+             comparing against n(d) only worked when the two lengths happened
+             to coincide (e.g. every dict payload was 3 slots).  With unequal
+             lengths it either stopped early (silently leaving the tail
+             unamended) or overran into a spurious index error. */
+          if(++pf->j==n(d_)) {
             PROPAGATE_RESULT(k_(d_)); goto freeframe;
           }
         }
@@ -2011,7 +2049,7 @@ static K kamend3_(K d, K i, K f) {
             pk=px(keys);
             if(n(i2)) {
               _k(pf->ri); pf->ri=k_(keys);
-              if(pf->j>=n(keys)) { e=KERR_INDEX; goto cleanup; }
+              if(pf->j>=n(keys)) { _k(i2); e=KERR_INDEX; goto cleanup; }
               t=dget(d_,pk[pf->j]); if(!t) t=null;
               if(sp==sm) { stack=xrealloc(stack,sizeof(sf)*(sm*=2)); }
               stack[sp]=(sf){t, i2, 0, 0, sp-1, 0}; ++sp;
@@ -2109,7 +2147,7 @@ static K kamend3_(K d, K i, K f) {
           i2=k(16,t(1,1),k_(i_));   /* 1_i_ */
           if(E(i2)) { _k(i0); e=i2; goto cleanup; }
           t=k(13,k_(d_),k_(i0));  /* d_@i0 (keep i0 live: long atom is boxed) */
-          if(E(t)){ _k(i2); e=t; goto cleanup; }
+          if(E(t)){ _k(i0); _k(i2); e=t; goto cleanup; }
           _k(pf->ri); pf->ri=i0;
           if(n(i2)) {
             if(sp==sm) { stack=xrealloc(stack,sizeof(sf)*(sm*=2)); }
@@ -2131,7 +2169,7 @@ static K kamend3_(K d, K i, K f) {
           i0=k(3,0,k_(i_)); EC(i0);
           i2=k(16,t(1,1),k_(i_));
           if(E(i2)) { _k(i0); e=i2; goto cleanup; }
-          t=kmix(i2); if(E(t)) { _k(i0); e=t; goto cleanup; }
+          t=kmix(i2); if(E(t)) { _k(i0); _k(i2); e=t; goto cleanup; }
           _k(i2); i2=t;
           switch(T(i0)) {
           case  1:
@@ -2167,6 +2205,9 @@ static K kamend3_(K d, K i, K f) {
               break;
             }
           case -1:;
+            /* empty path element: no-op, exactly as the 4-arg machine does --
+               without this, deeper paths hit pf->j>=n(i0) on entry: 'index */
+            if(!n(i0)) { _k(i0); _k(i2); PROPAGATE_RESULT(k_(d_)); break; }
             i32 *pi0=px(i0);
             i(n(i0),if(pi0[i]<0||(K)pi0[i]>=n(d_)) { _k(i0); _k(i2); e=KERR_INDEX; goto cleanup; })
             if(n(i2)) {
@@ -2183,6 +2224,7 @@ static K kamend3_(K d, K i, K f) {
               break;
             }
           case -8: {
+            if(!n(i0)) { _k(i0); _k(i2); PROPAGATE_RESULT(k_(d_)); break; } /* see case -1 */
             i64 *pj0=px(i0);
             i(n(i0),if(pj0[i]<0||(u64)pj0[i]>=n(d_)) { _k(i0); _k(i2); e=KERR_INDEX; goto cleanup; })
             if(n(i2)) {
@@ -2300,11 +2342,11 @@ K kamend3(K d, K i, K f) {
   if(!ISF(f)) { e=KERR_TYPE; goto cleanup; }
   if(4==T(d)&&!s(d)) {
     if('.'==*sk(d)||0==*sk(d)) kt=1;
-    K d2=scope_get(gs,d); sym=d; d=d2;
+    K d2=scope_get(scope_home(),d); sym=d; d=d2;  /* the fn's namespace, not the caller's */
     if(E(d)) d=null;
   }
   if(kt) ;
-  else if((T(d)<=0||T(d)==2) && 1<((ko*)(b(48)&d))->r) { K d2=kcp(d); EC(d2); _k(d); d=d2; }
+  else if(T(d)<=0 && 1<((ko*)(b(48)&d))->r) { K d2=kcp(d); EC(d2); _k(d); d=d2; }
 
   // cannot amend entire ktree
   if(d==ktree && T(i)<=0 && n(i)==0) { e=KERR_RESERVED; goto cleanup; }
@@ -2325,7 +2367,7 @@ K kamend3(K d, K i, K f) {
 
   if(E(r)) return r;
   else if(sym && kt) { _k(r); if(nwatch) watch_fire_fq(sk(sym)); return sym; }
-  else if(sym) { K p=scope_set(gs,sym,r); if(E(p)) return p; _k(p); return sym; }
+  else if(sym) { K p=scope_set(scope_home(),sym,r); if(E(p)) return p; _k(p); return sym; }
   else return r;
 cleanup:
   _k(d); _k(i); _k(f);
@@ -2361,6 +2403,11 @@ static K kamend4_(K d, K i, K f, K y) {
 
   while(sp) {
     sf *pf = &stack[sp-1];
+    if(sp>1 && !pf->r && !pf->ri && !pf->j) { /* fresh child frame */
+      K g=amend_privatize(pf->d);
+      if(E(g)) { e=g; goto cleanup; }
+      pf->d=g;
+    }
     K d_ = pf->d;
     K i_ = pf->i;
     K y_ = pf->y;
@@ -2415,7 +2462,12 @@ static K kamend4_(K d, K i, K f, K y) {
         else if(T(ri_) == 6) {
           _k(pdu[pf->j]); pdu[pf->j]=k_(r_);
           _k(pf->r); pf->r=0;
-          if(++pf->j==n(d)) {
+          /* a nul iterates the FRAME's list d_, not the outermost target d --
+             comparing against n(d) only worked when the two lengths happened
+             to coincide (e.g. every dict payload was 3 slots).  With unequal
+             lengths it either stopped early (silently leaving the tail
+             unamended) or overran into a spurious index error. */
+          if(++pf->j==n(d_)) {
             PROPAGATE_RESULT(k_(d_)); goto freeframe;
           }
         }
@@ -2544,7 +2596,7 @@ static K kamend4_(K d, K i, K f, K y) {
           i0=k(3,0,k_(i_)); EC(i0);
           i2=k(16,t(1,1),k_(i_));
           if(E(i2)) { _k(i0); e=i2; goto cleanup; }
-          t=kmix(i2); if(E(t)) { _k(i0); e=t; goto cleanup; }
+          t=kmix(i2); if(E(t)) { _k(i0); _k(i2); e=t; goto cleanup; }
           _k(i2); i2=t;
           if(i0==inull)i0=null;
           switch(T(i0)) {
@@ -2553,7 +2605,11 @@ static K kamend4_(K d, K i, K f, K y) {
             _k(pf->ri); pf->ri=i0;
             if(n(i2)) {
               if(sp==sm) { stack=xrealloc(stack,sizeof(sf)*(sm*=2)); }
-              stack[sp]=(sf){t, i2, k_(y), 0, 0, sp-1, 0}; ++sp;
+              /* k_(y_), NOT k_(y): once an ancestor level has scattered, y_
+                 is this frame's SLICE of y -- pushing the outermost y put
+                 the whole vector back at every leaf below a symbol level
+                 (.[d;(`a`b;`x;`p);:;10 20] set both leaves to 10 20) */
+              stack[sp]=(sf){t, i2, k_(y_), 0, 0, sp-1, 0}; ++sp;
               continue;
             }
             else {
@@ -2566,14 +2622,14 @@ static K kamend4_(K d, K i, K f, K y) {
           case -4:
             if(T(y_)<=0&&!s(y_)) {
               if(n(y_)!=n(i0)) { _k(i0); _k(i2); e=KERR_LENGTH; goto cleanup; }
-              ym=kmix(y_); if(E(ym)) { _k(i0); _k(i2); e=KERR_LENGTH; goto cleanup; }
+              ym=kmix(y_); if(E(ym)) { _k(i0); _k(i2); e=ym; goto cleanup; }
               pym=px(ym);
             }
             else ym=0;
             if(n(i2)) {
               char **pi0=px(i0);
               _k(pf->ri); pf->ri=i0;
-              if(pf->j>=n(i0)) { _k(i2); e=KERR_INDEX; goto cleanup; }
+              if(pf->j>=n(i0)) { _k(i2); _k(ym); e=KERR_INDEX; goto cleanup; }
               t=dget(d_,pi0[pf->j]); if(!t) t=null;
               if(sp==sm) { stack=xrealloc(stack,sizeof(sf)*(sm*=2)); }
               stack[sp]=(sf){t, i2, k_(ym?pym[pf->j]:y_), 0, 0, sp-1, 0}; ++sp;
@@ -2599,13 +2655,13 @@ static K kamend4_(K d, K i, K f, K y) {
             pk=px(keys);
             if(T(y_)<=0&&!s(y_)) {
               if(n(y_)!=n(keys)) { _k(i2); e=KERR_LENGTH; goto cleanup; }
-              ym=kmix(y_); if(E(ym)) { _k(i2); e=KERR_LENGTH; goto cleanup; }
+              ym=kmix(y_); if(E(ym)) { _k(i2); e=ym; goto cleanup; }
               pym=px(ym);
             }
             else ym=0;
             if(n(i2)) {
               _k(pf->ri); pf->ri=k_(keys);
-              if(pf->j>=n(keys)) { _k(i2); e=KERR_INDEX; goto cleanup; }
+              if(pf->j>=n(keys)) { _k(i2); _k(ym); e=KERR_INDEX; goto cleanup; }
               t=dget(d_,pk[pf->j]); if(!t) t=null;
               if(sp==sm) { stack=xrealloc(stack,sizeof(sf)*(sm*=2)); }
               stack[sp]=(sf){t, i2, k_(ym?pym[pf->j]:y_), 0, 0, sp-1, 0}; ++sp;
@@ -2627,7 +2683,7 @@ static K kamend4_(K d, K i, K f, K y) {
           case  0:
             if(T(y_)<=0&&!s(y_)) {
               if(n(y_)!=n(i0)) { _k(i0); _k(i2); e=KERR_LENGTH; goto cleanup; }
-              ym=kmix(y_); if(E(ym)) { _k(i0); _k(i2); e=KERR_LENGTH; goto cleanup; }
+              ym=kmix(y_); if(E(ym)) { _k(i0); _k(i2); e=ym; goto cleanup; }
               pym=px(ym);
             }
             else ym=0;
@@ -2697,7 +2753,7 @@ static K kamend4_(K d, K i, K f, K y) {
           i2=k(16,t(1,1),k_(i_));   /* 1_i_ */
           if(E(i2)) { _k(i0); e=i2; goto cleanup; }
           t=k(13,k_(d_),k_(i0));  /* d_@i0 (keep i0 live: long atom is boxed) */
-          if(E(t)){ _k(i2); e=t; goto cleanup; }
+          if(E(t)){ _k(i0); _k(i2); e=t; goto cleanup; }
           _k(pf->ri); pf->ri=i0;
           if(n(i2)) {
             if(sp==sm) { stack=xrealloc(stack,sizeof(sf)*(sm*=2)); }
@@ -2716,10 +2772,14 @@ static K kamend4_(K d, K i, K f, K y) {
           if(T(y_)<=0&&!s(y_)) {
             ym=kmix(y_); EC(ym);
             pym=px(ym);
-            i(n(d), r=amend_fe(k_(f),k_(pdu[i]),k_(pym[i]),0); if(E(r)) { _k(ym); e=r; goto cleanup; }; _k(pdu[i]); pdu[i]=r)
+            /* n(d_), NOT n(d): pdu points at the FRAME's list.  Benign only
+               while nul frames are always top frames (d_==d); the kamend3_
+               twin already used n(d_).  Same class as the n(d)/n(d_) fix in
+               the resume steps above. */
+            i(n(d_), r=amend_fe(k_(f),k_(pdu[i]),k_(pym[i]),0); if(E(r)) { _k(ym); e=r; goto cleanup; }; _k(pdu[i]); pdu[i]=r)
             _k(ym);
           }
-          else i(n(d), r=amend_fe(k_(f),k_(pdu[i]),k_(y_),0); EC(r); _k(pdu[i]); pdu[i]=r)
+          else i(n(d_), r=amend_fe(k_(f),k_(pdu[i]),k_(y_),0); EC(r); _k(pdu[i]); pdu[i]=r)
           PROPAGATE_RESULT(k_(d_));
           break;
         case  0:
@@ -2732,7 +2792,7 @@ static K kamend4_(K d, K i, K f, K y) {
           i0=k(3,0,k_(i_)); EC(i0);
           i2=k(16,t(1,1),k_(i_));
           if(E(i2)) { _k(i0); e=i2; goto cleanup; }
-          t=kmix(i2); if(E(t)) { _k(i0); e=t; goto cleanup; }
+          t=kmix(i2); if(E(t)) { _k(i0); _k(i2); e=t; goto cleanup; }
           _k(i2); i2=t;
           if(i0==inull)i0=null;
           switch(T(i0)) {
@@ -2772,7 +2832,7 @@ static K kamend4_(K d, K i, K f, K y) {
             if(!n(i0)) { _k(i0); _k(i2); PROPAGATE_RESULT(k_(d_)); break; }
             if(T(y_)<=0&&!s(y_)) {
               if(n(y_)!=n(i0)) { _k(i0); _k(i2); e=KERR_LENGTH; goto cleanup; }
-              ym=kmix(y_); if(E(ym)) { _k(i0); _k(i2); e=KERR_LENGTH; goto cleanup; }
+              ym=kmix(y_); if(E(ym)) { _k(i0); _k(i2); e=ym; goto cleanup; }
               pym=px(ym);
             }
             else ym=0;
@@ -2797,7 +2857,7 @@ static K kamend4_(K d, K i, K f, K y) {
             if(!n(i0)) { _k(i0); _k(i2); PROPAGATE_RESULT(k_(d_)); break; }
             if(T(y_)<=0&&!s(y_)) {
               if(n(y_)!=n(i0)) { _k(i0); _k(i2); e=KERR_LENGTH; goto cleanup; }
-              ym=kmix(y_); if(E(ym)) { _k(i0); _k(i2); e=KERR_LENGTH; goto cleanup; }
+              ym=kmix(y_); if(E(ym)) { _k(i0); _k(i2); e=ym; goto cleanup; }
               pym=px(ym);
             }
             else ym=0;
@@ -2922,12 +2982,15 @@ K kamend4(K d, K i, K f, K y) {
   if(!ISF(f)) { e=KERR_TYPE; goto cleanup; }
   if(4==T(d)&&!s(d)) {
     if('.'==*sk(d)||0==*sk(d)) kt=1;
-    K d2=scope_get(gs,d); sym=d; d=d2;
+    K d2=scope_get(scope_home(),d); sym=d; d=d2;  /* the fn's namespace, not the caller's */
     if(E(d)) d=null;
     else if(kt) ;
-    else if((T(d)<=0||T(d)==2) && 1<((ko*)(b(48)&d))->r) { K d2=kcp(d); _k(d); d=d2; }
+    else if(T(d)<=0 && 1<((ko*)(b(48)&d))->r) { K d2=kcp(d); _k(d); d=d2; }
   }
-  else { K d2=kcp(d); _k(d); d=d2; }
+  /* value path: copy only when shared, like kamend3.  Shared interior
+     children are privatized per level by amend_privatize in the descent,
+     so the spine refcount alone decides here. */
+  else if(T(d)<=0 && 1<((ko*)(b(48)&d))->r) { K d2=kcp(d); _k(d); d=d2; }
   EC(d);
 
   // cannot amend entire ktree
@@ -2937,7 +3000,7 @@ K kamend4(K d, K i, K f, K y) {
 
   if(E(r)) return r;
   else if(sym && kt) { _k(r); if(nwatch) watch_fire_fq(sk(sym)); return sym; }
-  else if(sym) { K p=scope_set(gs,sym,r); if(E(p)) return p; _k(p); return sym; }
+  else if(sym) { K p=scope_set(scope_home(),sym,r); if(E(p)) return p; _k(p); return sym; }
   else return r;
 cleanup:
   _k(d); _k(i); _k(f); _k(y);
@@ -2946,7 +3009,8 @@ cleanup:
 
 K kslide(K f, K a, K x, char *av) {
   K r=0,*prk,xm=0,*pxm,e;
-  u32 n,s,v=2,m;
+  u32 n;
+  u64 s,v=2,m;  /* u64: nx may exceed 2^32 (big vectors); u32 m truncated */
   K ff=f;
   i8 Tx;
 
@@ -2975,9 +3039,20 @@ K kslide(K f, K a, K x, char *av) {
   }
   else {
     s=llabs((i64)ik(a));
+    /* fewer elements than one pair -> ZERO windows -> () for every stride.
+       t483's golden pins this for stride 1 (ssr depends on it via ep); the
+       old u32 arithmetic only reached it by accident -- m wrapped through
+       (m-1)*s+v and stride 1 happened to pass the tiling check while
+       stride 2 spuriously valence-errored on the same input. */
+    if(nx<v) { if(xm!=x) _k(xm); _k(f); _k(a); _k(x); return tn(0,0); }
     m=(nx-v+s)/s;
-    if((m-1)*s+v!=n(xm)) { e=KERR_VALENCE; goto cleanup; }
-    PRK(m);
+    /* ragged tail is a LENGTH error, not valence (ref.md slide spec: length
+       when the stride leaves a partial pair, valence when f is not dyadic) */
+    if((m-1)*s+v!=n(xm)) { e=KERR_LENGTH; goto cleanup; }
+    /* N.B. the adverb path below writes nx results (seed + nx-1 pairs), not
+       m -- size for whichever branch runs (the av path is unreachable from
+       fe today, but wiring it up must not become a heap overflow) */
+    PRK(n?nx:m);
     pxm=px(xm);
     if(n) {
       prk[0]=avdo(ff,k_(pxm[0]),k_(a),av); EC(prk[0]);
@@ -2997,7 +3072,9 @@ cleanup:
 }
 
 void kdump(i32 l) {
-  i32 t,c,m=4,n,nn,refcount;
+  i32 t,m=4,n,refcount;
+  u64 c,nn;  /* u64: an i32 snapshot of n(v) permanently CORRUPTED the count
+                of a >2^31-element vector when \V clamped it for display */
   u32 i;
   K v;
   //if(T(gs)) return;
@@ -3005,7 +3082,7 @@ void kdump(i32 l) {
   K *pgs=px(gs);
   K d=pgs[1];
   if(0x80!=s(d)) return;
-  if(n(d)!=3) return;
+  if(n(d)!=3&&n(d)!=4) return;
   K keys=((K*)px(d))[0];
   K vals=((K*)px(d))[1];
   if(s(keys)||T(keys)!=-4) return;
@@ -3019,7 +3096,7 @@ void kdump(i32 l) {
     for(i=0;i<n(keys);i++) {
       enum { kdump_show=30 };
       char buf[kdump_show+10]; /* prefix + "..." + NUL */
-      c=nn=refcount=0;
+      c=nn=0; refcount=0;
       v=pvals[i];
       if(!v) continue; /* defensive: kdump walks raw dict values; never deref a NULL slot (the producers are fixed, so this should not fire) */
       t=T(v);
@@ -3035,8 +3112,8 @@ void kdump(i32 l) {
       if((p=strchr(buf,'\n'))) { *p=0; snprintf(buf+strlen(buf),sizeof(buf)-strlen(buf),"..."); }
       if(t<=0&&!s(v)) nn=n(v);
       if(t<=0||t==2) refcount=((ko*)(b(48)&v))->r;
-      if(t==6) printf("%-*s t:[%2d] c:[%10d] r:[%2d]\n",m,pkeys[i],t,nn,refcount);
-      else printf("%-*s t:[%2d] c:[%10d] r:[%2d] %s\n",m,pkeys[i],t,nn,refcount,buf);
+      if(t==6) printf("%-*s t:[%2d] c:[%10lld] r:[%2d]\n",m,pkeys[i],t,(long long)nn,refcount);
+      else printf("%-*s t:[%2d] c:[%10lld] r:[%2d] %s\n",m,pkeys[i],t,(long long)nn,refcount,buf);
     }
   }
   else {
@@ -3050,15 +3127,26 @@ u64 khashcb(K x) {
   u64 r=2654435761;
   K *pxk;
   switch(s(x)) {
-  case 0x80: r=r+khash(b(48)&x); break;
+  case 0x80: { /* keys and values only: the capacity (slot 2) and hash-index
+                  cache (slot 3) are implementation state -- dcmp-equal dicts
+                  must hash equal */
+    K *pd=px(x);
+    r=r+khash(pd[0]); r^=r+khash(pd[1]);
+    break; }
   case 0x81: r=r+khash(x&(K)0xff00ffffffffffff); break;
   case 0x82: r=r+khash(x&(K)0xff00ffffffffffff); break;
+  case 0x83: break; /* stmt-end marker (t6-tagged); shouldn't escape the
+                       parser, but the default below is exit(1) -- never
+                       leave a landmine reachable by one dispatch slip */
   case 0x85: r=r+khash(x&(K)0xff00ffffffffffff); break;
   case 0xc0: r=r+(u64)ck(x)*2654435761U; break;
   case 0xc3: PXK; r=r+khash(pxk[0]); break;
   case 0xc5: PXK; i(nx,r^=r+khash(pxk[i])) break;
   case 0xc6: r=r+khash(x&(K)0xff00ffffffffffff); break;
   case 0xc7: r=r+khash(x&(K)0xff00ffffffffffff); break;
+  case 0xc9: r=r+khash(x&(K)0xff00ffffffffffff); break;
+  case 0xca: r=r+khash(x&(K)0xff00ffffffffffff); break;
+  case 0xcb: r=r+khash(x&(K)0xff00ffffffffffff); break;
   case 0xcc: r=r+khash(x&(K)0xff00ffffffffffff); break;
   case 0xcd: r=r+khash(x&(K)0xff00ffffffffffff); break;
   case 0xce: r=r+khash(x&(K)0xff00ffffffffffff); break;
@@ -3118,6 +3206,9 @@ K kcpcb(K x) {
   case 0xc5: p=kcp(x&(K)0xff00ffffffffffff); if(E(p)) r=p; else r=set_sx(p,0xc5); break;
   case 0xc6: p=kcp(x&(K)0xff00ffffffffffff); if(E(p)) r=p; else r=set_sx(p,0xc6); break;
   case 0xc7: p=kcp(x&(K)0xff00ffffffffffff); if(E(p)) r=p; else r=set_sx(p,0xc7); break;
+  case 0xc9: p=kcp(x&(K)0xff00ffffffffffff); if(E(p)) r=p; else r=set_sx(p,0xc9); break;
+  case 0xca: p=kcp(x&(K)0xff00ffffffffffff); if(E(p)) r=p; else r=set_sx(p,0xca); break;
+  case 0xcb: p=kcp(x&(K)0xff00ffffffffffff); if(E(p)) r=p; else r=set_sx(p,0xcb); break;
   case 0xcc: p=kcp(x&(K)0xff00ffffffffffff); if(E(p)) r=p; else r=set_sx(p,0xcc); break;
   case 0xcd: p=kcp(x&(K)0xff00ffffffffffff); if(E(p)) r=p; else r=set_sx(p,0xcd); break;
   case 0xce: p=kcp(x&(K)0xff00ffffffffffff); if(E(p)) r=p; else r=set_sx(p,0xce); break;

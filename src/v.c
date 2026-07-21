@@ -159,6 +159,7 @@ K dotcb(K a,K x) {
   }
 
   if(0x80==s(a)) { /* dict */
+    if(!s(x)&&!ax&&!nx&&tx) { --d; return k_(a); }
     switch(tx) {
     case  6: r=atcb(a,x); break;
     case  4:
@@ -340,7 +341,6 @@ K enumeratecb(K x) {
   else r=KERR_TYPE;
   return r;
 }
-#define DMAX 100
 K valuecb(K x) {
   K r=0,e,q,*pr,*px,kk,v,*pv,*t,m;
   char *pxc,*h,**pk,**ts;
@@ -350,7 +350,11 @@ K valuecb(K x) {
   if(0x80==s(x)) {
     px=px(x);
     v=px[2]; px[2]=null;
+    /* hide the hash-index slot from the transpose, like the capacity above;
+       the transpose copies, so trimming the count around it is safe */
+    u64 n0=n(b(48)&x); if(n0>3) n(b(48)&x)=3;
     r=k(1,0,k_(b(48)&x));
+    if(n0>3) n(b(48)&x)=n0;
     px[2]=v;
     return r;
   }
@@ -369,7 +373,23 @@ K valuecb(K x) {
   case  4:
     pxc=sk(x);
     n=strlen(pxc);
-    if(!n) { r=k_(ktree); break; }
+    /* Return a SNAPSHOT of the root, not the live object.  ktree is the
+       destination of every global store, so a value that references it becomes
+       a cycle the moment it is assigned -- the tree then holds the name that
+       holds the tree, and the refcount GC can never reclaim it.  Reads hand out
+       references and each capture site copies a shared container defensively,
+       but the ADVERB result paths do not (measured: {d}'1#0 shares where ,d and
+       (d;9) copy), so the live root could be captured by any of
+       '  \  ''  '/  /'  \'  @'  -- 43 forms.  Copying here makes that
+       unrepresentable at one site instead of at every present and future adverb.
+       Two alternatives were measured and rejected: giving ktree a refcount so
+       the generic "copy if shared" tests stop skipping it BREAKS ktree amend
+       (t257 -- amend's CoW then copies the tree and writes are lost), and adding
+       the capture rule to the adverb paths left the seeded-scan forms leaking.
+       Amending the whole tree is already KERR_RESERVED, so nothing needs the
+       live object.  Cost: O(workspace), paid only by `. `` -- a request for a
+       snapshot of everything.  See t/t774. */
+    if(!n) { r=kcp(ktree); break; }
     h=xmalloc(n+2);
     i(n,h[i]=pxc[i]) h[n]='\n'; h[n+1]=0;
     opencode0=opencode; opencode=1;
@@ -442,7 +462,8 @@ K valuecb(K x) {
       }
     }
     i(nx,if(2!=n(px[i])&&3!=n(px[i])) return KERR_LENGTH)
-    r=st(0x80,tn(0,3));
+    if(nx>DICTMAX) return KERR_WSFULL; /* a dict holds at most DICTMAX keys (see dset) */
+    r=st(0x80,tn(0,4));
     if(nx<DMAX) { kk=tn(4,DMAX); v=tn(0,DMAX); m=t(1,DMAX); }
     else { kk=tn(4,nx); v=tn(0,nx); m=t(1,nx); }
     n(kk)=nx;
@@ -453,6 +474,7 @@ K valuecb(K x) {
     pr[0]=kk;
     pr[1]=v;
     pr[2]=m;
+    pr[3]=null; /* hash-index slot (dict.c) */
     for(i=0;i<nx;i++) {
       if(0==T(px[i])) {
         t=px(px[i]);

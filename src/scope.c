@@ -18,7 +18,11 @@
 #include "fn.h"
 #include "watch.h"
 
-#define SM 1000
+/* scopea[] slots.  Only NAMESPACE scopes live here now (see scope_new_), so this
+   bounds how many namespaces a workspace may have, not how many closures or
+   calls it may make -- which is what it used to bound, at 1000, by hard-exiting.
+   8 bytes a slot, so 16384 costs 128KB and is far past any real ktree. */
+#define SM 16384
 
 #ifdef _WIN32
 #define strtok_r strtok_s
@@ -52,7 +56,20 @@ void scope_init(char **args, int nargs) {
   K *pk=px(ktree); char **pkk=px(pk[0]); K *pkv=px(pk[1]);
   pkk[0]=sp("k"); pkv[0]=k_(pgs[1]);
   pkk[1]=sp("z"); pkv[1]=k_(Z);
-  n(pk[0])=2; n(pk[1])=2;
+  /* .r: every reserved name, mapped to the value the lexer emits for it (the
+     builtin itself), so `!.r` lists the reserved words and `.r.sin` is sin.
+     Written into the ktree directly like .k/.z above; the top-level
+     single-letter guards (scope_set_ / dset) keep users from rebinding it. */
+  { K R=dnew();
+    i32 j,nn=kreserved_n();
+    for(j=0;j<nn;j++) {
+      char *rn=kreserved_i(j);
+      K rv=kreserved_val(rn); if(!rv) rv=null;
+      (void)dset(R,rn,rv); _k(rv);
+    }
+    pkk[2]=sp("r"); pkv[2]=R;
+  }
+  n(pk[0])=3; n(pk[1])=3;
   C=dnew();
   D=t(4,sp(".k"));
 #ifdef _WIN32
@@ -129,14 +146,25 @@ static K scope_new_(K p, K k) {
   prk[1]=dnew();
   prk[2]=k?k:null;
   prk[3]=t(1,0); /* closure? */
-  prk[4]=t(1,0); /* version */
+  prk[4]=t(1,0); /* a lambda parents to this frame (fnd/fncp_ set it -- the
+                    only two places parentage is created).  fne_'s epilogue
+                    checks it to decide whether a return can capture the
+                    frame; frames that never define a local lambda skip the
+                    conversion walk entirely.  Set at parse time, so it also
+                    covers literals never assigned to a local ({,{c*x}}). */
   prk[5]=t(1,0); /* borrowed */
-  for(i=0;i<SM;i++) if(!scopea[i]) break;
-  if(i==SM) {
-    printf("error: scope_new() i==SM\n");
-    exit(1);
+  /* Only a NAMESPACE scope goes in scopea[] -- the table is how they get torn
+     down at exit, and how scope_find() looks one up by path.  A lambda frame is
+     owned by its lambda and needs neither, so it does not scan the table at all
+     (it used to, on every scope creation, and then hit the full-table check even
+     though it was never going to register).  Running out is a `limit` error the
+     caller can trap, not a bare printf and exit(1) -- which was not a k error,
+     could not be trapped, and exited 0. */
+  if(k) {
+    for(i=0;i<SM;i++) if(!scopea[i]) break;
+    if(i==SM) { _k(r); return kerror("limit"); }
+    scopea[i]=k_(r);
   }
-  if(k) scopea[i]=k_(r);
   return r;
 }
 K scope_new(K p) { return scope_new_(p,0); }
@@ -321,7 +349,9 @@ static K scope_set_(K s, char *n, K v) {
 
   if(psu[2]!=null) { /* refresh scope dict from ktree */
     K q=ktree_get(sk(psu[2]));
-    if(E(q)) return q;
+    if(E(q)) { _k(v); return q; } /* every error exit consumes v; this one
+                                     (namespace erased out from under \d,
+                                     e.g. via .[`;...]) leaked the value */
     if(0x80!=s(q)) { _k(q); _k(v); return KERR_VALUE; }
     _k(psu[1]); psu[1]=q;
   }
@@ -332,7 +362,6 @@ static K scope_set_(K s, char *n, K v) {
   else if(0x80==s(v)&&s!=gs&&s!=ks) { // copy shared dicts from global when setting to local scope
     kd=(ko*)(b(48)&v); if(kd->r>1) gcopy=1;  // only if refcount > 1 (shared)
   }
-  if(v==ktree) gcopy=1; // d.c:.`
   if(s==ks && strlen(n)==1 && *n!='k' && *n!='m') { // top level, single letters reserved, except k and m (.m is the ipc namespace)
     _k(v); return KERR_RESERVED;
   }
@@ -411,11 +440,32 @@ static K scope_set_(K s, char *n, K v) {
     // .[`;nul;,;"0"]
     // .[`;nul;,]
     if(0x80!=s(psu[1])) { _k(v); return KERR_VALUE; }
+    /* in-place amend writeback: @[`d;ky;:;y] amends the stored dict and
+       assigns the SAME object back (kamendi4).  The shared-dict copy rule
+       exists to stop a fetched dict from aliasing a SECOND slot; storing a
+       slot's own value back creates no new alias, and copying here is what
+       made every by-name dict amend O(n) -- the whole map, per key. */
     if(gcopy) { w=kcp(v); if(E(w)) { _k(v); return w; } (void)dset(psu[1],sp(n),w); _k(v); }
     else { (void)dset(psu[1],sp(n),v); w=v; }
-    if(nwatch && s==gs) watch_fire(s,sp(n));
+    /* Fire for a write into ANY namespace scope (slot 2 non-null), not just the
+       current one.  A `::` inside a fn defined under `\d foo` writes foo's
+       globals even when called from elsewhere (scope_home), so gating on
+       s==gs skipped the trigger for exactly those writes -- the variable
+       changed and its watch stayed silent.  A lambda frame has a null slot 2,
+       so locals still never fire. */
+    if(nwatch && null!=psu[2]) watch_fire(s,sp(n));
     return w;
   }
+}
+
+K scope_home(void) { /* see scope.h */
+  K sc=cs,*ps;
+  while(sc!=null && sc!=ks) {
+    ps=px(sc);
+    if(null!=ps[2]) return sc;
+    sc=ps[0];
+  }
+  return gs;
 }
 
 K scope_set(K s, K n, K v) {
@@ -436,22 +486,42 @@ K scope_set(K s, K n, K v) {
 }
 
 K scope_cp(K s) {
-  int i;
-  K e, s2=tn(0,6); K *ps2=px(s2);
+  K e, s2, *ps2;
   K *ps=px(s);
-  ps2[0]=s==ks?k_(ks):scope_cp(ps[0]); if(E(ps2[0])) { e=ps2[0]; _k(s2); return e; }
+  /* A namespace scope is SHARED, never copied.  This walks up the parent chain
+     to snapshot the lambda frames a closure captured; the namespace scopes above
+     them are global, and a closure must see a global's CURRENT value, not one
+     frozen when it was created (`g:1; u:{c:x;{c+g}}; v:u 10; g:2; v[]` is 12).
+     Copying them was pure waste -- scope_get_ refreshes a namespace scope's dict
+     from the ktree on every lookup, so the copied dicts were thrown away on use.
+     It was also the source of two real bugs: every closure dragged in a copy of
+     the whole global scope AND THE KTREE, whose lambdas' scopes pointed back
+     into the copy, so refcounting could never free it (t254: "extra copy of
+     ktree was getting created and never freed").  That is what the scopea[]
+     registration below used to paper over -- at the cost of a permanent extra
+     reference and a slot per copy, which killed the interpreter outright once
+     the table filled. */
+  if(s==ks || null!=ps[2]) return k_(s);
+  s2=tn(0,6); ps2=px(s2);
+  ps2[0]=scope_cp(ps[0]); if(E(ps2[0])) { e=ps2[0]; _k(s2); return e; }
   ps2[1]=dcp(ps[1]); if(E(ps2[1])) { e=ps2[1]; _k(s2); return e; }
   ps2[2]=ps[2];
   ps2[3]=ps[3];
-  ps2[4]=t(1,0);
+  ps2[4]=t(1,0); /* snapshots never exit-convert; the flag stays down */
   ps2[5]=t(1,0);
 
-  for(i=0;i<SM;i++) if(!scopea[i]) break;
-  if(i==SM) {
-    printf("error: scope_new() i==SM\n");
-    exit(1);
-  }
-  scopea[i]=k_(s2);
+  /* Do NOT register the copy in scopea[].  That table exists so the NAMESPACE
+     scopes -- which nothing else owns, and which scope_find() has to be able to
+     look up by path -- can be torn down at exit; scope_newk puts them there and
+     scope_free_all frees them.  A scope_cp copy is a closure snapshot: it is
+     owned by the closure that captured it and dies with it, by refcount.
+     Registering it here did two things, both bad.  It pinned a permanent extra
+     reference (`k_(s2)`), so no closure snapshot was EVER freed while the
+     process ran.  And it burned a slot per copy -- several, since this function
+     recurses up the parent chain -- out of a fixed table of SM, at which point
+     gk printed "error: scope_new() i==SM" and called exit(1): untrappable, no k
+     error, and it even exits 0.  Creating a few hundred closures killed the
+     interpreter (`u:{c:x;{c*x}}; do[400;u 3]` on v4). */
   return s2;
 }
 

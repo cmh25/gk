@@ -204,8 +204,15 @@ void* xrealloc(void *p, size_t s) {
 
 #else /* !BUDDY - use system malloc */
 
+/* A zero size is not an allocation failure.  malloc(0)/calloc(0,n) may return
+   NULL, and realloc(p,0) frees p and returns NULL on glibc and MSVC alike --
+   all three would trip the OOM check below and exit("wsfull").  The BUDDY
+   allocator above already rounds zero up to one byte; mirror that here so an
+   empty vector behaves the same in both builds (gk is BUDDY, but gka/gkf/
+   gkabig and the whole MSVC build are not). */
 void* xmalloc(size_t s) {
   void *p=0;
+  if(!s) s=1;
   GK_CHARGE(s);
   if(!(p=malloc(s))) {
     printf("wsfull\n");
@@ -220,6 +227,7 @@ void xfree(void *p) {
 
 void* xcalloc(size_t n, size_t s) {
   void *p=0;
+  if(!n||!s) { n=1; s=1; }
   GK_CHARGE(n*s);
   if(!(p=calloc(n,s))) {
     printf("wsfull\n");
@@ -230,6 +238,8 @@ void* xcalloc(size_t n, size_t s) {
 
 void* xrealloc(void *p, size_t s) {
   void *p2=0;
+  if(!p) return xmalloc(s);
+  if(!s) { xfree(p); return xmalloc(1); }
   GK_CHARGE(s);
   if(!(p2=realloc(p,s))) {
     printf("wsfull\n");
@@ -259,6 +269,14 @@ void* xmemdup(const void *s, size_t n) {
   return p;
 }
 
+/* dup for char-vector payloads: n bytes + the zero terminator cv's carry */
+void* xmemdup0(const void *s, size_t n) {
+  char *p=xmalloc(n+1);
+  memcpy(p,s,n);
+  p[n]=0;
+  return p;
+}
+
 int xatoi(char *s) {
   int r;
   int64_t a;
@@ -272,7 +290,9 @@ int xatoi(char *s) {
     a=strtol(s,&e,10);
     if((size_t)(e-s)!=strlen(s)) r=INT32_MIN;
     else if(a>INT32_MAX) r=INT32_MAX;
-    else if(a<INT32_MIN) r=INT32_MIN;
+    else if(a<=INT32_MIN) r=INT32_MIN+1;  /* saturate to -0I: the null pattern is
+                                             reserved for 0N and parse failure,
+                                             and the lexer clamps the same way */
     else r=a;
   }
   return r;
@@ -289,6 +309,8 @@ int64_t xatol(char *s) {
   else {
     r=strtoll(s,&e,10);
     if((size_t)(e-s)!=strlen(s)) r=INT64_MIN;
+    else if(r==INT64_MIN) r=INT64_MIN+1;  /* saturate to -0I, as xatoi does:
+                                             INT64_MIN is 0N / parse failure */
   }
   return r;
 }
@@ -306,6 +328,30 @@ double xstrtod(char *s) {
     if((size_t)(e-s)!=strlen(s)) r=NAN;
   }
   return r;
+}
+
+/* f32 text: what xstrtod accepts, plus the f32 spellings the lexer takes and
+   the printer emits -- 0ne/0ie/-0ie, and a trailing `e` suffix reached through
+   a decimal point or exponent ("3.5e", "1e0e", "2.147484e+09e"), never off a
+   bare integer: "5e" is 5 then the name e, and stays a parse failure here
+   too.  Failure is NaN (0ne), like xstrtod. */
+float xstrtoe(char *s) {
+  double r;
+  size_t l;
+  char *m;
+  if(!s||!(l=strlen(s))) return NAN;
+  if(!strcmp(s,"0ne")||!strcmp(s,"-0ne")) return NAN;
+  if(!strcmp(s,"0ie")) return INFINITY;
+  if(!strcmp(s,"-0ie")) return -INFINITY;
+  r=xstrtod(s);
+  if(isnan(r)&&'e'==s[l-1]&&(memchr(s,'.',l-1)||memchr(s,'e',l-1)||memchr(s,'E',l-1))) {
+    m=xmalloc(l);
+    memcpy(m,s,l-1);
+    m[l-1]=0;
+    r=xstrtod(m);
+    xfree(m);
+  }
+  return (float)r;
 }
 
 char* xesc(char *p) {

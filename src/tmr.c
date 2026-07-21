@@ -33,6 +33,14 @@ static long long mono_ms(void) {
 #endif
 }
 
+/* interval seconds -> ms, clamped: a finite but astronomical interval
+   (timer 9e95) would overflow the i64 cast (UB).  9e18 ms ~ 285 My,
+   effectively "never", and mono_ms() + 9e18 still fits in i64. */
+static long long interval_ms(double sec) {
+  double ms = sec * 1000.0;
+  return ms >= 9e18 ? (long long)9e18 : (long long)ms;
+}
+
 /* lifecycle ------------------------------------------------------- */
 
 void tmr_init(void) {
@@ -179,7 +187,7 @@ void tmr_maybe_fire(void) {
    * timer is already running when it's supposed to trigger,
    * that one just gets skipped"). */
   if(timer_interval_s > 0.0)
-    next_tick_ms = mono_ms() + (long long)(timer_interval_s * 1000.0);
+    next_tick_ms = mono_ms() + interval_ms(timer_interval_s);
   in_tick = 0;
 }
 
@@ -246,7 +254,7 @@ K timer_(K x) {
     timer_fn = fn;        /* xi_ already gave us an owned ref */
     _k(iv);
     timer_interval_s = sec;
-    if(sec > 0.0) next_tick_ms = mono_ms() + (long long)(sec * 1000.0);
+    if(sec > 0.0) next_tick_ms = mono_ms() + interval_ms(sec);
     else          next_tick_ms = 0;
     return null;
   }

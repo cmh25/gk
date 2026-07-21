@@ -123,18 +123,22 @@ GK_API K gk_mkc(int v);                /* char atom */
 GK_API K gk_mks(const char *s);        /* symbol atom (interns s) */
 GK_API K gk_mknull(void);              /* the null value */
 
-/* ---- make a vector of n elements (uninitialized; fill via gk_<t>v()) ------ */
-GK_API K gk_mkiv(int32_t n);           /* i32    vector */
-GK_API K gk_mkfv(int32_t n);           /* f64    vector */
-GK_API K gk_mkjv(int32_t n);           /* i64    vector */
-GK_API K gk_mkev(int32_t n);           /* f32    vector */
-GK_API K gk_mkcv(int32_t n);           /* char   vector */
-GK_API K gk_mksv(int32_t n);           /* symbol vector */
-GK_API K gk_mkkv(int32_t n);           /* general K list */
+/* ---- make a vector of n elements (uninitialized; fill via gk_<t>v()) ------
+   n is int64_t: gk vectors can exceed 2^31 elements, and the engine's count
+   is 64-bit, so the ABI matches it. A negative n returns a wsfull error value
+   (that length is unallocatable) rather than blowing up the allocator; the
+   usual `for(i=0;i<n;i++) gk_<t>v(r)[i]=..` fill leaves it untouched for n<0. */
+GK_API K gk_mkiv(int64_t n);           /* i32    vector */
+GK_API K gk_mkfv(int64_t n);           /* f64    vector */
+GK_API K gk_mkjv(int64_t n);           /* i64    vector */
+GK_API K gk_mkev(int64_t n);           /* f32    vector */
+GK_API K gk_mkcv(int64_t n);           /* char   vector */
+GK_API K gk_mksv(int64_t n);           /* symbol vector */
+GK_API K gk_mkkv(int64_t n);           /* general K list */
 
 /* ---- make a char vector from a C string ----------------------------------- */
 GK_API K gk_mkstr(const char *s);              /* from a NUL-terminated string */
-GK_API K gk_mkstrn(const char *s, int32_t n);  /* from s[0..n) */
+GK_API K gk_mkstrn(const char *s, int64_t n);  /* from s[0..n) */
 
 /* ---- utilities ------------------------------------------------------------ */
 GK_API K    gk_err(const char *msg);   /* an error value; return it to raise in gk */
@@ -154,7 +158,7 @@ GK_API K    gk_norm(K x);              /* normalize a built K list to a typed ve
    other gk_* return. */
 GK_API K    gk_dnew(void);                 /* a fresh empty dict */
 GK_API void gk_dset(K d, const char *key, K val);  /* insert/update; CONSUMES val */
-GK_API K    gk_dict(const char **keys, const K *vals, int32_t n); /* column sugar over dnew+dset; CONSUMES each val */
+GK_API K    gk_dict(const char **keys, const K *vals, int64_t n); /* column sugar over dnew+dset; CONSUMES each val */
 GK_API int  gk_isdict(K x);                /* 1 if x is a dict, else 0 */
 GK_API K    gk_dkeys(K d);                 /* key symbol vector (owned) */
 GK_API K    gk_dvals(K d);                 /* value list (owned) */

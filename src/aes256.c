@@ -220,6 +220,10 @@ static unsigned char* unhex(const char *h, size_t n, size_t *m) {
     char b[3]={ h[2*i], h[2*i+1], 0 };
     r[i]=(unsigned char)strtol(b,0,16);
   }
+  r[n/2]=0;   /* decrypt's output is adopted as a type-3 char vector (tnv),
+                 which requires buf[n]==0; the allocation reserved the slot
+                 but the loop never wrote it -> downstream strlen/sp() read
+                 one byte OOB.  hex() terminates the same way. */
   *m=n/2;
   return r;
 }

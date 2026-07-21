@@ -23,6 +23,7 @@ K encrypt_(K a, K x);
 K decrypt_(K a, K x);
 K setenv_(K a, K x);
 K in_(K a, K x);
+K lin_(K a, K x);
 K dvl_(K a, K x);
 K bin_(K a, K x);
 K binl_(K a, K x);

@@ -13,6 +13,7 @@
 #include "av.h"
 #include "fe.h"
 #include "ipc.h"
+#include "k.core/fuse.h"
 
 /*
 s > e se | se
@@ -43,13 +44,24 @@ long gk_alloc_budget=GK_ALLOC_BUDGET;
 int opencode=1;
 char *pfile="";
 int gline,glinei,gline0,gline0i,fileline;
+
+/* A projection of a LAMBDA is a noun, exactly like the lambda itself: a verb
+   juxtaposed on its left applies (`,{x+y}[1]` enlists, as `,{x+y}` does), it
+   does not form a train.  Only primitive/builtin-headed values (0xd0, 0xd9
+   of a verb, 0xc5) compose.  fn_inner reaches the head through the wrapper
+   chain. */
+static int lambda_noun(K b) { return 0xd9==s(b) && 0xc3==s(fn_inner(b)); }
 char *glinep,*gline0p;
 
 #define PARAMSMAX EVALDEPTH
 K params[PARAMSMAX];
 int paramsi;
 void pinit(void) { i(PARAMSMAX,params[i]=st(0x81,tn(0,32))) }
-void pexit(void) { i(PARAMSMAX,n(params[i])=0;_k(params[i])) }
+/* glinep/gline0p cache the offending source line for the repl to print; a
+ * trapped error never prints, so the last one is still live at exit. */
+void pexit(void) { i(PARAMSMAX,n(params[i])=0;_k(params[i]))
+  if(glinep) { xfree(glinep); glinep=0; }
+  if(gline0p) { xfree(gline0p); gline0p=0; } }
 
 #define GROW() do { \
   s->Sm<<=1; \
@@ -196,6 +208,29 @@ static K vlookuprs(K x, K *rs) {
   return r?r:KERR_VALUE;
 }
 
+/* Pick the scope an assignment through a resolved name should write to.
+   vlookuprs returns the scope the name was FOUND in, which is not the scope to
+   WRITE to:
+   - found in cs: a local of this frame shadows the global (`{c:5;c::6}` keeps
+     c local) -- write it.
+   - found in a closure parent: mutate it in place (gk closures).
+   - found in a non-closure lambda parent: the name is that frame's local, so
+     take a local copy rather than reaching into a caller.
+   - found in ANY namespace scope (including gs): the fn's own directory owns
+     the global, so redirect to scope_home().  Previously a namespace scope that
+     was not the current gs fell into the non-closure branch below and the
+     write was discarded with the call frame -- a namespaced counter (`c+:1`)
+     silently never advanced. */
+static K asnrs(K rs) {
+  K *prs;
+  if(rs==cs) return cs;
+  if(rs==gs) return scope_home();
+  prs=px(rs);
+  if(null!=prs[2]) return scope_home();
+  if(!ik(prs[3])) return cs;
+  return rs;
+}
+
 /*  v: error
    x0: (values;index;stmt;line;file;gline;ggline)
     i: index */
@@ -306,17 +341,19 @@ static K rl(K x, K t) {
     return st(t,r);
   }
   else if(0x42==s(x) && 1==nx) { /* (1) -> 1 */
+    K p0=k_(px[0]);   /* printerror below reads px[0], but _k(x) frees it; retain */
     r=pgreduce_(px[0],&q);
     _k(x);
     if(!r&&t==0) r=null;
     else if(!r&&t==0x81) r=inull;
     if(r && E(r)&&!strcmp(sk(r),"value")) {
-      if(EFLAG&&!SIGNAL&&strcmp(sk(r),"abort")) {
-        printerror(r,px[0],0);
+      if(EFLAG&&!EXIT&&!SIGNAL&&strcmp(sk(r),"abort")) {
+        printerror(r,p0,0);
         ++ecount;
         r=repl();
       }
     } // note: when running like "./gk < file", repl() can return anything
+    _k(p0);
     if(E(r)||EXIT) return r;
     if(s(r)&&T(r)==0&&((ko*)(b(48)&r))->r) {
       p=kcp(r); _k(r); r=p;
@@ -346,7 +383,7 @@ static K rl(K x, K t) {
             a=vlookup(v);
             if(a && s(a)) a=reduce(a);
             if(a && a<EMAX) a=kerror(E[a]);
-            if(a && E(a) && EFLAG && !SIGNAL && strcmp(sk(a),"abort")) {
+            if(a && E(a) && EFLAG && !EXIT && !SIGNAL && strcmp(sk(a),"abort")) {
               printerror(a,stmt,0);
               ++ecount;
               a=repl();
@@ -363,7 +400,7 @@ static K rl(K x, K t) {
         if(!a&&t==0) a=null;
         else if(!a&&t==0x81) a=inull;
         if(a && E(a)&&!strcmp(sk(a),"value")) {
-          if(EFLAG&&!SIGNAL&&strcmp(sk(a),"abort")) {
+          if(EFLAG&&!EXIT&&!SIGNAL&&strcmp(sk(a),"abort")) {
             printerror(a,stmt,0);
             ++ecount;
             a=repl();
@@ -389,18 +426,15 @@ static K rl(K x, K t) {
 
 static K assign(K d, K i, K y) {
   K r=0,p=0,v=d,rs=0;
+  int rredir=0;
   if(!d||!i||!y) { _k(d); d=KERR_TYPE; goto cleanup; }
   if(0x40!=s(d)) { _k(d); d=KERR_TYPE; goto cleanup; }
   d=vlookuprs(d,&rs);
   if(d==KERR_VALUE) { /* d[`a]:1 - d not found, create in global */
-    if(T(i)==4 || T(i)==-4) { rs=gs; d=dnew(); }
+    if(T(i)==4 || T(i)==-4) { rs=scope_home(); d=dnew(); }
     else goto cleanup; /* value */
   }
-  else if(rs && rs!=gs && rs!=cs) {
-    /* d[`a]:1 resolved in parent - apply closure check */
-    K *prs=px(rs);
-    if(!ik(prs[3])) rs=cs;  /* parent non-closure → local copy */
-  }
+  else if(rs) { K rsf=rs; rs=asnrs(rsf); rredir=(rs!=rsf); }  /* d[`a]:1 resolved in a parent/namespace scope */
   if(E(d)) goto cleanup;
   if(s(d)!=0x80 && T(d)>0) { _k(d); d=KERR_TYPE; goto cleanup; }
   if(0x40==s(i)) { i=vlookup(i); if(E(i)) { _k(d); d=i; goto cleanup; } }
@@ -408,7 +442,10 @@ static K assign(K d, K i, K y) {
   if(s(y)&&s(y)!=0x80&&s(y)!=0xc3) { _k(d); d=KERR_TYPE; goto cleanup; } /* 0xc4 retired */
   if(s(i)&&0x81!=s(i)) { _k(d); d=KERR_TYPE; goto cleanup; }
   ko *kd=(ko*)(b(48)&d);
-  if(kd->r>1) { /* copy on write */
+  if(kd->r>1 || (rredir && kd->r)) { /* copy on write; also when the write is
+      redirected away from the found binding (non-closure parent / namespace
+      redirect) -- that binding survives the assign, so the amend below must
+      not touch it in place even at refcount 1 */
     --kd->r;
     d=kcp(d); if(E(d)) goto cleanup;
   }
@@ -432,16 +469,10 @@ cleanup:
    Issue #2 Pass 6: post-pass-6 names never carry adverb suffixes, so
    the av-split path is gone -- look up the name verbatim, copy the
    lambda, and stamp valence for monad-promoted entries.  The legacy
-   pf[3] av slot has been removed; pf[3] now holds valence. */
-static K rpd(K x) {
-  K f,*pf;
-  if(!(f=dget(C,sk(x)))) return KERR_VALUE;
-  K f2=kcp(f); _k(f); if(E(f2)) return f2;
-  f=f2;
-  pf=px(f);
-  if(0xc9==s(x)) pf[3]=FN_VF(1,0);
-  return f;
-}
+   pf[3] av slot has been removed; pf[3] now holds valence.
+   Body lives in fn.c (fnpd) so fe() can resolve the same subtypes when
+   they arrive as values (e.g. fetched from .r). */
+static K rpd(K x) { return fnpd(x); }
 
 static inline K r41(K x);
 static K rc5(K x);
@@ -559,6 +590,16 @@ static K r44(K x) {
     if(E(f)) { _k(x1); _k(x2); _k(x); return f; }
   }
 
+  /* An undefined symbol handle resolves to nul, exactly as `undef 1 does via
+     r40 in the juxtaposition path.  Without this the symbol atom falls through
+     to dot(), whose undefined-name sentinel makes it index the SYMBOL, giving
+     `undef[1] a rank error where `undef 1 gives 1. */
+  if(4==T(f)&&!s(f)) {
+    K fv=scope_get(cs,f);
+    if(E(fv)) { _k(f); f=null; }   /* 0 (not found) and error codes alike */
+    else _k(fv);
+  }
+
   if(f<256) f=t(1,st(0xc0,strchr(P,f)-P+32));
   if(0x40==s(x1)) { /* f[1][2] */
     r=f;
@@ -584,7 +625,11 @@ static K r44(K x) {
       else r=fe(f,0,k_(x2),av);
     }
     else {
-      if(T(f)>0&&f!=null) { if(T(f)==2) _k(f); r=KERR_RANK; }
+      /* null is exempt from the atom rank-out: nul is the identity VECTOR, so
+         nul[1] indexes it and yields 1, exactly as nul 1 does.  Every other
+         atom ranks under any index -- see the nul notes in doc/ref.md. */
+      if(4==T(f)&&!s(f)) r=k(11,f,b(48)&k_(x2)); /* `a . path */
+      else if(T(f)>0&&f!=null) { _k(f); r=KERR_RANK; }
       else if(n(x1)==1) r=k(13,f,k_(px2[0])); /* f @ x */
       else r=k(11,f,b(48)&k_(x2)); /* f . x */
     }
@@ -633,7 +678,9 @@ static K rd0(K x) {
 
 static K rc5(K x) {
   K *px=px(x);
+  if(!n(x)) return x;            /* empty composition: px[0] would over-read */
   K f=px[0];
+  if(T(f)>0) return x;           /* slot 0 must be the verb LIST, not an atom */
   K *pf=px(f);
   for(i64 i=n(f)-1;i>=0;--i) {
     if(0xd0==s(pf[i])) {
@@ -784,6 +831,18 @@ static K fileverb_dyad(K v, K a, K b) {
   return *av ? avdo(k_(v),a,b,av) : builtin(k_(v),a,b);
 }
 
+/* 1 when every pending stack item in [base,top) is an assignable (bare name
+   or indexed-name 0x44) and the token stream from toks[at] on has at least
+   that many consecutive assign tokens (plain `:` 64 or compound 0xce): the
+   names are all assignment targets (x:mul/1 2 3, r+:mul/1 2 3, y:x:mul/...),
+   none is a left operand.  b:a mul/3 4 (two names, one assign) declines. */
+static int all_assign_targets_(K *toks, K ntoks, K at, K *base, K *top) {
+  K nasn=0, kk=at, *q;
+  while(kk<ntoks && ((0xc0==s(toks[kk]) && 64==ik(toks[kk])) || 0xce==s(toks[kk]))) { ++nasn; ++kk; }
+  for(q=base;q<top;q++) if(0x40!=s(*q) && 0x44!=s(*q)) return 0;
+  return nasn >= (K)(top-base);
+}
+
 K pgreduce_(K x0, int *quiet) {
   char q,*mv,*s;
   u8 c;
@@ -850,11 +909,21 @@ K pgreduce_(K x0, int *quiet) {
              and leave the rest for outer ops (e.g. `1 + 2 sv' +|tt`:
              stack=[1,2] when sv runs, 2 is sv's left arg, 1 is +'s).
              Always pop for JUXT, ASSIGN, monadic, or end-of-stream. */
+          /* Effective depth discounts assignment targets parked at the
+             stack bottom (r,:LIT~lcm/...: stack=[r,LIT] but r belongs to
+             the trailing assign token, so LIT is the dyad's left arg, not
+             our seed).  Trailing assigns = 64/0xce tokens at stream end. */
+          K natrail=0, nbot=0, nend=nx;
+          while(nend>i+1 && 0x83==s(px[nend-1])) --nend;   /* skip stmt end markers */
+          while(natrail<nend-1-i && ((0xc0==s(px[nend-1-natrail]) && 64==ik(px[nend-1-natrail]))
+                                     || 0xce==s(px[nend-1-natrail]))) ++natrail;
+          while(nbot<(K)(pA-A) && (0x40==s(A[nbot])||0x44==s(A[nbot]))) ++nbot;
+          if(nbot>natrail) nbot=natrail;
           int next_is_dyad_op = (i<nx-1 && 0xc0==s(px[i+1])
                                  && ik(px[i+1])>=64 && ik(px[i+1])<96
                                  && ik(px[i+1])!=0xff
                                  && ik(px[i+1])!=64
-                                 && (pA-A)<=1);
+                                 && (pA-A-(i64)nbot)<=1);
           if(0x81==s(bv) && n(bv)==2) {
             K *pbv=px(bv);
             *pA++ = *bavp ? avdo(k_(v),k_(pbv[0]),k_(pbv[1]),bavp)
@@ -862,6 +931,16 @@ K pgreduce_(K x0, int *quiet) {
             _k(bv); _k(b);
           }
           else if(0x81==s(bv)) { _k(bv); _k(b); *pA++=KERR_VALENCE; }
+          else if(pA>A && (0x40==s(pA[-1])||0x44==s(pA[-1])) && i+1<nx
+                  && all_assign_targets_(px,nx,i+1,A,pA)) {
+            /* x:mul/1 2 3 (and y:x:mul/...) -- the names below are all
+               assignment targets, not left operands.  Apply with no left
+               arg and push; the ASSIGN token(s) that follow bind the
+               name(s) via the normal case-2 handler. */
+            if(!VST(bv)) { _k(bv); _k(b); *pA++=KERR_TYPE; break; }
+            *pA++ = *bavp ? avdo(k_(v),0,bv,bavp) : builtin(k_(v),0,bv);
+            _k(b);
+          }
           else if(pA>A && !next_is_dyad_op) {
             a=*--pA;
             if(s(a)) { a=reduce(a); if(E(a)||EXIT) { _k(bv); _k(b); *pA++=a; break; } }
@@ -1035,14 +1114,11 @@ K pgreduce_(K x0, int *quiet) {
         if(0x40==s(a)) { /* a::1 */
           if(!VST(b)) { _k(b); *pA++=KERR_PARSE; break; }
           K rs; K a_=vlookuprs(a,&rs);
-          if(KERR_VALUE==a_) rs=gs;  /* not found → global */
+          if(KERR_VALUE==a_) rs=scope_home();  /* not found → the fn's own directory */
           else if(E(a_)) { _k(b); *pA++=a_; break; }
           else {
             _k(a_);
-            if(rs!=gs && rs!=cs) {
-              K *prs=px(rs);
-              if(!ik(prs[3])) rs=cs;  /* parent non-closure → local copy */
-            }
+            rs=asnrs(rs);
           }
           p=scope_set(rs,a,b);
           if(E(p)) { _k(a); *pA++=p; }
@@ -1067,12 +1143,15 @@ K pgreduce_(K x0, int *quiet) {
           else { _k(a_); _k(i_); _k(b); *pA++=KERR_TYPE; break; }
           if(0x40!=s(a_)) { _k(a_); _k(i_); _k(b); *pA++=KERR_TYPE; break; }
           /* resolve base, apply closure check */
-          K rs; if(KERR_VALUE==(a_=vlookuprs(a_,&rs))) { a_=null; rs=gs; }
+          K rs; if(KERR_VALUE==(a_=vlookuprs(a_,&rs))) { a_=null; rs=scope_home(); }
           if(E(a_)) { _k(b); _k(i_); *pA++=a_; break; }
-          if(rs!=gs && rs!=cs) {
-            K *prs=px(rs);
-            if(!ik(prs[3])) rs=cs;  /* parent non-closure → local copy */
-          }
+          { K rsf=rs; rs=asnrs(rsf);
+            /* redirected write (non-closure parent / namespace): the found
+               binding survives, so kamend4 must not amend it in place */
+            if(rs!=rsf && a_!=null && (T(a_)<=0||T(a_)==2) && ((ko*)(b(48)&a_))->r) {
+              K a2=kcp(a_); _k(a_); a_=a2;
+              if(E(a_)) { _k(b); _k(i_); *pA++=a_; break; }
+            } }
           /* amend dict and save */
           K r=kamend4(a_,i_,0,k_(b));
           if(E(r)) { _k(b); *pA++=r; }
@@ -1110,12 +1189,9 @@ K pgreduce_(K x0, int *quiet) {
           if(s(b)) { b=reduce(b); if(E(b)||EXIT) { _k(a); *pA++=b; break; } }
           if(!VST(b)) { _k(b); *pA++=KERR_PARSE; break; }
           // resolve, then apply closure check
-          K rs; if(KERR_VALUE==(a_=vlookuprs(a,&rs))) { a_=null; rs=gs; }
+          K rs; if(KERR_VALUE==(a_=vlookuprs(a,&rs))) { a_=null; rs=scope_home(); }
           if(E(a_)) { _k(b); *pA++=a_; break; }
-          if(rs!=gs && rs!=cs) {
-            K *prs=px(rs);
-            if(!ik(prs[3])) rs=cs;  /* parent non-closure → local copy */
-          }
+          rs=asnrs(rs);
           t=k(strchr(P,ik(v))-P,a_,b);
           if(E(t)||EXIT) { *pA++=t; break; };
           p=scope_set(rs,a,t);
@@ -1144,12 +1220,15 @@ K pgreduce_(K x0, int *quiet) {
 
           if(0x40!=s(a_)) { _k(a_); _k(i_); _k(b); *pA++=KERR_TYPE; break; }
           // resolve, then apply closure check
-          K rs; if(KERR_VALUE==(a_=vlookuprs(a_,&rs))) { a_=null; rs=gs; }
+          K rs; if(KERR_VALUE==(a_=vlookuprs(a_,&rs))) { a_=null; rs=scope_home(); }
           if(E(a_)) { _k(b); _k(i_); *pA++=a_; break; }
-          if(rs!=gs && rs!=cs) {
-            K *prs=px(rs);
-            if(!ik(prs[3])) rs=cs;  /* parent non-closure → local copy */
-          }
+          { K rsf=rs; rs=asnrs(rsf);
+            /* redirected write (non-closure parent / namespace): the found
+               binding survives, so kamend4 must not amend it in place */
+            if(rs!=rsf && a_!=null && (T(a_)<=0||T(a_)==2) && ((ko*)(b(48)&a_))->r) {
+              K a2=kcp(a_); _k(a_); a_=a2;
+              if(E(a_)) { _k(b); _k(i_); *pA++=a_; break; }
+            } }
           a=k(11,k_(a_),k_(i_));
           if(E(a)) { _k(b); _k(a_); _k(i_); *pA++=a; break; }
           if(T(i_)>0) {
@@ -1222,7 +1301,12 @@ K pgreduce_(K x0, int *quiet) {
           }
           else {
             if(s(b)) { b=reduce(b); if(E(b)||EXIT) { *pA++=b; break; } }
-            *pA++=fe(k_(v),0,b,"");
+            if((0xd0==s(b)||0xd9==s(b)||0xc5==s(b))&&!lambda_noun(b)) {
+              K cvl=tn(0,2); K *pcvl=px(cvl); pcvl[0]=k_(v); pcvl[1]=b;
+              K cq=tn(0,2); K *pcq=px(cq); pcq[0]=cvl; pcq[1]=tn(3,0);
+              *pA++=st(0xc5,cq);
+            }
+            else *pA++=fe(k_(v),0,b,"");
           }
         }
         break;
@@ -1432,10 +1516,12 @@ K pgreduce_(K x0, int *quiet) {
                    stays alive in the pool, but its entries still hold
                    our +1 refs from reduce() -- release them now or
                    they leak. Inline the heap-K branch of _k to skip
-                   the call overhead for atom args (T>0,T!=2). */
+                   the call overhead for inline atoms; kh() is the
+                   heap test (a hand-written type list here missed
+                   boxed longs and leaked one ref per call). */
                 for(int j=0;j<N;j++) {
                   K a=pxk[j];
-                  if(!E(a) && (T(a)<=0 || T(a)==2)) {
+                  if(!E(a) && kh(a)) {
                     ko *kk=(ko*)(b(48)&a);
                     if(kk->r>0) --kk->r;
                     else _k(a);
@@ -1533,7 +1619,16 @@ apply_n_fallback: {
           if(0xc5==s(a)) { a=rc5(a); if(E(a)||EXIT) { *pA++=a; break; } }
           if(0xd0==s(a)) { a=rd0(a); if(E(a)||EXIT) { *pA++=a; break; } }
         }
-        if(c==32) { *pA++=a; RETURN=1; break; } /* return */
+        if(c==32) { /* return */
+          /* :x must END the statement.  A verb still pending after it
+             (`- : 5`, `-':1 3 6`, `zzz':x`) would be silently swallowed
+             by the early return -- those spellings are digraph
+             leftovers, removed in gk; reject instead of discarding the verb. */
+          K ii=i+1;
+          while(ii<nx && 0x83==s(px[ii])) ++ii;
+          if(ii<nx) { _k(a); *pA++=KERR_TYPE; break; }
+          *pA++=a; RETURN=1; break;
+        }
         else if(19==c%32&&(0x41==s(a)||0x81==s(a))&&n(a)>2) { *pA++=cond_(a); _k(a); }
         else if(0x41==s(a)||0x81==s(a)) {
           if(0x41==s(a)) { a=rl(a,0x81); if(E(a)||EXIT) { *pA++=a; break; } }
@@ -1548,6 +1643,16 @@ apply_n_fallback: {
           _k(a);
         }
         else if(!VST(a)) { _k(a); *pA++=KERR_TYPE; }
+        else if((0xd0==s(a)||0xd9==s(a)||0xc5==s(a))&&!lambda_noun(a)) {
+          /* A primitive verb JUXTAPOSED with a TRAIN (fixed-dyad / projection /
+             composition value: 0xd0/0xd9/0xc5) COMPOSES (prepends) instead of
+             executing.  A LAMBDA projection is a noun and falls through. */
+          K cvl=tn(0,2); K *pcvl=px(cvl);
+          pcvl[0]=t(1,st(0xc0,(c%32)+32)); /* the primitive as a 0xc0 verb atom */
+          pcvl[1]=a;                       /* the train (ownership transfers) */
+          K cq=tn(0,2); K *pcq=px(cq); pcq[0]=cvl; pcq[1]=tn(3,0);
+          *pA++=st(0xc5,cq);
+        }
         else *pA++=k(c%32,0,a);
       }
       break;
@@ -1604,6 +1709,21 @@ apply_n_fallback: {
             break;
           }
           if(!VST(a)||!VST(b)) { _k(b); _k(a); *pA++=KERR_TYPE; break; }
+          /* Fuse `a<x` / `a>x` / `a=x` with a following monadic `&` (token 32+5)
+             so the 0/1 mask is never materialised.  RPN guarantees the compare's
+             result is consumed by that very `&` and nothing else.  A bare verb
+             token only: an adverb (0x85) after it, or a projected/assigned `&`,
+             arrives as a different subtype and takes the normal path.  wherecmp
+             borrows a and b, and declines (0) on any shape it can't handle --
+             declining is not an error, k(w,a,b) below computes those. */
+          if((w==7||w==8||w==9) && i+1<nx
+             && 0xc0==s(px[i+1]) && 37==ck(px[i+1])
+             && (i+2>=nx || 0x85!=s(px[i+2]))) {
+            K wr;
+            if(wherecmp(a,b,(i8)(w==7?-1:w==8?1:0),&wr)) {
+              _k(a); _k(b); *pA++=wr; ++i; break;
+            }
+          }
           *pA++=k(w,a,b);
         }
       }
@@ -1684,6 +1804,12 @@ apply_n_fallback: {
         if(0x44==s(a)) { a=r44(a); if(E(a)||EXIT) { _k(b); *pA++=a; break; } }
         if(0xd0==s(a)) { a=rd0(a); if(E(a)||EXIT) { _k(b); *pA++=a; break; } }
         if(0xc5==s(a)) { a=rc5(a); if(E(a)||EXIT) { _k(b); *pA++=a; break; } }
+        /* a predefined fn held as a VALUE (via .r or a dict) juxtaposed with
+           its argument: resolve like rpd does for the lexer-emitted token */
+        if(0xc9==s(a)||0xca==s(a)||0xcb==s(a)) {
+          K a2=rpd(a); _k(a); a=a2;
+          if(E(a)||EXIT) { _k(b); *pA++=a; break; }
+        }
         if(!VST(a)) { _k(b); _k(a); *pA++=KERR_TYPE; break; }
       }
 
@@ -1751,7 +1877,7 @@ c3_apply:
           {
             int la=(av&&*av)?strlen(av):0;
             int lb=strlen(pb1);
-            if(la+lb>=256) { _k(b1); _k(a); _k(b); *pA++=KERR_LENGTH; break; }
+            if(la+lb>=256) { _k(b1); _k(b2); _k(a); _k(b); *pA++=KERR_LENGTH; break; }
             if(la) memcpy(comb,av,la);
             memcpy(comb+la,pb1,lb+1);
           }
@@ -1764,8 +1890,13 @@ c3_apply:
             /* Issue #2 Pass 6: dyadic-juxt detection.  When the next
                token is JUXT (0xff) and there's a left-seed on the
                stack, treat as dyadic each: 1 g'!5 -> 1 2 3 4 5.
-               Mirrors the analogous detection in case 0xda. */
-            if(strlen(cav) && pA>A && i<nx-1 && 0xc0==s(px[i+1]) && ik(px[i+1])==0xff) {
+               Mirrors the analogous detection in case 0xda.
+               A bare adverb below (0x85, or an 0x45/0x43 adverb node)
+               is not a seed -- it's a pending head's adverb (f'g'x):
+               decline, apply monadically, and let the remaining JUXTs
+               attach the head, so f'g'x == f'(g'x). */
+            if(strlen(cav) && pA>A && i<nx-1 && 0xc0==s(px[i+1]) && ik(px[i+1])==0xff
+               && 0x85!=s(pA[-1]) && 0x45!=s(pA[-1]) && 0x43!=s(pA[-1])) {
               ++i;
               t=*--pA;
               if(s(t)) { t=reduce(t); if(E(t)||EXIT) { _k(a); _k(b); _k(b1); _k(b2); *pA++=t; break; } }
@@ -1953,6 +2084,13 @@ c3_apply:
           else *pA++=avdo(w,0,k_(pb[2]),mv);
           _k(b);
         }
+        else if((0xd0==s(b)||0xd9==s(b)||0xc5==s(b))&&!lambda_noun(b)) {
+          /* compose a plain monadic verb with a projection/composition:
+             `(# proj) x` == #(proj x).  See the sibling branch in case 0xda. */
+          K cvl=tn(0,2); K *pcvl=px(cvl); pcvl[0]=k_(a); pcvl[1]=b;
+          K cq=tn(0,2); K *pcq=px(cq); pcq[0]=cvl; pcq[1]=tn(3,0);
+          *pA++=st(0xc5,cq);
+        }
         else *pA++=k(w,0,b);
         break;
       case 0xd0: /* fixed dyad */
@@ -2036,6 +2174,18 @@ c3_apply:
             pt[0]=a; pt[1]=b;
             *pA++=st(0xd7,t);
           }
+          else if(0xda==s(b) && *favp) {
+            /* seed juxtaposed with an each-adverbed verb -- `"."in'` = "." then
+               0xda(in,"'") -- is a left-bound monadic projection {"." in' x}.
+               Build a fixed-dyad 0xd0(seed, 0xda(verb,av)); fe() peels the 0xd0
+               and applies the adverbed verb dyadically (seed as left arg).
+               (`/`,`\` above take the 0xd7 seeded-fold channel instead; a bare
+               each has no fold overload, so it's an ordinary projection.) */
+            a=vcap(a); if(E(a)) { _k(b); *pA++=a; break; } /* copy noun seed to avoid a self-referential 0xd0 cycle */
+            t=tn(0,2); pt=px(t);
+            pt[0]=a; pt[1]=b; /* b is the 0xda(verb,av) wrapper; transfer ownership */
+            *pA++=st(0xd0,t);
+          }
           else { _k(a); _k(b); *pA++=KERR_TYPE; break; }
         }
         else {
@@ -2084,8 +2234,11 @@ c3_apply:
         /* Issue #2 Pass 6: 0xc7 builtin-dyad inner (draw/, mul/, etc.) --
            fe()'s case 0xda routes these through avdo for fold/scan
            semantics.  Without this, juxtaposition reports type error
-           because the c3_apply branch only handles 0xc0/0xc3/0xd9. */
-        if(0xc7==s(wf)) {
+           because the c3_apply branch only handles 0xc0/0xc3/0xd9.
+           0xc6 builtin-monad inner (sqrt/, sin') takes the same route:
+           fe's 0xda arm has matching branches for both, so g:sqrt/;
+           g 16.0 converges like the infix spelling. */
+        if(0xc7==s(wf)||0xc6==s(wf)) {
           if(0x40==s(b)) { b=r40(b); if(E(b)||EXIT) { _k(a); *pA++=b; break; } }
           if(pA>A && i<nx-1 && 0xc0==s(px[i+1]) && ik(px[i+1])==0xff) {  /* dyadic juxtaposition */
             ++i;
@@ -2133,6 +2286,15 @@ c3_apply:
             if(!VST(t)) { _k(a); _k(b); _k(t); *pA++=KERR_TYPE; break; }
             *pA++=avdo(vi,t,k_(b),avp);
           }
+          else if((0xd0==s(b)||0xd9==s(b)||0xc5==s(b))&&!lambda_noun(b)) {
+            /* compose a derived-verb VALUE with a projection/composition,
+               e.g. (g f) where g=|/ and f="."in' -- `(g f) x` == g(f x).
+               Mirrors the token-push case 0xda branch; a,b are owned here
+               (freed below), so copy both into the verblist. */
+            K cvl=tn(0,2); K *pcvl=px(cvl); pcvl[0]=k_(a); pcvl[1]=k_(b);
+            K cq=tn(0,2); K *pcq=px(cq); pcq[0]=cvl; pcq[1]=tn(3,0);
+            *pA++=st(0xc5,cq);
+          }
           else if(s(b)) *pA++=KERR_TYPE;
           else *pA++=avdo(vi,0,k_(b),avp);
         }
@@ -2176,16 +2338,53 @@ c3_apply:
         else *pA++=k(13,a,b); /* a b */
         break;
       case 0xc6:
-        if(T(b)==0 && n(b)==1) { K *pb=px(b); p=k_(pb[0]); _k(b); b=p; }
-        else if(T(b)==0 && n(b)==0) { _k(b); b=null; }
-        else if(!VST(b)) { _k(b); *pA++=KERR_TYPE; break; }
-        *pA++=builtin(a,0,b);
-        break;
       case 0xc7:
-        if(T(b)==0 && n(b)==1) { K *pb=px(b); p=k_(pb[0]); _k(b); b=p; }
-        else if(T(b)==0 && n(b)==0) { _k(b); b=null; }
-        else if(!VST(b)) { _k(b); *pA++=KERR_TYPE; break; }
-        *pA++=builtin(a,0,b);
+        /* builtin VALUE from a name (f:mul; f/1 2 3, 2 f'x, 2 g 1 2 3):
+           mirror the 0xdc branch below -- adverbs dispatch through avdo
+           (int-index handles 0xc6/0xc7), and a dyadic builtin pulls an
+           optional left arg for dyadic juxtaposition. */
+        if(0x45==s(b)) {
+          pb=px(b);
+          mv=px(pb[1]);
+          if(!VST(pb[2])) { _k(a); _k(b); *pA++=KERR_TYPE; break; }
+          t=0;
+          if(pA>A && i<nx-1 && 0xc0==s(px[i+1]) && ik(px[i+1])==0xff) { /* dyadic juxtaposition */
+            ++i;
+            t=*--pA;
+            if(s(t)) { t=reduce(t); if(E(t)||EXIT) { _k(a); _k(b); *pA++=t; break; } }
+            if(!VST(t)) { _k(a); _k(b); _k(t); *pA++=KERR_TYPE; break; }
+          }
+          if(s(pb[2])) { p=reduce(k_(pb[2])); if(E(p)||EXIT) { _k(a); _k(b); _k(t); *pA++=p; break; } }
+          else p=k_(pb[2]);
+          /* monadic builtin + int/predicate left + "/"|"\\" is do-n /
+             while (2 f/1.1, {x<100}f/2) -- mirror the inline 0xc6 path */
+          if(t && 0xc6==s(a) && (!strcmp(mv,"/")||!strcmp(mv,"\\"))) {
+            if(s(t)==0 && (T(t)==1||T(t)==8))
+              *pA++ = *mv=='/' ? overmonadn(a,t,p,"") : scanmonadn(a,t,p,"");
+            else if(ISF(t) && ik(val(t))==1)
+              *pA++ = *mv=='/' ? overmonadb(a,t,p,"") : scanmonadb(a,t,p,"");
+            else { _k(a); _k(t); _k(p); *pA++=KERR_TYPE; }
+            _k(b);
+            break;
+          }
+          *pA++=avdo(a,t,p,mv);
+          _k(b);
+        }
+        else if(0xc7==s(a) && pA>A && i<nx-1 && 0xc0==s(px[i+1]) && ik(px[i+1])==0xff) {
+          /* 2 g 1 2 3 -- dyad with a juxtaposed left arg.  0xc6 monads
+             never pull one ({x} abs 2 composes instead). */
+          ++i;
+          t=*--pA;
+          if(s(t)) { t=reduce(t); if(E(t)||EXIT) { _k(a); _k(b); *pA++=t; break; } }
+          if(!VST(t)||!VST(b)) { _k(a); _k(b); _k(t); *pA++=KERR_TYPE; break; }
+          *pA++=builtin(a,t,b);
+        }
+        else {
+          if(T(b)==0 && n(b)==1) { K *pb=px(b); p=k_(pb[0]); _k(b); b=p; }
+          else if(T(b)==0 && n(b)==0) { _k(b); b=null; }
+          else if(!VST(b)) { _k(a); _k(b); *pA++=KERR_TYPE; break; }
+          *pA++=builtin(a,0,b);
+        }
         break;
       case 0xc5:
         if(0x45==s(b)) {
@@ -2371,7 +2570,7 @@ c3_apply:
     if(0x44==s(v)) {
       v=r44(v);
       if(v && v<EMAX) v=kerror(E[v]);
-      if(v && E(v) && EFLAG && !SIGNAL && strcmp(sk(v),"abort")) {
+      if(v && E(v) && EFLAG && !EXIT && !SIGNAL && strcmp(sk(v),"abort")) {
         printerror(v,x0,i?i-1:i);
         ++ecount;
         v=repl();
@@ -2380,7 +2579,7 @@ c3_apply:
     else if(0x40==s(v)) {
       v=r40(v);
       if(v && v<EMAX) v=kerror(E[v]);
-      if(v && E(v) && EFLAG && !SIGNAL && strcmp(sk(v),"abort")) {
+      if(v && E(v) && EFLAG && !EXIT && !SIGNAL && strcmp(sk(v),"abort")) {
         printerror(v,x0,i?i-1:i);
         ++ecount;
         v=repl();
@@ -3261,6 +3460,41 @@ static int has_adverb_in_chain(pn *b) {
   }
   return is_adverb_pn(b);
 }
+/* Is this pn a bare over/scan adverb -- `/` or `\`, the two that carry the
+   do/while controller?  Each (`'`) and any multi-char adverb do not. */
+static int is_overscan_pn(pn *n) {
+  char *av;
+  if(!is_adverb_pn(n)) return 0;
+  if(T(n->v)!=-3 || n(n->v)!=1) return 0;
+  av=(char*)px(n->v);
+  return '/'==*av || '\\'==*av;
+}
+/* Does b -- a juxt chain -- apply a derived verb built with a bare `/` or `\`?
+   That makes an open slot for a do/while controller on its left. */
+static int has_overscan_in_chain(pn *b) {
+  while(b && b->t==1 && b->v==0xff && b->m>=2 && b->a[0] && b->a[1]) {
+    if(is_overscan_pn(b->a[0])) return 1;
+    b=b->a[1];
+  }
+  return is_overscan_pn(b);
+}
+/* `prime{x+1}\4` -- a monadic builtin left of an over/scan derived verb is the
+   do/while CONTROLLER, exactly as a lambda (`{prime x}{x+1}\4`), a variable
+   holding the same builtin (`c:prime; c{x+1}\4`) and the bracket spelling
+   (`{x+1}\[prime;4]`) all already are.  ref.md: "do/while read the left
+   argument to pick the mode when f is monadic: a non-negative int is do, a
+   monadic predicate is while.  The infix and bracket spellings are the same."
+   A lambda parses into the controller slot because it is a NOUN; a bare
+   builtin is a VERB, so without this it became the outer monad and the derived
+   verb reduced as a plain monadic `f\x` -- i.e. CONVERGE, which for a
+   non-converging f is a silent infinite loop rather than an answer or an error.
+   Only 0xc6 (BMONAD) qualifies: a dyad-capable verb takes an int/value on its
+   left as its LEFT ARGUMENT, never as a loop count (doc/digraphs.md), so
+   primitives (`#`, `-`), dyadic builtins and derived verbs (`|/`) still
+   compose/apply here. */
+static int is_ctlr_builtin(pn *a) {
+  return a && a->t==1 && 0xc6==s(a->v) && !a->a[0] && !a->a[1];
+}
 /* Shape B: the spine ends in an infix verb that wrongly swallowed a bracket
    as its left operand.  r013 builds `f/[5;]@0` as `@([5;], 0)` because by the
    time the `]` reduces, `@` already holds its right operand `0` and an empty
@@ -3323,6 +3557,25 @@ static void r003_(pgs *s) { /* body of e > o ez (wrapped by r003) */
     q->a[1]=b;
     s->V[s->vi]=q;
     return;
+  }
+  /* Monadic builtin as a do/while controller -- see is_ctlr_builtin above.
+     Wrap it in a one-element klist, i.e. rewrite `prime` to `(prime)`, which
+     bc() emits as a 0x42 sub-program.  pgreduce_ REDUCES a 0x42 to a value
+     instead of dispatching it as a verb, so the builtin lands in the
+     controller slot exactly as a lambda or a name does -- and `(prime){x+1}\4`
+     is already the working spelling, in every context, so this reuses a proven
+     shape rather than inventing one.  (Re-tagging the leaf to a noun in place
+     is not enough: the emitted token still carries subtype 0xc6, and case 0xc6
+     in pgreduce_ decides "am I a value?" by testing that nothing is to its left
+     on the operand stack -- which is false as soon as an assignment target or a
+     dyad's left argument is parked there, so `a:prime{x+1}\4` applied prime to
+     `a`.) */
+  if(is_ctlr_builtin(a) && b->t==1 && b->v==0xff && b->m>=2 && b->a[0] && b->a[1]
+     && has_overscan_in_chain(b)) {
+    q=pnnewi(s,6,0,0,1,1,a->i,a->line);
+    q->a[0]=a;
+    a=q;
+    s->V[s->vi]=a;
   }
   if(b->t==1 && b->v==0xff && b->m>=2 && b->a[0] && b->a[1]
      && (is_adverb_pn(b->a[0]) || is_args_pn(b->a[0]))
@@ -3404,6 +3657,27 @@ static void r003_(pgs *s) { /* body of e > o ez (wrapped by r003) */
         a->a[1]=b->a[0];
         b->a[0]=a;
         s->V[s->vi]=b;
+      }
+      /* `in . ,1` == `.[in;,1]`.  A builtin DYAD has a known valence of 2, so
+         composing it with a monadic `.` could only ever PROJECT (`in(.x)` ==
+         `in[.x]`) -- the useful reading is dot-APPLY.  A builtin name lexes as
+         a verb, though, so `.` saw no left operand and went monadic: `in . ,1`
+         parsed as `in(. ,1)` -- value of an int vector -- a type error.
+         Rewrite to the tree `.[in;,1]` already produces: a plist whose FIRST
+         element is the builtin as a VALUE, applied through `.`.  (Building a
+         dyad node with the verb token in its left-operand slot instead lets
+         pgreduce's 0xc7 case treat it as an operator and eat the stack below
+         it -- fine bare, broken under `s:mul . (2;3)` / `1+mul . (2;3)`.)
+         0xc7 ONLY: an AMBIVALENT verb -- file verbs (`4:."1 2 3"`, `5:.()`),
+         builtin monads (`bd .+(`a`b;1 2)`), predefined fns (`A dv .,`b,2`),
+         primitives -- has a context-determined valence, so its composition
+         with `.` is real and stays (`f:4:.` is a valence-2 value). */
+      else if(b->v=='.' && b->a[1] && !b->a[0] && 0xc7==s(a->v)) {
+        pn *args=pnnewi(s,4,0,0,2,1,a->i,a->line);   /* plist, as `[x;y]` */
+        args->a[0]=b->a[1];   /* a plist holds its elements REVERSED (r017/r019: */
+        args->a[1]=a;         /* a[0] is the LAST element, a[1] the first) */
+        b->a[1]=0;
+        s->V[s->vi]=attach_args(s,b,args);
       }
       else if(b->t==7 && a->v!=58 && b->v!=58  /* verb composition, no : */
              && 0xd1!=s(a->v) && 0xd2!=s(a->v) && 0xd3!=s(a->v)) {  /* no do while if */
@@ -3670,6 +3944,17 @@ static void r013(pgs *s) { /* plist > '[' elist ']' pz */
 
   // elist -> plist
   if(a->t==3) a->t=4;
+  else if(a->t!=4) {
+    /* A single closed element -- a paren group (t6) or an apply node (t19) --
+       reaches here un-wrapped, unlike a bare literal/juxt (r017 gives those a
+       t3 elist, promoted just above). Without a trailing pz the "[a]" branch
+       above wraps it into a 1-item plist; with a trailing pz it fell through
+       to the juxt branches below and the pz was folded into the element,
+       so `V[(2)]+1` parsed as `V[(2)+1]`. Wrap it into a plist here too. */
+    pn *q=pnnewi(s,4,0,0,2,1,a->i,a->line);
+    q->a[0]=a;
+    a=q;
+  }
 
   if(a->t==4&&b->t==4) { /* [][] */
     s->V[s->vi]=chain_prepend(s,a,b);
@@ -3753,7 +4038,14 @@ static void r017(pgs *s) { /* elist > ee elistz */
   pn *a=s->V[s->vi];
   if(!b) {
     if(a->t==2&&!a->n) a->t=3;
-    else if(a->t==2 || a->t==1) {
+    else if(a->t==2 || a->t==1 || a->t==11) {
+      /* t==11: a lone seeded partial dyad -- (5+), (2 3+), (5+/).  Left
+         unwrapped, r012 has no t3 to promote and the parens EVAPORATE: the
+         node re-enters r003_ as a bare partial dyad and eats the trailing
+         argument ((5+)1 2 3 came back as `5+`, argument gone), while the
+         name-bound form applied fine.  Wrapping makes it a closed
+         1-element group like (2), whose reduce yields the 0xd0 value --
+         the paren sibling of r013's single-closed-element fix below. */
       b=pnnewi(s,3,0,0,1,1,a->i,a->line);
       b->a[0]=a;
       s->V[s->vi]=b;

@@ -55,6 +55,16 @@ K fe(K f, K a, K x, char *av) {
     }
   }
 
+  /* a predefined k.core fn (0xc9/0xca/0xcb: gtime dv ssr ...) applied as a
+     VALUE -- fetched from .r or any dict -- rather than as a lexer token
+     (those are resolved by p.c reduce()/rpd before they get here).  Swap in
+     a copy of its lambda so the 0xc3 cases below apply it. */
+  if(0xc9==s(f)||0xca==s(f)||0xcb==s(f)) {
+    K f2=fnpd(f);
+    _k(f); f=f2;
+    if(E(f2)) { _k(a); _k(x); return f2; }
+  }
+
   if(0xc0==s(f)) ff=ck(f)%32;
   else if(!s(f)&&f>32) ff=strchr(P,ck(f))-P; /* r19 primitive verbs are literal '+' '-' etc. */
 
@@ -75,6 +85,28 @@ K fe(K f, K a, K x, char *av) {
         /* draw/x and friends -- builtin-dyad-as-modified-monad,
            replaces the old 0xdb monad path (b.c:67). */
         if(0x81==s(x)) { _k(x); r=KERR_TYPE; }
+        else if(*avp=='\'') {
+          /* An adverbed dyadic builtin applied to a single arg is
+             under-applied -> project, PRESERVING the each adverb:
+             0xd9(0xda(builtin,"'"), (x;)).  Mirrors the lambda path in
+             fne_ (proj_av).  Routing through avdo would eachfe the bare
+             builtin and drop the adverb, so `in'[1]` came back as `in[1]`
+             and `("."in')` type-errored instead of projecting.  over/scan
+             (`/`,`\`) stay on avdo below: `draw/x` etc. are real do/fold
+             applications, not projections. */
+          K t=tn(0,1); ((K*)px(t))[0]=x; /* x transferred into the plist */
+          r=wrap_proj(k_(f),st(0x81,t)); /* retain f (the 0xda): fe _k's it at return */
+        }
+        else if(*avp) r=avdo(k_(wf),0,x,avp);
+        else { _k(x); r=KERR_PARSE; }
+      }
+      else if(0xc6==s(wf)) {
+        /* adverbed builtin MONAD held as a value -- g:sqrt/; g 16.0,
+           (sin')1 2 3, sqrt\[16.0].  Route through avdo exactly like the
+           0xc7 arm above; this branch was missing, so the value forms
+           type-errored while the infix spelling (sqrt/16.0) worked. */
+        if(0x81==s(x)&&n(x)==1) { K x2=k_(((K*)px(x))[0]); _k(x); x=x2; }
+        if(0x81==s(x)) { _k(x); r=KERR_VALENCE; }
         else if(*avp) r=avdo(k_(wf),0,x,avp);
         else { _k(x); r=KERR_PARSE; }
       }
@@ -111,7 +143,17 @@ K fe(K f, K a, K x, char *av) {
                     short-fill / elided (inull) slots -- producing a 0xd9
                     wrapper that fapply completes later -- or call when the
                     plist holds exactly `valence` bound args. */
-      if(av&&*av) { _k(f); _k(x); r=KERR_VALENCE; break; } /* no adverbs here (avdo handles those) */
+      if(av&&*av) { /* adverbs route through avdo, like the 0xc7 arm below --
+                       fapply forwards a preserved ' onto a completed 0xdc
+                       projection through here (add[3;]'4).  The old arm
+                       KERR_VALENCE'd AND _k(f)'d before breaking into the
+                       epilogue's unconditional _k(f): a double release that
+                       segfaulted after a few repetitions. */
+        if(0x81==s(x)) xx=x;
+        else { xx=tn(0,1); pxx=px(xx); pxx[0]=x; xx=st(0x81,xx); }
+        r=avdo(k_(f),0,xx,av);
+        break;
+      }
       if(0x81==s(x)) xx=x;
       else { xx=tn(0,1); pxx=px(xx); pxx[0]=x; xx=st(0x81,xx); }
       pf=px(f); i32 lval=ik(pf[1]);
@@ -299,7 +341,8 @@ K fe(K f, K a, K x, char *av) {
       break;
     case 0xdc: /* 2:-linked C function, dyadic apply (valence 2), or project
                   to a 0xd9 wrapper when a slot is elided (e.g. add[3;]). */
-      if(av&&*av) { _k(f); _k(a); _k(x); r=KERR_VALENCE; break; }
+      if(av&&*av) { r=avdo(k_(f),a,x,av); break; } /* like the 0xc7 arm; the
+                       old _k(f)+break double-released f (epilogue frees it) */
       xx=tn(0,2); pxx=px(xx);
       pxx[0]=a; pxx[1]=x;
       if(a==inull || x==inull) r=wrap_proj(k_(f),st(0x81,xx)); /* k_: fe _k's f below */
@@ -320,23 +363,28 @@ K fe(K f, K a, K x, char *av) {
            Replaces legacy 0xd4 with the canonical (f;args)
            projection wrapper. fapply()'s 0xd9 peel handles
            inull-fill on subsequent application. */
-        r=tn(0,2); pr=px(r);
         t=tn(0,2); pt=px(t);
         pt[0]=a;
         pt[1]=x;
+        K e2=proj_own_args(t);   /* projected args are VALUES -- see fn.c */
+        if(e2) { _k(t); r=e2; break; }
+        r=tn(0,2); pr=px(r);
         pr[0]=f;
         pr[1]=st(0x81,t);
         r=st(0xd9,r);
       }
+      else if(av && *av) r=avdo(k_(f),a,x,av);
       else r=builtin(f,a,x);
       break;
     case 0xc5:
       if(a==inull || x==inull) {
         /* Issue #2 Pass 3b-1: produce 0xd9 (was 0xd4). */
-        r=tn(0,2); pr=px(r);
         t=tn(0,2); pt=px(t);
         pt[0]=a;
         pt[1]=x;
+        K e2=proj_own_args(t);   /* projected args are VALUES -- see fn.c */
+        if(e2) { _k(t); r=e2; break; }
+        r=tn(0,2); pr=px(r);
         pr[0]=k_(f);
         pr[1]=st(0x81,t);
         r=st(0xd9,r);
@@ -355,10 +403,12 @@ K fe(K f, K a, K x, char *av) {
              is a 1-byte primitive; encode as t(1,...) of a 0xc0
              tagged scalar so the projection wrapper's f slot is
              a real K (and val/print cases work). */
-          r=tn(0,2); pr=px(r);
           t=tn(0,2); pt=px(t);
           pt[0]=a;
           pt[1]=x;
+          K e2=proj_own_args(t);   /* projected args are VALUES -- see fn.c */
+          if(e2) { _k(t); r=e2; break; }
+          r=tn(0,2); pr=px(r);
           pr[0]=t(1,st(0xc0,(u32)ff+32));
           pr[1]=st(0x81,t);
           r=st(0xd9,r);

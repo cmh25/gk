@@ -1,0 +1,25 @@
+/ assignment with a named-builtin adverbed RHS: x:mul/1 2 3 parsed the
+/ target name as an each-right seed (value/valence error; compound forms
+/ r+:mul/... died parse).  The names below an adverbed 0xc7 builtin are
+/ assignment targets when matching assign tokens (: 64 / compound 0xce)
+/ close the statement; real seeds (b:a mul/3 4) still each-right.
+x:mul/1 2 3;x
+x:lcm/1+!20;x
+x:gcd/12 18 24;x
+x:mul\1 2 3;x
+x:draw/5 5 5;#x
+x:5;x:mul/1 2 3;x
+y:x:mul/1 2 3;y,x
+r:();r,:mul/1 2 3;r
+r:0;r+:mul/1 2 3;r
+r:();r,:232792560~lcm/1+!20;r
+a:1 2 3;a[1]+:mul/2 3;a
+b:a:2 mul/3 4;b,a
+a:1 2;b:a mul/3 4;b
+r:0;r+:2 mul/1 2 3;r
+z:5;q:z mul/2 3;q
+A0:3;A0 mul/1 2 3
+x:2 sv'(1 0;1 1);x
+x:2 sqr/1.1;x
+w:0;w:9~mul/1 2 3;w
+\\

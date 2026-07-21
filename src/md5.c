@@ -19,7 +19,8 @@
   } while (0)
 
 typedef struct {
-  uint32_t n;
+  uint64_t n;   /* block counter: u64 like sha1/sha2 (u32 wrapped, and so
+                   silently corrupted the digest, past 256 GiB of input) */
   uint32_t h[4];
 } md5s;
 

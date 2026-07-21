@@ -236,11 +236,10 @@ r:x[(<x)[_.5*#x]]
 r2:r~34
 if[~r2;`0:,"failed";exit 1]
 
-/ TODO ssr
-/"25. Doubling quotes"
-/f:{ssr[x;"\"";"\"\""]}
-/a:"Did he say, \"Hello\"?"
-/f a
+"25. Doubling quotes"
+f:{ssr[x;"\"";"\"\""]}
+a:"Did he say, \"Hello\"?"
+f a
 /"Did he say, \"\"Hello\"\"?"
 
 "26. insert y '*' after '=' in x"
@@ -1150,11 +1149,10 @@ r:1 _ . "0 ",((#x)*&/x lin d)#x
 r2:r~0
 if[~r2;`0:,"failed";exit 1]
 
-/ TODO error trap
-/96. conditional execution
-/@[+/;!6;:]
+"96. conditional execution"
+@[+/;!6;:]
 /0 15
-/@[+/;"abc";:]
+@[+/;"abc";:]
 /(1;"type")
 
 "98. execute rows of character matrix"
@@ -1402,11 +1400,11 @@ if[~r2;`0:,"failed";exit 1]
 y:2 3
 x:7
 r:y draw -x
-r2:r~(6 2 0
-      3 1 4)
+r2:r~(0 4 6
+      3 1 5)
 if[~r2;`0:,"failed";exit 1]
 r:6 draw -6
-r2:r~1 0 2 4 5 3
+r2:r~5 0 1 2 4 3
 if[~r2;`0:,"failed";exit 1]
 
 "123.1 normal deviates (from interval (0,1))"
@@ -1453,21 +1451,21 @@ r:$(+a) mul (y lsq a)
 r2:r~$55.32371 60.08021 65.62945 69.59319 77.52068 89.41191 103.6814 117.9509 135.3913 154.4173
 if[~r2;`0:,"failed";exit 1]
 
-/"126. g-degree polynomial fit of points (x,y)"
-/x:64 70 77 82 92 107 125 143 165 189
-/y:(5*x^3)+(-1*x^2)+(4*x)+182
-/r:$y
-// different than e
-//r2:r~$1307062 1710562 2277226 2750626 3885526 6114376 9750682 1.460134e+007 2.243424e+007 3.372156e+007
-/r2:r~$1307062 1710562 2277226 2750626 3885526 6114376 9750682 1.460134e07 2.243424e07 3.372156e07
-/if[~r2;`0:,"failed3";exit 1]
-/g:3 / had to guess this
-/r:$| lsq[y;x^/!g+1]
-/r2:r~$5 -1 4 182.0
-/if[~r2;`0:,"failed";exit 1]
-/r:$|(y lsq x^/!g+1)
-/r2:r~$5 -1 4 182.0
-/if[~r2;`0:,"failed";exit 1]
+"126. g-degree polynomial fit of points (x,y)"
+x:64 70 77 82 92 107 125 143 165 189
+y:(5*x^3)+(-1*x^2)+(4*x)+182
+r:$y
+/ different than e
+/r2:r~$1307062 1710562 2277226 2750626 3885526 6114376 9750682 1.460134e+007 2.243424e+007 3.372156e+007
+r2:r~$1307062 1710562 2277226 2750626 3885526 6114376 9750682 1.460134e07 2.243424e07 3.372156e07
+if[~r2;`0:,"failed3";exit 1]
+g:3 / had to guess this
+r:$| lsq[y;x^/!g+1]
+r2:r~$5 -1 4 182.0
+if[~r2;`0:,"failed";exit 1]
+r:$|(y lsq x^/!g+1)
+r2:r~$5 -1 4 182.0
+if[~r2;`0:,"failed";exit 1]
 
 "127. coefficients of exponential fit of points (x,y)"
 x:64 70 77 82 92 107 125 143 165 189
@@ -3496,7 +3494,7 @@ r2:r~"abcd e  fg"
 if[~r2;`0:,"failed";exit 1]
 
 "260. first 10 figurate numbers of order x"
-fg:{x+\/10#1}
+fg:{x{+\x}/10#1}
 r:fg 0
 r2:r~1 1 1 1 1 1 1 1 1 1
 if[~r2;`0:,"failed";exit 1]
@@ -4871,7 +4869,7 @@ r2:r~(6 7 8
       15 16 17)
 if[~r2;`0:,"failed";exit 1]
 
-/"389. Playing order of x ranked players"
+"389. Playing order of x ranked players"
 log2:{(log x)%log 2}
 i:{1+2 sv'+|tt[-_-log2[x]]}
 j:{@[x;&x>y;:;0]}
@@ -4908,14 +4906,13 @@ r2:r~(0 0 0 0 0
       0 0 0 0 0
       0 0 0 0 0)
 if[~r2;`0:,"failed";exit 1]
-/ TODO cross section assignment
-/a[;!(^x)[1]]:x
-/r:a
-/r2:r~(9 9 0 0 0
-/      9 9 0 0 0
-/      9 9 0 0 0
-/      9 9 0 0 0)
-/if[~r2;`0:,"failed";exit 1]
+a[;!(^x)[1]]:x
+r:a
+r2:r~(9 9 0 0 0
+      9 9 0 0 0
+      9 9 0 0 0
+      9 9 0 0 0)
+if[~r2;`0:,"failed";exit 1]
 
 "392. matrix from scalar or vector"
 x:4
@@ -5969,17 +5966,16 @@ if[~r2;`0:,"failed";exit 1]
 r:+//x
 r2:r~300
 if[~r2;`0:,"failed";exit 1]
-/ TODO segv - function as parameter
-/ao:{[f;x]f//x}
-/r:ao[+;x]
-/r2:r~300
-/if[~r2;`0:,"failed";exit 1]
-/r:ao[*;1.0*x]
-/r2:r~6.204484e+023
-/if[~r2;`0:,"failed";exit 1]
-/r:ao[+;-x]
-/r2:r~-300
-/if[~r2;`0:,"failed";exit 1]
+ao:{[f;x]f//x}
+r:ao[+;x]
+r2:r~300
+if[~r2;`0:,"failed";exit 1]
+r:ao[*;1.0*x]
+r2:($r)~$6.204484e+023
+if[~r2;`0:,"failed";exit 1]
+r:ao[+;-x]
+r2:r~-300
+if[~r2;`0:,"failed";exit 1]
 
 "512. select items of x according to markers in y"
 x:2 3 4#1+!24
@@ -6848,29 +6844,30 @@ r2:r~0 4 8
 if[~r2;`0:,"failed";exit 1]
 
 / TODO cross section assignment
-/"608. zeroing an array"
-/x:1 2 3 4
-//x
-//1 2 3 4
-/x[]:0
-/r:x
-/r2:r~0 0 0 0
-/if[~r2;`0:,"failed";exit 1]
-/x:2 3#!6
-/r:x
-/r2:r~(0 1 2
-/      3 4 5)
-/x[;]:0
-/r:x
-/r2:r~(0 0 0
-/      0 0 0)
-/x:9
-/r:x
-/r2:r~9
-/if[~r2;`0:,"failed";exit 1]
-/x:0
-/r:x
-/r2:r~0
+"608. zeroing an array"
+x:1 2 3 4
+/x
+/1 2 3 4
+x[]:0
+r:x
+r2:r~0 0 0 0
+if[~r2;`0:,"failed";exit 1]
+x:2 3#!6
+r:x
+r2:r~(0 1 2
+      3 4 5)
+x[;]:0
+r:x
+r2:r~(0 0 0
+      0 0 0)
+if[~r2;`0:,"failed";exit 1]
+x:9
+r:x
+r2:r~9
+if[~r2;`0:,"failed";exit 1]
+x:0
+r:x
+r2:r~0
 /if[~r2;`0:,"failed";exit 1]
 
 /609. omitted
@@ -7140,10 +7137,9 @@ r2:r~(1 1 1 1 1 1
       3 3
       6)
 if[~r2;`0:,"failed";exit 1]
-/ TODO projection
-/r:#'part[1]'1+!10
-/r2:r~1 2 3 5 7 11 15 22 30 42
-/if[~r2;`0:,"failed";exit 1]
+r:#'part[1]'1+!10
+r2:r~1 2 3 5 7 11 15 22 30 42
+if[~r2;`0:,"failed";exit 1]
 
 "1007. Pascal's triangle"
 pt:{ep[+]0,x,0}

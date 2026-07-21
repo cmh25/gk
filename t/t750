@@ -1,0 +1,19 @@
+/ 2026-07-13 shape, round 2 (difftest vs e333j): two more BFS blind spots.
+/ (1) an EMPTY child arriving FIRST never recorded its count (the !c[ci]
+/ test skips na 0), so a nonempty sibling didn't conflict; (2) a plain-
+/ vector sibling next to a deeper list dropped out of the queue silently
+/ instead of ending the walk, growing a phantom dimension.
+^((^(-18);,16))
+^((^*2;"bcac"))
+^((,16;,(-19,!3)))
+^((~(-12)_,-7_11;"ba"))
+^((!0;!0))
+^((!0;!0);(!0;!0))
+^(,!0;,!0)
+/ unchanged neighbors
+^((1 2;3 4);7)
+^(1 2 3;4)
+^((1 2;3 4);(5 6;7 8))
+^3 3#!9
+^((,0;,1);-17)
+\\

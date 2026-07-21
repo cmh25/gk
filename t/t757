@@ -1,0 +1,77 @@
+/ amend must not read the slot it just freed.  kamendi4v/kamendi4d mutate an
+/ unshared target in place (r-gated), and they free the old slot before
+/ building the new value -- so a value that can REACH the target (the live
+/ tree via .`, a fresh list holding the target, the target itself) used to
+/ walk back into the half-updated target and read freed memory (AFL sig 11
+/ in dcp, 2026-07-13).  amend_yalias snapshots such a value up front.
+
+/ the AFL repro: a general list, indexed-assigned the live ktree
+a:9#,"9844"
+a[2]: .`
+#a
+a[0]
+
+/ value reaches the target through the live tree
+aa:(1 2;3 4;5 6)
+aa[0]:.`
+#aa
+aa[1]
+aa[2]
+
+/ value holds the target as an element
+bb:(1 2;3 4)
+bb[0]:(bb;9)
+#bb
+bb[1]
+
+/ value IS the target
+cc:(1 2;3 4)
+cc[0]:cc
+#cc
+cc[1]
+
+/ multi-index store of the tree
+gg:(1 2;3 4;5 6)
+gg[0 2]:.`
+#gg
+gg[1]
+
+/ dict target, tree value
+dd:.((`x;1);(`y;2))
+dd[`x]:.`
+dd`y
+
+/ dict target, self value
+ee:.((`p;1);(`q;2))
+ee[`p]:ee
+ee`q
+
+/ namespace value into a list slot
+.nn.v:42
+hh:(1 2;3 4)
+hh[1]:.nn
+#hh
+hh[0]
+
+/ dot- and at-amend forms of the same
+ii:(1 2;3 4)
+.[`ii;0;:;.`]
+#ii
+ii[1]
+jj:(1 2;3 4)
+@[`jj;0 1;:;(jj;jj)]
+#jj
+
+/ y IS the target (not merely reaching it): the extra ref makes the target
+/ SHARED, so the r-gate copies it and every store reads the PRE-amend value.
+/ Same answers in e333j (Charles, 2026-07-13): 101 101 102, not 101 101 100.
+kk:100 101 102
+@[`kk;2 0 2;:;.k.kk]
+kk
+ll:100 101 102
+ll[2 0 2]:.k.ll
+ll
+mm:100 101 102
+mm[2 0 2]:mm
+mm
+\\

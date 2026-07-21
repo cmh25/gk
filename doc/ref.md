@@ -1,7 +1,5 @@
 # gk Reference Manual
 
-gk is a dialect of the k programming language. This reference covers all primitives, builtins, and syntax.
-
 New to gk? Try the [tutorial](tutorial.md) first. If you already know **k3**, see [gk vs k3](k3.md) for dialect differences.
 
 ## Contents
@@ -168,6 +166,45 @@ New to gk? Try the [tutorial](tutorial.md) first. If you already know **k3**, se
 | f64  | `0n` | `0i`     | `-0i`     |
 | null | `nul`|          |           |
 
+**Negative zero.** IEEE floats carry a signed zero, and gk prints it: `-0.0`. It compares *equal* to `0.0` under `=`, `<`, `>` and `~`, and sorts and groups with it — but the sign survives where it is meaningful, so `1%-0.0` is `-0i` while `1%0.0` is `0i`, and `?` distinct keeps whichever zero it saw first. It arises on its own (`0.0*-1.0`, `ceil -0.1`, `rint -0.1`, `trunc -0.1`).
+
+Inside a numeric vector literal a suffix types its token. An unsuffixed `-0` has no type of its own and takes the vector's, so `-0 1.0` is `-0.0 1.0` and `-0 1j` is the i64 vector `0 1`. `-0.0` and `-0.0e` are typed float and always keep their sign. A `-0j` is an i64, and [cannot appear in a float vector literal](#numeric-vector-literals) at all.
+
+<a id="numeric-vector-literals"></a>
+**Numeric vector literals.** An unsuffixed token has no type of its own and takes the vector's, so the width is not settled until the end of the literal or the first suffix:
+
+```
+  1 2 3          / i32
+1 2 3
+  1 2 3j         / the j makes it i64; the bare ints adopt
+1 2 3j
+  2j 3 4         / the suffix may sit anywhere
+2 3 4j
+  1.0 2 3        / f64
+1 2 3.0
+  1.0 2 3.0e     / the e makes it f32; the bare decimals narrow
+1 2 3.0e
+  1.2e 3.0 4
+1.2 3 4.0e
+```
+
+Mixing `j` with **any** float token — a decimal, an exponent, an `e`-suffixed value, or a float sentinel — is a `parse` error. Write a [list](#atoms-vectors-and-lists) instead:
+
+```
+  1j 2.0
+parse error
+  (1j;2.0)       / a mixed list keeps both types
+(1j;2.0)
+```
+
+Int nulls and infinities (`0N`, `0I`, `-0I`) are unsuffixed and adopt like any int, so `0N 2j` is an i64 vector (`0Nj 2j`) and `0N 2.0e` is an f32 vector. The float sentinels are typed: `0n`/`0i` are f64, `0ne`/`0ie` are f32. Adoption goes by **spelling**, not bit pattern: a digit token keeps its text value in a wider vector — `2147483647 1 2 3.0` is `2147483647.0 1 2 3` even though a bare `2147483647` *atom* saturates to `0I` — while a sentinel spelling keeps its meaning (`0I 1 2 3.0` is `0i 1 2 3`).
+
+One lexing note: a **bare integer** takes the `e` suffix only through a decimal
+point or exponent — `1.0e`, `1e0e` — because a trailing `e` after digits reads
+as an unfinished exponent. `1e` is *not* an f32 literal: it lexes as `1`
+followed by the name `e` (a `value` error when `e` is unbound). The `j` suffix
+has no such collision (`1j` is fine).
+
 ### Atoms, Vectors, and Lists
 
 An **atom** is a single value of any type.
@@ -241,14 +278,14 @@ and `a?x` (find) — each yields i64 results when its source vector is longer th
 
 Conversely, the verbs that *consume* a count or index accept an i64 (`j`)
 argument, so a big vector can be built, reshaped, cut, indexed, and sampled at
-long magnitudes:
+i64 magnitudes:
 
 ```
-  a@2199999999j       / index at a long position
+  a@2199999999j       / index at an i64 position
 "x"
-  #2199999999j_a      / drop a long count
+  #2199999999j_a      / drop an i64 count
 1
-  3000000000j draw 10 / draw a long number of picks (see Random)
+  3000000000j draw 10 / draw an i64 number of picks (see Random)
 ```
 
 A note on literals: a bare integer literal larger than `2^31` saturates to `0I`
@@ -351,6 +388,18 @@ Arithmetic verbs (`+` `-` `*` `%`):
   | `f32` | `f32` | `f64` | `f32` | `f64` |
   | `f64` | `f64` | `f64` | `f64` | `f64` |
 
+- **Sentinels:** a widening conversion maps a narrow type's null and
+  infinities to the wide type's — `0N+1j` works in i64 space (`0N` arrives
+  as `0Nj`), `0N+0.0e` is `0ne`, `0I+0.0` is `0i`. This also holds for the
+  comparison verbs (`0N<-5000000000j` is `1`) and for unsuffixed sentinels
+  in typed vector literals (`0N 0I 2j` is `0Nj 0Ij 2j`).
+
+  Integer nulls and infinities (`0N`/`0I`) are `INT_MIN`-family bit patterns,
+  **not** NaN, so they take part in wrapping integer arithmetic rather than
+  propagating: `0I+1` is `0N` (i32 overflow wraps to null), and the widened
+  `0I+1j` is likewise `0Nj` — identical to `0Ij+1j`. Only the **float** nulls
+  are NaN and truly propagate (`0n+5.0` is `0n`, `0N+5.0e` is `0ne`). Adding
+  zero across a widening preserves the sentinel unchanged (`0N+0j` is `0Nj`).
 - **Errors:** `type error` if either operand is non-numeric
 
 ### Dyadic
@@ -575,7 +624,7 @@ Element-wise maximum for ints and floats; max for char and sym. On boolean-ish `
 <a id="d-match"></a>
 #### `a~x` (match)
 
-Structural **match** (`1` if `a` and `x` have the same shape and data, else `0`).
+Structural **match** (`1` if `a` and `x` have the same type and data, else `0`).
 
 ```
   1 2~1 2
@@ -618,6 +667,21 @@ a.x
 
 This is the sole spacing exception among the dyads — everywhere else `a.x`-style juxtaposition is unambiguous.
 
+**Empty right argument.** When `a` is *data*, `.` indexes at depth and an
+empty path of **any** type is `a` itself.
+
+```
+  1 2 3 . !0
+1 2 3
+  10 . ()
+10
+```
+
+When `a` is a *function*, a typed empty as the argument list calls with
+that type's **prototype** argument — `f . 0#0` is `f[0]`, `f . 0#0.0` is
+`f[0.0]`, `f . !0j` is `f[0j]`, `f . ""` is `f[" "]`, `` f . 0#` `` is
+`` f[`] `` — and `f . ()` is `f[]` (i.e. `f[nul]`).
+
 <details>
 <summary>spec</summary>
 
@@ -637,6 +701,17 @@ Remainder / modulo for numeric `a` and `x` (C-style remainder for negatives). Di
 1
   7!3.0
 1.0
+```
+
+A modulus of zero yields null — `7!0` is `0N`, `7.0!0` is `0n`. The remainder `a - x*trunc(a%x)` is *indeterminate* at `x=0` (the quotient's infinity is multiplied by the zero modulus: `0*0i` has no value), unlike [`%`](#d-divide) and [`div`](#builtins), where the quotient itself diverges and the result is infinity. The float case is exactly IEEE `fmod`.
+
+```
+  7!0
+0N
+  7.0!0
+0n
+  7%0
+0i
 ```
 
 <details>
@@ -660,6 +735,63 @@ Select from `a` at indices `x`. `x` is usually int indices (atom or vector).
 1 3
 ```
 
+<a id="nul-index"></a>
+**`nul` is the identity *vector*, not the identity function.** `nul i` is `i` because indexing the identity vector at `i` yields `i` — not because `nul` passes its argument through. Everything follows from that one idea:
+
+- An **integer** index (atom or vector, `i32` or `i64`) returns itself.
+- A **symbol** index misses, as a lookup in something that holds nothing: `` nul `b `` is `nul`.
+- An **empty** index gives `()`. So does `nul nul`, and its bracket spellings `nul[]` and `nul[nul]`.
+- Anything else — a char, a float, a dict, a lambda — is **not an index at all**: `type` error.
+
+```
+  nul 1
+1
+  nul 1 2 3
+1 2 3
+  nul[1]                   / brackets agree with juxtaposition
+1
+  nul `b                   / a symbol index misses
+  nul ()
+()
+  nul nul
+()
+  nul "b"
+type error
+```
+
+The other side, `x nul`, is the **elided index** — "all the elements of `x`":
+
+```
+  1 2 3 nul                / a vector's elements are itself
+1 2 3
+  d:.+(`a`b`c;1 2 3)
+  d nul                    / a dict's elements are its values
+1 2 3
+  {y} nul                  / a function's, a projection
+{y}[]
+```
+
+The two sides are different operations, so they do not compose into a law. Two consequences worth stating:
+
+1. **A non-`nul` atom cannot be indexed by anything** — not by an integer, and not by `nul` or `()` either. `5 nul`, `5[nul]`, `5[]` and `1[2]` all raise `rank`. Only `nul` itself, being a vector, accepts an index.
+2. **A path applies one level at a time.** `nul . (i;j)` is `(nul[i])[j]`, i.e. `i[j]` — so `nul[1;2]` ranks out, and is *not* `nul 1 2`. A one-element path is a single index: `nul . ,1` is `1`.
+
+A **symbol atom is a handle**: applying or indexing one derefs the variable of that name in the current scope. This is the read side of pass-by-reference (see [`@[x;i;f;y]` amend](#q-amend-at)), and it works through a symbol *value*, not just a literal.
+
+```
+  a:10 20 30
+  `a 1           / deref and index
+20
+  `a[0 2]        / same, bracket form
+10 30
+  `a nul         / the whole value
+10 20 30
+  s:`a;s 1       / a symbol value derefs too
+20
+```
+
+An **undefined** handle resolves to [`nul`](#nul-index), so `` `nosuch 1 `` and `` `nosuch[1] `` are both `1` rather than an error. Using one is a bug in the script, not in gk.
+
 <details>
 <summary>spec</summary>
 
@@ -680,6 +812,11 @@ Membership / lookup: for a vector `a`, result is the index of each item of `x` i
   1 2 3?5
 3
 ```
+
+Find is **type-strict** — an item matches only a same-type element, so `1 2 3?2j`
+and `1 2 3?2.0` both miss (return `3`). The same holds for [`in`](#builtins) and
+[`lin`](#builtins). This is deliberate and differs from the comparison verbs
+`= < >`, which widen and compare by *value* (`1 2 3=1 2 3j` is `1 1 1`).
 
 <details>
 <summary>spec</summary>
@@ -705,6 +842,35 @@ Take first `a` items of `x`, or reshape `x` when `a` is an integer list (see exa
  3 4)
 ```
 
+**Inferred axis.** One axis of a 2-D reshape may be `0N` and is inferred
+from the length: `0N k#x` makes rows of width `k` (row count inferred, the
+last row ragged if `#x` is not a multiple), and `r 0N#x` makes exactly `r`
+rows, split evenly. A bare `0N#x` returns `x` unchanged.
+
+```
+  0N 3#!7
+(0 1 2
+ 3 4 5
+ ,6)
+  3 0N#!6
+(0 1
+ 2 3
+ 4 5)
+```
+
+**Empty dims.** When `a` is empty, the result is the **prototype** of
+`x`: its first element, or for an empty `x` the prototype atom of `x`'s
+type — `0`, `0.0`, `0j`, `0.0e`, `" "`, `` ` `` (and nul for `()`):
+
+```
+  ()#"abc"
+"a"
+  ()#!0
+0
+  (0#0.0)#0#`
+`
+```
+
 <details>
 <summary>spec</summary>
 
@@ -727,10 +893,27 @@ With an int atom `a`, drop the first `a` items of `x`. With an int vector of cut
  4 5 6 7 8 9)
 ```
 
+With a **float atom** `a`, round each item of `x` to a multiple of `a` — down when `a` is positive, up when `a` is negative. Compare [`a round x`](#builtins), which rounds to the *nearest* multiple.
+
+```
+  2.0_7.3        / down to a multiple of 2.0
+6.0
+  -2.0_7.3       / up
+8.0
+  0.3_-1.0       / negative x rounds the same way
+-1.2
+  0.5_1 2 3      / i32 x is widened
+1 2 3.0
+  0.0_7.3        / a=0 is the identity
+7.3
+```
+
 <details>
 <summary>spec</summary>
 
 [Dyadic Conformability](#dyadic-conformability)
+
+A float `a` of `0n`, `0i` or `-0i` has no multiples, so the result is `0n`. `0n`, `+-0i` and `-0.0` in `x` are returned unchanged.
 
 **Errors:** `type` when the left argument `a` is non-numeric.
 
@@ -1078,7 +1261,8 @@ With positive int `x`, `0..x-1`. With a dict, key list.
 ```
   !5
 0 1 2 3 4
-  d:.();d.a:1;d.b:2;!d
+  d:.+(`a`b;1 2)
+  !d
 `a `b
 ```
 
@@ -1150,7 +1334,7 @@ Number of items at the top level of `x`.
 <details>
 <summary>spec</summary>
 
-**Types:** any. Number of top-level items: `1` for an atom, the length for a vector or list, the number of entries for a dictionary. Empty aggregates return `0`. The result is an i64 (`j`) when the count exceeds `2^31` — see [Big Vectors](#big-vectors).
+**Types:** any. Number of top-level items: `1` for an atom — and a dictionary *is* an atom, so `#d` is `1` (count its entries with `#!d`) — the length for a vector or list. Empty aggregates return `0`. The result is an i64 (`j`) when the count exceeds `2^31` — see [Big Vectors](#big-vectors).
 
 **Errors:** none.
 
@@ -1201,11 +1385,13 @@ Shape vector for nested `x` (length of top level, then row lengths where applica
 <a id="m-enlist"></a>
 #### `,x` (enlist)
 
-Wrap atom `x` as a length-1 vector `,x`.
+Wrap `x` as a length-1 list `,x`.
 
 ```
   ,1
 ,1
+  ,1 2
+,1 2
 ```
 
 <details>
@@ -1336,7 +1522,7 @@ Apply dyadic `f` to a **sliding pair** of items from `x`. The integer `n` contro
 
 The window is always **two** items wide — the pair `x[k·s]`, `x[k·s+1]` for stride `s = |n|` — so `f` must be dyadic.
 
-`#x` must satisfy `(m-1)·|n| + 2 = #x` for some integer `m ≥ 1`: the strided pairs must tile `x` with no ragged tail.
+`#x` must satisfy `(m-1)·|n| + 2 = #x` for some integer `m ≥ 1`: the strided pairs must tile `x` with no ragged tail.  A vector too short to form even one pair (`#x < 2`) yields **`()`** — zero windows — for every stride.
 
 **Errors:** `length` when the stride leaves a partial pair at the end; `valence` when `f` is not dyadic; `type` for a non-integer `n`.
 
@@ -1558,6 +1744,15 @@ Fold a dyadic `f` over `x`, left to right.
 "abcdef"
 ```
 
+A one-item list folds to `*x` and `f` is **never applied** — the item
+keeps its type (`%/,-19` is `-19`, not `-19.0`). An empty `x` yields the
+identity element for `+` `*` `&` `|` and a `length` error for every other
+verb. For `+` and `*` the identity is `0` / `1` in the element type. For
+`&` and `|` it depends on the type: an empty **i32** vector gives the
+boolean identities `1` / `0` (k3-compatible — `&`/`|` double as and/or),
+while the wider types give the extrema — `&/0#0j` is `0Ij`, `&/0#0.0` is
+`0i`, `|/0#0.0` is `-0i` (and the f32 equivalents).
+
 <h3 id="adv-over">over <code>f/[x;y;…]</code></h3>
 
 Seeded fold for a verb of valence ≥3: `x` seeds the accumulator, the rest
@@ -1700,6 +1895,16 @@ A dictionary is a map of symbols to values.
   d[`b`c]:20 30    / multiple
 ```
 
+### Performance
+
+Lookup and update are hash-indexed: at 32 keys and up a dict carries a side
+table over its keys, so `` d[`k] ``, `` d[`k]:v ``, and `` @[`d;`k;:;v] `` are
+O(1) and a dict works as a memo table or hash map at 100k+ keys.  Smaller
+dicts stay on a plain linear scan, which is faster at that size.  Insertion
+order is preserved throughout (`!d`, print, serialization), and duplicate
+keys — constructible with ``.+(`a`b`c`c;1 2 3 4)`` — keep **first-wins**
+lookup: `d.c` reads (and `` d[`c]:x `` writes) the first `c` entry.
+
 ### Dimensional Indexing
 
 Dictionaries can be indexed along multiple dimensions.
@@ -1770,6 +1975,30 @@ If a function returns a dictionary of functions, any locally defined functions i
   g.incj`
 2 2
 ```
+
+A captured local function sees the other locals of its frame — including itself
+and other local functions — so local recursion, mutual recursion, and a sibling
+reached through the returned closure all work:
+
+```
+  {c:5;f:{c*x};{f x}}[]3           / a sibling via an inner closure
+15
+  {f:{$[x<1;0;x+f x-1]};{f x}}[]4  / f recurses
+10
+  {f:{x*2};g:{f x};{g x}}[]5       / mutual siblings
+10
+  {c:5;f:{c*x+y};g:f 1;{g x}}[]2   / a projected sibling
+15
+  {c:1;g:{x y};h:{c+x};g[h]}[]3    / captured in a projection's held args
+4
+  (*{c:5;f:{c*x};,f}[])3           / returned inside a list
+15
+```
+
+A closure escapes in any returned shape — bare, projected, adverbed, in a
+verb train, in a dictionary, or nested in a list. This holds across
+`bd`/`db` (and therefore IPC): a deserialized closure recurses and reaches
+its siblings exactly like a live one.
 
 ---
 
@@ -1952,8 +2181,8 @@ Other k implementations may take different approaches, and it may be possible to
 | `sqr x` | square | `sqr 3` → `9.0` |
 | `exp x` | e^x | `exp 1` → `2.718...` |
 | `log x` | natural log | `log 2.718` → `1.0` |
-| `floor x` | floor | `floor 3.7` → `3` |
-| `ceil x` | ceiling | `ceil 3.2` → `4` |
+| `floor x` | floor (float result; cf. the verb `_x`, which returns int) | `floor 3.7` → `3.0` |
+| `ceil x` | ceiling (float result) | `ceil 3.2` → `4.0` |
 | `sin x` | sine | `sin 0` → `0.0` |
 | `cos x` | cosine | `cos 0` → `1.0` |
 | `tan x` | tangent | `tan 0` → `0.0` |
@@ -1975,13 +2204,13 @@ Other k implementations may take different approaches, and it may be possible to
 
 | Builtin | Description | Example |
 |---------|-------------|---------|
-| `a div x` | integer (floor) division | `7 div 2` → `3` |
+| `a div x` | integer division | `7 div 2` → `3` |
 | `a and x` | bitwise and | `12 and 10` → `8` |
 | `a or x` | bitwise or | `12 or 3` → `15` |
 | `a xor x` | bitwise xor | `12 xor 10` → `6` |
 | `not x` | bitwise complement | `not 0` → `-1` |
-| `a shift x` | shift `x` left by `a` bits (negative `a` shifts right) | `1 shift 8` → `256` |
-| `a rot x` | bitwise rotate | |
+| `a shift x` | shift `a` left by `x` bits (negative `x` shifts right) | `1 shift 8` → `256` |
+| `a rot x` | bitwise rotate of `a` by `x` bits | `1 rot 40j` → `1099511627776j` |
 
 ### Number Theory
 
@@ -2007,11 +2236,11 @@ Other k implementations may take different approaches, and it may be possible to
 
 | Builtin | Description | Example |
 |---------|-------------|---------|
-| `a at x` | index `a` at `x`, yielding null for out-of-range instead of `index error` | `1 2 3 at 0 5` → `1 0N` |
+| `a at x` | index `a` at `x`, null for out-of-range | `1 2 3 at 0 5` → `1 0N` |
 | `a in x` | `1` if `a` is an item of `x`, else `0` | `2 in 1 2 3` → `1` |
 | `a lin x` | element-wise `in` — for each item of `a` | `2 4 lin 1 2 3` → `1 0` |
-| `a bin x` | binary search: count of items of ascending numeric vector `a` less than atom `x` — exact hits give the item's index (like `a?x`), below range `0`, above range `#a`; `a`'s order is assumed, not verified | `1 3 5 7 9 bin 8` → `4` |
-| `a binl x` | element-wise `bin` — for each item of numeric vector `x` (`a bin/x`) | `1 3 5 7 9 binl 5 8 0` → `2 4 0` |
+| `a bin x` | binary search: count of items `a` less than `x` | `1 3 5 7 9 bin 8` → `4` |
+| `a binl x` | element-wise `bin` (`a bin/x`) | `1 3 5 7 9 binl 5 8 0` → `2 4 0` |
 | `a dv x` | drop items of `a` equal to value `x` | `1 2 3 2 4 dv 2` → `1 3 4` |
 | `a dvl x` | drop items of `a` equal to any value in list `x` | `1 2 3 4 dvl 2 3` → `1 4` |
 | `a di x` | drop items of `a` at index/indices `x` | `1 2 3 4 5 di 1 3` → `1 3 5` |
@@ -2024,13 +2253,13 @@ Other k implementations may take different approaches, and it may be possible to
 
 | Builtin | Description | Example |
 |---------|-------------|---------|
-| `bd x` | bytes from data — serialize to a byte vector | |
-| `db x` | data from bytes — deserialize | `db bd 1 2 3` → `1 2 3` |
+| `bd x` | bytes from data | |
+| `db x` | data from bytes | `db bd 1 2 3` → `1 2 3` |
 | `hb x` | hex string from bytes | |
 | `bh x` | bytes from hex string | `db bh hb bd 1 2 3` → `1 2 3` |
 | `zb x` | compress bytes | |
 | `bz x` | decompress bytes | `db bz zb bd 1 2 3` → `1 2 3` |
-| `val x` | valence (argument count) of a function | `val{x+y}` → `2` |
+| `val x` | valence of a function | `val{x+y}` → `2` |
 | `4: x` | type code of `x` | `4:1 2 3` → `-1` |
 | `5: x` | printable form of `x` | `5:1 2 3` → `"1 2 3"` |
 | `md5 x` | MD5 digest (hex string) | `md5"abc"` → `"900150983cd24fb0d6963f7d28e17f72"` |
@@ -2039,7 +2268,27 @@ Other k implementations may take different approaches, and it may be possible to
 | `(iv;key) encrypt x` | AES-256 encrypt (`iv:16 draw 256`, `key:32 draw 256`) | |
 | `(iv;key) decrypt x` | AES-256 decrypt | |
 
-`md5` / `sha1` / `sha2` / `encrypt` / `decrypt` accept `x` of type `-3` (string), `4`/`-4` (symbol), or `0` (list).
+`md5` `sha1` `sha2` `encrypt` `decrypt` accept `x` of type `-3` `4` `-4` `0`.
+
+#### Serializing a function
+
+A lambda serializes as its definition, so its **globals are not carried**: they
+resolve against whatever workspace deserializes it. A **closure** also carries
+its **captured environment** — the locals of the enclosing functions it closed
+over — so it computes the same answer wherever it is reassembled, including on
+the far side of an [IPC](#ipc) message.
+
+```
+  g:100
+  u:{c:x;{c+g+x}}    / c is captured (a local of u); g is a global
+  v:u 3
+  (db bd v)1         / 104 here.  On a peer with no `g`: a value error.
+```
+
+Each `bd` takes a **snapshot**, so a serialized closure that mutates what it
+captured starts from the value it was sent with — two processes never share
+mutable state through a wire. Nested captures, a captured function and a
+captured closure all travel.
 
 ### Time
 
@@ -2094,19 +2343,18 @@ separator (`"./mylib.so"`, `"lib/mylib.so"`, or an absolute path) is used verbat
 ```
 
 **Writing the C/C++ side.** The function receives and returns `K` (gk's 64-bit
-tagged word, by value). Include the public header **`gk.h`** — self-contained,
-C and C++ (`extern "C"`) — which gives you the accessors to *read* arguments and
-the `gk_mk*` constructors to *build* results:
+tagged word, by value). Include the public header **`gk.h`**.
 
 ```c
 #include "gk.h"
-GK_FN K kadd(K x, K y) { return gk_mki(gk_i(x) + gk_i(y)); }  /* read two ints, make one */
+GK_FN K kadd(K x, K y) {
+  return gk_mki(gk_i(x) + gk_i(y));  /* read two ints, make one */
+}
 ```
 
-Mark each exposed function with `GK_FN` — it adds the `__declspec(dllexport)`
-Windows needs so `2:` can find the symbol, and is a no-op elsewhere.
-`gk_i`/`gk_f`/`gk_j`/`gk_e`/`gk_c`/`gk_s` read an atom; `gk_iv`/`gk_fv`/… give a
-typed pointer to a vector's elements; `gk_mki`/`gk_mkf`/…/`gk_mkiv`/`gk_mkstr`
+Mark each exposed function with `GK_FN`.
+`gk_i` `gk_f` `gk_j` `gk_e` `gk_c` `gk_s` read an atom; `gk_iv` `gk_fv` … give a
+typed pointer to a vector's elements; `gk_mki` `gk_mkf` … `gk_mkiv` `gk_mkstr`
 construct atoms and vectors; `gk_err("msg")` raises an error. Build it as a
 shared object:
 - Linux: `cc -shared -fPIC f.c -o f.so`
@@ -2254,6 +2502,29 @@ slice) as one vector of that type — `c` char, `i` int, `j` i64, `e` f32,
 | `mul[a;x]` | matrix multiply |
 | `lsq[a;x]` | least squares solve |
 
+### Reserved Names — `.r`
+
+Every builtin name (`sin`, `draw`, `bd`, `dv`, …, plus `nul` and the
+`do` `while` `if` controllers) is **reserved**: assigning to one raises a
+`reserved` error.  The full list lives in the read-only namespace **`.r`**,
+which sits at the top level beside `.k` and `.z`.  Each reserved name is a
+key, and each value is the builtin itself:
+
+```
+  !.r                / list every reserved word
+`nul `draw `dot `vs `sv `atan2 ...
+  .r.sin 0           / the values are the builtins themselves
+0.0
+  f:.r.dv            / and are first-class values
+  f[1 2 3;2]
+1 3
+  bin:5
+reserved error
+```
+
+`.r` itself cannot be rebound: `.r:x` and `.r.name:x` are `reserved` errors,
+like any single-letter top-level name.
+
 ---
 
 ## System Commands
@@ -2262,7 +2533,7 @@ slice) as one vector of that type — `c` char, `i` int, `j` i64, `e` f32,
 |---------|-------------|
 | `\l file` | load file (searches `GKPATH`, see below) |
 | `\t expr` | time expression |
-| `\p n` | set print precision (`\p` queries) |
+| `\p n` | set print precision (`\p` queries); f64 round-trips at `\p 17`, f32 at `\p 9` |
 | `\zc n` | zero-clamp: print near-zero floats as `0.0` (`\zc` queries) |
 | `\e n` | error flag: `1` = suspend into a debug sub-REPL on error (`\e` queries) |
 | `\d ns` | change current namespace (`\d` queries) |
@@ -2916,13 +3187,13 @@ b+:`
 | `type` | wrong type |
 | `value` | undefined variable, or string not evaluable |
 | `range` | value out of the representable range (e.g. integer overflow `0N div -1`) |
-| `domain` | argument outside the verb's valid domain (e.g. `7 div 0`, `` `zzz$5 ``) |
+| `domain` | argument outside the verb's valid domain (e.g. `` `zzz$5 ``) |
 | `valence` | wrong number of arguments to a function |
 | `index` | index out of bounds |
 | `int` | non-integer where an integer is required |
 | `parse` | syntax error |
 | `stack` | recursion too deep |
-| `reserved` | use of a reserved name (single-letter top-level name, `.k`/`.m` namespace) |
+| `reserved` | assignment to a reserved name (a builtin name — see `!.r` — or a single-letter top-level name, `.k`/`.m` namespace) |
 | `wsfull` | workspace full — allocation too large or out of memory |
 
 ### Error Trapping
