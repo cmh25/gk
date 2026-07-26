@@ -1,0 +1,34 @@
+/ hostile db/0: input must be REJECTED, not crash.  Four bugs, all found by the
+/ 2026-07-25 width/sentinel audit, all reachable from untrusted input (db x,
+/ 2:/1:/6: file read, and an unauthenticated IPC frame via db_buf).
+/ Errors are trapped with @[f;x;:] so one file can cover all four.
+
+/ 1. dict blob whose VALUES slot is an int vector (4 bytes/elt) with the same
+/ COUNT as the keys: dict.c walks it 8 bytes/elt, so k_(pv[i]) did
+/ ++((ko*)(b(48)&x))->r -- a +1 write at an attacker-chosen address.
+d:3 0 0 0 0 0 0 0 128 0 0 0 0 0 0 0 3 0 0 0 0 0 0 0 252 255 255 255 0 0 0 0 0 0 0 0 2 0 0 0 0 0 0 0 97 0 98 0 255 255 255 255 0 0 0 0 0 0 0 0 2 0 0 0 0 0 0 0 16 0 0 0 0 0 0 31 1 0 0 0 0 0 0 0 0 0 0 0 2 0 0 0
+@[{db ci x};d;:]
+
+/ 2. 0xd9 projection with an ATOM in slot 1; kprint_ walks that slot as a
+/ general list, so merely DISPLAYING the decoded value segfaulted.
+p:3 0 0 0 0 0 0 0 217 0 0 0 0 0 0 0 2 0 0 0 0 0 0 0 1 0 0 0 198 0 0 0 0 0 0 0 8 0 0 0 1 0 0 0 0 0 0 0 0 0 0 0 65 65 65 65
+@[{db ci x};p;:]
+
+/ 3. unbounded nesting: 20 wire bytes buy one C frame, so a small blob blew the
+/ stack (serialize has a depth guard, deserialize had none).
+u:0 0 0 0 0 0 0 0 0 0 0 0 1 0 0 0 0 0 0 0
+v:3 0 0 0,(120000#u),1 0 0 0 0 0 0 0 0 0 0 0 7 0 0 0
+@[{db ci x};v;:]
+
+/ 4. 0: fixed-width: the field widths are range-checked individually but their
+/ SUM accumulated in a u32, so 1431655770+1431655768+1431655768 wrapped to 10,
+/ passed the row-length gate on a 10-byte row, and indexed ~1.4GB past it.
+"z779"0:,"0123456789"
+@[{("I  ";1431655770 1431655768 1431655768)0:x};"z779";:]
+/ same file, honest widths: still works
+("I  ";2 4 4)0:"z779"
+del"z779"
+
+/ positive control: legitimate nesting still round-trips
+db bd ,,,1
+\\

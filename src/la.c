@@ -222,7 +222,7 @@ static K la_widen(K x) {
   if(t==9) return t2((double)ek(x));
   if(t==8) return t2(fj(jk(x)));
   if(t==-9) { r=tn(2,n(x)); pr=px(r); float *pe=(float*)px(x); i(n(x),pr[i]=(double)pe[i]) return r; }
-  if(t==-8) { r=tn(2,n(x)); pr=px(r); i64 *pj=(i64*)px(x); i(n(x),pr[i]=(double)pj[i]) return r; }
+  if(t==-8) { r=tn(2,n(x)); pr=px(r); i64 *pj=(i64*)px(x); i(n(x),pr[i]=fj(pj[i])) return r; }
   if(t==0) { r=tn(0,n(x)); K *prk=px(r),*pp=px(x); i(n(x),prk[i]=la_widen(pp[i])) return r; }
   return k_(x);
 }
@@ -253,7 +253,24 @@ static K la_narrow(K x) {
    121GB VM, so reject it cleanly instead of corrupting. Checks the raw u64
    n() (NOT the already-truncated u32 dim). */
 static inline int la_dimoversize(u64 rows, u64 cols) {
-  return rows > (u64)INT32_MAX || cols > (u64)INT32_MAX;
+  return rows >= (u64)INT32_MAX || cols >= (u64)INT32_MAX;  /* >=: INT32_MAX is
+                        the 0I sentinel, so it is not a usable dimension either */
+}
+
+/* Coerce one matrix row to a numeric vector, CONSUMING row and returning a new
+   ref (or an error -- every caller already has an E(row) cleanup path).
+   `1.0*row` flattens a row that is a list of numeric ATOMS into an f64 vector,
+   but a row that is itself NESTED stays type 0, and the `isf ? ((double*)..)[j]
+   : fi(((int*)..)[j])` read at every call site would then reinterpret the row's
+   K words -- heap POINTERS -- as ints.  That produced answers that differed on
+   every run: `det ((1 2;3);(4;5))` gave 8.15069e+09 / 7.41886e+08 /
+   -1.590233e+09 on three consecutive runs, i.e. live ASLR'd addresses leaking
+   into a user-visible result.  Affects det/rref/lu/qr/svd/lsq/ldu. */
+static K la_rowf(K row) {
+  if(T(row)==0) row=k(3,t2(1.0),row);
+  if(E(row)) return row;
+  if(T(row)!=-1 && T(row)!=-2) { _k(row); return kerror("type"); }
+  return row;
 }
 
 /* deep copy widening int -> float64 as well (la_widen leaves int alone).
@@ -478,7 +495,7 @@ K svd_(K x) {
   A0 = xmalloc((size_t)m * n * sizeof(double));
   for(i=0;i<m;i++) {
     K row = k_(pxk[i]);
-    if(T(row)==0) row=k(3,t2(1.0),row);
+    row=la_rowf(row);
     if(E(row)) { xfree(A0); return row; }
     int isf = (T(row)==-2);
     for(j=0;j<n;j++)
@@ -506,7 +523,7 @@ K svd_(K x) {
     /* a = A (mxn) */
     for(i=0;i<m;i++) {
       K row = k_(pxk[i]);
-      if(T(row)==0) row=k(3,t2(1.0),row);
+      row=la_rowf(row);
       if(E(row)) { e=row; goto cleanup; }
       int isf = (T(row)==-2);
       for(j=0;j<n;j++)
@@ -519,7 +536,7 @@ K svd_(K x) {
     for(i=0;i<n;i++) {
       for(j=0;j<m;j++) {
         K row = k_(pxk[j]);
-        if(T(row)==0) row=k(3,t2(1.0),row);
+        row=la_rowf(row);
         if(E(row)) { e=row; goto cleanup; }
         int isf = (T(row)==-2);
         a[i][j] = isf ? ((double*)px(row))[i] : fi(((int*)px(row))[i]);
@@ -728,7 +745,7 @@ K lu_(K x) {
 
   for(i = 0; i < m; i++) {
     K row = k_(pxk[i]);
-    if(T(row)==0) row=k(3,t2(1.0),row);
+    row=la_rowf(row);
     if(E(row)) { e=row; goto cleanup; }
     int isf = (T(row) == -2);
     for(j = 0; j < n; j++) {
@@ -887,7 +904,7 @@ K qr_(K x) {
   for(i=0;i<m;i++) A[i] = A0 + (size_t)i * n;
   for(i=0;i<m;i++) {
     K row = k_(pxk[i]);
-    if(T(row)==0) row=k(3,t2(1.0),row);
+    row=la_rowf(row);
     if(E(row)) { xfree(A); xfree(A0); return row; }
     int isf = (T(row)==-2);
     for(j=0;j<n;j++) {
@@ -1114,7 +1131,7 @@ K rref_(K x) {
 
   for(i = 0; i < m; i++) {
     K row = k_(pxk[i]);
-    if(T(row) == 0) row = k(3, t2(1.0), row);
+    row = la_rowf(row);
     if(E(row)) { xfree(a); xfree(a0); return row; }
     int isf = (T(row) == -2);
     for(j = 0; j < n; j++) {
@@ -1235,7 +1252,7 @@ K det_(K x) {
 
   for(i = 0; i < m; i++) {
     K row = k_(pxk[i]);
-    if(T(row) == 0) row = k(3, t2(1.0), row);
+    row = la_rowf(row);
     if(E(row)) { xfree(a); xfree(a0); return row; }
     int isf = (T(row) == -2);
     for(j = 0; j < m; j++) {
@@ -1335,7 +1352,12 @@ K mag_(K x) {
       K row = pk[i];
       K m = mag_(row);
       if(E(m)) { _k(r); return m; }
-      /* m should be a scalar (float) */
+      /* m should be a scalar (float) -- but a NESTED row makes the recursive
+         call return a VECTOR, and fk() on a vector reads the ko union's data
+         POINTER as a double: `mag ((1.0 2.0;3.0 4.0);5.0 6.0)` gave
+         6.90076e-310 / 6.943786e-310 on successive runs, i.e. a heap address.
+         Insist on the scalar the code already assumes. */
+      if(T(m)!=2) { _k(m); _k(r); return kerror("type"); }
       pr[i] = fk(m);
       _k(m);
     }
@@ -1388,7 +1410,10 @@ static void mul_pack_rows(K v, double *out, u64 rows, u64 cols) {
       memcpy(dst, (double*)px(row), cols * sizeof(double));
     } else {
       i32 *src = (i32*)px(row);
-      for(u64 j = 0; j < cols; j++) dst[j] = (double)src[j];
+      /* fi(), not a plain cast: these fast paths run precisely when a float
+         operand makes the widening rule apply, so an int sentinel must become
+         the float one -- the generic dot path already does this. */
+      for(u64 j = 0; j < cols; j++) dst[j] = fi(src[j]);
     }
   }
 }
@@ -1561,7 +1586,7 @@ static void mul_pack_rows_e(K v, float *out, u64 rows, u64 cols) {
       memcpy(dst, (float*)px(row), cols * sizeof(float));
     } else {
       i32 *src = (i32*)px(row);
-      for(u64 j = 0; j < cols; j++) dst[j] = (float)src[j];
+      for(u64 j = 0; j < cols; j++) dst[j] = ei(src[j]);   /* see the f64 twin */
     }
   }
 }

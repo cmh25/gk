@@ -258,9 +258,14 @@ elements; an operation that would exceed it (or simply run out of memory) fails
 with `wsfull` rather than truncating or wrapping.
 
 Because a length can exceed the 32-bit integer range, the verbs that *produce* a
-count or an index return an **i64** (`j`) instead of an i32 once the
-relevant length crosses `2^31`. Below that threshold they still return an i32, so
-small data is unaffected.
+count or an index return an **i64** (`j`) instead of an i32 once the relevant
+length reaches `2147483647` (`2^31-1`). Lengths up to `2147483646` still return
+an i32, so small data is unaffected.
+
+The threshold is `2^31-1` and not `2^31` because `2147483647` is the i32
+infinity sentinel `0I` (see [Special Values](#special-values)): a count of
+exactly that value could not be told apart from infinity, so it is the first
+length that must be reported as an i64.
 
 ```
   a:2200000000j#"x"   / a 2.2-billion-element char vector
@@ -272,9 +277,25 @@ small data is unaffected.
 4400000000j
 ```
 
-This i64-above-`2^31` rule covers `#x` (count), `&x` (where), `<x`/`>x` (grade),
-and `a?x` (find) — each yields i64 results when its source vector is longer than
-`2^31`.
+This rule covers `#x` (count), `^x` (shape), `&x` (where), `<x`/`>x` (grade),
+`=x` (group), `a?x` (find, including the bulk forms and the not-found result
+`#a`), and `ss` (substring search positions) — each yields i64 results once its
+source vector reaches `2147483647` elements.
+
+The width is chosen from the **source** length, not the result length, so the
+two are independent — a vector can be longer than `2^31` and still hold i32
+elements:
+
+```
+  q:&2000000000 2000000000j / 4 billion indices into a 2-element source
+  #q                        / the result is longer than 2^31 ...
+4000000000j
+  4:q                       / ... but its elements are i32: they only
+-1                          /     have to address 2 positions
+```
+
+The reverse holds too: `&` of a 2.2-billion-element boolean vector yields i64
+indices even when only a handful of bits are set, because the *source* is big.
 
 Conversely, the verbs that *consume* a count or index accept an i64 (`j`)
 argument, so a big vector can be built, reshaped, cut, indexed, and sampled at
@@ -1334,7 +1355,7 @@ Number of items at the top level of `x`.
 <details>
 <summary>spec</summary>
 
-**Types:** any. Number of top-level items: `1` for an atom — and a dictionary *is* an atom, so `#d` is `1` (count its entries with `#!d`) — the length for a vector or list. Empty aggregates return `0`. The result is an i64 (`j`) when the count exceeds `2^31` — see [Big Vectors](#big-vectors).
+**Types:** any. Number of top-level items: `1` for an atom — and a dictionary *is* an atom, so `#d` is `1` (count its entries with `#!d`) — the length for a vector or list. Empty aggregates return `0`. The result is an i64 (`j`) when the count reaches `2147483647` (`2^31-1`) — see [Big Vectors](#big-vectors).
 
 **Errors:** none.
 

@@ -788,7 +788,11 @@ K sv(K a, K x) {
       n(x)=xn;                        // RESTORE before any error exit -- the old
       EC(r);                          // n(x)-- left the caller's vector truncated
       r=k(21,1,r); EC(r);             // +/r
-      r=k(1,r,t(1,pxi[xn-1])); EC(r); // + the last digit
+      r=k(1,r,t(1,(u32)pxi[xn-1])); EC(r); // + the last digit.  (u32): without
+                                      // it a NEGATIVE digit sign-extends into
+                                      // bits 48-55, so s(x) read subtype 0xFF
+                                      // and `10 10 sv 0 -1` type-errored while
+                                      // `10 sv 0 -1` worked.
       break;
     }
     default: r=KERR_TYPE;
@@ -864,7 +868,7 @@ cleanup:
 K sleep_(K x) {
   if(s(x)) return KERR_TYPE;
   if(tx != 1 && tx != 2) return KERR_TYPE;
-  double d = (tx == 1) ? (double)ik(x) : fk(x);
+  double d = (tx == 1) ? fi(ik(x)) : fk(x);   /* fi(): sleep 0I slept 24.8 DAYS */
   if(!isfinite(d) || d < 0) return KERR_DOMAIN;
 #ifdef FUZZING
   return null;  /* a fuzzed `sleep 5e17` is not a hang worth saving */
@@ -1080,17 +1084,23 @@ K jd(K x) {
   i64 g,y,m,val;
   if(s(x)) return KERR_TYPE;
   switch(tx) {
-  case  1:
-    year = ik(x)/10000;
-    month = (ik(x)/100)%100;
-    day = ik(x)%100;
+  case  1: {
+    i32 dv=ik(x);
+    /* A sentinel is not a YYYYMMDD date.  Decomposing one gave a
+       plausible-looking day number instead of a null: jd 0N -> -79179540,
+       jd 0I -> 77692941, jd -0I -> -79179539.  The inverse dj lands on 0N for
+       these already (via its out-of-range clamp), so mirror that here. */
+    if(dv==INT32_MIN||dv==INT32_MAX||dv==INT32_MIN+1) { r=t(1,(u32)INT32_MIN); break; }
+    year = dv/10000;
+    month = (dv/100)%100;
+    day = dv%100;
     g = (14-month)/12;
     y = (i64)year+4800-g;
     m = month+12*g-3;
     val = (i64)day + (153*m+2)/5 + y*365 + y/4 - y/100 + y/400 - 32045 - 2464329;
     // val is days; it already fits in 64-bit. pack to i32 domain.
     if(val<INT32_MIN || val>INT32_MAX) r=t(1, (u32)INT32_MIN);
-    else r=t(1, (u32)(i32)val);
+    else r=t(1, (u32)(i32)val); }
     break;
   case -1: r=avdo(biv("jd"),0,k_(x),"'"); break;
   case  0: r=irecur1(jd,x); break;
@@ -1106,8 +1116,16 @@ K lt(K x) {
   i64 q;
   if(s(x)) return KERR_TYPE;
   switch(tx) {
-  case  1:
-    t = ik(x)+2051222400l; /* 2035-1970 */
+  case  1: {
+    i32 lv=ik(x);
+    /* Sentinels are not timestamps, and the timezone shift can also push an
+       ordinary timestamp ONTO one.  Both directions were unguarded, and both
+       are invisible under TZ=UTC (o==0), which is presumably how it survived:
+       TZ=Asia/Tokyo gave `lt 0N` -> -2147451248 and, worse, turned the
+       ordinary `lt 2147451247` into 0I; TZ=America/New_York turned
+       `lt -2147465648` into 0N. */
+    if(lv==INT32_MIN||lv==INT32_MAX||lv==INT32_MIN+1) { r=t(1,(u32)lv); break; }
+    t = lv+2051222400l; /* 2035-1970 */
 #ifdef _WIN32
     struct tm result;
     tm=&result;
@@ -1118,9 +1136,11 @@ K lt(K x) {
     g = timegm(tm);
 #endif
     o = g-t;
-    q=ik(x)+(i64)o;
+    q=(i64)lv+(i64)o;
+    /* a shifted value that lands on a sentinel is out of range, not infinite */
+    if(q>=INT32_MAX||q<=(i64)INT32_MIN+1) { r=t(1,(u32)INT32_MIN); break; }
     r = t(1,(u32)q);
-    break;
+    break; }
   case -1: r=avdo(biv("lt"),0,k_(x),"'"); break;
   case  0: r=irecur1(lt,x); break;
   default: return KERR_TYPE;
@@ -1348,15 +1368,15 @@ K F(K a, K x) { \
   case  1: \
     switch(tx) { \
     case  1: r=t(1,(u32)OI(ik(a),ik(x))); break; \
-    case  8: r=tj(OJ((i64)ik(a),jk(x))); break; \
+    case  8: r=tj(OJ(ji(ik(a)),jk(x))); break; \
     case -1: PRI(nx); PXI; i(nx,pri[i]=OI(ik(a),pxi[i])) break; \
-    case -8: PRJ(nx); PXJ; { i64 A=(i64)ik(a); i(nx,prj[i]=OJ(A,pxj[i])) } break; \
+    case -8: PRJ(nx); PXJ; { i64 A=ji(ik(a)); i(nx,prj[i]=OJ(A,pxj[i])) } break; \
     case  0: r=irecur2(F,a,x); break; \
     default: r=KERR_TYPE; \
     } break; \
   case  8: \
     switch(tx) { \
-    case  1: r=tj(OJ(jk(a),(i64)ik(x))); break; \
+    case  1: r=tj(OJ(jk(a),ji(ik(x)))); break; \
     case  8: r=tj(OJ(jk(a),jk(x))); break; \
     case -1: PRJ(nx); PXI; { i64 A=jk(a); i(nx,prj[i]=OJ(A,(i64)pxi[i])) } break; \
     case -8: PRJ(nx); PXJ; { i64 A=jk(a); i(nx,prj[i]=OJ(A,pxj[i])) } break; \
@@ -1374,7 +1394,7 @@ K F(K a, K x) { \
     } break; \
   case -8: \
     switch(tx) { \
-    case  1: PRJ(na); PAJ; { i64 X=(i64)ik(x); i(na,prj[i]=OJ(paj[i],X)) } break; \
+    case  1: PRJ(na); PAJ; { i64 X=ji(ik(x)); i(na,prj[i]=OJ(paj[i],X)) } break; \
     case  8: PRJ(na); PAJ; { i64 X=jk(x); i(na,prj[i]=OJ(paj[i],X)) } break; \
     case -1: PRJ(nx); PAJ; PXI; i(nx,prj[i]=OJ(paj[i],(i64)pxi[i])) break; \
     case -8: PRJ(nx); PAJ; PXJ; i(nx,prj[i]=OJ(paj[i],pxj[i])) break; \
@@ -2082,6 +2102,11 @@ static K bd_legacy_mv_to_da(K r, int dyad) {
   return st(0xda,w);
 }
 
+/* Nesting depth of the deserialize recursion; see the guard at its one
+   recursive call site.  Reset at every top-level entry (db_buf_) so a depth
+   error on one blob cannot leak a raised count into the next. */
+static i32 dsdepth=0;
+
 static K deserialize(char **b,u64 *m) {
   K r=0,*prk,p;
   i32 t=0,st=0,*pri,ii;
@@ -2173,7 +2198,16 @@ static K deserialize(char **b,u64 *m) {
     /* every nested element occupies at least 3*sizeof(i32) bytes (header) */
     if(count>n/(3*si)||count>=(u64)VMAX) return KERR_LENGTH;
     PRK(count);
-    i(nr,p=deserialize(b,&n); if(E(p)) { _k(r); return p; } prk[i]=p)
+    /* Depth guard, mirroring serialize's at b.c:1912.  Without it a nested
+       blob recurses once per ~20 wire bytes, so a ~1MB message or file blows
+       the C stack -- and this is untrusted input (db x, 2:/1: file read, and
+       an unauthenticated IPC frame via db_buf).  Guarding HERE rather than at
+       function entry is deliberate: depth only grows through this one call,
+       and deserialize has ~60 return points, so an entry/exit counter would
+       have to be threaded through every one of them. */
+    if(++dsdepth>maxr || (!(dsdepth&7)&&stack_low())) { --dsdepth; _k(r); return KERR_STACK; }
+    i(nr,p=deserialize(b,&n); if(E(p)) { --dsdepth; _k(r); return p; } prk[i]=p)
+    --dsdepth;
     break;
   default: return KERR_TYPE;
   }
@@ -2267,7 +2301,18 @@ static K deserialize(char **b,u64 *m) {
        over-reads.  Reject anything that isn't a real dict shape here. */
     if(!r || E(r) || n(r)<3) { _k(r); return KERR_TYPE; }
     K *pk=px(r);
-    if(T(pk[0])!=-4 || n(pk[0])!=n(pk[1])) { _k(r); return KERR_TYPE; }
+    /* Pin slot 1's TYPE before reading its count, and pin it to the general
+       list dnew() always builds (dict.c: v=tn(0,DMAX)).  Two bugs otherwise:
+       n(pk[1]) is a raw deref of the low 48 bits, so for a non-heap element
+       (int/char/null/f32) it reads 8 bytes at the blob's own inline payload --
+       an arbitrary-address read inside db itself; and comparing only the
+       COUNT let a -1 int vector (4 bytes/elt) or -3 char vector (1 byte/elt)
+       through, after which dict.c's pv=px(pd[1]) / k_(pv[i]) walk it 8 bytes
+       at a time -- reading past the buffer and treating attacker bytes as a
+       tagged K, so k_() does ++((ko*)(b(48)&x))->r: a +1 write at any address.
+       Reachable from an unauthenticated IPC frame via db_buf.  || is
+       left-to-right and short-circuits, so the type test guards the count. */
+    if(T(pk[0])!=-4 || T(pk[1])!=0 || n(pk[0])!=n(pk[1])) { _k(r); return KERR_TYPE; }
     /* dicts ship 3 payload slots; the in-memory form carries a 4th (the
        hash-index cache, dict.c).  Re-add it as null -- and drop any crafted
        extra slots from a hostile blob, which dget/dset would otherwise
@@ -2297,7 +2342,21 @@ static K deserialize(char **b,u64 *m) {
   if(t==0) {
     u64 nlen=n(r);
     switch(st) {
-    case 0xd9: case 0xda: case 0xd0: case 0xd7:
+    case 0xd9:
+      /* kprint_ (k.c:446) walks slot 1 as a general list -- `K *pg2=px(g2);
+         i(n(g2),kprint_(pg2[i],...))` -- with no type test of its own, so a
+         forged ATOM in slot 1 makes px() dereference the blob's own inline
+         payload: merely DISPLAYING the decoded value segfaults.  p.c/fe.c
+         only ever build slot 1 as a type-0 list (plain, or 0x81-subtyped via
+         wrap_proj), so pin the base type; T() ignores the subtype, so both
+         spellings still pass.
+         Checked: 0xda/0xd0/0xd7 do NOT need this.  0xda's av slot is already
+         type-tested at fe.c:75 (`T(wav)==-3 && n(wav)>0`), and 0xd0/0xd7 hand
+         both slots to kprint_, which dispatches on type instead of
+         dereferencing.  Forging an atom into slot 1 of those three prints
+         harmlessly rather than crashing -- verified. */
+      if(nlen<2 || T(((K*)px(r))[1])!=0) { _k(r); return KERR_TYPE; } break;
+    case 0xda: case 0xd0: case 0xd7:
       if(nlen<2) { _k(r); return KERR_TYPE; } break;
     case 0xc5:
       /* a composition is a 2-slot list: slot 0 the (non-empty) list of
@@ -2364,6 +2423,7 @@ K db_buf(const char *buf, u64 nbytes) {
   if(buf[0] != 3 && buf[0] != 2) return KERR_TYPE;
   char *b = (char*)buf + 4;
   u64 n = nbytes - 4;
+  dsdepth=0;
   return deserialize(&b, &n);
 }
 
@@ -2645,7 +2705,11 @@ static inline i64 bin1f(void *v, i32 t, i64 n, f64 y) {
   i64 lo=0,hi=n,m;
   f64 am;
   while(lo<hi) { m=lo+((hi-lo)>>1);
-    am=(t==-1)?(f64)((i32*)v)[m]:(t==-8)?(f64)((i64*)v)[m]:(t==-2)?((f64*)v)[m]:(f64)((f32*)v)[m];
+    /* fi()/fj(), not plain casts: an int/long HAYSTACK entry that is a
+       sentinel must widen to the float sentinel, or the ordering the search
+       relies on disagrees with grade and with `<`.  (f32->f64 is exact for
+       IEEE inf/NaN, so that arm stays a plain cast.) */
+    am=(t==-1)?fi(((i32*)v)[m]):(t==-8)?fj(((i64*)v)[m]):(t==-2)?((f64*)v)[m]:(f64)((f32*)v)[m];
     /* total order: 0n sorts below everything (matches grade and the < verb),
        but C < is always false on NaN, so a null in the haystack would stop
        the search from ever moving right */
@@ -2660,9 +2724,10 @@ K bin_(K a, K x) {
   void *v=px(a);
   i64 c;
   if((ta==-1||ta==-8)&&(tx==1||tx==8))
-    c=bin1j(v,ta,(i64)na,tx==1?(i64)ik(x):jk(x));
+    c=bin1j(v,ta,(i64)na,tx==1?ji(ik(x)):jk(x));
   else
-    c=bin1f(v,ta,(i64)na,tx==1?(f64)ik(x):tx==8?(f64)jk(x):tx==2?fk(x):(f64)ek(x));
+    /* same for the NEEDLE: `1e10 2e10 bin 0I` gave 0 while `bin 0i` gave 2. */
+    c=bin1f(v,ta,(i64)na,tx==1?fi(ik(x)):tx==8?fj(jk(x)):tx==2?fk(x):(f64)ek(x));
   return na>BIGV?tj(c):t(1,(u32)c);
 }
 K binl_(K a, K x) {
@@ -2682,7 +2747,7 @@ K binl_(K a, K x) {
   if(E(r)) return r;
   for(i64 j=0;j<nn;++j) {
     if(ints) c=bin1j(v,ta,n,tx==-1?(i64)((i32*)w)[j]:((i64*)w)[j]);
-    else { f64 y=tx==-1?(f64)((i32*)w)[j]:tx==-8?(f64)((i64*)w)[j]:tx==-2?((f64*)w)[j]:(f64)((f32*)w)[j];
+    else { f64 y=tx==-1?fi(((i32*)w)[j]):tx==-8?fj(((i64*)w)[j]):tx==-2?((f64*)w)[j]:(f64)((f32*)w)[j];  /* binl needles: see bin_ */
            c=bin1f(v,ta,n,y); }
     if(big) prj[j]=c; else pri[j]=(i32)c;
   }

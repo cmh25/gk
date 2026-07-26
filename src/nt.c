@@ -519,7 +519,8 @@ K factor_(K x) {
 static int isintlong(i8 t) { return t==1||t==8||t==-1||t==-8; }
 static i64 readj(K x, u64 i) {
   switch(tx) {
-  case  1: return (i64)ik(x);
+  case  1: return ji(ik(x));   /* ji(): sentinel-aware, so mixed-width
+                                  gcd/lcm/modinv agree with the same-width forms */
   case  8: return jk(x);
   case -1: return (i64)((i32*)px(x))[i];
   case -8: return ((i64*)px(x))[i];

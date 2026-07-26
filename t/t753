@@ -1,7 +1,7 @@
 / 2026-07-13 dot with an EMPTY right argument: two rulings.
 / DATA: `.` takes a PATH, and an empty path of ANY type is the value
-/ itself (manual p.88/91: d . i is d@/i, and a fold over zero indices
-/ returns the seed; e333j and growler agree).  a . !0 used to convert the
+/ itself: d . i is d@/i, and a fold over zero indices
+/ returns the seed).  a . !0 used to convert the
 / typed empty to its prototype atom and return a@0 -- silently the FIRST
 / ELEMENT ("ab" . !0 was "a"); !0j accidentally already did the right
 / thing, () always did.

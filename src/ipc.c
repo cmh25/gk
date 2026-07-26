@@ -906,7 +906,7 @@ static int send_value(int fd, u8 msgtype, K r) {
     else if(e == KERR_WSFULL)          m = E[KERR_LENGTH];
     else if(e < EMAX)                  m = E[e];
     else                               m = "type";
-    K str = tn(3, (i32)strlen(m));
+    K str = tn(3, (i64)strlen(m));   /* see send_error: count must match the memcpy */
     memcpy(px(str), m, strlen(m));
     int rc = send_value(fd, MSG_SYNC_ERR, str);
     _k(str);
@@ -922,8 +922,12 @@ static int send_error(int fd, K err) {
   const char *m;
   if(err < EMAX) m = E[err];
   else           m = sk(err);
+  /* (i64), not (i32): the count and the memcpy length must agree.  `m` is
+     sk(err) for a user-raised error, and a script can set an error string of
+     any length, so an mlen in [2^32, 2^32+2^31) truncated to a SMALL positive
+     count -- a ~100-byte allocation followed by a multi-gigabyte memcpy. */
   size_t mlen = strlen(m);
-  K str = tn(3, (i32)mlen);
+  K str = tn(3, (i64)mlen);
   memcpy(px(str), m, mlen);
   int rc = send_value(fd, MSG_SYNC_ERR, str);
   _k(str);

@@ -762,7 +762,7 @@ K modrot(K a, K x) {
   case 1:
     switch(tx) {
     case  1: r=t(1,(u32)modi(ik(a),ik(x))); break;
-    case  2: r=t2(modd((double)ik(a),fk(x))); break;
+    case  2: r=t2(modd(fi(ik(a)),fk(x))); break;
     case  8: r=tj(modj(ji(ik(a)),jk(x))); break;
     case  9: r=te(mode(ei(ik(a)),ek(x))); break;
     case -1: ROT(PRI,PXI,ik(a),*pri++=pxi[ri])
@@ -776,7 +776,7 @@ K modrot(K a, K x) {
     } break;
   case 2:
     switch(tx) {
-    case 1: r=t2(modd(fk(a),(double)ik(x))); break;
+    case 1: r=t2(modd(fk(a),fi(ik(x)))); break;
     case 2: r=t2(modd(fk(a),fk(x))); break;
     case 8: r=t2(modd(fk(a),fj(jk(x)))); break;
     case 9: r=t2(modd(fk(a),(double)ek(x))); break;
@@ -815,7 +815,7 @@ K modrot(K a, K x) {
     } break;
   case -2:
     switch(tx) {
-    case 1: PRF(na); PAF; { double X=(double)ik(x); i(na,prf[i]=modd(paf[i],X)) } break;
+    case 1: PRF(na); PAF; { double X=fi(ik(x)); i(na,prf[i]=modd(paf[i],X)) } break;
     case 2: PRF(na); PAF; { double X=fk(x); i(na,prf[i]=modd(paf[i],X)) } break;
     case 8: PRF(na); PAF; { double X=fj(jk(x)); i(na,prf[i]=modd(paf[i],X)) } break;
     case 9: PRF(na); PAF; { double X=(double)ek(x); i(na,prf[i]=modd(paf[i],X)) } break;
@@ -959,7 +959,7 @@ static K draw(K a, K x) {
   switch(ta) {
   case 1: case 8:
     if(cnt<0) return KERR_DOMAIN;
-    VSIZE(cnt);
+    VLEN(cnt);
     switch(tx) {
     case 1:
       if(ik(x)>0) { r=tn(1,cnt); drawi((i32*)px(r),cnt,ik(x)); }
@@ -1181,7 +1181,7 @@ static K take_(K a, K x) {
       c=av;
     }
     neg=c<0; if(neg) c=-c;
-    VSIZE(c);
+    VLEN(c);
     switch(Tx) {
     case  1: PRI(c); i(c,*pri++=ik(x)) break;
     case  2: PRF(c); i(c,*prf++=fk(x)) break;
@@ -1703,9 +1703,9 @@ K drop(K a, K x) {
    (broadcasting atoms) for any such (base;exp) pair before computing. */
 static double powel_(K v, u64 i) {
   switch(T(v)) {
-  case  1: return (double)ik(v);
+  case  1: return fi(ik(v));
   case  2: return         fk(v);
-  case  8: return (double)jk(v);
+  case  8: return fj(jk(v));
   case  9: return (double)ek(v);
   case -1: return (double)((i32*)px(v))[i];
   case -2: return         ((double*)px(v))[i];
@@ -1931,21 +1931,40 @@ cleanup:
 
 static K form2w(char *t, i32 w, i32 z) {
   K r=0;
-  i32 i,n,l,m;
+  i64 l;                  /* l = strlen: a char vector can exceed 2^31, so
+                             these MUST be 64-bit.  In an i32, `N $ x` with
+                             #x >= 2^31 made l negative, so `m>l` took the
+                             PAD branch: PRC(m) allocated m (e.g. 5) bytes and
+                             then wrote n=abs(l-m) ~= 2^31 spaces into it -- a
+                             heap overflow, and `5$x` is the ordinary
+                             spelling (a negative width took the safe arm).
+                             With l 64-bit the m<l TRUNCATE branch is taken,
+                             which is the correct answer. */
+  i32 m;
   char *prc;
   if(w==INT32_MIN) return KERR_DOMAIN; /* abs(INT32_MIN) is UB */
-  l=strlen(t); m=abs(w); n=abs(l-m);
-  if(m>l) {
+  l=(i64)strlen(t); m=abs(w);
+  /* Every read of `t` below is written as an explicit t[0 .. l-1], where l is
+     strlen(t).  The pad arm used to walk a cursor (`prc[i]=*t++`) with its
+     bound expressed via n=|l-m| instead, which is the same thing but leaves
+     the reads tied to n rather than to l -- `clang --analyze` could not relate
+     the two and reported a false uninitialized read on the path where fmtjs
+     writes the empty null spelling (l==0, so the copy is zero-iteration).
+     Bounding by l directly keeps `make analyze` clean and makes the in-range
+     argument local. */
+  if(m>l) {                       /* pad to width m */
+    i64 pad=(i64)m-l;
     PRC(m);
-    if(w<0) { for(i=0;i<l;i++) prc[i]=*t++; for(;i<m;i++) prc[i]=' '; }
-    else if(w>0) { for(i=0;i<n;i++) prc[i]=' '; for(;i<m;i++) prc[i]=*t++; }
+    if(w<0)      { memcpy(prc,t,(size_t)l); memset(prc+l,' ',(size_t)pad); }
+    else if(w>0) { memset(prc,' ',(size_t)pad); memcpy(prc+pad,t,(size_t)l); }
   }
-  else if(m<l) {
+  else if(m<l) {                  /* truncate to width m */
     PRC(m);
     if(z) { i(m,*prc++='*') *prc=0; }
-    else { if(w<0) { i(m,prc[i]=t[i]) } else { i(m,prc[i]=*(t+l-m+i)) } }
+    else if(w<0) memcpy(prc,t,(size_t)m);          /* keep the head */
+    else         memcpy(prc,t+(l-m),(size_t)m);    /* keep the tail */
   }
-  else { PRC(l); i(m,prc[i]=t[i]) }
+  else { PRC(l); memcpy(prc,t,(size_t)l); }        /* m==l: exact fit */
   return r;
 }
 /* decimal itoa for the $ paths: byte-identical to sprintf("%d"/"%lld")
@@ -1967,6 +1986,34 @@ static int fmtj(char *d, i64 v) {
    a 0N/0I sentinel spelling, or [-]digits -- anything else is a
    domain error (0$"-4000000000" is -0I, 0$"12x" and 0$"+5" are domain
    errors).  Range handling lives in xatoi/xatol. */
+/* Sentinel-aware decimal text for the $ paths.  Monadic format() (below) has
+   always spelled the sentinels 0I / -0I / "" ; DYADIC a$x went straight to
+   fmtj/sprintf and printed the raw bit pattern instead, so `20$0N` gave
+   "         -2147483648" and `20$0I` gave "          2147483647" */
+/* The spellings are 2-3 bytes, written out directly: strcpy appears nowhere
+   else in gk, and the MSVC/clang-on-Windows UCRT headers mark it deprecated,
+   so using it here was the sole source of -Wdeprecated-declarations in the
+   Windows build.  d is the caller's 256-byte scratch buffer. */
+static void spell(char *d, const char *s) { while((*d++=*s++)); }
+static void fmt1s(char *d, i32 v) {
+  if(v==INT32_MAX)        spell(d,"0I");
+  else if(v==INT32_MIN+1) spell(d,"-0I");
+  else if(v==INT32_MIN)   d[0]=0;
+  else fmtj(d,(i64)v);
+}
+static void fmtjs(char *d, i64 v) {
+  if(v==J_INF)       spell(d,"0I");
+  else if(v==J_NINF) spell(d,"-0I");
+  else if(v==J_NULL) d[0]=0;
+  else fmtj(d,v);
+}
+static void fmtfs(char *d, double f, i32 prec) {
+  if(isinf(f)&&f>0.0)      spell(d,"0i");
+  else if(isinf(f)&&f<0.0) spell(d,"-0i");
+  else if(isnan(f))        d[0]=0;
+  else sprintf(d,"%0.*g",prec,f);
+}
+
 static char* trimtok(char *s) {
   char *e=s+strlen(s);
   while(*s==' '||*s=='\t'||*s=='\n'||*s=='\r') ++s;
@@ -1994,10 +2041,10 @@ K form(K a, K x) {
   case 1:
     if(ik(a)==INT32_MAX||ik(a)==INT32_MIN||ik(a)==INT32_MIN+1) return KERR_DOMAIN;
     switch(tx) {
-    case  1: fmtj(t,(i64)ik(x)); r=form2w(t,ik(a),1); break;
-    case  2: sprintf(t,"%0.*g",7,fk(x)); r=form2w(t,ik(a),1); break;
-    case  8: fmtj(t,jk(x)); r=form2w(t,ik(a),1); break;
-    case  9: sprintf(t,"%0.*g",7,(double)ek(x)); r=form2w(t,ik(a),1); break;
+    case  1: fmt1s(t,ik(x)); r=form2w(t,ik(a),1); break;
+    case  2: fmtfs(t,fk(x),7); r=form2w(t,ik(a),1); break;
+    case  8: fmtjs(t,jk(x)); r=form2w(t,ik(a),1); break;
+    case  9: fmtfs(t,(double)ek(x),7); r=form2w(t,ik(a),1); break;
     case  3:
       if(!ik(a)) { if(ik(x)<48||ik(x)>57) return KERR_DOMAIN; r=t(1,(u32)ik(x)-48); break; }
       sprintf(t,"%c",ik(x));
@@ -2310,7 +2357,7 @@ K where(K x) {
   case  8: {
     i64 v=jk(x);
     if(v<0 || v==J_INF || v==J_NULL || v==J_NINF) return KERR_DOMAIN;
-    VSIZE(v);
+    VLEN(v);
     PRI(v); i(v,pri[i]=0)            /* values all 0 -> i32, count may be huge */
     } break;
   case  0: if(!nx) r=tn(1,0); else return KERR_TYPE; break;
@@ -2402,15 +2449,20 @@ K upgrade(K x) {
   if(ax||s(x)) return KERR_RANK;
   if(nx==0) return tn(1,0);
   if(nx>BIGV) return gradej(x,0);
+  /* enumerate can fail (it rejects the 0I-sentinel length); its result is a
+     pointer here, so check before px().  BIGV excludes the only reachable
+     failing length -- this is the belt to that suspenders. */
+  r=enumerate(t(1,nx)); if(E(r)) return r;
+  pri=(i32*)px(r);
   switch(tx) {
-  case -1: r=enumerate(t(1,nx)); pri=(i32*)px(r); PXI; rcsortg(pri,pxi,nx,0); break;
-  case -8: r=enumerate(t(1,nx)); pri=(i32*)px(r); PXJ; rcsortg8(pri,pxj,nx,0); break;
-  case -2: r=enumerate(t(1,nx)); pri=(i32*)px(r); PXF; rcsortg2(pri,pxf,nx,0); break;
-  case -9: r=enumerate(t(1,nx)); pri=(i32*)px(r); PXE; rcsortg9(pri,pxe,nx,0); break;
-  case -3: r=enumerate(t(1,nx)); pri=(i32*)px(r); PXC; csortg3(pri,pxc,nx,0); break;
-  case -4: r=enumerate(t(1,nx)); pri=(i32*)px(r); PXS; rsortg4(pri,pxs,nx,0); break;
-  case  0: r=enumerate(t(1,nx)); pri=(i32*)px(r); PXK; msortg0(pri,pxk,0,nx-1,0); break;
-  default: return KERR_TYPE;
+  case -1: PXI; rcsortg(pri,pxi,nx,0); break;
+  case -8: PXJ; rcsortg8(pri,pxj,nx,0); break;
+  case -2: PXF; rcsortg2(pri,pxf,nx,0); break;
+  case -9: PXE; rcsortg9(pri,pxe,nx,0); break;
+  case -3: PXC; csortg3(pri,pxc,nx,0); break;
+  case -4: PXS; rsortg4(pri,pxs,nx,0); break;
+  case  0: PXK; msortg0(pri,pxk,0,nx-1,0); break;
+  default: _k(r); return KERR_TYPE;
   }
   return r;
 }
@@ -2425,15 +2477,17 @@ K downgrade(K x) {
   if(ax||s(x)) return KERR_RANK;
   if(nx==0) return tn(1,0);
   if(nx>BIGV) return gradej(x,1);
+  r=enumerate(t(1,nx)); if(E(r)) return r;   /* see upgrade() */
+  pri=(i32*)px(r);
   switch(tx) {
-  case -1: r=enumerate(t(1,nx)); pri=(i32*)px(r); PXI; rcsortg(pri,pxi,nx,1); break;
-  case -8: r=enumerate(t(1,nx)); pri=(i32*)px(r); PXJ; rcsortg8(pri,pxj,nx,1); break;
-  case -2: r=enumerate(t(1,nx)); pri=(i32*)px(r); PXF; rcsortg2(pri,pxf,nx,1); break;
-  case -9: r=enumerate(t(1,nx)); pri=(i32*)px(r); PXE; rcsortg9(pri,pxe,nx,1); break;
-  case -3: r=enumerate(t(1,nx)); pri=(i32*)px(r); PXC; csortg3(pri,pxc,nx,1); break;
-  case -4: r=enumerate(t(1,nx)); pri=(i32*)px(r); PXS; rsortg4(pri,pxs,nx,1); break;
-  case  0: r=enumerate(t(1,nx)); pri=(i32*)px(r); PXK; msortg0(pri,pxk,0,nx-1,1); break;
-  default: return KERR_TYPE;
+  case -1: PXI; rcsortg(pri,pxi,nx,1); break;
+  case -8: PXJ; rcsortg8(pri,pxj,nx,1); break;
+  case -2: PXF; rcsortg2(pri,pxf,nx,1); break;
+  case -9: PXE; rcsortg9(pri,pxe,nx,1); break;
+  case -3: PXC; csortg3(pri,pxc,nx,1); break;
+  case -4: PXS; rsortg4(pri,pxs,nx,1); break;
+  case  0: PXK; msortg0(pri,pxk,0,nx-1,1); break;
+  default: _k(r); return KERR_TYPE;
   }
   return r;
 }
@@ -3040,7 +3094,7 @@ K enumerate(K x) {
   if(s(x)) return enumeratecb(x);
   switch(tx) {
   case  1: if(ik(x)<0||ik(x)==INT32_MAX) return KERR_DOMAIN; PRI(ik(x)); i(ik(x),pri[i]=i); break;
-  case  8: { i64 v=jk(x); if(v<0) return KERR_DOMAIN; VSIZE(v); PRJ(v); i(v,prj[i]=i); } break;
+  case  8: { i64 v=jk(x); if(v<0) return KERR_DOMAIN; VLEN(v); PRJ(v); i(v,prj[i]=i); } break;
   case  2: return KERR_INT;
   case  3: p[0]=ck(x); p[1]=0; r=lsdir(p); break;
   case  4: return enumeratecb(x);
@@ -3218,12 +3272,23 @@ K count(K x) {
    ftoj: convert for the long path once a vector has promoted, clamping the
    unrepresentable elements (NaN/inf/beyond-int64) to the long sentinels. */
 static int promotej(double f) {
-  return f==f && (f>=INT32_MAX||f<INT32_MIN) && f<(double)INT64_MAX && f>(double)INT64_MIN;
+  /* The two ends must be SYMMETRIC about the i32 sentinels.  `f>=INT32_MAX`
+     is right: INT32_MAX is 0I, so a floor landing there has to promote.  But
+     `f<INT32_MIN` missed BOTH negative sentinels -- INT32_MIN is 0N and
+     INT32_MIN+1 is -0I -- so a value that merely LOOKED like one came back as
+     one:  _ -2147483647.0 -> -0I  and  _ -2147483648.0 -> 0N, while
+     _ 2147483647.0 -> 2147483647j and _ -2147483649.0 -> -2147483649j were
+     already correct.  Promote from INT32_MIN+1 down. */
+  return f==f && (f>=INT32_MAX||f<=(double)(INT32_MIN+1)) && f<(double)INT64_MAX && f>(double)INT64_MIN;
 }
 static i64 ftoj(double f) {
   if(f!=f) return J_NULL;                  /* NaN */
   if(f>=(double)INT64_MAX) return J_INF;   /* +inf / >= 2^63 */
-  if(f<(double)INT64_MIN) return J_NINF;   /* -inf / < -2^63 */
+  /* `<=`, not `<`: at exactly -2^63 the (i64) cast yields INT64_MIN, which IS
+     J_NULL -- so `_ -9223372036854775808.0 30000000000.0` produced 0Nj rather
+     than the -0Ij clamp every other out-of-range value gets.  Same shape as
+     the i32 case above, one width up. */
+  if(f<=(double)INT64_MIN) return J_NINF;  /* -inf / <= -2^63 */
   return (i64)f;
 }
 /* int clamp for the non-promoting arms, same sentinel mapping */
@@ -3273,11 +3338,14 @@ K floor__(K x) {
 }
 
 K shape(K x) {
-  K r=0,a=0,*q=0,*t=0,*pak,*prk;
-  u32 i,cm=32,*c,ci,qc,tc;
+  K r=0,a=0,*q=0,*t=0,*pak;
+  u32 cm=32,ci;
+  u64 i,qc,tc;   /* BFS level sizes: a level can hold >2^32 nodes */
+  i64 *c;        /* dimension counts: u64-valued, so NOT u32 -- see the emit below */
   i32 *pri;
+  i64 *prj;
   if(ax||s(x)) return tn(1,0);
-  c=xmalloc(sizeof(u32)*cm);
+  c=xmalloc(sizeof(i64)*cm);
   switch(tx) {
   case -1: case -2: case -3: case -4: case -8: case -9:
     if(nx>BIGV) { r=tn(8,1); ((i64*)px(r))[0]=(i64)nx; }
@@ -3289,9 +3357,9 @@ K shape(K x) {
     qc=1;
     ci=0;
     while(q) { /* breadth first traversal */
-      u32 enq=0; /* nodes at this level that enqueued children */
-      if(ci==cm) { cm<<=1; c=xrealloc(c,sizeof(u32)*cm); }
-      c[ci]=(u32)-1; tc=0; t=0; /* -1 = count unset: an EMPTY child (na 0)
+      u64 enq=0; /* nodes at this level that enqueued children */
+      if(ci==cm) { cm<<=1; c=xrealloc(c,sizeof(i64)*cm); }
+      c[ci]=-1; tc=0; t=0; /* -1 = count unset: an EMPTY child (na 0)
         must conflict with a nonempty sibling either way round -- the old
         `!c[ci]` test let a leading empty pass unrecorded, so ^((^-18);,16)
         was 2 1, not ,2 */
@@ -3301,8 +3369,8 @@ K shape(K x) {
           dimension: drop any children already enqueued from earlier siblings,
           or the walk would continue into the next depth with a partial level
           and emit a phantom dimension (^((,0;,1);-17) gave 2 1, not ,2) */
-        if(c[ci]==(u32)-1) c[ci]=na;
-        else if(c[ci]!=na) { if(t){xfree(t);t=0;}; ci--; break; }
+        if(c[ci]==-1) c[ci]=(i64)na;
+        else if((u64)c[ci]!=na) { if(t){xfree(t);t=0;}; ci--; break; }
         if(!ta&&!s(a)&&na) { /* enqueue next round */
           if(t) t=xrealloc(t,sizeof(K)*(na+tc));
           else t=xmalloc(sizeof(K)*na);
@@ -3321,8 +3389,23 @@ K shape(K x) {
       q=t; qc=tc; /* next queue */
       ci++;
     }
-    PRK(ci);
-    i(ci,prk[i]=t(1,(u32)c[i]))
+    /* Mirror the flat-vector arm above: a dimension >= 2^31 must ship as an
+       i64.  This arm had NO BIGV test at all, so after the BIGV fix the two
+       arms DISAGREED -- for a 2147483647-long vector x, `^x` gave
+       ,2147483647j (correct) while `^,x` gave `1 0I`.  Worse further out:
+       2^31 printed as 0N and 2^32+5 as 5, because the count was also being
+       truncated through a u32.  count() promotes for every type, so this arm
+       was simply the one that was missed.
+       ONE width for the whole shape, chosen by the widest dimension, rather
+       than per-dimension boxing: a mixed (1;2147483647j) general list would be
+       a third representation for the same idea, and gk's own adoption rule
+       (int + long -> long vector) says these should ride together.  So the
+       result is always a plain vector -- -1 when every dimension fits, -8 when
+       any does not, matching what the flat arm emits for the same data. */
+    { i32 big=0;
+      i(ci,if((u64)c[i]>BIGV) { big=1; break; })
+      if(big) { PRJ(ci); i(ci,prj[i]=c[i]) }
+      else    { PRI(ci); i(ci,pri[i]=(i32)c[i]) } }
     break;
   default: r=KERR_TYPE;
   }

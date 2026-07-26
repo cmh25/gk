@@ -118,9 +118,20 @@ static inline K k_(K x) {
    exercise gradej/groupj/long-count/long-index etc. without a 17GB vector).
    Fuzz-only: a lowered build won't pass `make test` (goldens assume the int
    path). Does NOT reproduce true 2^31-magnitude overflows (those need real
-   size -- use UBSan on t64 for that class). */
+   size -- use UBSan on t64 for that class).
+
+   The default is INT32_MAX-1, NOT INT32_MAX, and the -1 is load-bearing: a
+   length of exactly INT32_MAX is not representable as an i32 count, because
+   that bit pattern IS the int-infinity sentinel 0I.  With the threshold at
+   INT32_MAX every `n>BIGV` site let that one length through to the i32 path,
+   where `#x` returned 0I instead of 2147483647 and `<x` dereferenced
+   enumerate's KERR_DOMAIN as a pointer (SIGSEGV).  VSIZE forbids the length
+   at allocation, but tn() does not call VSIZE and join() does not either, so
+   `(2147483646#" "),"a"` constructed it.  Excluding it here fixes all ~16
+   dispatch sites at once and keeps every shorter length on the int path
+   (t/ suite byte-identical).  See t64/t39. */
 #ifndef BIGV
-#define BIGV ((u64)0x7fffffff)
+#define BIGV ((u64)0x7ffffffe)
 #endif
 /* evaluate the size through an i64 temp: single evaluation, and the VMAX
    comparison isn't tautological when the caller passes an i32/u32 (no
@@ -130,6 +141,24 @@ static inline K k_(K x) {
 #else
 /* reject negative, the int-infinity sentinel (0I == INT32_MAX), and >= VMAX */
 #define VSIZE(x) do { i64 vsz_=(i64)(x); if(vsz_<0||vsz_==INT32_MAX||vsz_>=VMAX) return KERR_WSFULL; } while(0);
+#endif
+
+/* VLEN -- the same guard for a vector LENGTH, which differs from VSIZE in one
+   respect: it ALLOWS exactly INT32_MAX.  VSIZE rejects that value because for a
+   WIDTH (`N$x`) or a RANGE (`n?m`) the bit pattern is the 0I sentinel and cannot
+   have been meant literally.  A length of INT32_MAX used to be equally
+   unusable -- but only because every `n>BIGV` dispatch put it on the i32 path,
+   where the count came back as 0I.  With BIGV at INT32_MAX-1 that length is now
+   fully representable (`#x` yields a long, `<x` routes to gradej, `^x` promotes),
+   so refusing to ALLOCATE it is the last place gk disagreed with itself:
+   `(2147483646#" "),"a"` built one happily via join, while `2147483647j#" "`
+   raised wsfull, and a `5:` file whose count reached that value became
+   permanently un-appendable.  Use VLEN wherever the quantity is an element
+   count; keep VSIZE for widths and ranges. */
+#ifdef ASAN_ENABLED
+#define VLEN(x) do { i64 vln_=(i64)(x); if(vln_<0||vln_>1000000000) return KERR_WSFULL; } while(0);
+#else
+#define VLEN(x) do { i64 vln_=(i64)(x); if(vln_<0||vln_>=VMAX) return KERR_WSFULL; } while(0);
 #endif
 
 /* cmpfft below decides NaN and +-inf ordering from bare IEEE comparisons.

@@ -64,7 +64,6 @@ jj:(1 2;3 4)
 
 / y IS the target (not merely reaching it): the extra ref makes the target
 / SHARED, so the r-gate copies it and every store reads the PRE-amend value.
-/ Same answers in e333j (Charles, 2026-07-13): 101 101 102, not 101 101 100.
 kk:100 101 102
 @[`kk;2 0 2;:;.k.kk]
 kk

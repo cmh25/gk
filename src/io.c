@@ -147,7 +147,7 @@ static K fsize_(K x, size_t *bs) {
 
 /* VSIZE returns on failure, so it can't run where a live buffer would leak;
    wrap it so readall_ can check a prospective size and free first. */
-static K vchk_(size_t n) { VSIZE((i64)n); return null; }
+static K vchk_(size_t n) { VLEN((i64)n); return null; }
 
 /* Read stream fp to EOF into an xmalloc'd buffer (*pb, length *pn). bs (from
    fsize_) is only a capacity hint: procfs/sysfs files stat as 0 bytes, and a
@@ -236,7 +236,7 @@ static K zerocolon1(K x) {
     return r;
   }
   EC(fsize_(x,&bs));
-  VSIZE((i64)bs);
+  VLEN((i64)bs);
   EC(fopen_(x,"rb",&fp));
   e=readall_(fp,bs,&b,&n);
   fclose(fp);
@@ -265,7 +265,19 @@ static K zerocolon2(K a, K x) {
   K r=null,e=0,p=0,q=0,ff=0,*prk,*pak,*pxk;
   FILE *fp=0;
   size_t B=0,N=0,NN=0;
-  u32 i,j,n,L=0,u;   /* field-level: i,j field index, n field count, L row width */
+  u32 i,j,n,u;       /* field-level: i,j field index, n field count */
+  u64 L=0;           /* row width = SUM of the field widths -- must be 64-bit:
+                        each width is range-checked individually below, but in
+                        a u32 the SUM wrapped mod 2^32, so widths of e.g.
+                        1431655770 1431655768 1431655768 (total 2^32+10) gave
+                        L==10, passed the `rowlen != L` gate on a 10-byte row,
+                        and then `u=pqi[i]; g=z[u]; z[u]=0;` read AND wrote
+                        ~1.4GB past the row buffer -- a SIGSEGV from an 11-byte
+                        file, and in the 'C' arm an out-of-bounds read copied
+                        straight into a gk value (heap disclosure).  With L in
+                        64 bits the gate rejects it, and since the widths are
+                        non-negative and sum to L==rowlen, every field offset
+                        is then in bounds by construction. */
   u64 k,m;           /* row index / row count -- must be 64-bit (>2^32 rows) */
   char *ppc,*z,*pz,*z0=0,g;
   i32 *pqi;
@@ -340,7 +352,7 @@ static K zerocolon2(K a, K x) {
       EC(fsize_(ff,&NN));
       B=0; N=NN;
     }
-    VSIZE((i64)N);
+    VLEN((i64)N);
 
     EC(fopen_(ff,"rb",&fp));
     EC(fsize_(ff,&NN));
@@ -520,12 +532,32 @@ static K onecolon1(K x) {
      the mapping.  CreateFileMapping with maxsize 0 uses the file size, so a
      truncated/corrupt header that claims more than the file holds makes
      MapViewOfFile fail cleanly rather than fault on access. */
+  /* NUL-terminate a char vector -- see the POSIX twin for the full reasoning.
+     Every OTHER -3 in gk is terminated (tn case 3 allocates n+1 zeroed bytes)
+     and fopen_/del_/rename_/3:/4:/8: all use px(x) as a C string, so a bare
+     view breaks that invariant.  The view is FILE_MAP_COPY (copy-on-write), so
+     writing the terminator is safe and never reaches disk -- PROVIDED it lands
+     inside the last page holding file data.  When 24+len is an exact multiple
+     of the page size that byte would start a page wholly past EOF, which
+     faults on Windows just as it does on POSIX, so copy instead.  dwPageSize,
+     not dwAllocationGranularity: the latter (64K) constrains view OFFSETS, not
+     how far a view may be read -- and confusing the two is exactly what the
+     POSIX twin has to defend against, since Cygwin/MSYS report the 64K
+     granularity from sysconf(_SC_PAGESIZE). */
+  { SYSTEM_INFO si; GetSystemInfo(&si);
+    if(t==-3 && (24+len)%(size_t)si.dwPageSize==0) { CloseHandle(fh); return twocolon1(x); } }
   mh=CreateFileMappingA(fh,0,PAGE_WRITECOPY,0,0,0);
   if(!mh) { K e=wferr(s); CloseHandle(fh); return e; }
-  v=MapViewOfFile(mh,FILE_MAP_COPY,0,0,24+len);
+  v=MapViewOfFile(mh,FILE_MAP_COPY,0,0,24+len);   /* NOT 24+len+1: the mapping
+                              object is sized to the file (maxsize 0), and
+                              MapViewOfFile fails if asked for more.  The
+                              terminator byte still lands in the last mapped
+                              PAGE, whose tail past EOF is zero-filled and
+                              writable under FILE_MAP_COPY. */
   if(!v) { K e=wferr(s); CloseHandle(mh); CloseHandle(fh); return e; }
   CloseHandle(mh);
   CloseHandle(fh);
+  if(t==-3) ((char*)v)[24+len]=0;   /* same page as 24+len-1, checked above */
   r=tnv(-t,c,24+(char*)v);
   ((ko*)(b(48)&r))->m=1;
   n(r)=c;
@@ -581,8 +613,42 @@ static K onecolon1(K x) {
      mapping must span header+data (24+len). Mapping only `len` left the tail
      24 bytes of data unmapped whenever len was page-aligned (big vectors) -> SEGV.
      __k frees this via munmap(k->v-24, 24+len) -- keep the two in lockstep. */
-  v=mmap(0,24+len,PROT_READ|PROT_WRITE,MAP_PRIVATE,fd,0);
+  /* Every OTHER -3 char vector in gk is NUL-terminated (tn case 3 allocates
+     n+1 zeroed bytes), and code throughout treats px(x) on a -3 as a C string
+     -- fopen_/fsize_/del_/rename_ and the 3:/4:/8: forms all do `s=px(x)`.
+     A bare mmap pointer is the one producer that breaks that invariant: a
+     4072-char file maps to exactly 24+4072 = one page, so strlen ran past the
+     mapping and spliced adjacent heap bytes -- a live 0x7f.. pointer -- into
+     the user-visible "File name too long" error, and a SIGSEGV is possible
+     when the successor page is unmapped.
+     Keep the zero copy: write the terminator into the PRIVATE mapping, which
+     is safe whenever 24+len leaves at least one byte inside the final page
+     (that byte is either real file data or kernel zero-fill, and the map is
+     MAP_PRIVATE|PROT_WRITE so the store is copy-on-write and never reaches
+     disk).  Only when 24+len lands exactly ON a page boundary would the
+     terminator need a page wholly past EOF -- SIGBUS on touch -- so copy
+     instead.  That is 1 length in PAGESIZE; zero-copy survives for the rest.
+     Cap the reported size at 4096: Cygwin and MSYS (which take THIS branch --
+     neither defines _WIN32) return the Windows ALLOCATION GRANULARITY (65536)
+     from sysconf(_SC_PAGESIZE), not the memory-protection granularity, which
+     is 4096 there as on every other x86-64 host.  A 24+len that is a multiple
+     of 4096 but not of 65536 -- t/t780's 4072-char file is exactly that --
+     then passed the test and faulted storing the terminator.  Testing against
+     4096 is safe everywhere because every page size at or above it is a
+     multiple of it (4K/16K/64K), so a true boundary is never missed; a smaller
+     reported size is honoured as-is.  Cost: 1 length in 4096 copies rather
+     than 1 in PAGESIZE. */
+  { long pg=sysconf(_SC_PAGESIZE); size_t ps=(pg>0)?(size_t)pg:4096;
+    if(ps>4096) ps=4096;
+    if(t==-3 && (24+len)%ps==0) { close(fd); return twocolon1(x); } }
+  v=mmap(0,24+len,PROT_READ|PROT_WRITE,MAP_PRIVATE,fd,0);   /* the terminator
+                              byte at [24+len] is inside the last mapped page
+                              (the page-aligned case was diverted above), so no
+                              extra length is needed -- and asking for it would
+                              diverge from __k's munmap(k->v-24, 24+nx*elem). */
   if(v==(void*)-1) { r=ferr(s,errno); close(fd); return r; }
+  if(t==-3) ((char*)v)[24+len]=0;   /* same page as 24+len-1, checked above, so
+                                       __k's munmap(v,24+len) still covers it */
   r=tnv(-t,c,24+(char*)v);
   ((ko*)(b(48)&r))->m=1;
   n(r)=c;
@@ -657,7 +723,7 @@ static K onecolon2(K a, K x) {
     if(tx!=0) { B=0; N=NN; }
     //if(B+N>(size_t)NN) { e=KERR_LENGTH; goto cleanup; }
     if(N>NN || B>NN-N) { e = KERR_LENGTH; goto cleanup; }
-    VSIZE((i64)N);
+    VLEN((i64)N);
     z0=z=xmalloc(1+N); ze=z0+N;
     fseek(fp,B,SEEK_SET);
     if(fread(z,1,N,fp)!=N) {
@@ -760,24 +826,24 @@ static K onecolon2(K a, K x) {
     if(N>NN || B>NN-N) { e = KERR_LENGTH; goto cleanup; }
     fseek(fp,B,SEEK_SET);
     if(ck(a)=='c') {
-      VSIZE((i64)N);
+      VLEN((i64)N);
       r=tn(3,N);
     }
     else if(ck(a)=='i') {
       if(N%sizeof(i32)) { e=KERR_LENGTH; goto cleanup; }
-      else { VSIZE((i64)(N/sizeof(int))); r=tn(1,N/sizeof(int)); }
+      else { VLEN((i64)(N/sizeof(int))); r=tn(1,N/sizeof(int)); }
     }
     else if(ck(a)=='j') {
       if(N%sizeof(i64)) { e=KERR_LENGTH; goto cleanup; }
-      else { VSIZE((i64)(N/sizeof(i64))); r=tn(8,N/sizeof(i64)); }
+      else { VLEN((i64)(N/sizeof(i64))); r=tn(8,N/sizeof(i64)); }
     }
     else if(ck(a)=='e') {
       if(N%sizeof(float)) { e=KERR_LENGTH; goto cleanup; }
-      else { VSIZE((i64)(N/sizeof(float))); r=tn(9,N/sizeof(float)); }
+      else { VLEN((i64)(N/sizeof(float))); r=tn(9,N/sizeof(float)); }
     }
     else if(ck(a)=='f') {
       if(N%sizeof(double)) { e=KERR_LENGTH; goto cleanup; }
-      else { VSIZE((i64)(N/sizeof(double))); r=tn(2,N/sizeof(double)); }
+      else { VLEN((i64)(N/sizeof(double))); r=tn(2,N/sizeof(double)); }
     }
     else { e=KERR_DOMAIN; goto cleanup; }
     if(fread((void*)px(r),1,N,fp)!=N) {
@@ -817,7 +883,7 @@ static K twocolon1(K x) {
   if((tx==4&&!strlen(sk(x))) || (tx==-3&&!nx)) return KERR_LENGTH;
   if(tx!=-3&&tx!=4) return KERR_TYPE;
   EC(fsize_(x,&bs));
-  VSIZE((i64)bs);
+  VLEN((i64)bs);
   EC(fopen_(x,"rb",&fp));
   e=readall_(fp,bs,&b,&n);
   fclose(fp);
@@ -1052,7 +1118,7 @@ static K fivecolon2(K a, K x) {
       return KERR_LENGTH;
     }
     gk_ld_arr(&c,&c,1,sizeof(u64)); /* element count is little-endian on disk */
-    VSIZE((i64)c);
+    VLEN((i64)c);
     p=bd_(x);
     if(E(p)) { fclose(fp); e=p; goto cleanup; }
     fseek(fp,0,SEEK_END);
@@ -1065,7 +1131,14 @@ static K fivecolon2(K a, K x) {
     { u64 le_n; gk_st_arr(&le_n,&n,1,sizeof(u64)); fwrite(&le_n,sizeof(u64),1,fp); } /* update count (little-endian on disk) */
     e=fwclose_(0,0,fp); fp=0;
     if(E(e)) goto cleanup;
-    r=n>(size_t)INT32_MAX?tj((i64)n):t(1,n); /* big count: long atom, not i32-truncated */
+    /* `>=`, not `>`: at exactly INT32_MAX the i32 arm emits t(1,2147483647),
+       which IS the 0I sentinel -- the same off-by-one the BIGV threshold had.
+       Appending to a file whose count reached 2147483646 returned 0I instead
+       of 2147483647, and the corollary is worse: VSIZE at :1055 then rejects
+       that count forever, so the append that returns 0I is the one that makes
+       the file permanently un-appendable.  BIGV is the shared spelling of this
+       boundary, so use it rather than restating INT32_MAX-1. */
+    r=n>(size_t)BIGV?tj((i64)n):t(1,n); /* big count: long atom, not i32-truncated */
   }
   else {
     p=bd_(x);
@@ -1097,7 +1170,7 @@ static K sixcolon1(K x) {
   if(tx!=-3&&tx!=4) return KERR_TYPE;
   if((tx==4&&!strlen(sk(x))) || (tx==-3&&!nx)) return KERR_LENGTH;
   EC(fsize_(x,&bs));
-  VSIZE((i64)bs);
+  VLEN((i64)bs);
   EC(fopen_(x,"rb",&fp));
   e=readall_(fp,bs,&b,&n);
   fclose(fp);

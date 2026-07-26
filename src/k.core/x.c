@@ -33,16 +33,66 @@ extern long gk_alloc_budget;
 #include <sys/mman.h>
 #endif
 
+/* ASan cannot see inside this allocator: it interposes malloc/free, and the
+   arena is one anonymous mmap, so every block up to 32MB -- which is every K
+   object -- would have no redzone and no use-after-free trap.  The manual
+   poisoning API restores both, which is what makes an ASan+BUDDY build worth
+   fuzzing rather than merely running.  Detect via the COMPILER's macro, not
+   gk's -DASAN_ENABLED: make.bat compiles the core files without that flag, and
+   what matters here is whether the sanitizer runtime is actually linked. */
+#if defined(__has_feature)
+# if __has_feature(address_sanitizer)
+#  define GK_ASAN 1
+# endif
+#endif
+#ifdef __SANITIZE_ADDRESS__
+# define GK_ASAN 1
+#endif
+
+#ifdef GK_ASAN
+#include <sanitizer/asan_interface.h>
+#define GK_POISON(p,n)   __asan_poison_memory_region((p),(n))
+#define GK_UNPOISON(p,n) __asan_unpoison_memory_region((p),(n))
+#else
+#define GK_POISON(p,n)   ((void)0)
+#define GK_UNPOISON(p,n) ((void)0)
+#endif
+
 /*
  * buddy allocator: power-of-2 blocks starting at 32 bytes
  * level 0 = 32B, level 1 = 64B, level 2 = 128B, ... level 24 = 512MB
  * stores level in first 8 bytes, returns pointer offset by 8
  * level 31 = marker for system malloc fallback
  */
+/* Overridable from the command line (like BIGV) so a fuzz build can shrink the
+   arena.  At the shipped 1GB the carve granule is 32MB -- buddy_alloc recurses
+   to the top level before touching the arena -- so exhaustion takes 32 carves,
+   while -DFUZZING caps one top-level eval at GK_ALLOC_BUDGET (64MB).  An AFL
+   exec therefore never reaches the exhaustion branch, the level-degradation
+   ladder below it, or the BUDDY_SYS fallback: they are dead code under the
+   fuzzer.  -DBUDDY_SIZE=1048576 makes all three hot in every input; see the
+   gkfb target.  BUDDY_SYS is protocol, not a tunable -- xfree tells a level
+   from the system-malloc marker by value, hence the check below. */
+#ifndef BUDDY_MIN
 #define BUDDY_MIN 32UL
+#endif
+#ifndef BUDDY_LEVELS
 #define BUDDY_LEVELS 21        /* max 32MB per allocation */
-#define BUDDY_SYS 31
+#endif
+#ifndef BUDDY_SIZE
 #define BUDDY_SIZE (1L << 30)  /* 1GB total pool */
+#endif
+#define BUDDY_SYS 31
+
+#if BUDDY_MIN < 16
+#error "BUDDY_MIN must hold the 8-byte header plus the 8-byte freelist link"
+#endif
+#if BUDDY_LEVELS < 1 || BUDDY_LEVELS > BUDDY_SYS
+#error "BUDDY_LEVELS must be in 1..BUDDY_SYS-1 so xfree can distinguish a level from BUDDY_SYS"
+#endif
+#if BUDDY_SIZE < BUDDY_MIN
+#error "BUDDY_SIZE cannot hold a single smallest block"
+#endif
 
 static uint64_t buddy_fl[BUDDY_LEVELS];  /* freelists */
 static char *buddy_arena;
@@ -51,6 +101,13 @@ static size_t buddy_used;
 /* compute level from size (including 8-byte header) */
 /* returns BUDDY_LEVELS if size exceeds max buddy allocation */
 static inline uint32_t buddy_level(size_t s) {
+  /* s+8 must not wrap: for s in [SIZE_MAX-7, SIZE_MAX] it wraps to 0..7, which
+     picks level 0 and hands back a 24-byte block for a ~2^64-byte request --
+     silently UNDER-allocating instead of failing.  BUDDY_LEVELS routes it to
+     the system-malloc arm, which fails cleanly.  This matters because -DBUDDY
+     is the PRODUCTION build while gka/gkf/gkabig build without it, so ASan and
+     AFL never exercise this allocator at all. */
+  if(s > SIZE_MAX - 8) return BUDDY_LEVELS;
   size_t sz = s + 8;
   uint32_t lv = 0;
   while(((size_t)BUDDY_MIN << lv) < sz && lv < BUDDY_LEVELS - 1) lv++;
@@ -59,6 +116,26 @@ static inline uint32_t buddy_level(size_t s) {
   return lv;
 }
 
+#ifdef GK_ASAN
+/* The redzone is the slack between the request and the bucket, so an exact fit
+   leaves no redzone at all -- and that is the common case here, not a corner:
+   sizeof(ko) is 24, so EVERY K object asks for 24 and 24+8 == 32 == BUDDY_MIN
+   exactly.  Likewise K lists at n = 3,7,15..., i32 vectors at n = 6,14,30...,
+   and char vectors at n = 23,55,119...  Take the next bucket when that happens
+   so there is always something to overflow into.  It doubles the block for
+   those sizes, in ASan builds only, where memory is already multiplied.  lv may
+   reach BUDDY_LEVELS, which just routes to the system-malloc arm -- ASan
+   supplies its own redzone there, so the guarantee holds either way. */
+static inline uint32_t buddy_level_rz(size_t s) {
+  uint32_t lv = buddy_level(s);
+  if(lv < BUDDY_LEVELS && ((size_t)BUDDY_MIN << lv) - 8 - s == 0) lv++;
+  return lv;
+}
+#define BUDDY_LEVEL(s) buddy_level_rz(s)
+#else
+#define BUDDY_LEVEL(s) buddy_level(s)
+#endif
+
 /* allocate from level lv */
 static uint64_t buddy_alloc(uint32_t lv) {
   uint64_t x;
@@ -66,7 +143,8 @@ static uint64_t buddy_alloc(uint32_t lv) {
   /* check freelist */
   if(buddy_fl[lv]) {
     x = buddy_fl[lv];
-    buddy_fl[lv] = *(uint64_t*)x;
+    buddy_fl[lv] = *(uint64_t*)x;   /* the link stays open while the block is
+                                       free -- see buddy_free */
     return x;
   }
 
@@ -75,6 +153,7 @@ static uint64_t buddy_alloc(uint32_t lv) {
     uint64_t block = buddy_alloc(lv + 1);
     if(block) {
       /* put first half on freelist, return second half */
+      GK_UNPOISON((void*)block, 8);   /* allocator metadata, not user memory */
       *(uint64_t*)block = buddy_fl[lv];
       buddy_fl[lv] = block;
       return block + (BUDDY_MIN << lv);
@@ -96,6 +175,10 @@ static uint64_t buddy_alloc(uint32_t lv) {
   if(buddy_arena && buddy_used + sz <= BUDDY_SIZE) {
     x = (uint64_t)(buddy_arena + buddy_used);
     buddy_used += sz;
+    GK_POISON((void*)x, sz);   /* carve poisoned; xmalloc opens exactly the
+                                  bytes it hands out.  Per-carve, not once over
+                                  the whole arena: the shadow write is then
+                                  proportional to memory actually used. */
     return x;
   }
 
@@ -104,15 +187,25 @@ static uint64_t buddy_alloc(uint32_t lv) {
 
 /* free to level lv */
 static inline void buddy_free(uint32_t lv, uint64_t x) {
+  GK_POISON((void*)x, BUDDY_MIN << lv); /* the whole block is dead: a read or
+                                           write anywhere in the user region
+                                           now traps as use-after-free */
+  GK_UNPOISON((void*)x, 8);             /* except the freelist link */
   *(uint64_t*)x = buddy_fl[lv];
   buddy_fl[lv] = x;
 }
 
 void* xmalloc(size_t s) {
   if(!s) s=1;
+  /* The +8 header must not wrap.  buddy_level() already refuses such a size
+     (returning BUDDY_LEVELS), but that only routes it to the system-malloc arm
+     BELOW, which then computes `malloc(s + 8)` and wraps there instead --
+     s = SIZE_MAX-3 became malloc(4) and handed back a 4-byte block for a
+     ~2^64-byte request.  Guard once, here, so BOTH arms are covered. */
+  if(s > SIZE_MAX - 8) { printf("wsfull\n"); exit(1); }
   GK_CHARGE(s);
 
-  uint32_t lv = buddy_level(s);
+  uint32_t lv = BUDDY_LEVEL(s);
 
   /* large allocations go to system malloc */
   if(lv >= BUDDY_LEVELS) {
@@ -137,7 +230,18 @@ void* xmalloc(size_t s) {
     return (char*)p + 8;
   }
 
+  GK_UNPOISON((void*)block, 8 + s);   /* header + exactly the request */
   *(uint32_t*)block = lv;
+#ifdef GK_ASAN
+  /* Only the low 4 bytes of the 8-byte header carry the level, so the upper 4
+     are free to record the true request size.  Two uses, both ASan-only: the
+     slack between the request and the bucket becomes a redzone (below), and
+     xrealloc can copy just the live bytes instead of the whole bucket, which
+     would otherwise read straight through that redzone.  s fits in 32 bits
+     because this arm only runs when s+8 <= BUDDY_MIN<<(BUDDY_LEVELS-1). */
+  *(uint32_t*)(block + 4) = (uint32_t)s;
+  GK_POISON((char*)block + 8 + s, (BUDDY_MIN << lv) - 8 - s);
+#endif
   return (void*)(block + 8);
 }
 
@@ -159,7 +263,14 @@ void xfree(void *p) {
 }
 
 void* xcalloc(size_t n, size_t s) {
-  size_t sz=n*s;
+  /* n*s must not wrap.  libc calloc checks this, so the NON-BUDDY builds
+     (gka/gkf/gkabig, MSVC) were already safe and only the BUDDY production
+     build was exposed: xcalloc((size_t)1<<62,8) wrapped to 0 and returned a
+     valid pointer with a matching quiet memset.  tn(0,n) reaches this for
+     n >= 2^61. */
+  size_t sz;
+  if(s && n > SIZE_MAX / s) { printf("wsfull\n"); exit(1); }
+  sz=n*s;
   void *p=xmalloc(sz);
   memset(p,0,sz);
   return p;
@@ -168,6 +279,8 @@ void* xcalloc(size_t n, size_t s) {
 void* xrealloc(void *p, size_t s) {
   if(!p) return xmalloc(s);
   if(!s) { xfree(p); return xmalloc(1); }
+  if(s > SIZE_MAX - 8) { printf("wsfull\n"); exit(1); }  /* see xmalloc: the
+                              system arm below computes realloc(base, s+8) */
   GK_CHARGE(s);
 
   uint64_t base = (uint64_t)p - 8;
@@ -190,10 +303,24 @@ void* xrealloc(void *p, size_t s) {
   }
 
   size_t old_sz = (BUDDY_MIN << old_lv) - 8;
-  uint32_t new_lv = buddy_level(s);
+  uint32_t new_lv = BUDDY_LEVEL(s);   /* must use the same rule as xmalloc, or
+                              the same-bucket test below would disagree with the
+                              level actually recorded in the header */
+#ifdef GK_ASAN
+  old_sz = (size_t)*(uint32_t*)(base + 4);  /* the true old request: copying the
+                              whole bucket would read this block's own redzone */
+#endif
 
   /* same bucket - no realloc needed */
-  if(new_lv == old_lv) return p;
+  if(new_lv == old_lv) {
+#ifdef GK_ASAN
+    GK_UNPOISON(p, s);                      /* the live region moved, so the
+                                               redzone has to move with it */
+    *(uint32_t*)(base + 4) = (uint32_t)s;
+    GK_POISON((char*)p + s, (BUDDY_MIN << old_lv) - 8 - s);
+#endif
+    return p;
+  }
 
   /* different bucket - alloc, copy, free */
   void *p2 = xmalloc(s);

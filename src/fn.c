@@ -130,7 +130,7 @@ static inline K closure(K x, K s0, K closurescope) {
     _fs=px(_s);
     if(_fs[0]!=s0) return x;
     r=fncp(x);
-    if(E(r)) { _k(x); return r; }
+    if(E(r)) return r;   /* error: x NOT consumed (closure_any unwinds without freeing) */
     _k(x);
     _pr=px(r);
     _s=_pr[2];
@@ -143,8 +143,7 @@ static inline K closure(K x, K s0, K closurescope) {
 
 /* The walked value graph could be CYCLIC: d.b:@[;].k once stored a
    projection holding the LIVE .k inside the tree, closing .k -> d -> P ->
-   .k, and a consume-per-visit walk over a cycle revisits nodes, so an
-   error unwind (closure_any's depth guard) over-frees them: UAF.
+   .k, and a walk over a cycle never terminates without a cut.
    proj_own_args below now snapshots dict args at projection formation --
    the only known ring constructor -- but the walks keep this cycle cut as
    defense in depth.  wpath is the container ancestry of the walk in
@@ -202,22 +201,30 @@ static int proj_captures(K x, K s0) {
    convert their slots in place and return themselves (the value may be
    shared with the frame's own binding -- so was the pre-existing slot-0
    in-place convert); each captured lambda is replaced by a re-parented copy
-   (closure()).  Consumes x; on error the partially-converted container is
-   freed and the error returned.  A cycle (on_wpath) hands x back untouched
-   and unconsumed -- the visit above us owns the conversion. */
+   (closure()).  Consumes x on success; on ERROR x is NOT consumed -- the
+   walk mutates slots of containers it does not own (x may be shared with
+   the frame's own binding, or be a global reached by name), so the unwind
+   must not free or null anything it visited: interior slots still belong
+   to the surviving tree (t778: a deep verb train returned by name hit
+   the depth guard here and the old consume-on-error unwind freed the
+   global's interior and nulled a live slot).  Already-converted slots stay
+   converted -- a re-parented copy is equivalent, so a partial conversion
+   is harmless.  The caller frees its ref on error.  A cycle (on_wpath)
+   hands x back untouched and unconsumed -- the visit above us owns the
+   conversion. */
 static K closure_any(K x, K s0, K closurescope) {
   static int d=0;
   u64 j; K *p, c;
-  if(++d>maxr) { --d; _k(x); return KERR_STACK; }
+  if(++d>maxr) { --d; return KERR_STACK; }
   switch(s(x)) {
   case 0xc3: --d; return closure(x,s0,closurescope);
   case 0xd9: case 0xd7:
     if(on_wpath(x)) break;
     wpath[wpn++]=x;
     p=px(x);
-    c=closure_any(p[0],s0,closurescope); if(E(c)) { p[0]=0; --wpn; --d; _k(x); return c; }
+    c=closure_any(p[0],s0,closurescope); if(E(c)) { --wpn; --d; return c; }
     p[0]=c;
-    c=closure_any(p[1],s0,closurescope); if(E(c)) { p[1]=0; --wpn; --d; _k(x); return c; }
+    c=closure_any(p[1],s0,closurescope); if(E(c)) { --wpn; --d; return c; }
     p[1]=c;
     --wpn;
     break;
@@ -225,7 +232,7 @@ static K closure_any(K x, K s0, K closurescope) {
     if(on_wpath(x)) break;
     wpath[wpn++]=x;
     p=px(x);
-    c=closure_any(p[0],s0,closurescope); if(E(c)) { p[0]=0; --wpn; --d; _k(x); return c; }
+    c=closure_any(p[0],s0,closurescope); if(E(c)) { --wpn; --d; return c; }
     p[0]=c;
     --wpn;
     break;
@@ -235,7 +242,7 @@ static K closure_any(K x, K s0, K closurescope) {
     p=px(x); K vl=p[1]; K *pv=px(vl);
     for(j=0;j<n(vl);++j) {
       c=closure_any(pv[j],s0,closurescope);
-      if(E(c)) { pv[j]=null; --wpn; --d; _k(x); return c; }
+      if(E(c)) { --wpn; --d; return c; }
       pv[j]=c;
     }
     --wpn;
@@ -246,7 +253,7 @@ static K closure_any(K x, K s0, K closurescope) {
       p=px(x);
       for(j=0;j<n(x);++j) {
         c=closure_any(p[j],s0,closurescope);
-        if(E(c)) { p[j]=0; --wpn; --d; _k(x); return c; }
+        if(E(c)) { --wpn; --d; return c; }
         p[j]=c;
       }
       --wpn;
@@ -902,7 +909,9 @@ K fne_(K f, K x, char *av) {
       if(E(closurescope)) { _k(r); r=closurescope; goto lam_cleanup; }
       K *pc=px(closurescope); pc[3]=t(1,1);
       cc_register(closurescope,closure_siblings(closurescope,cs));
-      r=closure_any(r,cs,closurescope);
+      K cv=closure_any(r,cs,closurescope);
+      if(E(cv)) _k(r);   /* error: closure_any left r un-consumed and intact */
+      r=cv;
       _k(closurescope);
     }
 
@@ -996,7 +1005,9 @@ K fne_fast(K f, K x) {
     if(E(closurescope)) { _k(r); r=closurescope; goto cleanup; }
     K *pc=px(closurescope); pc[3]=t(1,1);
     cc_register(closurescope,closure_siblings(closurescope,cs));
-    r=closure_any(r,cs,closurescope);
+    K cv=closure_any(r,cs,closurescope);
+    if(E(cv)) _k(r);   /* error: closure_any left r un-consumed and intact */
+    r=cv;
     _k(closurescope);
   }
 

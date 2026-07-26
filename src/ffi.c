@@ -29,7 +29,16 @@ GK_API K gk_mknull(void)       { return null; }
    than silently handing back an empty vector the author didn't ask for. The
    standard fill loop `for(i=0;i<n;i++) gk_<t>v(r)[i]=..` never runs for n<0,
    so the error propagates back into gk without being dereferenced. */
-#define GK_VCHK(n) do { if((n) < 0) return KERR_WSFULL; } while(0)
+/* The symmetric POSITIVE bound was missing, and it matters for the same reason:
+   tn() multiplies the count by the element size with no overflow check, so a
+   large positive n wraps.  gk_mkiv(1<<62) computed 4*2^62 == 0 (mod 2^64) and
+   returned a ZERO-byte buffer behind a vector claiming 4611686018427387904
+   elements -- `#b` reported it, `b@0` read out of the empty allocation, and
+   `b@2000000000j` segfaulted.  Same for mkfv/mkjv/mkev/mksv (8n or 4n), and
+   mkkv additionally slipped past libc in the BUDDY build.  VMAX is the
+   existing ceiling (element counts above it can't have a byte size), so reuse
+   it rather than inventing a per-type bound. */
+#define GK_VCHK(n) do { if((n) < 0 || (int64_t)(n) >= (int64_t)VMAX) return KERR_WSFULL; } while(0)
 GK_API K gk_mkiv(int64_t n) { GK_VCHK(n); return tn(1, n); }
 GK_API K gk_mkfv(int64_t n) { GK_VCHK(n); return tn(2, n); }
 GK_API K gk_mkjv(int64_t n) { GK_VCHK(n); return tn(8, n); }

@@ -167,10 +167,10 @@ i32* rcsortg9(i32 *g, float *a, u32 n, i32 down) {
 #define MIN(X,Y) (((X)<(Y))?(X):(Y))
 #define CMP(x,y) ((x)>(y)?1:(x)<(y)?-1:0)
 #define MS(N,T,C) \
-static void merge##N(i32 *g, T a, i32 p, i32 q, i32 r, i32 down) { \
-  i32 i,j,k; \
-  i32 n1 = q-p+1; \
-  i32 n2 = r-q; \
+static void merge##N(i32 *g, T a, i64 p, i64 q, i64 r, i32 down) { \
+  i64 i,j,k; \
+  i64 n1 = q-p+1; \
+  i64 n2 = r-q; \
   for(i=0;i<n1;i++) M[i] = g[p+i]; \
   for(j=0;j<n2;j++) M[n1+j] = g[q+j+1]; \
   i=0; j=n1; k=p; \
@@ -189,13 +189,21 @@ static void merge##N(i32 *g, T a, i32 p, i32 q, i32 r, i32 down) { \
   while(j<n1+n2) g[k++] = M[j++]; \
 } \
 void msortg##N(i32 *g, T a, i32 l, i32 r, i32 down) { \
-  i32 c,m,e,p,n=r-l+1; \
+  /* POSITIONS must be i64 even though the grade INDICES stored in g/M are
+     i32.  BIGV admits n up to 2^31-2, but this driver was only safe to 2^30:
+     once c reached 2^30, `2*c` and `p += 2*c` overflowed i32, p wrapped to
+     INT32_MIN, `p<=r` stayed true, and merge() then read g[p+i] ~8GB below the
+     allocation.  Reachable for 2^30 < n <= BIGV via general lists (which
+     always merge), long vectors whose value range is >= 0x10000000, and int
+     vectors whose range overflows i32.  Predates the BIGV change.  g and M
+     stay i32*: an index is < n <= BIGV, so the VALUES still fit. */ \
+  i64 c,m,e,p,n=(i64)r-(i64)l+1; \
   if(n<=1) return; \
   M=xmalloc(sizeof(i32)*n); \
   for(c=1;c<n;c<<=1) { \
-    for(p=l;p<=r;p+=2*c) { \
-      m = MIN(p+c-1,r); \
-      e = MIN(p+2*c-1,r); \
+    for(p=l;p<=(i64)r;p+=2*c) { \
+      m = MIN(p+c-1,(i64)r); \
+      e = MIN(p+2*c-1,(i64)r); \
       if(m<e) merge##N(g,a,p,m,e,down); \
     } \
   } \

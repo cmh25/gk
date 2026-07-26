@@ -1,5 +1,5 @@
-/ 2026-07-13 rulings (match e333j):
-/ (1) a one-item fold is *y, f NEVER applied (K2 p.132) -- %/,-19 was
+/ 2026-07-13 rulings:
+/ (1) a one-item fold is *y, f NEVER applied -- %/,-19 was
 / float-converting the untouched item;
 / (2) empty#empty yields the PROTOTYPE of the right argument (numeric
 / arms used to give nul; char/sym were already right).

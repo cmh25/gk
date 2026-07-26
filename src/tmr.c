@@ -227,7 +227,7 @@ K timer_(K x) {
     K e  = 0;
 
     double sec = 0.0;
-    if(T(iv) == 1)      sec = (double)ik(iv);
+    if(T(iv) == 1)      sec = fi(ik(iv));
     else if(T(iv) == 2) sec = fk(iv);
     else                e = KERR_TYPE;
     if(!e && (!isfinite(sec) || sec < 0.0)) e = KERR_DOMAIN;

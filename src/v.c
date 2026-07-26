@@ -499,20 +499,27 @@ K valuecb(K x) {
 
 static K form2w(char *t, i32 w, i32 z) {
   K r=0;
-  i32 i,n,l,m;
+  i64 l;        /* 64-bit: see the twin in k.core/v.c -- an i32 strlen went
+                   negative past 2^31 and turned the pad branch into a heap
+                   overflow.  This copy is fed by formatcb(), so it needs a
+                   value whose PRINTED form exceeds 2GB rather than a 2GB
+                   char vector, but the arithmetic is identical. */
+  i32 m;
   char *prc;
   if(w==INT32_MIN) return KERR_DOMAIN; /* abs(INT32_MIN) is UB */
-  l=strlen(t); m=abs(w); n=abs(l-m);
-  if(m>l) {
+  l=(i64)strlen(t); m=abs(w);
+  if(m>l) {                       /* pad to width m */
+    i64 pad=(i64)m-l;
     PRC(m);
-    if(w<0) { for(i=0;i<l;i++) prc[i]=*t++; for(;i<m;i++) prc[i]=' '; }
-    else if(w>0) { for(i=0;i<n;i++) prc[i]=' '; for(;i<m;i++) prc[i]=*t++; }
-  } else if(m<l) {
+    if(w<0)      { memcpy(prc,t,(size_t)l); memset(prc+l,' ',(size_t)pad); }
+    else if(w>0) { memset(prc,' ',(size_t)pad); memcpy(prc+pad,t,(size_t)l); }
+  } else if(m<l) {                /* truncate to width m */
     PRC(m);
     if(z) { i(m,*prc++='*') *prc=0; }
-    else { if(w<0) { i(m,prc[i]=t[i]) } else { i(m,prc[i]=*(t+l-m+i)) } }
+    else if(w<0) memcpy(prc,t,(size_t)m);          /* keep the head */
+    else         memcpy(prc,t+(l-m),(size_t)m);    /* keep the tail */
   }
-  else { PRC(l); i(m,prc[i]=t[i]) }
+  else { PRC(l); memcpy(prc,t,(size_t)l); }        /* m==l: exact fit */
   return r;
 }
 K formcb(K a, K x) {
@@ -531,7 +538,8 @@ K formcb(K a, K x) {
     switch(ta) {
     case  1:
       if(ik(a)==INT32_MIN) return KERR_DOMAIN; /* abs(INT32_MIN) is UB; also consistent w/ASAN build */
-      VSIZE(llabs((i64)ik(a)));
+      VSIZE(llabs((i64)ik(a)));   /* a WIDTH, not a length: -0I gives
+                                      llabs==INT32_MAX and must stay rejected (t654) */
       switch(s(x)) {
       case 0x80:
       case 0xc3:
@@ -546,7 +554,7 @@ K formcb(K a, K x) {
       /* 0xc4 retired in Pass 4 */
       case 0xd9:
         PAI;
-        i(na,if(pai[i]==INT32_MIN)return KERR_DOMAIN; VSIZE(llabs((i64)pai[i])))
+        i(na,if(pai[i]==INT32_MIN)return KERR_DOMAIN; VSIZE(llabs((i64)pai[i])))  /* widths */
         PRK(na);
         i(na,t=formatcb(x); p=form2w(px(t),pai[i],1); _k(t); prk[i]=p)
         break;

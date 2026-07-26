@@ -1145,7 +1145,7 @@ static K kamendi4d(K d, K i, K f, K y) {
       break;
     case 15:
       if(b) i(n(v),r=amend_fe(k_(f),k_(pv[i]),k_(y),0);EC(r);_k(pv[i]);pv[i]=r)
-      else i(n(v),_k(pv[i]);pv[i]=kcp(y);EC(pv[i]))
+      else i(n(v),{K cpv=kcp(y);EC(cpv);_k(pv[i]);pv[i]=cpv;})
       break;
     default: e=KERR_TYPE; goto cleanup; /* see the ti==-4 default above */
     } break;
@@ -1356,7 +1356,7 @@ static K kamendi4v_(K d, K i, K f, K y) {
         if(td) { t=kmix(d); EC(t); _k(d); d=t; }
         pdu=px(d);
         if(b) { r=amend_fe(k_(f),k_(pdu[idx]),k_(y),0); EC(r); _k(pdu[idx]); pdu[idx]=r; }
-        else { _k(pdu[idx]); pdu[idx]=kcp2(y); EC(pdu[idx]); }
+        else { K cpv=kcp2(y); EC(cpv); _k(pdu[idx]); pdu[idx]=cpv; }
       }
     }
   }
@@ -1526,7 +1526,7 @@ static K kamendi4v_(K d, K i, K f, K y) {
     switch(ti) {
     case  1:
       if(b) { r=amend_fe(k_(f),k_(pdu[ik(i)]),k_(y),0); EC(r); _k(pdu[ik(i)]); pdu[ik(i)]=r; }
-      else { _k(pdu[ik(i)]); pdu[ik(i)]=kcp2(y); EC(pdu[ik(i)]); }
+      else { K cpv=kcp2(y); EC(cpv); _k(pdu[ik(i)]); pdu[ik(i)]=cpv; }
       break;
     case -1:
       switch(Ty) {
@@ -1536,7 +1536,7 @@ static K kamendi4v_(K d, K i, K f, K y) {
         break;
       case 15:
         if(b) i(n(i),r=amend_fe(k_(f),k_(pdu[pii[i]]),k_(y),0); EC(r); _k(pdu[pii[i]]); pdu[pii[i]]=r)
-        else i(n(i),_k(pdu[pii[i]]);pdu[pii[i]]=kcp(y);EC(pdu[pii[i]]))
+        else i(n(i),{K cpv=kcp(y);EC(cpv);_k(pdu[pii[i]]);pdu[pii[i]]=cpv;})
         break;
       case -1: pyi=px(y);
         if(b) i(n(i),r=amend_fe(k_(f),k_(pdu[pii[i]]),t(1,(u32)pyi[i]),0); EC(r); _k(pdu[pii[i]]); pdu[pii[i]]=r)
@@ -1564,7 +1564,7 @@ static K kamendi4v_(K d, K i, K f, K y) {
         break;
       case  0: pyu=px(y);
         if(b) i(n(i),r=amend_fe(k_(f),k_(pdu[pii[i]]),k_(pyu[i]),0); EC(r); _k(pdu[pii[i]]); pdu[pii[i]]=r)
-        else i(n(i),_k(pdu[pii[i]]);pdu[pii[i]]=kcp2(pyu[i]);EC(pdu[pii[i]]))
+        else i(n(i),{K cpv=kcp2(pyu[i]);EC(cpv);_k(pdu[pii[i]]);pdu[pii[i]]=cpv;})
         break;
       } break;
     case  6:
@@ -1575,7 +1575,7 @@ static K kamendi4v_(K d, K i, K f, K y) {
         break;
       case 15:
         if(b) i(n(d),r=amend_fe(k_(f),k_(pdu[i]),k_(y),0); EC(r); _k(pdu[i]); pdu[i]=r)
-        else i(n(d),_k(pdu[i]);pdu[i]=kcp(y);EC(pdu[i]))
+        else i(n(d),{K cpv=kcp(y);EC(cpv);_k(pdu[i]);pdu[i]=cpv;})
         break;
       case -1: pyi=px(y);
         if(n(d)!=n(y)) { e=KERR_LENGTH; goto cleanup; }
@@ -1610,7 +1610,7 @@ static K kamendi4v_(K d, K i, K f, K y) {
       case  0: pyu=px(y);
         if(n(d)!=n(y)) { e=KERR_LENGTH; goto cleanup; }
         if(b) i(n(d),r=amend_fe(k_(f),k_(pdu[i]),k_(pyu[i]),0); EC(r); _k(pdu[i]); pdu[i]=r)
-        else i(n(d),_k(pdu[i]);pdu[i]=kcp2(pyu[i]);EC(pdu[i]))
+        else i(n(d),{K cpv=kcp2(pyu[i]);EC(cpv);_k(pdu[i]);pdu[i]=cpv;})
         break;
       } break;
     case  0: {
