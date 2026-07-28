@@ -1683,6 +1683,8 @@ Apply a monadic `f` to `x` `n` times (`n` a non-negative int), keeping each step
 <h3 id="adv-while-scan">while <code>b f\x</code></h3>
 
 Apply a monadic `f` while the monadic predicate `b` holds, keeping each step.
+Iteration continues until `b`'s result matches `0` or `0j`; a non-integer
+result (`0.0`, a symbol, ...) matches neither, so it keeps the loop going.
 
 ```
   {x<10}{x+1}\0
@@ -1739,7 +1741,9 @@ Apply a monadic `f` to `x` `n` times; result is the final value.
 <h3 id="adv-while-over">while <code>b f/x</code></h3>
 
 Apply a monadic `f` while the monadic predicate `b` holds; result is the final
-value.
+value. Iteration continues until `b`'s result matches `0` or `0j`; a
+non-integer result (`0.0`, a symbol, ...) matches neither, so it keeps the
+loop going.
 
 ```
   {x<100}{x*2}/1
@@ -1807,7 +1811,10 @@ than `x`.
 a non-negative int is `do`, a monadic predicate is `while`. The infix and
 bracket spellings are the same (`a f/x` is `f/[a;x]`). A negative count is a
 `domain` error; a controller that is neither an int nor a monad is `type`; the
-wrong number of arguments for `f`'s valence is `valence`.
+wrong number of arguments for `f`'s valence is `valence`. The predicate loop
+runs until `b`'s result matches `0` or `0j` (a non-integer result matches
+neither and keeps looping), unlike `if`/`do`/`while`/`:[]` conditions, which
+must be an int or long.
 
 **Projection** — an empty bracket slot projects, like any application:
 

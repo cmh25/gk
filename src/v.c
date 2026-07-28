@@ -126,7 +126,7 @@ K dotcb(K a,K x) {
   if(4==ta&&!s(a)) {
     K a2=scope_get(cs,a);
     if(E(a2)) { --d; return 0; }
-    else if(4==T(a2)||3==T(a2)||-3==T(a2)) { --d; return a2; }
+    else if(!s(a2)&&(4==T(a2)||3==T(a2)||-3==T(a2))) { --d; return a2; }
     else if(a2) {
       r=k(11,a2,k_(x)); // symbol could have resolved to a primitive type
       --d;
@@ -138,7 +138,7 @@ K dotcb(K a,K x) {
     b[0]=ck(a); b[1]=0;
     K a2=scope_get(cs,t(4,sp(b)));
     if(E(a2)) { --d; return 0; }
-    else if(4==T(a2)||3==T(a2)||-3==T(a2)) { --d; return a2; }
+    else if(!s(a2)&&(4==T(a2)||3==T(a2)||-3==T(a2))) { --d; return a2; }
     else if(a2) {
       r=k(11,a2,k_(x)); // symbol could have resolved to a primitive type
       --d;
@@ -149,7 +149,7 @@ K dotcb(K a,K x) {
   else if(-3==ta&&!s(a)) {
     K a2=scope_get(cs,t(4,sp((char*)px(a))));
     if(E(a2)) { --d; return 0; }
-    else if(4==T(a2)||3==T(a2)||-3==T(a2)) { --d; return a2; }
+    else if(!s(a2)&&(4==T(a2)||3==T(a2)||-3==T(a2))) { --d; return a2; }
     else if(a2) {
       r=k(11,a2,k_(x)); // symbol could have resolved to a primitive type
       --d;
@@ -332,7 +332,7 @@ K dotcb(K a,K x) {
 K enumeratecb(K x) {
   K r=0,v;
   if(0x80==s(x)) r=dkeys(x);
-  else if(tx==4) {
+  else if(!s(x)&&tx==4) {
     v=scope_get(ks,x); // ktree_get()
     if(0x80==s(v)) r=dkeys(v);
     else r=null;
@@ -423,17 +423,18 @@ K valuecb(K x) {
     if(nx==2 && ISF(px[0])) {
       return k(11,k_(px[0]),k_(px[1]));
     }
-    if(nx==2 && (T(px[0])==4 || T(px[0])==-3 || T(px[0])==3)) {
+    if(nx==2 && !s(px[0]) &&
+       (T(px[0])==4 || T(px[0])==-3 || T(px[0])==3)) {
       if(T(px[0])==4) {
         K a=scope_get(cs,px[0]);
         if(E(a)) return KERR_VALUE;
-        else if(4==T(a)||3==T(a)||-3==T(a)) return a;
+        else if(!s(a)&&(4==T(a)||3==T(a)||-3==T(a))) return a;
         return k(11,a,k_(px[1]));
       }
       else if(T(px[0])==-3) {
         K a=scope_get(cs,t(4,sp((char*)px(px[0]))));
         if(E(a)) return KERR_VALUE;
-        else if(4==T(a)||3==T(a)||-3==T(a)) return a;
+        else if(!s(a)&&(4==T(a)||3==T(a)||-3==T(a))) return a;
         return k(11,a,k_(px[1]));
       }
       else if(T(px[0])==3) {
@@ -441,14 +442,14 @@ K valuecb(K x) {
         b[0]=ck(px[0]); b[1]=0;
         K a=scope_get(cs,t(4,sp(b)));
         if(E(a)) return KERR_VALUE;
-        else if(4==T(a)||3==T(a)||-3==T(a)) return a;
+        else if(!s(a)&&(4==T(a)||3==T(a)||-3==T(a))) return a;
         return k(11,a,k_(px[1]));
       }
     }
     int recur=1;
-    i(nx,if(-3!=T(px[i])&&0!=T(px[i])){recur=0;break;})
+    i(nx,if(s(px[i])||(-3!=T(px[i])&&0!=T(px[i]))){recur=0;break;})
     for(u64 i=0;i<nx;++i) {
-      if(0!=T(px[i])&&-4!=T(px[i])) { /* dict? */
+      if(s(px[i])||(0!=T(px[i])&&-4!=T(px[i]))) { /* dict? */
         if(recur) { /* .("10";"11") */
           //r=irecur1(valuecb,x); /* ref count issues due to k() freeing args, but valuecb doesn't */
           r=tn(0,nx); pr=px(r);
@@ -476,10 +477,10 @@ K valuecb(K x) {
     pr[2]=m;
     pr[3]=null; /* hash-index slot (dict.c) */
     for(i=0;i<nx;i++) {
-      if(0==T(px[i])) {
+      if(!s(px[i])&&0==T(px[i])) {
         t=px(px[i]);
-        if(3==n(px[i])&&6!=T(t[2])) { _k(r); return KERR_TYPE; }
-        if(4!=T(t[0])) { _k(r); return KERR_TYPE; }
+        if(3==n(px[i])&&(!t[2]||s(t[2])||6!=T(t[2]))) { _k(r); return KERR_TYPE; }
+        if(s(t[0])||4!=T(t[0])) { _k(r); return KERR_TYPE; }
         pk[i]=sk(t[0]);
         pv[i]=k_(t[1]);
       }

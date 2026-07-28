@@ -20,9 +20,10 @@
 
 / 3. do-n scan `n f\x` with n = 0Ij (INT64_MAX): the result list was sized
 /    1+n, which overflowed to a negative count -> ~2^64 alloc -> SEGFAULT in
-/    production.  Now a clean `limit` error.
-@[{0Ij{x+1}\x};0;:]
-@[{9223372036854775807j{x}\x};0;:]
+/    production.  Maximum-count scans now grow dynamically; a body error
+/    proves they begin execution rather than failing up front.
+@[{0Ij{x+`a}\x};0;:]
+@[{9223372036854775807j{x+`a}\x};0;:]
 
 / 4. dyadic `$` (format) with a non-finite / out-of-i64-range width fed the
 /    float straight into a float->i64 cast -- UB.  inf/huge now `wsfull`

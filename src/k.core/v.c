@@ -629,7 +629,7 @@ K more(K a, K x)  { return lme(a,x,1,more,8); }
 K equal(K a, K x) { return lme(a,x,0,equal,9); }
 
 K match(K a, K x) {
-  if(ta==2&&tx==2) return t(1,(u32)(0==cmpfft(fk(a),fk(x))));
+  if(!s(a)&&!s(x)&&ta==2&&tx==2) return t(1,(u32)(0==cmpfft(fk(a),fk(x))));
   return t(1,(u32)!kcmpr(a,x));
 }
 
@@ -808,7 +808,7 @@ K modrot(K a, K x) {
   case -1:
     switch(tx) {
     case 1: PRI(na); PAI; { i32 X=ik(x); i(na,pri[i]=modi(pai[i],X)) } break;
-    case 2: PRF(na); PAI; { double X=fk(x); i(na,prf[i]=modd((double)pai[i],X)) } break;
+    case 2: PRF(na); PAI; { double X=fk(x); i(na,prf[i]=modd(fi(pai[i]),X)) } break;
     case 8: PRJ(na); PAI; { i64 X=jk(x); i(na,prj[i]=modj(ji(pai[i]),X)) } break;
     case 9: PRE(na); PAI; { float X=ek(x); i(na,pre[i]=mode(ei(pai[i]),X)) } break;
     default: return KERR_INT;
@@ -952,9 +952,16 @@ static K draw(K a, K x) {
   K r=0;
   i64 cnt;                       /* sample count; long-atom count -> big draw */
   if(s(x)||s(a)) return KERR_TYPE;
-  if(ta!=0 && ta!=1 && ta!=-1 && ta!=8) return KERR_TYPE;
-  cnt=ta==8?jk(a):(i64)ik(a);
-  if(tx==1 && ik(x)==INT32_MIN) return KERR_WSFULL;
+  /* atoms only: ik() below reads the immediate payload, and the lone caller
+     (find) forwards nothing else -- a vector here would read pointer bits */
+  if(ta!=1 && ta!=8) return KERR_TYPE;
+  cnt=ta==8?jk(a):ji(ik(a));
+  if(cnt==J_INF) return KERR_WSFULL;
+  if(cnt==J_NULL || cnt==J_NINF) return KERR_DOMAIN;
+  if(tx==1 && (ik(x)==INT32_MIN || ik(x)==INT32_MIN+1))
+    return KERR_WSFULL;
+  if(tx==8 && (jk(x)==J_NULL || jk(x)==J_NINF))
+    return KERR_WSFULL;
   if(tx==1 && ik(x)<0 && cnt>abs(ik(x))) return KERR_LENGTH;
   switch(ta) {
   case 1: case 8:
@@ -969,7 +976,6 @@ static K draw(K a, K x) {
     case 2: r=tn(2,cnt); drawf((double*)px(r),cnt,fk(x)); break;
     case 8: {
       i64 m=jk(x);
-      if(m==INT64_MIN) return KERR_WSFULL;
       if(m>0) { r=tn(8,cnt); drawj((i64*)px(r),cnt,m); }
       else if(m<0) {
         i64 am=-m;
@@ -999,6 +1005,7 @@ K find(K a, K x) {
   if(aa) return KERR_DOMAIN;
   if(s(a)) return KERR_TYPE;
   idx=na;                       /* default: not found -> na (the length) */
+  if(s(x) && ta!=0) goto done;  /* a callable is not a typed atom */
   switch(ta) {
   case -1: if(tx!=1) break; PAI; i(na,if(pai[i]==ik(x)){idx=i; break;}) break;
   case -2: if(tx!=2) break; PAF; if(isnan(fk(x))) { i(na,if(isnan(paf[i])){idx=i; break;}) } else i(na,if(paf[i]==fk(x)){idx=i; break;}) break;
@@ -1009,6 +1016,7 @@ K find(K a, K x) {
   case  0: PAK; i(na,if(!kcmpr(pak[i],x)){idx=i; break;}) break;
   default: return KERR_TYPE;
   }
+done:
   /* index is a position in a, so it needs a long only when #a>2^31 (mirror #a) */
   return na>BIGV ? tj(idx) : t(1,(u32)idx);
 }
@@ -1173,7 +1181,8 @@ static K take_(K a, K x) {
     int neg;
     if(Ta==1) {
       if(ik(a)==INT32_MIN) return k_(x); /* 0N # x -> return x */
-      c=ik(a);
+      c=ji(ik(a));
+      if(c==J_INF||c==J_NINF) return KERR_WSFULL;
     } else {
       i64 av=jk(a);
       if(av==J_NULL) return k_(x);       /* 0Nj # x -> return x */
@@ -1238,7 +1247,7 @@ static K take_(K a, K x) {
     i64 *dim, n=1;
     dim=xmalloc(na*sizeof(i64));
     if(ta==-8){ i64 *pp=px(a); for(u64 k=0;k<na;k++) dim[k]=pp[k]; }
-    else { i32 *pp=px(a); for(u64 k=0;k<na;k++) dim[k]=(pp[k]==INT32_MIN)?J_NULL:(i64)pp[k]; }
+    else { i32 *pp=px(a); for(u64 k=0;k<na;k++) dim[k]=ji(pp[k]); }
     /* 0N # x -> return x as-is */
     if(na==1 && dim[0]==J_NULL) { xfree(dim); return k_(x); }
     /* 2-D shape with exactly one 0N axis
@@ -1707,9 +1716,9 @@ static double powel_(K v, u64 i) {
   case  2: return         fk(v);
   case  8: return fj(jk(v));
   case  9: return (double)ek(v);
-  case -1: return (double)((i32*)px(v))[i];
+  case -1: return fi(((i32*)px(v))[i]);
   case -2: return         ((double*)px(v))[i];
-  case -8: return (double)((i64*)px(v))[i];
+  case -8: return fj(((i64*)px(v))[i]);
   case -9: return (double)((float*)px(v))[i];
   } return 0;
 }
@@ -2088,7 +2097,7 @@ K form(K a, K x) {
     case  8:
     case  9:
       if(isnan(fk(a))) return KERR_DOMAIN;
-      f= tx==1?fi(ik(x)) : tx==2?fk(x) : tx==8?(double)jk(x) : (double)ek(x);
+      f= tx==1?fi(ik(x)) : tx==2?fk(x) : tx==8?fj(jk(x)) : (double)ek(x);
       sprintf(t,"%g",round(fk(a)*10)/10); s=strchr(t,'.');
       y=s?s[1]-48:0;
       g=fk(a);
@@ -2101,9 +2110,14 @@ K form(K a, K x) {
       xx=g;
       //VSIZE(abs(xx));
       m=abs(xx);
-      if(xx<0||*t=='-') sprintf(t,"%s%0.*e",f<0?"":" ",y,f);
-      else if(isinf(f)) *t=0;
-      else if(isnan(f)) *t=0;
+      /* Null formats as an empty field, but infinities keep their language
+         spelling.  K's float-width form right-aligns 10.2$-0i as
+         "       -0i"; treating every non-finite value as empty lost the sign
+         and infinity marker.  This also gives widened i32/i64 sentinels the
+         same result as native float sentinels. */
+      if(isnan(f)) *t=0;
+      else if(isinf(f)) spell(t,f<0?"-0i":"0i");
+      else if(xx<0||*t=='-') sprintf(t,"%s%0.*e",f<0?"":" ",y,f);
       else sprintf(t,"%0.*f",y,f);
       l=strlen(t);
       if(l>INT32_MAX-m-1) return KERR_WSFULL;
@@ -3094,7 +3108,7 @@ K enumerate(K x) {
   if(s(x)) return enumeratecb(x);
   switch(tx) {
   case  1: if(ik(x)<0||ik(x)==INT32_MAX) return KERR_DOMAIN; PRI(ik(x)); i(ik(x),pri[i]=i); break;
-  case  8: { i64 v=jk(x); if(v<0) return KERR_DOMAIN; VLEN(v); PRJ(v); i(v,prj[i]=i); } break;
+  case  8: { i64 v=jk(x); if(v<0||v==J_INF) return KERR_DOMAIN; VLEN(v); PRJ(v); i(v,prj[i]=i); } break;
   case  2: return KERR_INT;
   case  3: p[0]=ck(x); p[1]=0; r=lsdir(p); break;
   case  4: return enumeratecb(x);

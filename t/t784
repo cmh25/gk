@@ -1,0 +1,25 @@
+/ Shell capture reserves room for its terminating NUL at an exact allocation
+/ boundary and drains stdout and stderr while the child is still running.
+/ Select the path delimiter from the shell 4: actually invokes. cmd.exe expands
+/ %COMSPEC%; Bash (including Cygwin/MSYS builds) leaves it literal.
+cmd:0="%COMSPEC%"~*`4:"echo %COMSPEC%"
+exe:$[cmd;"..\\gk";"../gk"]
+
+c:exe," -q shellout.k 1024"
+r:`4:c
+1=#r
+1024=#*r
+
+c:exe," -q shellout.k 262144"
+r:`4:c
+1=#r
+262144=#*r
+
+c:exe," -q shellout.k 262144 && ",exe," -q shellout.k 262144 1>&2"
+r:`8:c
+0=r 0
+1=#r 1
+262144=#*r 1
+1=#r 2
+262144=#*r 2
+\\

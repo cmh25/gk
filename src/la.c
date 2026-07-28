@@ -267,6 +267,7 @@ static inline int la_dimoversize(u64 rows, u64 cols) {
    -1.590233e+09 on three consecutive runs, i.e. live ASLR'd addresses leaking
    into a user-visible result.  Affects det/rref/lu/qr/svd/lsq/ldu. */
 static K la_rowf(K row) {
+  if(s(row)) { _k(row); return kerror("type"); }
   if(T(row)==0) row=k(3,t2(1.0),row);
   if(E(row)) return row;
   if(T(row)!=-1 && T(row)!=-2) { _k(row); return kerror("type"); }
@@ -1382,12 +1383,14 @@ static int mul_rect_dims(K v, u64 *rows_out, u64 *cols_out, int *any_f64_out) {
   if(rows == 0) { *rows_out = 0; *cols_out = 0; *any_f64_out = 0; return 1; }
   K *pv = (K*)px(v);
   K r0 = pv[0];
+  if(s(r0)) return 0;
   i32 t0 = T(r0);
   if(t0 != -1 && t0 != -2) return 0;
   u64 cols = n(r0);
   int any_f64 = (t0 == -2);
   for(u64 i = 1; i < rows; i++) {
     K r = pv[i];
+    if(s(r)) return 0;
     i32 t = T(r);
     if(t != -1 && t != -2) return 0;
     if(n(r) != cols) return 0;
@@ -1563,11 +1566,13 @@ static int mul_rect_dims_e(K v, u64 *rows_out, u64 *cols_out, int *any_f32_out) 
   u64 rows = n(v);
   if(rows == 0) { *rows_out = 0; *cols_out = 0; *any_f32_out = 0; return 1; }
   K *pv = (K*)px(v);
+  if(s(pv[0])) return 0;
   i32 t0 = T(pv[0]);
   if(t0 != -1 && t0 != -9) return 0;
   u64 cols = n(pv[0]);
   int any_f32 = (t0 == -9);
   for(u64 i = 1; i < rows; i++) {
+    if(s(pv[i])) return 0;
     i32 t = T(pv[i]);
     if(t != -1 && t != -9) return 0;
     if(n(pv[i]) != cols) return 0;

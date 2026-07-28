@@ -164,28 +164,32 @@ K builtin(K f, K a, K x) {
 K draw(K a, K x) {
   K r=0,e,p,q;
   i32 n=1,*pai;
+  i64 *paj;
   if(!a||!x) { e=KERR_TYPE; goto cleanup; }
+  if(s(a)||s(x)) { e=KERR_TYPE; goto cleanup; }
   if(ta==8) { /* long-atom count -> big draw; ? (v.c draw) does i64-count
                  validation and the deal/roll/float-range dispatch */
     r=k(14,tj(jk(a)),k_(x));
     if(r<EMAX) { e=r; r=0; goto cleanup; }
     return r;
   }
-  if(ta!=0 && ta!=1 && ta!=-1) { e=KERR_TYPE; goto cleanup; }
+  if(ta!=0 && ta!=1 && ta!=-1 && ta!=-8) { e=KERR_TYPE; goto cleanup; }
   /* tx==9 (real): draw[n;1.0e] was the one hole in the roll/deal type grid --
      `0?1.0e` worked (v.c's draw) but the named form type-errored */
   if(tx!=1 && tx!=2 && tx!=8 && tx!=9 && ta!=-1) { e=KERR_TYPE; goto cleanup; }
-  if(ta==1 && tx==1 && ik(x)==INT32_MIN) { e=KERR_WSFULL; goto cleanup; }
-  if(ta==1 && tx==1 && ik(x)<0 && ik(a)>abs(ik(x))) { e=KERR_LENGTH; goto cleanup; }
   switch(ta) {
   case  0: if(na) { e=KERR_TYPE; goto cleanup; } r=k(14,t(1,(u32)n),k_(x)); /* n?x */ break;
   case  1: n=ik(a); r=k(14,t(1,(u32)n),k_(x)); /* n?x */ break;
-  case -1:
+  case -1: case -8:
     switch(tx) {
     case 1: case 2: case 8: case 9: /* case 9 (real) was missing: a shaped
       real draw draw[2 3;1.0e] type-errored though the scalar-count
       draw[6;1.0e] and 0?1.0e worked */
-      PAI; i(na,if(pai[i]<0){e=KERR_DOMAIN;goto cleanup;})
+      if(ta==-1) {
+        PAI; i(na,if(pai[i]<0 || pai[i]==INT32_MAX){e=KERR_DOMAIN;goto cleanup;})
+      } else {
+        PAJ; i(na,if(paj[i]<0 || paj[i]==J_INF){e=KERR_DOMAIN;goto cleanup;})
+      }
       p=k(21,3,k_(a)); EC(p); // */a
       q=k(14,p,k_(x)); EC(q); // p?x
       r=k(15,k_(a),q); // a#q
@@ -602,10 +606,36 @@ static i32 maxw(K x, u64 b) {
   return w;
 }
 
+/* A radix must be an ordinary integer, not one of the null/infinity
+   sentinels. Keep this check shared by vs/sv and by scalar/mixed radices so
+   promotion cannot turn an i32 domain error into an accepted i64 operation. */
+static int radix_has_sentinel(K a) {
+  if(ta==1) {
+    i32 v=ik(a);
+    return v==INT32_MAX || v==INT32_MIN || v==INT32_MIN+1;
+  }
+  if(ta==8) {
+    i64 v=jk(a);
+    return v==J_INF || v==J_NULL || v==J_NINF;
+  }
+  if(ta==-1) {
+    i32 *p=px(a);
+    for(u64 i=0;i<na;i++)
+      if(p[i]==INT32_MAX || p[i]==INT32_MIN || p[i]==INT32_MIN+1) return 1;
+  }
+  if(ta==-8) {
+    i64 *p=px(a);
+    for(u64 i=0;i<na;i++)
+      if(p[i]==J_INF || p[i]==J_NULL || p[i]==J_NINF) return 1;
+  }
+  return 0;
+}
+
 /* digit count of unsigned value v in base b (b>=2) */
 static u32 vwidthj(u64 v, u64 b) { u32 w=1; while(v>=b) { v/=b; ++w; } return w; }
-/* read element j of an int/long vector as i64 */
-static i64 vreadj(K x, u64 j) { return tx==-8 ? ((i64*)px(x))[j] : (i64)((i32*)px(x))[j]; }
+/* read element j of an int/long vector as i64; widening preserves the three
+   sentinel values rather than treating their i32 bit patterns as numbers */
+static i64 vreadj(K x, u64 j) { return tx==-8 ? ((i64*)px(x))[j] : ji(((i32*)px(x))[j]); }
 
 /* long base-encode (vs) -- any of base/value is long, result digits long.
    mirrors the int vs_: scalar base x scalar value -> digit vector (empty for
@@ -615,11 +645,11 @@ static K vsj(K a, K x) {
   if(!(ta==1||ta==8||ta==-1||ta==-8)) return KERR_TYPE;
   if(!(tx==1||tx==8||tx==-1||tx==-8)) return KERR_TYPE;
   if(ta==1 || ta==8) {                       /* scalar base */
-    i64 bb = ta==8 ? jk(a) : (i64)ik(a);
+    i64 bb = ta==8 ? jk(a) : ji(ik(a));
     if(bb<=1) return KERR_DOMAIN;
     u64 b=(u64)bb;
     if(tx==1 || tx==8) {                     /* scalar value */
-      u64 v = tx==8 ? (u64)jk(x) : (u64)(i64)ik(x);
+      u64 v = tx==8 ? (u64)jk(x) : (u64)ji(ik(x));
       if(v==0) return tn(8,0);               /* vs[b;0] -> empty (matches int) */
       u32 w=vwidthj(v,b);
       K r=tn(8,w); i64 *pr=px(r);
@@ -651,7 +681,7 @@ static K vsj(K a, K x) {
   for(i32 i=(i32)L-2;i>=0;i--) place[i]=place[i+1]*(u64)base[i+1];
   for(u64 i=0;i<L;i++) if(place[i]==0) { xfree(base); xfree(place); return KERR_DOMAIN; }
   if(tx==1 || tx==8) {                       /* scalar value -> digit vector */
-    u64 xx = tx==8 ? (u64)jk(x) : (u64)(i64)ik(x);
+    u64 xx = tx==8 ? (u64)jk(x) : (u64)ji(ik(x));
     K r=tn(8,L); i64 *pr=px(r);
     for(u64 i=0;i<L;i++) {
       u64 pl=(u64)place[i], m=xx/pl; xx-=m*pl;
@@ -678,6 +708,7 @@ K vs(K a, K x) {
   i32 w,*pai,z;
   K *pxk;
   if(s(a)||s(x)) return KERR_TYPE;
+  if(radix_has_sentinel(a)) return KERR_DOMAIN;
   if(ta==8 || ta==-8 || tx==8 || tx==-8) return vsj(a,x);
   if((ta==1&&ik(a)<=1)) return KERR_DOMAIN;
   if(ta==-1) {
@@ -685,11 +716,10 @@ K vs(K a, K x) {
     pai=px(a);
     i(na,if(pai[i]<0) return KERR_DOMAIN)
     i(na,if(i&&pai[i]<1) return KERR_DOMAIN)
-    i(na,if(pai[i]==INT32_MAX||pai[i]==INT32_MIN||pai[i]==INT32_MIN+1) return KERR_DOMAIN)
   }
   if(tx==0) {
     pxk=px(x);
-    i(nx,if(1!=T(pxk[i])&&-1!=T(pxk[i])) return KERR_DOMAIN)
+    i(nx,if(s(pxk[i])||(1!=T(pxk[i])&&-1!=T(pxk[i]))) return KERR_DOMAIN)
   }
 
   if(ta==1) w=maxw(x,ik(a));
@@ -704,19 +734,20 @@ K sv(K a, K x) {
   u32 j;
   double jf,*pxf;
   if(s(a)||s(x)) return KERR_TYPE;
+  if(radix_has_sentinel(a)) return KERR_DOMAIN;
   /* long base or long digit-vector with a scalar base: i64 Horner, long
      result (e.g. sv[256j;bytes] builds a 64-bit value without overflow) */
   if((ta==8 || tx==8 || tx==-8) && (ta==1 || ta==8)) {
     if(tx==8) return tj(jk(x));
     if(tx==-1 || tx==-8) {
-      i64 base = ta==8 ? jk(a) : (i64)ik(a);
+      i64 base = ta==8 ? jk(a) : ji(ik(a));
       /* Horner in u64: a value that doesn't fit i64 (base decode of a huge
          digit string) overflows -- signed overflow is UB (traps under ubsan),
          so accumulate unsigned, which wraps with defined 2's-complement bits
          identical to the production result. */
       u64 acc = 0, ub = (u64)base; i64 *pj; i32 *pi;
       if(tx==-8) { pj=px(x); i(nx, acc=acc*ub+(u64)pj[i]) }
-      else { pi=px(x); i(nx, acc=acc*ub+(u64)(i64)pi[i]) }
+      else { pi=px(x); i(nx, acc=acc*ub+(u64)ji(pi[i])) }
       return tj((i64)acc);
     }
   }
@@ -926,14 +957,17 @@ K do_(K x) {
   i32 i=nx-1,q;
   i64 c;
   if(nx<2) return KERR_VALENCE;
-  if(0x81==s(x)) return null; // all constants, nothing to do
+  if(0x81==s(x)) {  /* all constants: no work, but the count (source order,
+                       px[0]) must still be an int/long like the live path */
+    return intatom(px[0]) ? null : KERR_TYPE;
+  }
   a=pgreduce_(px[i],&q);
   if(E(a)) return a;
-  if(ta!=1 && ta!=8) { _k(a); return KERR_TYPE; }
-  c = ta==8 ? jk(a) : ik(a);
+  if(!intatom(a)) { _k(a); return KERR_TYPE; }
+  c = ta==8 ? jk(a) : ik(a);  /* use each integer type's encoded count */
   _k(a);
   if(c<0) return r;
-  while(c-->0)
+  while(c-->0) {
     for(i=nx-2;i>=0;i--) {
 #ifdef FUZZING
       if(--gk_budget<0) return kerror("limit");
@@ -944,6 +978,7 @@ K do_(K x) {
       _k(p);
       if(EXIT) return kerror("abort");
     }
+  }
   return r;
 cleanup:
   _k(p);
@@ -957,7 +992,7 @@ K while_(K x) {
   if(nx<2) return KERR_VALENCE;
   if(0x81==s(x)) {
     K cc=px[0]; i32 tc=T(cc);
-    if(tc!=1 && tc!=8) return KERR_TYPE;
+    if(!intatom(cc)) return KERR_TYPE;
     if(!(tc==8 ? jk(cc) : ik(cc))) return null;   /* false condition: 0 iterations */
     for(;;) {  /* while[1;1] */
 #ifdef FUZZING
@@ -968,7 +1003,7 @@ K while_(K x) {
   }
   a=pgreduce_(px[nx-1],&q);
   if(E(a)) return a;
-  if(ta!=1 && ta!=8) { _k(a); return KERR_TYPE; }
+  if(!intatom(a)) { _k(a); return KERR_TYPE; }
   i64 c = ta==8 ? jk(a) : ik(a); _k(a);
   while(c) {
 #ifdef FUZZING
@@ -983,7 +1018,7 @@ K while_(K x) {
     }
     a=pgreduce_(px[nx-1],&q);
     if(E(a)) return a;
-    if(ta!=1 && ta!=8) { _k(a); return KERR_TYPE; }
+    if(!intatom(a)) { _k(a); return KERR_TYPE; }
     c = ta==8 ? jk(a) : ik(a); _k(a);
   }
   return r;
@@ -997,10 +1032,13 @@ K if_(K x) {
   K e,a,*px=px(x),p,r=null;
   i32 i=nx-1,q;
   if(nx<2) return KERR_VALENCE;
-  if(0x81==s(x)) return null; // all constants, nothing to do
+  if(0x81==s(x)) {  /* all constants: no work, but the condition (source
+                       order, px[0]) must still be an int/long */
+    return intatom(px[0]) ? null : KERR_TYPE;
+  }
   a=pgreduce_(px[i],&q);
   if(E(a)) return a;
-  if(ta!=1 && ta!=8) { _k(a); return KERR_TYPE; }
+  if(!intatom(a)) { _k(a); return KERR_TYPE; }
   i64 c = ta==8 ? jk(a) : ik(a); _k(a);
   if(c)
     for(i=nx-2;i>=0;i--) {
@@ -1022,7 +1060,7 @@ static K cond81_(K x) {
     if(i<nx-1) {
       a=k_(px[i++]);
       if(E(a)) return a;
-      if(ta!=1 && ta!=8) { _k(a); return KERR_TYPE; }
+      if(!intatom(a)) { _k(a); return KERR_TYPE; }
       i64 c = ta==8 ? jk(a) : ik(a); _k(a);
       if(c&&i<=nx-1) { _k(r); r=k_(px[i]); if(!r) r=null; break; }
     }
@@ -1040,7 +1078,7 @@ K cond_(K x) {
     if(i) {
       a=pgreduce_(px[i--],&q); if(!a) a=null;
       if(E(a)) { _k(r); return a; }
-      if(ta!=1 && ta!=8) { _k(a); return KERR_TYPE; }
+      if(!intatom(a)) { _k(a); return KERR_TYPE; }
       i64 c = ta==8 ? jk(a) : ik(a); _k(a);
       if(c&&i>=0) { _k(r); r=pgreduce_(px[i],&q); if(!r) r=null; break; }
     }
@@ -1378,7 +1416,7 @@ K F(K a, K x) { \
     switch(tx) { \
     case  1: r=tj(OJ(jk(a),ji(ik(x)))); break; \
     case  8: r=tj(OJ(jk(a),jk(x))); break; \
-    case -1: PRJ(nx); PXI; { i64 A=jk(a); i(nx,prj[i]=OJ(A,(i64)pxi[i])) } break; \
+    case -1: PRJ(nx); PXI; { i64 A=jk(a); i(nx,prj[i]=OJ(A,ji(pxi[i]))) } break; \
     case -8: PRJ(nx); PXJ; { i64 A=jk(a); i(nx,prj[i]=OJ(A,pxj[i])) } break; \
     case  0: r=irecur2(F,a,x); break; \
     default: r=KERR_TYPE; \
@@ -1386,9 +1424,9 @@ K F(K a, K x) { \
   case -1: \
     switch(tx) { \
     case  1: PRI(na); PAI; i(na,pri[i]=OI(pai[i],ik(x))) break; \
-    case  8: PRJ(na); PAI; { i64 X=jk(x); i(na,prj[i]=OJ((i64)pai[i],X)) } break; \
+    case  8: PRJ(na); PAI; { i64 X=jk(x); i(na,prj[i]=OJ(ji(pai[i]),X)) } break; \
     case -1: PRI(na); PAI; PXI; i(na,pri[i]=OI(pai[i],pxi[i])) break; \
-    case -8: PRJ(na); PAI; PXJ; i(na,prj[i]=OJ((i64)pai[i],pxj[i])) break; \
+    case -8: PRJ(na); PAI; PXJ; i(na,prj[i]=OJ(ji(pai[i]),pxj[i])) break; \
     case  0: r=avdo(biv(#F0),k_(a),k_(x),"'"); break; \
     default: r=KERR_TYPE; \
     } break; \
@@ -1396,7 +1434,7 @@ K F(K a, K x) { \
     switch(tx) { \
     case  1: PRJ(na); PAJ; { i64 X=ji(ik(x)); i(na,prj[i]=OJ(paj[i],X)) } break; \
     case  8: PRJ(na); PAJ; { i64 X=jk(x); i(na,prj[i]=OJ(paj[i],X)) } break; \
-    case -1: PRJ(nx); PAJ; PXI; i(nx,prj[i]=OJ(paj[i],(i64)pxi[i])) break; \
+    case -1: PRJ(nx); PAJ; PXI; i(nx,prj[i]=OJ(paj[i],ji(pxi[i]))) break; \
     case -8: PRJ(nx); PAJ; PXJ; i(nx,prj[i]=OJ(paj[i],pxj[i])) break; \
     case  0: r=avdo(biv(#F0),k_(a),k_(x),"'"); break; \
     default: r=KERR_TYPE; \
@@ -1715,7 +1753,7 @@ static K crypt_(char*(*f)(const char*,size_t,unsigned char*,unsigned char*,size_
   if(ta) return KERR_TYPE;
   if(na!=2) return KERR_LENGTH;
   PAK;
-  i(na,if(T(pak[i])!=-1) return KERR_TYPE)
+  i(na,if(s(pak[i])||T(pak[i])!=-1) return KERR_TYPE)
   if(n(pak[0])!=16) return kerror("iv");
   if(n(pak[1])!=32) return kerror("key");
   if(tx!=-3&&tx!=4&&tx!=-4&&tx!=0) return KERR_TYPE;
@@ -1866,7 +1904,7 @@ static K fncap(K f) {
        serializes closures that can originate from an untrusted db blob (or
        capture a transient IPC-dispatch frame), so don't trust the shape: a
        short/non-list frame ends the walk rather than over-reading. */
-    if(T(sc)!=0 || n(sc)<6) break;
+    if(s(sc) || T(sc)!=0 || n(sc)<6) break;
     ps=px(sc);
     if(null!=ps[2]) break;       /* a namespace scope: globals stop here */
     if(0x80==s(ps[1])) {
@@ -2016,13 +2054,36 @@ static K serialize(K x, char **b, char **v, i64 *n, i64 *m) {
   return null;
 }
 
+/* Projection argument containers are either an ordinary general list or the
+   0x81 plist spelling used by bracket application.  Other T=0 subtypes are
+   functions/dicts with private slots, not argument lists. */
+static int bd_arglist(K x) {
+  return T(x)==0 && (!s(x) || s(x)==0x81);
+}
+
+/* Runtime wrapper slots that hold verbs must contain a real callable K.
+   ISF also admits the raw <256 primitive representation, but serialize cannot
+   emit such an inline value as a child object: all stored primitives use the
+   ordinary K atom spelling with subtype 0xc0. */
+static int bd_callable(K x) {
+  return x>=256 && ISF(x);
+}
+
+static int bd_adverbs(K x) {
+  if(s(x) || T(x)!=-3) return 0;
+  char *p=px(x);
+  for(u64 i=0;i<n(x);++i)
+    if(p[i]!='\'' && p[i]!='/' && p[i]!='\\') return 0;
+  return 1;
+}
+
 /* Pre-Pass-3b-3 IPC/serialize encoded a builtin projection as 0xc8
    with shape (verb_sym_K, bound_arg, null).  Pass 3b-3 / Pass 4
    replaced these with 0xd9(verb_sym_K, [bound_arg]) -- the av slot
    was always null on legacy 0xc8 producers and is dropped. */
 static K bd_legacy_c8_to_d9(K r) {
   K *pr=px(r);
-  if(n(r)<2) { _k(r); return KERR_PARSE; }
+  if(n(r)<2 || !bd_callable(pr[0])) { _k(r); return KERR_PARSE; }
   K verb=k_(pr[0]);
   K bound=k_(pr[1]);
   _k(r);
@@ -2040,7 +2101,7 @@ static K bd_legacy_c8_to_d9(K r) {
 static K bd_legacy_d5d6_to_d9(K r) {
   K *pr=px(r);
   u64 arity=n(r)-1;
-  if(arity<3) { _k(r); return KERR_PARSE; }
+  if(arity<3 || !bd_callable(pr[0])) { _k(r); return KERR_PARSE; }
   K verb=k_(pr[0]);
   K args=tn(0,arity); K *pa=px(args);
   for(u64 i=0;i<arity;++i) pa[i]=k_(pr[1+i]);
@@ -2060,7 +2121,10 @@ static K bd_legacy_d5d6_to_d9(K r) {
    K, freeing the legacy. */
 static K bd_legacy_c4_to_d9(K r) {
   K *pr=px(r);
-  if(n(r)<3) { _k(r); return KERR_PARSE; }
+  if(n(r)<3 || !bd_callable(pr[0]) || !bd_arglist(pr[1])
+     || (pr[2]!=null && !bd_adverbs(pr[2]))) {
+    _k(r); return KERR_PARSE;
+  }
   K lam=k_(pr[0]);
   K pargs=k_(pr[1]);
   K av=k_(pr[2]);
@@ -2091,6 +2155,8 @@ static K bd_legacy_mv_to_da(K r, int dyad) {
   if(!*mv) { _k(r); return KERR_PARSE; }
   const char *vp=strchr(P,*mv);
   if(!vp || vp-P>20) { _k(r); return KERR_PARSE; }
+  for(char *p=mv+1;*p;++p)
+    if(*p!='\'' && *p!='/' && *p!='\\') { _k(r); return KERR_PARSE; }
   int vi=(int)(vp-P);
   K f=t(1,st(0xc0,(K)((dyad?64:32)+vi)));
   int alen=(int)strlen(mv+1);
@@ -2267,7 +2333,13 @@ static K deserialize(char **b,u64 *m) {
        always 4 slots (fncap ships n(x)) with slot 0 the definition TEXT (a
        char vector, which fnd re-parses); a forged slot 0 of any other type is
        dereferenced by fnd as a raw ko* (px(pf[0])) -> wild/OOB read. */
-    if(n(r)!=4 || T(((K*)px(r))[0])!=-3) { _k(r); return KERR_TYPE; }
+    if(n(r)!=4) { _k(r); return KERR_TYPE; }
+    K *pf=(K*)px(r);
+    if(s(pf[0]) || T(pf[0])!=-3 || pf[1]!=null
+       || (pf[2]!=null && s(pf[2])!=0x80)
+       || s(pf[3]) || T(pf[3])!=1) {
+      _k(r); return KERR_TYPE;
+    }
     return fnrestore(r|(K)0xc3<<48);
   }
   if(t==0 && st==0xc4) {
@@ -2312,7 +2384,8 @@ static K deserialize(char **b,u64 *m) {
        tagged K, so k_() does ++((ko*)(b(48)&x))->r: a +1 write at any address.
        Reachable from an unauthenticated IPC frame via db_buf.  || is
        left-to-right and short-circuits, so the type test guards the count. */
-    if(T(pk[0])!=-4 || T(pk[1])!=0 || n(pk[0])!=n(pk[1])) { _k(r); return KERR_TYPE; }
+    if(s(pk[0]) || T(pk[0])!=-4 || s(pk[1]) || T(pk[1])!=0
+       || n(pk[0])!=n(pk[1])) { _k(r); return KERR_TYPE; }
     /* dicts ship 3 payload slots; the in-memory form carries a 4th (the
        hash-index cache, dict.c).  Re-add it as null -- and drop any crafted
        extra slots from a hostile blob, which dget/dset would otherwise
@@ -2341,6 +2414,7 @@ static K deserialize(char **b,u64 *m) {
        0xc5  composition: fc reads slot 0 as a sub-list of verbs. */
   if(t==0) {
     u64 nlen=n(r);
+    K *pw=(K*)px(r);
     switch(st) {
     case 0xd9:
       /* kprint_ (k.c:446) walks slot 1 as a general list -- `K *pg2=px(g2);
@@ -2348,16 +2422,27 @@ static K deserialize(char **b,u64 *m) {
          forged ATOM in slot 1 makes px() dereference the blob's own inline
          payload: merely DISPLAYING the decoded value segfaults.  p.c/fe.c
          only ever build slot 1 as a type-0 list (plain, or 0x81-subtyped via
-         wrap_proj), so pin the base type; T() ignores the subtype, so both
-         spellings still pass.
-         Checked: 0xda/0xd0/0xd7 do NOT need this.  0xda's av slot is already
-         type-tested at fe.c:75 (`T(wav)==-3 && n(wav)>0`), and 0xd0/0xd7 hand
-         both slots to kprint_, which dispatches on type instead of
-         dereferencing.  Forging an atom into slot 1 of those three prints
-         harmlessly rather than crashing -- verified. */
-      if(nlen<2 || T(((K*)px(r))[1])!=0) { _k(r); return KERR_TYPE; } break;
-    case 0xda: case 0xd0: case 0xd7:
-      if(nlen<2) { _k(r); return KERR_TYPE; } break;
+         wrap_proj), so pin both fields to the shape the apply path expects. */
+      if(nlen!=2 || !bd_callable(pw[0]) || !bd_arglist(pw[1])) {
+        _k(r); return KERR_TYPE;
+      }
+      break;
+    case 0xda:
+      /* The operand may intentionally be a noun (e.g. 5'), but the suffix is
+         an exact parser adverb string. */
+      if(nlen!=2 || !bd_adverbs(pw[1])) {
+        _k(r); return KERR_TYPE;
+      }
+      break;
+    case 0xd0:
+      if(nlen!=2 || !bd_callable(pw[1])) { _k(r); return KERR_TYPE; }
+      break;
+    case 0xd7:
+      /* Seeded over/scan accepts only the three inner shapes fe() handles. */
+      if(nlen!=2 || (s(pw[1])!=0xc3 && s(pw[1])!=0xd9 && s(pw[1])!=0xda)) {
+        _k(r); return KERR_TYPE;
+      }
+      break;
     case 0xc5:
       /* a composition is a 2-slot list: slot 0 the (non-empty) list of
          composed fns, slot 1 the adverb char-vector.  Both slots are read
@@ -2366,16 +2451,21 @@ static K deserialize(char **b,u64 *m) {
          drove kprint_'s px[1] off the end of the list (heap over-read), and an
          empty slot-0 list underflows fc's n(f)-1 to a -1 index.  Pin the exact
          shape serialize emits (see p.c: tn(0,2), pw[0]=fn-list, pw[1]=tn(3,0)). */
-      if(nlen<2 || T(((K*)px(r))[0])!=0 || !n(((K*)px(r))[0])
-         || T(((K*)px(r))[1])!=-3) { _k(r); return KERR_TYPE; } break;
+      if(nlen!=2 || s(pw[0]) || T(pw[0])!=0 || !n(pw[0])
+         || !bd_adverbs(pw[1])) { _k(r); return KERR_TYPE; }
+      K *pf=px(pw[0]);
+      for(u64 i=0;i<n(pw[0]);++i)
+        if(!bd_callable(pf[i])) { _k(r); return KERR_TYPE; }
+      break;
     }
   }
   /* The int-index builtins (0xc6 monad, 0xc7 dyad) use the atom's payload
      DIRECTLY as a BMONAD/BDYAD table index, so a forged index yields a garbage
      function pointer that apply then CALLS (a second RCE beyond 0xdc) or that
      print dereferences.  The base type is pinned to t=1 above; bound the index
-     itself here.  (0xc0 self-bounds via ck%32 plus a strlen guard, and the
-     name-based verbs just need the t=4 pin, so neither needs a check here.) */
+     itself here.  (0xc0 is reduced modulo 32; k() bounds invalid opcodes and
+     the printer bounds its P-table lookup.  Name-based verbs only need the
+     t=4 pin, so neither needs an additional payload check here.) */
   switch(st) {
   case 0xc6: if((u32)ik(r)>=(u32)NBMONAD) { _k(r); return KERR_TYPE; } break;
   case 0xc7: if((u32)ik(r)>=(u32)NBDYAD)  { _k(r); return KERR_TYPE; } break;
@@ -2428,7 +2518,7 @@ K db_buf(const char *buf, u64 nbytes) {
 }
 
 K db_(K x) {
-  if(tx != -3) return KERR_TYPE;
+  if(s(x) || tx != -3) return KERR_TYPE;
   return db_buf((const char*)px(x), nx);
 }
 
@@ -2698,7 +2788,7 @@ cleanup:
 static inline i64 bin1j(void *v, i32 t, i64 n, i64 y) {
   i64 lo=0,hi=n,m;
   while(lo<hi) { m=lo+((hi-lo)>>1);
-    if(((t==-1)?(i64)((i32*)v)[m]:((i64*)v)[m])<y) lo=m+1; else hi=m; }
+    if(((t==-1)?ji(((i32*)v)[m]):((i64*)v)[m])<y) lo=m+1; else hi=m; }
   return lo;
 }
 static inline i64 bin1f(void *v, i32 t, i64 n, f64 y) {
@@ -2746,7 +2836,7 @@ K binl_(K a, K x) {
   if(big) { PRJ(nn); } else { PRI(nn); }
   if(E(r)) return r;
   for(i64 j=0;j<nn;++j) {
-    if(ints) c=bin1j(v,ta,n,tx==-1?(i64)((i32*)w)[j]:((i64*)w)[j]);
+    if(ints) c=bin1j(v,ta,n,tx==-1?ji(((i32*)w)[j]):((i64*)w)[j]);
     else { f64 y=tx==-1?fi(((i32*)w)[j]):tx==-8?fj(((i64*)w)[j]):tx==-2?((f64*)w)[j]:(f64)((f32*)w)[j];  /* binl needles: see bin_ */
            c=bin1f(v,ta,n,y); }
     if(big) prj[j]=c; else pri[j]=(i32)c;
@@ -2794,7 +2884,7 @@ K dvl_(K a, K x) {
 }
 
 K exit__(K x) {
-  if(tx!=1) return KERR_TYPE;
+  if(s(x)||tx!=1) return KERR_TYPE;
   /* Tear down IPC before K state: ipc_shutdown closes any live conns
    * (fires .m.c handlers, which need K state alive) and frees the
    * persistent send-scratch buffer. */
@@ -2820,7 +2910,7 @@ K exit__(K x) {
 }
 
 K exit_(K x) {
-  if(tx!=1) return KERR_TYPE;
+  if(s(x)||tx!=1) return KERR_TYPE;
   EXIT=x;
   return k_(x);
 }
@@ -2832,6 +2922,7 @@ K dir_(K x) {
 
   if(ecount && x!=null) return kerror("domain"); /* read-only \d (display) is safe while
                                                      suspended; changing namespace is not */
+  if(x!=null && (s(x)||T(x)!=4)) return KERR_TYPE;
 
   if(x!=null) {
     psx=sk(x);

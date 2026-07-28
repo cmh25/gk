@@ -761,7 +761,7 @@ cleanup:
 }
 static K indexconvergescan(K a, K x) {
   K r=0,e,p=0,q=0,sr=0,*psr;
-  u32 j=0,m=32;
+  i64 j=0,m=32;
 
   q=k_(x);                    /* first */
   p=k(13,k_(a),k_(x)); EC(p); /* previous */
@@ -771,7 +771,10 @@ static K indexconvergescan(K a, K x) {
     psr[j++]=k_(p);
     r=k(13,k_(a),p); EC(r);
     while(kcmpr(r,q)&&kcmpr(r,p)) {
-      if(j==m) { m<<=1; sr=kresize(sr,m); psr=px(sr); }
+      if(j==m) {
+        if(m>=VMAX/2) { e=KERR_WSFULL; goto cleanup; }
+        m<<=1; sr=kresize(sr,m); psr=px(sr);
+      }
       psr[j++]=k_(r);
       p=r;
       r=k(13,k_(a),p); EC(r);
@@ -2380,8 +2383,8 @@ c3_apply:
           *pA++=builtin(a,t,b);
         }
         else {
-          if(T(b)==0 && n(b)==1) { K *pb=px(b); p=k_(pb[0]); _k(b); b=p; }
-          else if(T(b)==0 && n(b)==0) { _k(b); b=null; }
+          if(!s(b) && T(b)==0 && n(b)==1) { K *pb=px(b); p=k_(pb[0]); _k(b); b=p; }
+          else if(!s(b) && T(b)==0 && n(b)==0) { _k(b); b=null; }
           else if(!VST(b)) { _k(a); _k(b); *pA++=KERR_TYPE; break; }
           *pA++=builtin(a,0,b);
         }
@@ -2652,7 +2655,7 @@ K pgreduce(K x, int p) {
       }
       else if(ck(values[1])==251) { /* \p */
         a=values[0];
-        if(ta==1) { precision=ik(a); if(precision>17) precision=17; if(precision<0) precision=0; }
+        if(!s(a)&&ta==1) { precision=ik(a); if(precision>17) precision=17; if(precision<0) precision=0; }
         else if(ta==6) printf("%d\n",precision);
         else { r=kerror("parse"); continue; }
         r=null;
@@ -2670,7 +2673,7 @@ K pgreduce(K x, int p) {
       }
       else if(ck(values[1])==248) { /* \p */
         a=values[0];
-        if(ta==1) { zeroclamp=ik(a); if(zeroclamp!=0) zeroclamp=1; }
+        if(!s(a)&&ta==1) { zeroclamp=ik(a); if(zeroclamp!=0) zeroclamp=1; }
         else if(ta==6) printf("%d\n",zeroclamp);
         else { r=kerror("parse"); continue; }
         r=null;
@@ -2678,7 +2681,7 @@ K pgreduce(K x, int p) {
       }
       else if(ck(values[1])==247) { /* \e */
         a=values[0];
-        if(ta==1) EFLAG=ik(a);
+        if(!s(a)&&ta==1) EFLAG=ik(a);
         else if(ta==6) printf("%d\n",EFLAG);
         else { r=kerror("parse"); continue; }
         r=null;
@@ -2692,7 +2695,7 @@ K pgreduce(K x, int p) {
       }
       else if(ck(values[1])==245) { /* \m i [PORT] */
         a=values[0];
-        if(ta==1) {
+        if(!s(a)&&ta==1) {
           K e=ipc_listen(ik(a),IPC_MODE_ITER);
           r = e ? e : null;
         }
@@ -2702,7 +2705,7 @@ K pgreduce(K x, int p) {
       }
       else if(ck(values[1])==244) { /* \m f [PORT] */
         a=values[0];
-        if(ta==1) {
+        if(!s(a)&&ta==1) {
           K e=ipc_listen(ik(a),IPC_MODE_FORK);
           r = e ? e : null;
         }

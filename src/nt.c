@@ -522,7 +522,7 @@ static i64 readj(K x, u64 i) {
   case  1: return ji(ik(x));   /* ji(): sentinel-aware, so mixed-width
                                   gcd/lcm/modinv agree with the same-width forms */
   case  8: return jk(x);
-  case -1: return (i64)((i32*)px(x))[i];
+  case -1: return ji(((i32*)px(x))[i]);
   case -8: return ((i64*)px(x))[i];
   }
   return 0;

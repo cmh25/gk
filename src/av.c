@@ -214,7 +214,8 @@ cleanup:
 
 static K scanm(K f, K x, char *av) {
   K r=0,t=0,e,q=0,*prk;
-  int b=0,n=strlen(av),zi=0,zm=32;
+  int b=0,n=strlen(av);
+  i64 zi=0,zm=32;
 #ifdef FUZZING
   long bw=0;
 #endif
@@ -226,7 +227,10 @@ static K scanm(K f, K x, char *av) {
     prk[zi]=kcp2(q); if(E(prk[zi])) { e=prk[zi]; goto cleanup; } ++zi;
     t=b?fe(k_(f),0,k_(q),av):avdo(k_(f),0,k_(q),av); EC(t);
     while(!ik(k(10,k_(t),k_(x)))&&!ik(k(10,k_(t),k_(q)))) {
-      if(zi==zm) { zm<<=1; r=kresize(r,zm); prk=px(r); }
+      if(zi==zm) {
+        if(zm>=VMAX/2) { e=KERR_WSFULL; goto cleanup; }
+        zm<<=1; r=kresize(r,zm); prk=px(r);
+      }
       prk[zi]=kcp2(t); if(E(prk[zi])) { e=prk[zi]; goto cleanup; } ++zi;
       _k(q); q=t;
       t=b?fe(k_(f),0,k_(q),av):avdo(k_(f),0,k_(q),av); EC(t);
@@ -398,7 +402,11 @@ K avdo(K f, K a, K x, char *av) {
 
   if(++d>maxr || (!(d&7)&&stack_low())) { --d; _k(f); _k(a); _k(x); return kerror("stack"); }
 
-  if(0x85==s(a)||0x85==s(x)) { _k(f); _k(a); _k(x); r=kerror("type"); }
+  /* Parser-built adverb strings contain only these three bytes.  Keep the
+     dispatch boundary defensive too: deserialized wrappers are untrusted,
+     and subtracting P from strchr(P,*av)==NULL below is undefined behavior. */
+  if(strspn(av,"'/\\")!=(size_t)n) { _k(f); _k(a); _k(x); r=kerror("type"); }
+  else if(0x85==s(a)||0x85==s(x)) { _k(f); _k(a); _k(x); r=kerror("type"); }
   else if(n>32) { _k(f); _k(a); _k(x); r=kerror("length"); }
   else if(0xd1==s(f)||0xd2==s(f)||0xd3==s(f)) { _k(f); _k(a); _k(x); r=kerror("type"); }
   else if(n==1) {
@@ -525,12 +533,12 @@ K avdo(K f, K a, K x, char *av) {
            list used to name subtypes instead of asking, so 3{2*x}'/1 2
            valence-errored while gk's own 3{2*x}/1 2 gave 8 16. */
         int fmon = !isprim && (0xc6==s(f) || ik(val(f))==1);
-        if(n>1 && (ta==1||ta==8) && fmon) r=overmonadn(k_(f),k_(a),k_(x),av2);
+        if(n>1 && intatom(a) && fmon) r=overmonadn(k_(f),k_(a),k_(x),av2);
         else r=eachright(f,a,x,av2);
       }
       else if(av[n-1]=='\\') {
         int fmon = !isprim && (0xc6==s(f) || ik(val(f))==1);  /* see over above */
-        if(n>1 && (ta==1||ta==8) && fmon) r=scanmonadn(k_(f),k_(a),k_(x),av2);
+        if(n>1 && intatom(a) && fmon) r=scanmonadn(k_(f),k_(a),k_(x),av2);
         else r=eachleft(f,a,x,av2);
       }
       _k(f); _k(a); _k(x);
@@ -624,7 +632,8 @@ K avdo(K f, K a, K x, char *av) {
 
 K overmonadn(K f, K a, K x, char *av) {
   K r=0,e,p=0;
-  i64 i = T(a)==8 ? jk(a) : ik(a);  /* do-n count: accept a long n (boxed -> jk) as well as int */
+  if(!intatom(a)) { e=KERR_TYPE; goto cleanup; }
+  i64 i = T(a)==8 ? jk(a) : ik(a);  /* use each integer type's encoded count */
   if(i<0) { e=kerror("domain"); goto cleanup; }
   r=k_(x);
   while(i>0) {
@@ -646,14 +655,26 @@ cleanup:
 
 K scanmonadn(K f, K a, K x, char *av) {
   K r=0,e,p=0,*prk;
-  i64 i = T(a)==8 ? jk(a) : ik(a), j=0;  /* do-n count: accept a long n as well as int */
+  if(!intatom(a)) { e=KERR_TYPE; goto cleanup; }
+  i64 i = T(a)==8 ? jk(a) : ik(a), j=0, m;
+  int grow;
   if(i<0) { e=kerror("domain"); goto cleanup; }
-  if(i==INT64_MAX) { e=kerror("limit"); goto cleanup; }  /* 1+i overflows -> tn(0,negative) -> ~2^64 alloc / segfault (n f\x, n=0Ij) */
-  r=tn(0,1+i); prk=px(r);
-  prk[j]=kcp2(x); if(E(prk[j])) { e=prk[j]; goto cleanup; } ++j;
+  /* The sentinel spellings retain their encoded counts: 0I is INT32_MAX and
+     0Ij is INT64_MAX.  Neither can safely use the usual exact 1+i allocation,
+     so grow those scans like predicate scan.  Production applies the real
+     count; the FUZZING budget below is the only artificial loop limit. */
+  grow=(T(a)==1 && ik(a)==INT32_MAX) || i==J_INF;
+  if(!grow && i>=VMAX-1) { e=KERR_WSFULL; goto cleanup; }
+  m=grow?32:1+i;
+  r=tn(0,m); prk=px(r); n(r)=0;
+  prk[j]=kcp2(x); if(E(prk[j])) { e=prk[j]; goto cleanup; } ++j; n(r)=j;
   while(i>0) {
+    if(j==m) {
+      if(m>=VMAX/2) { e=KERR_WSFULL; goto cleanup; }
+      m<<=1; r=kresize(r,m); n(r)=j; prk=px(r);
+    }
     p=fe(k_(f),0,k_(prk[j-1]),av); EC(p);
-    prk[j++]=p;
+    prk[j++]=p; n(r)=j;
     --i;
     if(STOP) { STOP=0; e=kerror("stop"); goto cleanup; }
     if(EXIT) { e=kerror("abort"); goto cleanup; }
@@ -668,21 +689,28 @@ cleanup:
   return e;
 }
 
+/* while-predicate for f/[b;x] and f\[b;x]: iterate until the result matches
+   0 or 0j. A non-integer result
+   (0.0, `s, ...) matches neither, so it continues the loop; this is NOT the
+   if/while/cond condition rule, which requires an int/long. */
+static inline i64 predb(K p) {
+  if(!s(p) && T(p)==1) return ik(p);
+  if(!s(p) && T(p)==8) return jk(p);
+  return 1;
+}
+
 K overmonadb(K f, K a, K x, char *av) {
-  K r=0,e,p=0,b;
+  K r=0,e,p=0;
+  i64 b;
   r=k_(x);
   p=fe(k_(a),0,k_(r),av); EC(p);
-  if(T(p)==1) b=ik(p);
-  else b=1;
-  _k(p);
-  while(ik(b)) {
+  b=predb(p); _k(p);
+  while(b) {
     p=fe(k_(f),0,k_(r),av); EC(p);
     _k(r); r=p;
     p=fe(k_(a),0,k_(r),av); //EC(p);
     if(E(p)) { e=p; goto cleanup; }
-    if(T(p)==1) b=ik(p);
-    else b=1;
-    _k(p);
+    b=predb(p); _k(p);
     if(STOP) { STOP=0; e=kerror("stop"); goto cleanup; }
     if(EXIT) { e=kerror("abort"); goto cleanup; }
 #ifdef FUZZING
@@ -700,24 +728,23 @@ cleanup:
 }
 
 K scanmonadb(K f, K a, K x, char *av) {
-  K r=0,e,p=0,*prk,b;
-  i32 j=0,m=32;
+  K r=0,e,p=0,*prk;
+  i64 b,j=0,m=32;
   r=tn(0,m); prk=px(r); n(r)=0;
   prk[j]=kcp2(x); if(E(prk[j])) { e=prk[j]; goto cleanup; } ++j;
   n(r)++;
   p=fe(k_(a),0,k_(prk[j-1]),av); EC(p);
-  if(T(p)==1) b=ik(p);
-  else b=1;
-  _k(p);
-  while(ik(b)) {
+  b=predb(p); _k(p);
+  while(b) {
+    if(j==m) {
+      if(m>=VMAX/2) { e=KERR_WSFULL; goto cleanup; }
+      m<<=1; r=kresize(r,m); n(r)=j; prk=px(r);
+    }
     p=fe(k_(f),0,k_(prk[j-1]),av); EC(p);
-    if(j==m) { m<<=1; r=kresize(r,m); n(r)=j; prk=px(r); }
     prk[j++]=p;
     n(r)++;
     p=fe(k_(a),0,k_(prk[j-1]),av); EC(p);
-    if(T(p)==1) b=ik(p);
-    else b=1;
-    _k(p);
+    b=predb(p); _k(p);
     if(STOP) { STOP=0; e=kerror("stop"); goto cleanup; }
     if(EXIT) { e=kerror("abort"); goto cleanup; }
 #ifdef FUZZING

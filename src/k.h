@@ -9,6 +9,13 @@
 #define VST(x) (!s(x) || s(x) & 0x80)
 #define ISF(x) ((x)<256 || (VST(x) && s(x)&0x40))
 
+/* Callable and structural values share their base T tag with ordinary data
+   (e.g. named builtins are T=1 with a nonzero subtype).  Any consumer of an
+   integer atom must check both pieces before reading ik()/jk(). */
+static inline int intatom(K x) {
+  return !s(x) && (T(x)==1 || T(x)==8);
+}
+
 #ifdef _WIN32
 #define MAXR 100
 #else

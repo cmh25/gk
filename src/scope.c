@@ -241,6 +241,7 @@ static K scope_get_local(K s, int n) {
   K *ps=px(s);
   K *pd=px(ps[1]);
   K *pv=px(pd[1]);
+  if(n<0 || (u64)n>=n(pd[1])) return KERR_VALUE;
   return k_(pv[n]);
 }
 static void setz(void) {
@@ -320,11 +321,13 @@ static K scope_set_local(K s, int n, K v) {
     ps=px(cs);
     pd=px(ps[1]);
     pk=px(pd[0]);
+    if(n<0 || (u64)n>=n(pd[0])) { _k(v); return KERR_VALUE; }
     return scope_set(s,t(4,pk[n]),v);
   }
   ps=px(s);
   pd=px(ps[1]);
   pv=px(pd[1]);
+  if(n<0 || (u64)n>=n(pd[1])) { _k(v); return KERR_VALUE; }
   _k(pv[n]);
   pv[n]=k_(v);
   return v;

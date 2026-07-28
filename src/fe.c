@@ -37,7 +37,8 @@ cleanup:
 K fe(K f, K a, K x, char *av) {
   K r=3,f0,f1,*pf,*pr,t,*pt,xx,*pxx,fav=0;
   char *P=":+-*%&|<>=~.!@?#_^,$'/\\";
-  char ff=f;
+  char ff=0;
+  int primitive=0;
 
   if(0x45==s(a)||0x45==s(x)) { _k(f); _k(a); _k(x); return KERR_TYPE; }
 
@@ -65,8 +66,25 @@ K fe(K f, K a, K x, char *av) {
     if(E(f2)) { _k(a); _k(x); return f2; }
   }
 
-  if(0xc0==s(f)) ff=ck(f)%32;
-  else if(!s(f)&&f>32) ff=strchr(P,ck(f))-P; /* r19 primitive verbs are literal '+' '-' etc. */
+  if(0xc0==s(f)) {
+    ff=ck(f)%32;
+    primitive=1;
+  }
+  else if(!s(f) && f<32) {
+    ff=(char)f;
+    primitive=1;
+  }
+  else if(!s(f) && f<256 && f>32) {
+    /* r19 primitive verbs are literal '+' '-' etc.  Do not derive an opcode
+       from the low byte of an arbitrary K: function subtypes share their base
+       tags with ordinary data, and an invalid wrapper payload used to make a
+       noun or heap pointer look like whichever primitive its low byte named. */
+    char *p=strchr(P,(char)f);
+    if(p) {
+      ff=(char)(p-P);
+      primitive=1;
+    }
+  }
 
   if(!a) {
     switch(s(f)) {
@@ -232,7 +250,11 @@ K fe(K f, K a, K x, char *av) {
       break;
     /* 0xd5/0xd6 retired in Pass 4 -- replaced by 0xd9. */
     default:
-      if(!ff) {
+      if(!primitive) {
+        _k(x);
+        r=KERR_TYPE;
+      }
+      else if(!ff) {
         if(0x81==s(x)) { _k(f); _k(x); return KERR_TYPE; }
         else r=x;
       }
@@ -253,8 +275,9 @@ K fe(K f, K a, K x, char *av) {
           int n=strlen(av);
           if(n>32) { _k(a); _k(x); return KERR_LENGTH; }
           if(n==1) {
-            int avf=strchr(P,*av)-P;
-            r=k(avf,ff,x);
+            char *p=strchr(P,*av);
+            if(!p) { _k(x); r=KERR_TYPE; }
+            else r=k((int)(p-P),ff,x);
           }
           else {
             char av2[256];
@@ -396,7 +419,8 @@ K fe(K f, K a, K x, char *av) {
        (sin,"/") pair lands as 0xda(0xc6,"/") and is handled by the
        case 0xda block above instead of falling through here. */
     default:
-      if(!ff) { _k(a); r=x; }
+      if(!primitive) { _k(a); _k(x); r=KERR_TYPE; }
+      else if(!ff) { _k(a); r=x; }
       else if(ff>0&&ff<32) {
         if(a==inull || x==inull) {
           /* Issue #2 Pass 3b-1: produce 0xd9 (was 0xd4). The verb

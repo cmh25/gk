@@ -48,6 +48,11 @@ int  ipc_stdin_init(void);
 /* Pop one byte from the stdin reader thread, blocking on stdin or IPC
  * events. Returns the byte (0..255) or EOF (-1). Win32 only. */
 int  ipc_stdin_getc(void);
+#else
+/* POSIX child-process housekeeping shared by the IPC fork listener and the
+ * shell-out verbs. */
+int  ipc_install_sigchld_reaper(void);
+void ipc_close_inherited_fds(int keep);
 #endif
 
 /* Listener modes. */

@@ -141,10 +141,10 @@ static K watch_set(K name, K expr) {
   /* nul or "" clears; a non-empty char atom/vector sets; anything else
    * is a type error. */
   int clear;
-  if(expr == null)                          clear = 1;
-  else if(T(expr) == -3 && n(expr) == 0)    clear = 1;
-  else if(T(expr) == 3 || T(expr) == -3)    clear = 0;
-  else                                       return KERR_TYPE;
+  if(expr == null)                                    clear = 1;
+  else if(!s(expr) && T(expr) == -3 && n(expr) == 0) clear = 1;
+  else if(!s(expr) && (T(expr) == 3 || T(expr) == -3)) clear = 0;
+  else                                                 return KERR_TYPE;
 
   int i = watch_find(sc, nm);
   if(clear) {
@@ -187,9 +187,9 @@ K watch_(K x) {
    * element must be a symbol -- anything else is a type error, not a
    * query.  A query is any argument that isn't a 2-element list
    * (watch[], watch`, watch nul, ...). */
-  if(T(x) <= 0 && n(x) == 2) {
+  if(!s(x) && T(x) <= 0 && n(x) == 2) {
     K name = xi_(x, 0, T(x));
-    if(T(name) != 4) { _k(name); return KERR_TYPE; }
+    if(s(name) || T(name) != 4) { _k(name); return KERR_TYPE; }
     K expr = xi_(x, 1, T(x));
     K r = watch_set(name, expr);
     _k(name); _k(expr);

@@ -1,0 +1,106 @@
+/ Primitive while f/[b;x] and f\[b;x]: iteration continues until the
+/ predicate result matches 0 or 0j. A non-integer result -- 0.0, 0n, a
+/ symbol -- matches neither, so the loop keeps going.
+
+ty:{[f;x](1;"type")~@[f;x;:]}
+
+3~{3-x}{x+1}/0
+(0 1 2 3)~{3-x}{x+1}\0
+3~{3j-x}{x+1}/0
+(0 1 2 3)~{3j-x}{x+1}\0
+2~{$[x<2;0.0;0]}{x+1}/0
+2~{$[x<2;`s;0]}{x+1}/0
+2~{$[x<2;0n;0j]}{x+1}/0
+(0 1 2)~{$[x<2;0.5e;0]}{x+1}\0
+/ A callable is non-integer too. In particular, draw's internal builtin
+/ index is zero, but that must not make it a false predicate.
+2~{$[x<2;draw;0]}{x+1}/0
+(0 1 2)~{$[x<2;draw;0]}{x+1}\0
+
+/ if/while/cond conditions and do-counts stay int/long only, including the
+/ constant-folded if/do spellings.
+ty[{x{x+1}/0};3.0]
+ty[{if[0.0;`x]};0]
+ty[{do[0.0;`x]};0]
+ty[{while[0.0;`x]};0]
+ty[{:[0.0;`t;`f]};0]
+
+/ Named builtins have an integer storage tag plus a callable subtype. They
+/ are functions, not conditions or counts; neither folded nor live control
+/ paths may interpret their private builtin-table indices as integers.
+ty[{if[abs;`x]};0]
+ty[{do[abs;`x]};0]
+ty[{while[abs;`x]};0]
+ty[{:[abs;`t;`f]};0]
+ty[{a:0;if[abs;a:1]};0]
+ty[{a:0;do[abs;a+:1]};0]
+ty[{a:0;while[abs;a+:1]};0]
+ty[{a:0;:[abs;a:1;a:2]};0]
+
+/ Other numeric-control consumers must reject the same callable subtype.
+ty[{draw[draw;x]};10]
+ty[{_[abs;,;x]};1 2]
+ty[{timer[(draw;{})]};0]
+ty[{"c"1:("b3";draw;0)};0]
+ty[{exit[draw]};0]
+
+/ Typed amend must not pack a callable into an int vector and thereby erase
+/ its subtype. Fetching the builtin through g exercises the result fast path.
+g:abs
+r:@[1 2;0;{[x;y]g};3]
+7=4:*r
+2=r 1
+
+/ Typed find compares ordinary atoms only. A callable may still be an item in
+/ a general list, but its private payload is not an int needle.
+2=?[8 9;abs]
+0=in[abs;8 9]
+0=?[(abs;1);abs]
+1=in[abs;(abs;8)]
+
+/ Symbol-, char-, and char-vector names that resolve to a callable must apply
+/ it. They must not return it as though it had resolved to ordinary text.
+f:5:
+-3=4:(`f . ,1)
+-3=4:("f" . ,1)
+-3=4:((,"f") . ,1)
+-3=4:.(`f;,1)
+-3=4:.("f";,1)
+-3=4:.((,"f");,1)
+
+/ A symbol-based callable is not a namespace name, path, command string, or
+/ serialized byte vector merely because it shares the corresponding base tag.
+ty[{!x};0:]
+ty[{0:x};0:]
+ty[{1:x};0:]
+ty[{2:x};0:]
+ty[{6:x};0:]
+ty[{del x};0:]
+ty[{rename[x;"x"]};0:]
+f:0:
+ty[{`3:f};0]
+ty[{`4:f};0]
+ty[{`8:f};0]
+
+/ Nested paths and boxed radix values must validate each element's subtype
+/ before interpreting its base tag.
+ty[{.[(1 2;3 4);(abs;0);:;9]};0]
+ty[{.[(1 2;3 4);(0:;0);:;9]};0]
+ty[{vs[16;,abs]};0]
+
+/ A nested scatter index is an ordinary list, but the value distributed over
+/ it may be callable. Do not descend into the callable's private list storage.
+r:@[(0;`x;2);((0;1j);2);:;(abs;3)]
+(7 7 3)~(4:r 0;4:r 1;r 2)
+d:.+(`a`b`c;0 1 2)
+r:@[d;((`a;,`b);`c);:;(abs;3)]
+(7 7 3)~(4:r`a;4:r`b;r`c)
+
+/ Timer/watch tuple fields make the same distinction. A T=4 callable handler
+/ is accepted by value; callable watch names and expressions are not text.
+0=*@[{timer[(0;gtime)]};0;:]
+timer[(0;{})]
+ty[{watch[(x;"")]};0:]
+ty[{watch[(`subaudit;x)]};0:]
+
+\\

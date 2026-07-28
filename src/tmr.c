@@ -124,7 +124,7 @@ static K tmr_apply(K h, K arg) {
  * automatically. Otherwise return a fresh ref to the stored fn.
  * Returns an owned K (caller must consume) or an error K. */
 static K tmr_resolve(void) {
-  if(T(timer_fn) == 4) return scope_get(gs, timer_fn);
+  if(!s(timer_fn) && T(timer_fn) == 4) return scope_get(gs, timer_fn);
   return k_(timer_fn);
 }
 
@@ -155,7 +155,7 @@ void tmr_maybe_fire(void) {
      * may reinstate the global before the next tick. */
     tmr_report_error(fn);
     if(fn >= EMAX) _k(fn);
-  } else if(T(timer_fn) == 4) {
+  } else if(!s(timer_fn) && T(timer_fn) == 4) {
     /* Sym path: the global may have been rebound to something that
      * isn't a 1-valence callable. Validate before invoking, since
      * fne() on a non-callable would otherwise crash. */
@@ -221,14 +221,14 @@ K timer_(K x) {
    *
    * Anything else (scalars, syms, nul, the empty list, longer lists,
    * ...) is a query and returns the current (t;f). */
-  if(T(x) <= 0 && n(x) == 2) {
+  if(!s(x) && T(x) <= 0 && n(x) == 2) {
     K iv = xi_(x, 0, T(x));
     K fn = xi_(x, 1, T(x));
     K e  = 0;
 
     double sec = 0.0;
-    if(T(iv) == 1)      sec = fi(ik(iv));
-    else if(T(iv) == 2) sec = fk(iv);
+    if(!s(iv) && T(iv) == 1)      sec = fi(ik(iv));
+    else if(!s(iv) && T(iv) == 2) sec = fk(iv);
     else                e = KERR_TYPE;
     if(!e && (!isfinite(sec) || sec < 0.0)) e = KERR_DOMAIN;
 
@@ -236,7 +236,7 @@ K timer_(K x) {
      * has valence 1, but store the *sym* (not the resolved fn) so
      * later redefinitions of the global pick up automatically. */
     if(!e) {
-      if(T(fn) == 4) {
+      if(!s(fn) && T(fn) == 4) {
         K resolved = scope_get(gs, fn);
         if(E(resolved)) e = resolved;
         else {

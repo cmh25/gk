@@ -12,6 +12,7 @@
 #include <sys/wait.h>
 #include <sys/mman.h>
 #include <signal.h>
+#include <poll.h>
 #include <dlfcn.h>
 #endif
 #include <stdio.h>
@@ -92,18 +93,19 @@ static K fwclose_(const void *p, size_t n, FILE *fp) {
  * whole race surface with negligible coverage loss. */
 static K fopen_(K x, const char *m, FILE **fp) {
   (void)m;
-  if(tx!=3 && tx!=-3 && tx!=4) return KERR_TYPE;
+  if(s(x) || (tx!=3 && tx!=-3 && tx!=4)) return KERR_TYPE;
   *fp = 0;
   return KERR_DOMAIN;
 }
 static K fsize_(K x, size_t *bs) {
   (void)bs;
-  if(tx!=3 && tx!=-3 && tx!=4) return KERR_TYPE;
+  if(s(x) || (tx!=3 && tx!=-3 && tx!=4)) return KERR_TYPE;
   return KERR_DOMAIN;
 }
 #else
 static K fopen_(K x, char *m, FILE **fp) {
   char b[2]={0},*s=b;
+  if(s(x)) return KERR_TYPE;
   if(tx==4) s = sk(x);
   else if(tx==3) b[0] = ck(x);
   else if(tx==-3) s = px(x);
@@ -121,6 +123,7 @@ static K fsize_(K x, size_t *bs) {
   K r=null;
   char b[2]={0},*s=b;
   struct _stat64 t;
+  if(s(x)) return KERR_TYPE;
   if(tx==4) s=sk(x);
   else if (tx==3) s[0]=ck(x);
   else if (tx==-3) s=px(x);
@@ -134,6 +137,7 @@ static K fsize_(K x, size_t *bs) {
   K r=null;
   char b[2]={0},*s=b;
   struct stat t;
+  if(s(x)) return KERR_TYPE;
   if(tx==4) s=sk(x);
   else if(tx==3) s[0]=ck(x);
   else if(tx==-3) s=px(x);
@@ -148,6 +152,46 @@ static K fsize_(K x, size_t *bs) {
 /* VSIZE returns on failure, so it can't run where a live buffer would leak;
    wrap it so readall_ can check a prospective size and free first. */
 static K vchk_(size_t n) { VLEN((i64)n); return null; }
+
+/* Validate a file-slice offset/count before converting it to size_t. Integer
+   null/infinity values are controls, not the finite i32 bit patterns; floats
+   follow the same finite, non-negative rule. */
+static K slice_size_(K x, size_t *z) {
+  if(s(x)) return KERR_TYPE;
+  if(T(x)==1) {
+    i32 v=ik(x);
+    if(v<0 || v==INT32_MAX) return KERR_DOMAIN;
+    *z=(size_t)v;
+    return null;
+  }
+  if(T(x)==8) {
+    i64 v=jk(x);
+    if(v<0 || v==J_INF || (u64)v>(u64)SIZE_MAX) return KERR_DOMAIN;
+    *z=(size_t)v;
+    return null;
+  }
+  if(T(x)==2) {
+    double v=fk(x);
+    if(!isfinite(v) || v<0 || v>=(double)SIZE_MAX) return KERR_DOMAIN;
+    *z=(size_t)v;
+    return null;
+  }
+  return KERR_TYPE;
+}
+
+/* Seek to a validated byte offset without narrowing it through long on
+   Windows, where fseek remains 32-bit even though _stat64 reports larger
+   files. The round-trip check also keeps narrow-off_t POSIX builds safe. */
+static int fseek_size_(FILE *fp, size_t z) {
+#ifdef _WIN32
+  if((u64)z>(u64)INT64_MAX) return -1;
+  return _fseeki64(fp,(i64)z,SEEK_SET);
+#else
+  off_t o=(off_t)z;
+  if(o<0 || (size_t)o!=z) return -1;
+  return fseeko(fp,o,SEEK_SET);
+#endif
+}
 
 /* Read stream fp to EOF into an xmalloc'd buffer (*pb, length *pn). bs (from
    fsize_) is only a capacity hint: procfs/sysfs files stat as 0 bytes, and a
@@ -185,13 +229,13 @@ static K readall_(FILE *fp, size_t bs, char **pb, size_t *pn) {
 static K b0colon(K x) {
   K *pxk,r=null;
   char *pc;
-  if(!x) return KERR_TYPE;
+  if(!x || s(x)) return KERR_TYPE;
   switch(tx) {
   case  3: printf("%c",ck(x)); break;
   case -3: pc=px(x); i(nx,putchar(pc[i])) break;
   case  0:
     PXK;
-    i(nx,if(-3!=T(pxk[i])) return KERR_TYPE)
+    i(nx,if(s(pxk[i])||-3!=T(pxk[i])) return KERR_TYPE)
     i(nx,pc=px(pxk[i]);j(n(pxk[i]),putchar(pc[j])) putchar('\n'))
     break;
   default: r=KERR_TYPE;
@@ -226,9 +270,9 @@ static K zerocolon1(K x) {
   FILE *fp;
   size_t bs=0, n=0;
   char *b=0, *line, *end;
-  u32 i=0, m=2;
+  i64 i=0, m=2;
 
-  if(tx!=3 && tx!=-3 && tx!=4) return KERR_TYPE;
+  if(s(x) || (tx!=3 && tx!=-3 && tx!=4)) return KERR_TYPE;
   if((tx==4&&!strlen(sk(x))) || (tx==-3&&!nx)) {
     u64 n;
     char *s=readstdin(&n);
@@ -250,7 +294,10 @@ static K zerocolon1(K x) {
     size_t len=nl?(size_t)(nl-line):(size_t)(end-line);
     /* normalize DOS endings: strip trailing '\r' before '\n' */
     if(len>0 && line[len-1]=='\r') len--;
-    if(i==m) { m<<=1; r=kresize(r,m); prk=px(r); }
+    if(i==m) {
+      if(m>=VMAX/2) { n(r)=i; _k(r); xfree(b); return KERR_WSFULL; }
+      m<<=1; r=kresize(r,m); prk=px(r);
+    }
     prk[i++]=tnv(3,len,xmemdup0(line,len));
     line=nl?nl+1:end;
   }
@@ -282,6 +329,7 @@ static K zerocolon2(K a, K x) {
   char *ppc,*z,*pz,*z0=0,g;
   i32 *pqi;
 
+  if(s(a) || s(x)) return KERR_TYPE;
   if((ta==4&&!strlen(sk(a))) || (ta==-3&&!na)) return b0colon(x);
 
   switch(ta) {
@@ -295,7 +343,7 @@ static K zerocolon2(K a, K x) {
        * is _IONBF (interactive case), which in turn reduces interleaving
        * between forked-server children sharing the same tty. */
       for(i=0;i<nx;i++) {
-        if(T(pxk[i])!=-3) { fclose(fp); return KERR_TYPE; }
+        if(s(pxk[i])||T(pxk[i])!=-3) { fclose(fp); return KERR_TYPE; }
         fwrite(px(pxk[i]),1,n(pxk[i]),fp);
         fputc('\n',fp);
       }
@@ -315,8 +363,8 @@ static K zerocolon2(K a, K x) {
     if(na!=2) return KERR_LENGTH;
     pak=px(a);
     p=pak[0]; q=pak[1];
-    if(T(p)!=-3) return KERR_TYPE;
-    if(T(q)!=-1) return KERR_TYPE;
+    if(s(p)||T(p)!=-3) return KERR_TYPE;
+    if(s(q)||T(q)!=-1) return KERR_TYPE;
     if(n(p)!=n(q)) return KERR_LENGTH;
 
     ppc=px(p);
@@ -324,27 +372,20 @@ static K zerocolon2(K a, K x) {
     i(n(p),if(!strchr("IJEFCS ",ppc[i])) return KERR_TYPE)
 
     n=0; i(n(p),if(ppc[i]!=' ') ++n)
-    L=0; i(n(q),if(pqi[i]<0||pqi[i]==INT32_MAX) return KERR_INT; L+=pqi[i])
+    L=0; i(n(q),
+      if(pqi[i]<0||pqi[i]==INT32_MAX) return KERR_INT;
+      if((u64)pqi[i]>UINT64_MAX-L) return KERR_WSFULL;
+      L+=(u64)pqi[i])
     VSIZE((i32)n);
 
     if(tx==0) {
       if(nx!=3) return KERR_TYPE;
       pxk=px(x);
-      if(T(pxk[0])!=-3 && T(pxk[0])!=3 && T(pxk[0])!=4) return KERR_TYPE;
-      if(T(pxk[1])!=1 && T(pxk[1])!=2) return KERR_TYPE;
-      if(T(pxk[2])!=1 && T(pxk[2])!=2) return KERR_TYPE;
-      if(T(pxk[1])==1) B=ik(pxk[1]);
-      else {
-        double d=fk(pxk[1]);
-        if(!isfinite(d) || d<0 || d>(double)SIZE_MAX) { e=KERR_DOMAIN; goto cleanup; }
-        B=d;
-      }
-      if(T(pxk[2])==1) N=ik(pxk[2]);
-      else {
-        double d=fk(pxk[2]);
-        if(!isfinite(d) || d<0 || d>(double)SIZE_MAX) { e=KERR_DOMAIN; goto cleanup; }
-        N=d;
-      }
+      if(s(pxk[0])||(T(pxk[0])!=-3 && T(pxk[0])!=3 && T(pxk[0])!=4)) return KERR_TYPE;
+      if(s(pxk[1])||(T(pxk[1])!=1 && T(pxk[1])!=2 && T(pxk[1])!=8)) return KERR_TYPE;
+      if(s(pxk[2])||(T(pxk[2])!=1 && T(pxk[2])!=2 && T(pxk[2])!=8)) return KERR_TYPE;
+      EC(slice_size_(pxk[1],&B));
+      EC(slice_size_(pxk[2],&N));
       ff=pxk[0];
     }
     else {
@@ -360,7 +401,7 @@ static K zerocolon2(K a, K x) {
     if(N>NN || B>NN-N) { e = KERR_LENGTH; goto cleanup; }
 
     z0=z=xmalloc(N+1); z[N]=0;
-    fseek(fp,B,SEEK_SET);
+    if(fseek_size_(fp,B)) { e=kerror("io"); goto cleanup; }
     if(fread(z,1,N,fp)!=N) {
       int ioe=ferror(fp);
       fclose(fp);
@@ -479,6 +520,7 @@ static K twocolon1(K x);
 #if defined(FUZZING)
 /* Deterministic full-read fallback for AFL (no zero-copy maps under fuzzing). */
 static K onecolon1(K x) {
+  if(s(x)) return KERR_TYPE;
   return twocolon1(x);
 }
 #elif defined(_WIN32)
@@ -497,6 +539,7 @@ static K onecolon1(K x) {
   void *v;
   size_t len;
   DWORD rd;
+  if(s(x)) return KERR_TYPE;
   if((tx==4&&!strlen(sk(x))) || (tx==-3&&!nx)) return KERR_LENGTH;
   if(tx==4) s=sk(x);
   else if(tx==-3) s=px(x);
@@ -572,6 +615,7 @@ static K onecolon1(K x) {
   void *v;
   size_t len;
   ssize_t n;
+  if(s(x)) return KERR_TYPE;
   if((tx==4&&!strlen(sk(x))) || (tx==-3&&!nx)) return KERR_LENGTH;
   if(tx==4) s=sk(x);
   else if(tx==-3) s=px(x);
@@ -667,9 +711,10 @@ static K onecolon2(K a, K x) {
   K r=null,e,p,q,ff,*prk,*pak,*pxk;
   FILE *fp=0;
   size_t B=0,N=0,NN=0;
-  u32 j,k,n,L=0;   /* field-level: j,k field index, n field count, L row width */
-  u64 i,m;         /* row index / row count -- must be 64-bit (>2^32 rows) */
+  u32 j,k,n;       /* field-level: j,k field index, n field count */
+  u64 i,m,L=0;     /* row index/count and row width must not wrap at 2^32 */
   char *z,*pz,*z0=0,*ze,g;
+  if(s(a)) return KERR_TYPE;
   if((ta==4&&!strlen(sk(a))) || (ta==-3&&!na)) return KERR_LENGTH;
   switch(ta) {
   case -3: case 4:
@@ -682,17 +727,17 @@ static K onecolon2(K a, K x) {
     if(E(e)) goto cleanup;
     break;
   case 0:
+    if(s(x)) { e=KERR_TYPE; goto cleanup; }
     if(na!=2) { e=KERR_LENGTH; goto cleanup; }
     PAK;
-    if(T(pak[0])!=-3) { e=KERR_TYPE; goto cleanup; }
-    if(T(pak[1])!=-1) { e=KERR_TYPE; goto cleanup; }
+    if(s(pak[0])||T(pak[0])!=-3) { e=KERR_TYPE; goto cleanup; }
+    if(s(pak[1])||T(pak[1])!=-1) { e=KERR_TYPE; goto cleanup; }
     if(n(pak[0])!=n(pak[1])) { e=KERR_LENGTH; goto cleanup; }
     p=pak[0]; q=pak[1];
     char *ppc=px(p); int *pqi=px(q);
     i(n(p),if(!strchr("cbsijef CS",ppc[i])) { e=KERR_TYPE; goto cleanup; })
     n=0;i(n(p),if(ppc[i]!=' ')++n)
     VSIZE((i32)n);
-    i(n(q),L+=pqi[i])
 
     for(u64 t= 0; t< n(p); ++t) {
       int w = pqi[t];
@@ -701,20 +746,22 @@ static K onecolon2(K a, K x) {
       case 's': if(w!=2) { e = KERR_LENGTH; goto cleanup; } break;
       case 'i': case 'e': if(w!=4) { e = KERR_LENGTH; goto cleanup; } break;
       case 'j': case 'f': if(w!=8) { e = KERR_LENGTH; goto cleanup; } break;
-      case 'C': case 'S': if(w<=0 || w > INT_MAX) { e = KERR_LENGTH; goto cleanup; } break;
-      case ' ': if(w<0 || w > INT_MAX) { e = KERR_LENGTH; goto cleanup; } break;
+      case 'C': case 'S': if(w<=0 || w==INT32_MAX) { e = KERR_LENGTH; goto cleanup; } break;
+      case ' ': if(w<0 || w==INT32_MAX) { e = KERR_LENGTH; goto cleanup; } break;
       default: e=KERR_TYPE; goto cleanup;
       }
+      if((u64)w>UINT64_MAX-L) { e=KERR_WSFULL; goto cleanup; }
+      L+=(u64)w;
     }
 
     if(tx==0) { /* ("id";4 8)1:("b0";0;48) */
       PXK;
       if(nx!=3) { e=KERR_TYPE; goto cleanup; }
-      if(T(pxk[0])!=-3 && T(pxk[0])!=3 && T(pxk[0])!=4) { e=KERR_TYPE; goto cleanup; }
-      if(T(pxk[1])!=1 && T(pxk[1])!=2) { e=KERR_TYPE; goto cleanup; }
-      if(T(pxk[2])!=1 && T(pxk[2])!=2) { e=KERR_TYPE; goto cleanup; }
-      if(T(pxk[1])==1) B=ik(pxk[1]); else B=fi(pxk[1]);
-      if(T(pxk[2])==1) N=ik(pxk[2]); else N=fi(pxk[2]);
+      if(s(pxk[0])||(T(pxk[0])!=-3 && T(pxk[0])!=3 && T(pxk[0])!=4)) { e=KERR_TYPE; goto cleanup; }
+      if(s(pxk[1])||(T(pxk[1])!=1 && T(pxk[1])!=2 && T(pxk[1])!=8)) { e=KERR_TYPE; goto cleanup; }
+      if(s(pxk[2])||(T(pxk[2])!=1 && T(pxk[2])!=2 && T(pxk[2])!=8)) { e=KERR_TYPE; goto cleanup; }
+      EC(slice_size_(pxk[1],&B));
+      EC(slice_size_(pxk[2],&N));
       ff=pxk[0];
     }
     else ff=x;  /* ("id";4 8)1:"b0" */
@@ -725,7 +772,7 @@ static K onecolon2(K a, K x) {
     if(N>NN || B>NN-N) { e = KERR_LENGTH; goto cleanup; }
     VLEN((i64)N);
     z0=z=xmalloc(1+N); ze=z0+N;
-    fseek(fp,B,SEEK_SET);
+    if(fseek_size_(fp,B)) { e=kerror("io"); goto cleanup; }
     if(fread(z,1,N,fp)!=N) {
       if(ferror(fp)) e=kerror("io");
       else e=KERR_LENGTH;
@@ -798,24 +845,15 @@ static K onecolon2(K a, K x) {
     }
     break;
   case 3:
+    if(s(x)) { e=KERR_TYPE; goto cleanup; }
     if(tx==0) { /* "c"1:("b3";0;48) */
       PXK;
       if(nx!=3) { e=KERR_TYPE; goto cleanup; }
-      if(T(pxk[0])!=-3 && T(pxk[0])!=3 && T(pxk[0])!=4) { e=KERR_TYPE; goto cleanup; }
-      if(T(pxk[1])!=1 && T(pxk[1])!=2) { e=KERR_TYPE; goto cleanup; }
-      if(T(pxk[2])!=1 && T(pxk[2])!=2) { e=KERR_TYPE; goto cleanup; }
-      if(T(pxk[1])==1) B=ik(pxk[1]);
-      else {
-        double d=fk(pxk[1]);
-        if(!isfinite(d) || d<0 || d>(double)SIZE_MAX) { e=KERR_DOMAIN; goto cleanup; }
-        B=d;
-      }
-      if(T(pxk[2])==1) N=ik(pxk[2]);
-      else {
-        double d=fk(pxk[2]);
-        if(!isfinite(d) || d<0 || d>(double)SIZE_MAX) { e=KERR_DOMAIN; goto cleanup; }
-        N=d;
-      }
+      if(s(pxk[0])||(T(pxk[0])!=-3 && T(pxk[0])!=3 && T(pxk[0])!=4)) { e=KERR_TYPE; goto cleanup; }
+      if(s(pxk[1])||(T(pxk[1])!=1 && T(pxk[1])!=2 && T(pxk[1])!=8)) { e=KERR_TYPE; goto cleanup; }
+      if(s(pxk[2])||(T(pxk[2])!=1 && T(pxk[2])!=2 && T(pxk[2])!=8)) { e=KERR_TYPE; goto cleanup; }
+      EC(slice_size_(pxk[1],&B));
+      EC(slice_size_(pxk[2],&N));
       ff=pxk[0];
     }
     else ff=x;  /* "c"1:"b3" */
@@ -824,7 +862,7 @@ static K onecolon2(K a, K x) {
     if(tx!=0) { B=0; N=NN; }
     //if(B+N>(size_t)NN) { e=KERR_LENGTH; goto cleanup; }
     if(N>NN || B>NN-N) { e = KERR_LENGTH; goto cleanup; }
-    fseek(fp,B,SEEK_SET);
+    if(fseek_size_(fp,B)) { e=kerror("io"); goto cleanup; }
     if(ck(a)=='c') {
       VLEN((i64)N);
       r=tn(3,N);
@@ -880,6 +918,7 @@ static K twocolon1(K x) {
   FILE *fp;
   char *b=0;
   size_t n=0,bs=0;
+  if(s(x)) return KERR_TYPE;
   if((tx==4&&!strlen(sk(x))) || (tx==-3&&!nx)) return KERR_LENGTH;
   if(tx!=-3&&tx!=4) return KERR_TYPE;
   EC(fsize_(x,&bs));
@@ -920,6 +959,7 @@ typedef K (*kf8)(K,K,K,K,K,K,K,K);
    char atom (3).  Returns a malloc'd copy the caller must xfree, or 0 on a
    type mismatch. */
 static char* kcstr(K x) {
+  if(s(x)) return 0;
   if(T(x)==4) return xstrdup(sk(x));
   if(T(x)==-3) { u64 n=nx; char *s=xmalloc(n+1); memcpy(s,px(x),n); s[n]=0; return s; }
   if(T(x)==3) { char *s=xmalloc(2); s[0]=(char)ck(x); s[1]=0; return s; }
@@ -971,10 +1011,10 @@ static K twocolon2(K a, K x) {
   char *fn,*en;
   i32 val;
   void *h,*fp;
-  if(ta!=-3&&ta!=4&&ta!=3) return KERR_TYPE;
+  if(s(a)||(ta!=-3&&ta!=4&&ta!=3)) return KERR_TYPE;
   if(T(x)!=0||s(x)||nx!=2) return KERR_TYPE; /* (e;t) */
   pxk=px(x); ke=pxk[0]; kt=pxk[1];
-  if(T(kt)!=1) return KERR_TYPE;
+  if(s(kt)||T(kt)!=1) return KERR_TYPE;
   val=ik(kt);
   if(val<0||val>LINK_MAXV) return KERR_DOMAIN;
   fn=kcstr(a);  if(!fn) return KERR_TYPE;
@@ -1030,7 +1070,9 @@ K linkcall(K f, K x) {
   void *fp;
   kf0 g0;kf1 g1;kf2 g2;kf3 g3;kf4 g4;kf5 g5;kf6 g6;kf7 g7;kf8 g8;
   i32 val,argc;
-  if(T(x)!=0) { _k(f); _k(x); return KERR_TYPE; }
+  if(T(x)!=0 || (s(x) && s(x)!=0x81)) {
+    _k(f); _k(x); return KERR_TYPE;
+  }
   fp=(void*)(intptr_t)jk(pf[0]);
   val=ik(pf[1]);
   av=px(x);
@@ -1076,7 +1118,7 @@ static K fivecolon2(K a, K x) {
   int t,st,pad;
   char h[4];
   size_t n,c=0;
-  if(ta!=-3&&ta!=4) return KERR_TYPE;
+  if(s(a)||(ta!=-3&&ta!=4)) return KERR_TYPE;
   if((ta==4&&!strlen(sk(a))) || (ta==-3&&!na)) return KERR_LENGTH;
   if(tx>0||s(x)) return KERR_TYPE;
   EC(fopen_(a,"ab+",&fp));
@@ -1167,7 +1209,7 @@ static K sixcolon1(K x) {
   FILE *fp;
   char *b=0;
   size_t n=0,bs=0;
-  if(tx!=-3&&tx!=4) return KERR_TYPE;
+  if(s(x)||(tx!=-3&&tx!=4)) return KERR_TYPE;
   if((tx==4&&!strlen(sk(x))) || (tx==-3&&!nx)) return KERR_LENGTH;
   EC(fsize_(x,&bs));
   VLEN((i64)bs);
@@ -1186,12 +1228,12 @@ static K sixcolon2(K a, K x) {
   K *pak,e;
   char *pxc;
   FILE *fp;
-  if(ta!=-3&&ta!=4&&ta!=0) return KERR_TYPE;
-  if(tx!=-3) return KERR_TYPE;
+  if(s(a)||(ta!=-3&&ta!=4&&ta!=0)) return KERR_TYPE;
+  if(s(x)||tx!=-3) return KERR_TYPE;
   if((ta==4&&!strlen(sk(a))) || (ta==-3&&!na)) return KERR_LENGTH;
   if(!ta) { /* append */
     PAK;
-    if(!na||(T(pak[0])!=-3&&T(pak[0])!=4)) return KERR_TYPE;
+    if(!na||s(pak[0])||(T(pak[0])!=-3&&T(pak[0])!=4)) return KERR_TYPE;
     EC(fopen_(pak[0],"ab",&fp));   /* binary: 6: writes raw bytes; text-mode "a"
                                       would CRLF-translate \n on Windows (the
                                       fresh-write path below already uses "wb") */
@@ -1213,7 +1255,7 @@ K sixcolon(K a, K x) {
 
 #ifdef FUZZING
 K del_(K x) {
-  if(tx!=4 && tx!=-3) return KERR_TYPE;
+  if(s(x)||(tx!=4 && tx!=-3)) return KERR_TYPE;
   if((tx==4&&!strlen(sk(x))) || (tx==-3&&!nx)) return KERR_LENGTH;
   return KERR_DOMAIN;
 }
@@ -1221,6 +1263,7 @@ K del_(K x) {
 K del_(K x) {
   K r=null;
   char *s;
+  if(s(x)) return KERR_TYPE;
   if(tx==4) s=sk(x);
   else if(tx==-3) s=px(x);
   else return KERR_TYPE;
@@ -1232,8 +1275,8 @@ K del_(K x) {
 
 #ifdef FUZZING
 K rename_(K a, K x) {
-  if(ta!=4 && ta!=-3) return KERR_TYPE;
-  if(tx!=4 && tx!=-3) return KERR_TYPE;
+  if(s(a)||(ta!=4 && ta!=-3)) return KERR_TYPE;
+  if(s(x)||(tx!=4 && tx!=-3)) return KERR_TYPE;
   if((ta==4&&!strlen(sk(a))) || (ta==-3&&!na)) return KERR_LENGTH;
   if((tx==4&&!strlen(sk(x))) || (tx==-3&&!nx)) return KERR_LENGTH;
   return KERR_DOMAIN;
@@ -1242,6 +1285,7 @@ K rename_(K a, K x) {
 K rename_(K a, K x) {
   K r=null;
   char *p,*q;
+  if(s(a)||s(x)) return KERR_TYPE;
   if(ta==4) p=sk(a);
   else if(ta==-3) p=px(a);
   else return KERR_TYPE;
@@ -1262,23 +1306,91 @@ K rename_(K a, K x) {
 }
 #endif
 
+/* Growable byte buffer shared by the shell-capture implementations.  cap
+   always includes room for the trailing NUL installed by shbuf_done(). */
+typedef struct {
+  size_t cap,n;
+  char *p;
+} shbuf;
+
+static void shbuf_init(shbuf *b) {
+  b->cap=32; b->n=0; b->p=xmalloc(b->cap);
+}
+
+static int shbuf_add(shbuf *b, const char *p, size_t n) {
+  size_t need,nc;
+  if(n>SIZE_MAX-b->n-1) return -1;
+  need=b->n+n+1;
+  if(need>b->cap) {
+    nc=b->cap;
+    while(nc<need) {
+      if(nc>SIZE_MAX/2) { nc=need; break; }
+      nc<<=1;
+    }
+    b->p=xrealloc(b->p,nc);
+    b->cap=nc;
+  }
+  memcpy(b->p+b->n,p,n);
+  b->n+=n;
+  return 0;
+}
+
+static char *shbuf_done(shbuf *b) {
+  b->p[b->n]=0;
+  return b->p;
+}
+
+static void shbuf_drop(shbuf *b) {
+  xfree(b->p); b->p=0; b->cap=b->n=0;
+}
+
 #ifdef _WIN32
 static char* read_(HANDLE f) {
-  size_t m=32,n=0;
-  char buf[1024],*b;
+  shbuf b;
+  char buf[1024];
   DWORD len;
   BOOL res;
 
-  b=xmalloc(m);
+  shbuf_init(&b);
   while(1) {
     res=ReadFile(f,buf,1024,&len,0);
-    if(!res||!len) break;
-    while(m<n+len) { m<<=1; b=xrealloc(b,m); }
-    memcpy(b+n,buf,len);
-    n+=len;
+    if(!res) {
+      if(GetLastError()==ERROR_BROKEN_PIPE) break;
+      shbuf_drop(&b);
+      return 0;
+    }
+    if(!len) break;
+    if(shbuf_add(&b,buf,(size_t)len)) { shbuf_drop(&b); return 0; }
   }
-  b[n]=0;
-  return b;
+  return shbuf_done(&b);
+}
+
+typedef struct {
+  HANDLE f;
+  char *buf;
+} shread;
+
+static DWORD WINAPI shread_thread(LPVOID vp) {
+  shread *r=(shread*)vp;
+  r->buf=read_(r->f);
+  return r->buf?0:1;
+}
+
+/* Anonymous Windows pipes do not support select/poll.  Drain one on a helper
+   thread while this thread drains the other, otherwise a child that fills
+   stderr before closing stdout (or vice versa) deadlocks the sequential
+   ReadFile loops. */
+static int read2_(HANDLE out, HANDLE err, char **bout, char **berr) {
+  shread ro={out,0};
+  HANDLE th=CreateThread(0,0,shread_thread,&ro,0,0);
+  DWORD trc=1;
+  if(!th) return -1;
+  *berr=read_(err);
+  WaitForSingleObject(th,INFINITE);
+  GetExitCodeThread(th,&trc);
+  CloseHandle(th);
+  *bout=ro.buf;
+  return (!*bout||!*berr||trc)?-1:0;
 }
 
 static K b3colon(K x) {
@@ -1290,7 +1402,7 @@ static K b3colon(K x) {
   STARTUPINFO si;
   BOOL res;
 
-  if(tx!=-3) return KERR_TYPE;
+  if(s(x)||tx!=-3) return KERR_TYPE;
   if(!nx) return KERR_DOMAIN;
 
   ZeroMemory(&pi, sizeof(PROCESS_INFORMATION));
@@ -1331,7 +1443,7 @@ static K b4colon(K x) {
   prk[0]=tnv(3,strlen(s),xmemdup(s,1+strlen(s)));
   return r;
 #else
-  char *cmd,*buf1,*buf2;
+  char *cmd,*buf1=0,*buf2=0;
   DWORD status;
   HANDLE out[2],err[2];
   PROCESS_INFORMATION pi;
@@ -1339,7 +1451,7 @@ static K b4colon(K x) {
   BOOL res;
   SECURITY_ATTRIBUTES sa;
 
-  if(tx!=-3) return KERR_TYPE;
+  if(s(x)||tx!=-3) return KERR_TYPE;
   if(!nx) return KERR_DOMAIN;
 
   // Set the bInheritHandle flag so pipe handles are inherited.
@@ -1348,13 +1460,22 @@ static K b4colon(K x) {
   sa.lpSecurityDescriptor = 0;
 
   if(!CreatePipe(&out[0], &out[1], &sa, 0)) return KERR_DOMAIN;
-  if(!SetHandleInformation(out[0], HANDLE_FLAG_INHERIT, 0)) return KERR_DOMAIN;
-  if(!CreatePipe(&err[0], &err[1], &sa, 0)) return KERR_DOMAIN;
-  if(!SetHandleInformation(err[0], HANDLE_FLAG_INHERIT, 0)) return KERR_DOMAIN;
+  if(!SetHandleInformation(out[0], HANDLE_FLAG_INHERIT, 0)) {
+    CloseHandle(out[0]); CloseHandle(out[1]); return KERR_DOMAIN;
+  }
+  if(!CreatePipe(&err[0], &err[1], &sa, 0)) {
+    CloseHandle(out[0]); CloseHandle(out[1]); return KERR_DOMAIN;
+  }
+  if(!SetHandleInformation(err[0], HANDLE_FLAG_INHERIT, 0)) {
+    CloseHandle(out[0]); CloseHandle(out[1]);
+    CloseHandle(err[0]); CloseHandle(err[1]);
+    return KERR_DOMAIN;
+  }
 
   ZeroMemory(&pi, sizeof(PROCESS_INFORMATION));
   ZeroMemory(&si, sizeof(STARTUPINFO));
   si.cb = sizeof(STARTUPINFO);
+  si.hStdInput = GetStdHandle(STD_INPUT_HANDLE);
   si.hStdOutput = out[1];
   si.hStdError = err[1];
   si.dwFlags |= STARTF_USESTDHANDLES;
@@ -1376,23 +1497,32 @@ static K b4colon(K x) {
      &pi); // receives PROCESS_INFORMATION
 
   xfree(cmd);
-  if(!res) return KERR_DOMAIN;
+  if(!res) {
+    CloseHandle(out[0]); CloseHandle(out[1]);
+    CloseHandle(err[0]); CloseHandle(err[1]);
+    return KERR_DOMAIN;
+  }
 
   CloseHandle(out[1]);
   CloseHandle(err[1]);
-  buf1=read_(out[0]);
-  buf2=read_(err[0]);
+  if(read2_(out[0],err[0],&buf1,&buf2)) {
+    CloseHandle(out[0]); CloseHandle(err[0]);
+    TerminateProcess(pi.hProcess,127);
+    WaitForSingleObject(pi.hProcess,INFINITE);
+    CloseHandle(pi.hProcess); CloseHandle(pi.hThread);
+    xfree(buf1); xfree(buf2);
+    return KERR_DOMAIN;
+  }
+  CloseHandle(out[0]); CloseHandle(err[0]);
   fprintf(stderr,"%s",buf2);
-  //WaitForSingleObject(pi.hProcess,INFINITE);
-  //WaitForSingleObject doesn't work for "cmd1 & cmd2 & cmd3"
-  //should be safe to assume process has exited since read_ doesn't return
-  //until stdout/stderr is closed
-  if(!GetExitCodeProcess(pi.hProcess,&status)) return KERR_DOMAIN;
-  if(status) return KERR_DOMAIN;
+  WaitForSingleObject(pi.hProcess,INFINITE);
+  if(!GetExitCodeProcess(pi.hProcess,&status)) status=(DWORD)-1;
   CloseHandle(pi.hProcess);
   CloseHandle(pi.hThread);
+  if(status) { xfree(buf1); xfree(buf2); return KERR_DOMAIN; }
   r=ksplit(buf1,"\r\n");
   xfree(buf1);
+  xfree(buf2);
   return r;
 #endif
 }
@@ -1408,7 +1538,7 @@ static K b8colon(K x) {
   prk[2]=tn(0,0);
   return r;
 #else
-  char *cmd,*buf1,*buf2;
+  char *cmd,*buf1=0,*buf2=0;
   DWORD status;
   HANDLE out[2],err[2];
   PROCESS_INFORMATION pi;
@@ -1416,7 +1546,7 @@ static K b8colon(K x) {
   BOOL res;
   SECURITY_ATTRIBUTES sa;
 
-  if(tx!=-3) return KERR_TYPE;
+  if(s(x)||tx!=-3) return KERR_TYPE;
   if(!nx) return KERR_DOMAIN;
 
   // set the bInheritHandle flag so pipe handles are inherited.
@@ -1425,13 +1555,20 @@ static K b8colon(K x) {
   sa.lpSecurityDescriptor = 0;
 
   if(!CreatePipe(&out[0], &out[1], &sa, 0)) return KERR_DOMAIN;
-  if(!CreatePipe(&err[0], &err[1], &sa, 0)) return KERR_DOMAIN;
-  if(!SetHandleInformation(out[0], HANDLE_FLAG_INHERIT, 0)) return KERR_DOMAIN;
-  if(!SetHandleInformation(err[0], HANDLE_FLAG_INHERIT, 0)) return KERR_DOMAIN;
+  if(!CreatePipe(&err[0], &err[1], &sa, 0)) {
+    CloseHandle(out[0]); CloseHandle(out[1]); return KERR_DOMAIN;
+  }
+  if(!SetHandleInformation(out[0], HANDLE_FLAG_INHERIT, 0) ||
+     !SetHandleInformation(err[0], HANDLE_FLAG_INHERIT, 0)) {
+    CloseHandle(out[0]); CloseHandle(out[1]);
+    CloseHandle(err[0]); CloseHandle(err[1]);
+    return KERR_DOMAIN;
+  }
 
   ZeroMemory( &pi, sizeof(PROCESS_INFORMATION) );
   ZeroMemory( &si, sizeof(STARTUPINFO) );
   si.cb = sizeof(STARTUPINFO);
+  si.hStdInput = GetStdHandle(STD_INPUT_HANDLE);
   si.hStdError = err[1];
   si.hStdOutput = out[1];
   si.dwFlags |= STARTF_USESTDHANDLES;
@@ -1452,14 +1589,26 @@ static K b8colon(K x) {
      &si,  // STARTUPINFO pointer
      &pi); // receives PROCESS_INFORMATION
 
-  if(!res) return KERR_DOMAIN;
+  xfree(cmd);
+  if(!res) {
+    CloseHandle(out[0]); CloseHandle(out[1]);
+    CloseHandle(err[0]); CloseHandle(err[1]);
+    return KERR_DOMAIN;
+  }
 
   // close handles to the stdout pipe no longer needed by the child process
   CloseHandle(out[1]);
   CloseHandle(err[1]);
 
-  buf1=read_(out[0]);
-  buf2=read_(err[0]);
+  if(read2_(out[0],err[0],&buf1,&buf2)) {
+    CloseHandle(out[0]); CloseHandle(err[0]);
+    TerminateProcess(pi.hProcess,127);
+    WaitForSingleObject(pi.hProcess,INFINITE);
+    CloseHandle(pi.hProcess); CloseHandle(pi.hThread);
+    xfree(buf1); xfree(buf2);
+    return KERR_DOMAIN;
+  }
+  CloseHandle(out[0]); CloseHandle(err[0]);
 
   // close handles to the child process and its primary thread
   WaitForSingleObject(pi.hProcess,INFINITE);
@@ -1467,7 +1616,6 @@ static K b8colon(K x) {
   CloseHandle(pi.hProcess);
   CloseHandle(pi.hThread);
 
-  xfree(cmd);
   PRK(3);
   prk[0]=t(1,(u32)status);
   prk[1]=ksplit(buf1,"\r\n");
@@ -1478,34 +1626,99 @@ static K b8colon(K x) {
 #endif
 }
 #else
-static char* read_(int f) {
-  size_t m=32,n=0;
-  char buf[1024],*b;
+/* Read one ready chunk.  EINTR is retried here so callers never mistake -1
+   for a byte count (the old loop did, turning it into a huge size_t). */
+static int shread_fd(int f, shbuf *b) {
+  char buf[1024];
   ssize_t len;
-  b=xmalloc(m);
-  while((len=read(f,buf,1024))) {
-    while(m<n+len) { m<<=1; b=xrealloc(b,m); }
-    memcpy(b+n,buf,len);
-    n+=len;
-  }
-  b[n]=0;
-  return b;
+  do len=read(f,buf,sizeof(buf)); while(len<0&&errno==EINTR);
+  if(len<0) return -1;
+  if(!len) return 0;
+  return shbuf_add(b,buf,(size_t)len)?-1:1;
 }
+
+static char* read_(int f) {
+  shbuf b;
+  int rc;
+  shbuf_init(&b);
+  while((rc=shread_fd(f,&b))>0) {}
+  if(rc<0) {
+    shbuf_drop(&b);
+    return 0;
+  }
+  return shbuf_done(&b);
+}
+
+/* Drain both child pipes concurrently.  Reading them sequentially is still a
+   deadlock: while the parent waits for EOF on one pipe, the child may be
+   blocked trying to make room in the other. */
+static int read2_(int out, int err, char **bout, char **berr) {
+  shbuf b[2];
+  struct pollfd pfd[2]={{out,POLLIN,0},{err,POLLIN,0}};
+  int open=2,rc;
+  shbuf_init(&b[0]); shbuf_init(&b[1]);
+  while(open) {
+    do rc=poll(pfd,2,-1); while(rc<0&&errno==EINTR);
+    if(rc<0) goto fail;
+    for(int j=0;j<2;++j) {
+      if(pfd[j].fd<0 || !(pfd[j].revents&(POLLIN|POLLHUP|POLLERR|POLLNVAL))) continue;
+      rc=shread_fd(pfd[j].fd,&b[j]);
+      if(rc<0) goto fail;
+      if(!rc) { pfd[j].fd=-1; --open; }
+    }
+  }
+  *bout=shbuf_done(&b[0]);
+  *berr=shbuf_done(&b[1]);
+  return 0;
+fail:
+  shbuf_drop(&b[0]); shbuf_drop(&b[1]);
+  *bout=*berr=0;
+  return -1;
+}
+
+#ifndef FUZZING
+/* main() ignores SIGPIPE so IPC writes to a closed peer report an error
+ * instead of terminating gk. That ignored disposition survives exec, unlike
+ * a caught signal, so restore normal shell semantics explicitly. Also drop
+ * listeners, client sockets, and any other non-standard descriptors inherited
+ * across fork. */
+static void shell_child_prep(void) {
+  struct sigaction sa;
+  memset(&sa,0,sizeof sa);
+  sa.sa_handler=SIG_DFL;
+  sigemptyset(&sa.sa_mask);
+  if(sigaction(SIGPIPE,&sa,0)<0) _exit(127);
+  ipc_close_inherited_fds(-1);
+}
+#endif
 
 static K b3colon(K x) {
 #ifdef FUZZING
   return null;
 #else
+  pid_t p;
   char *argv[4];
-  if(tx!=-3) return KERR_TYPE;
+  if(s(x)||tx!=-3) return KERR_TYPE;
   if(!nx) return KERR_DOMAIN;
   argv[0]="/bin/bash";
   argv[1]="-c";
   argv[2]=xstrndup((char*)px(x),nx);
   argv[3]=0;
-  if(!fork()) { execvp(argv[0],argv); _exit(127); }  /* execvp returns only on
-    failure; without _exit the child falls through and runs the interpreter */
+  /* Async shell children have no caller that can wait for them. Install the
+   * same nonblocking reaper used by IPC fork mode before fork, so even a child
+   * that exits immediately cannot be left as a zombie. */
+  if(ipc_install_sigchld_reaper()<0) {
+    xfree(argv[2]);
+    return ferr("sigaction",errno);
+  }
+  p=fork();
+  if(!p) {
+    shell_child_prep();
+    execvp(argv[0],argv);
+    _exit(127);  /* exec failed: don't fall through into the interpreter */
+  }
   xfree(argv[2]);
+  if(p<0) return kerror("fork");
   return null;
 #endif
 }
@@ -1519,10 +1732,10 @@ static K b4colon(K x) {
   prk[0]=tnv(3,strlen(s),xmemdup(s,1+strlen(s)));
   return r;
 #else
-  pid_t p;
-  char *argv[4],*buf;
-  int out[2],status;
-  if(tx!=-3) return KERR_TYPE;
+  pid_t p,w;
+  char *argv[4],*buf=0;
+  int out[2],status=0;
+  if(s(x)||tx!=-3) return KERR_TYPE;
   if(!nx) return KERR_DOMAIN;
   if(pipe(out)) return kerror("pipe");
   argv[0]="/bin/bash";
@@ -1535,20 +1748,29 @@ static K b4colon(K x) {
   sigset_t blk, prev;
   sigemptyset(&blk); sigaddset(&blk, SIGCHLD);
   sigprocmask(SIG_BLOCK, &blk, &prev);
-  if(!(p=fork())) { /* child */
+  p=fork();
+  if(!p) { /* child */
+    sigprocmask(SIG_SETMASK,&prev,0);
     close(out[0]);
     dup2(out[1],1);
     close(out[1]);
+    shell_child_prep();
     execvp(argv[0],argv);
     _exit(127);  /* exec failed: terminate the child, don't run the interpreter */
   }
-  waitpid(p,&status,0);
-  sigprocmask(SIG_SETMASK, &prev, NULL);
+  if(p<0) {
+    sigprocmask(SIG_SETMASK,&prev,0);
+    close(out[0]); close(out[1]); xfree(argv[2]);
+    return kerror("fork");
+  }
   close(out[1]);
   buf=read_(out[0]);
   close(out[0]);
+  do w=waitpid(p,&status,0); while(w<0&&errno==EINTR);
+  sigprocmask(SIG_SETMASK, &prev, NULL);
   xfree(argv[2]);
-  r=status?KERR_DOMAIN:ksplit(buf,"\r\n");
+  if(!buf || w<0) r=kerror("io");
+  else r=(WIFEXITED(status)&&!WEXITSTATUS(status))?ksplit(buf,"\r\n"):KERR_DOMAIN;
   xfree(buf);
   return r;
 #endif
@@ -1564,13 +1786,13 @@ static K b8colon(K x) {
   prk[2]=tn(0,0);
   return r;
 #else
-  pid_t p;
-  char *argv[4],*buf1,*buf2;
-  int out[2],err[2],status;
-  if(tx!=-3) return KERR_TYPE;
+  pid_t p,w;
+  char *argv[4],*buf1=0,*buf2=0;
+  int out[2],err[2],status=0,rr;
+  if(s(x)||tx!=-3) return KERR_TYPE;
   if(!nx) return KERR_DOMAIN;
   if(pipe(out)) return kerror("pipe");
-  if(pipe(err)) return kerror("pipe");
+  if(pipe(err)) { close(out[0]); close(out[1]); return kerror("pipe"); }
   argv[0]="/bin/bash";
   argv[1]="-c";
   argv[2]=xstrndup((char*)px(x),nx);
@@ -1579,23 +1801,35 @@ static K b8colon(K x) {
   sigset_t blk, prev;
   sigemptyset(&blk); sigaddset(&blk, SIGCHLD);
   sigprocmask(SIG_BLOCK, &blk, &prev);
-  if(!(p=fork())) { /* child */
+  p=fork();
+  if(!p) { /* child */
+    sigprocmask(SIG_SETMASK,&prev,0);
     close(out[0]); close(err[0]);
     dup2(out[1],1); dup2(err[1],2);
     close(out[1]); close(err[1]);
+    shell_child_prep();
     execvp(argv[0],argv);
     _exit(127);  /* exec failed: terminate the child, don't run the interpreter */
   }
-  waitpid(p,&status,0);
+  if(p<0) {
+    sigprocmask(SIG_SETMASK,&prev,0);
+    close(out[0]); close(out[1]); close(err[0]); close(err[1]);
+    xfree(argv[2]);
+    return kerror("fork");
+  }
+  close(out[1]); close(err[1]);
+  rr=read2_(out[0],err[0],&buf1,&buf2);
+  close(out[0]); close(err[0]);
+  do w=waitpid(p,&status,0); while(w<0&&errno==EINTR);
   sigprocmask(SIG_SETMASK, &prev, NULL);
+  xfree(argv[2]);
+  if(rr<0 || w<0) {
+    xfree(buf1); xfree(buf2);
+    return kerror("io");
+  }
   if(WIFEXITED(status)) status = WEXITSTATUS(status);
   else if(WIFSIGNALED(status)) status = 128 + WTERMSIG(status);
   else status = -1;
-  close(out[1]); close(err[1]);
-  buf1=read_(out[0]);
-  buf2=read_(err[0]);
-  close(out[0]); close(err[0]);
-  xfree(argv[2]);
   PRK(3);
   prk[0]=t(1,(u32)status);
   prk[1]=ksplit(buf1,"\r\n");
@@ -1609,10 +1843,11 @@ static K b8colon(K x) {
 
 /* `a` looks like (host;port): 2-elt mixed list of sym|chars + int atom. */
 static int is_hostport(K a) {
-  if(ta != 0 || n(a) != 2) return 0;
+  if(s(a) || ta != 0 || n(a) != 2) return 0;
   K *pk = px(a);
   K host = pk[0], port = pk[1];
-  return (T(host)==4 || T(host)==-3) && T(port)==1;
+  return !s(host) && (T(host)==4 || T(host)==-3)
+      && !s(port) && T(port)==1;
 }
 
 /* monadic 3:
@@ -1620,7 +1855,7 @@ static int is_hostport(K a) {
  *   3:w             -> ipc_close (w is an int handle from a prior open)
  *   else            -> null      (existing nop) */
 static K threecolon1(K x) {
-  if(tx==1) return ipc_close((int)ik(x));
+  if(!s(x)&&tx==1) return ipc_close((int)ik(x));
   if(is_hostport(x)) return ipc_open(x);
   return null;
 }
@@ -1632,8 +1867,8 @@ static K threecolon1(K x) {
  *                       dedup'd next time; user closes via 3:h if wanted)
  *   else              -> null (existing nop) */
 static K threecolon2(K a, K x) {
-  if((ta==4&&sp("")==sk(a)) ||(ta==-3&&sp("")==sp(px(a)))) return b3colon(x);
-  if(ta==1) return ipc_send_async((int)ik(a), x);
+  if(!s(a)&&((ta==4&&sp("")==sk(a)) ||(ta==-3&&sp("")==sp(px(a))))) return b3colon(x);
+  if(!s(a)&&ta==1) return ipc_send_async((int)ik(a), x);
   if(is_hostport(a)) {
     K h = ipc_open(a);
     if(E(h)) return h;
@@ -1666,8 +1901,8 @@ static K fourcolon1(K x) {
  *                       dedup'd next time; user closes via 3:h if wanted)
  *   else              -> null (existing nop) */
 static K fourcolon2(K a, K x) {
-  if((ta==4&&sp("")==sk(a)) ||(ta==-3&&sp("")==sp(px(a)))) return b4colon(x);
-  if(ta==1) return ipc_send_sync((int)ik(a), x);
+  if(!s(a)&&((ta==4&&sp("")==sk(a)) ||(ta==-3&&sp("")==sp(px(a))))) return b4colon(x);
+  if(!s(a)&&ta==1) return ipc_send_sync((int)ik(a), x);
   if(is_hostport(a)) {
     K h = ipc_open(a);
     if(E(h)) return h;
@@ -1692,7 +1927,7 @@ static K eightcolon1(K x) {
 }
 
 static K eightcolon2(K a, K x) {
-  if((ta==4&&sp("")==sk(a)) ||(ta==-3&&sp("")==sp(px(a)))) return b8colon(x);
+  if(!s(a)&&((ta==4&&sp("")==sk(a)) ||(ta==-3&&sp("")==sp(px(a))))) return b8colon(x);
   return null;
 }
 

@@ -492,7 +492,7 @@ K kmix(K x) {
   float *pxe;
   double *pxf;
   char *pxc,**pxs;
-  if(!tx||tx==2) return kcp(x);
+  if(s(x)||!tx||tx==2) return kcp(x);
   PRK(nx);
   switch(tx) {
   case -1: PXI; i(nx,prk[i]=t(1,(u32)pxi[i])) break;

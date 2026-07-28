@@ -104,6 +104,7 @@
   #include <sys/resource.h> /* getrlimit() in close_inherited_fds() */
   #include <dirent.h>     /* opendir() in close_inherited_fds() */
   #include <ctype.h>      /* isdigit() in close_inherited_fds() */
+  #include <limits.h>     /* INT_MAX */
   typedef int sock_t;
   #define INVALID_SOCK              (-1)
   #define sock_close(fd)            close(fd)
@@ -172,6 +173,15 @@ static void sigchld_reap(int sig) {
   errno = saved;
 }
 
+int ipc_install_sigchld_reaper(void) {
+  struct sigaction sa;
+  memset(&sa, 0, sizeof sa);
+  sa.sa_handler = sigchld_reap;
+  sa.sa_flags   = SA_RESTART | SA_NOCLDSTOP;
+  sigemptyset(&sa.sa_mask);
+  return sigaction(SIGCHLD, &sa, NULL);
+}
+
 /* Close every fd we inherited from the parent except 0/1/2 and `keep`.
  *
  * Why: fork can fire mid-script-load (the load() loop in repl.c holds an
@@ -186,7 +196,7 @@ static void sigchld_reap(int sig) {
  *
  * Strategy: prefer /proc/self/fd (Linux) or /dev/fd (macOS) for an exact
  * list of currently open fds. Fall back to a getrlimit-bounded loop. */
-static void close_inherited_fds(int keep) {
+void ipc_close_inherited_fds(int keep) {
   const char *paths[] = { "/proc/self/fd", "/dev/fd", NULL };
   for(int p = 0; paths[p]; p++) {
     DIR *d = opendir(paths[p]);
@@ -194,23 +204,29 @@ static void close_inherited_fds(int keep) {
     int dfd = dirfd(d);
     /* Snapshot fds first so we don't perturb the iteration by closing. */
     int  buf[256];
-    int  bn = 0;
+    int  bn = 0, overflow = 0;
     struct dirent *e;
     while((e = readdir(d))) {
       if(!isdigit((unsigned char)e->d_name[0])) continue;
       int fd = atoi(e->d_name);
       if(fd <= 2 || fd == keep || fd == dfd) continue;
       if(bn < (int)(sizeof buf / sizeof buf[0])) buf[bn++] = fd;
+      else overflow = 1;
     }
     closedir(d);
-    for(int i = 0; i < bn; i++) (void)close(buf[i]);
-    return;
+    if(!overflow) {
+      for(int i = 0; i < bn; i++) (void)close(buf[i]);
+      return;
+    }
+    /* More than the fixed snapshot can hold: use the complete fallback
+     * rather than silently leaking every descriptor after the first 256. */
+    break;
   }
   /* Fallback: brute-force range. */
   struct rlimit rl;
   int max = 1024;
   if(getrlimit(RLIMIT_NOFILE, &rl) == 0 && rl.rlim_cur != RLIM_INFINITY)
-    max = (int)rl.rlim_cur;
+    max = rl.rlim_cur > (rlim_t)INT_MAX ? INT_MAX : (int)rl.rlim_cur;
   for(int fd = 3; fd < max; fd++)
     if(fd != keep) (void)close(fd);
 }
@@ -631,14 +647,7 @@ K ipc_listen(int port, int mode) {
    * and then fails with ECHILD, which would break `4: and `8: (the
    * shell-out verbs in io.c that fork+waitpid for a specific pid).
    * Idempotent: re-installing the same handler is a no-op. */
-  if(mode == IPC_MODE_FORK) {
-    struct sigaction sa;
-    memset(&sa, 0, sizeof sa);
-    sa.sa_handler = sigchld_reap;
-    sa.sa_flags   = SA_RESTART | SA_NOCLDSTOP;
-    sigemptyset(&sa.sa_mask);
-    sigaction(SIGCHLD, &sa, NULL);
-  }
+  if(mode == IPC_MODE_FORK) (void)ipc_install_sigchld_reaper();
 #endif
   /* New socket is bound+listening. Now safe to retire the old slot (if
    * any) and publish the new one. */
@@ -744,7 +753,7 @@ static void handle_accept(int lfd, int lmode) {
     tmr_fork_clear();
     /* Drop any other fds the parent had open (script files mid-\l, any
      * io.c FILE* still live at fork time, etc). Keeps the new cfd. */
-    close_inherited_fds((int)cfd);
+    ipc_close_inherited_fds((int)cfd);
     scope_refresh_pid();                     /* .z.P -> child pid */
     /* Reseed the xorshift RNG so siblings don't generate identical
      * sequences. Mix in pid + wall-clock so two children forked in the
@@ -1097,7 +1106,7 @@ static void fire_close_handler(int fd) {
    * list, the default "", ...) is silently ignored. The closed fd is
    * not passed; if the user wants it, they can capture it elsewhere
    * (e.g., maintain a global list inside .m.s). */
-  if(T(h) != -3 || n(h) == 0) { scope_set_z_w(0); mark_in_dispatch(fd, 0); _k(h); return; }
+  if(s(h) || T(h) != -3 || n(h) == 0) { scope_set_z_w(0); mark_in_dispatch(fd, 0); _k(h); return; }
   /* Evaluate by applying the canonical {. x} eval-lambda. Built fresh
    * each time (only fires on disconnect, so the cost is irrelevant)
    * so the user redefining .m.s can't affect us. */
@@ -1329,6 +1338,7 @@ static K cerror(const char *prefix, int err) {
  * type/length error. */
 static int host_cstr(K host, char *buf, size_t bufsz) {
   const char *s = NULL; size_t l = 0;
+  if(s(host))             return -1;
   if(T(host) == 4)        { s = sk(host); l = strlen(s); }
   else if(T(host) == -3)  { s = px(host); l = (size_t)n(host); }
   else                    return -1;
@@ -1360,11 +1370,11 @@ K ipc_open(K hp) {
   /* fuzz: never connect (no DNS, no socket, no surprise local services) */
   (void)hp; return KERR_DOMAIN;
 #else
-  if(T(hp) != 0)   return KERR_TYPE;
+  if(s(hp) || T(hp) != 0) return KERR_TYPE;
   if(n(hp) != 2)   return KERR_LENGTH;
   K *pk = px(hp);
   K host = pk[0], port = pk[1];
-  if(T(port) != 1) return KERR_TYPE;
+  if(s(port) || T(port) != 1) return KERR_TYPE;
   i32 p = ik(port);
   if(p <= 0 || p > 65535) return KERR_DOMAIN;
 
@@ -1521,7 +1531,7 @@ K ipc_send_sync(int fd, K msg) {
       cc->waiting_sync = 0;
       if(is_err) {
         /* SYNC_ERR payload was bd_-wrapped char vector */
-        if(T(v) == -3) {
+        if(!s(v) && T(v) == -3) {
           char *p = px(v);
           size_t l = (size_t)n(v);
           char *b = xmalloc(l + 1);
