@@ -310,7 +310,13 @@ K at_(K a, K x) {
     case  8: { i64 v=jk(x); r=(v<0||(u64)v>=na)?null:k_(pak[v]); } break;
     case -1: PRK(nx); PXI; i(nx, prk[i]=(pxi[i]<0||(u64)pxi[i]>=na)?null:k_(pak[pxi[i]])) break;
     case -8: PRK(nx); pxj=px(x); i(nx, prk[i]=(pxj[i]<0||(u64)pxj[i]>=na)?null:k_(pak[pxj[i]])) break;
-    case  0: PRK(nx); PXK; i(nx, EC(prk[i]=at_(a,pxk[i]))) break;
+    case  0: {
+      static i32 d=0;
+      if(++d>maxr || (!(d&7)&&stack_low())) { --d; r=KERR_STACK; break; }
+      PRK(nx); PXK;
+      i(nx, e=at_(a,pxk[i]); if(E(e)) { --d; goto cleanup; } prk[i]=e)
+      --d;
+    } break;
     default: r=KERR_TYPE;
     } break;
   default: r=KERR_TYPE;
@@ -728,7 +734,15 @@ K vs(K a, K x) {
   return vs_(a,x,w);
 }
 
+static K sv_(K a, K x);
 K sv(K a, K x) {
+  static i32 d=0;
+  if(++d>maxr || (!(d&7)&&stack_low())) { --d; return KERR_STACK; }
+  K r=sv_(a,x);
+  --d;
+  return r;
+}
+static K sv_(K a, K x) {
   K r=0,e,q=0,p=0,s=0,*pxk,*prk;
   i32 *pxi;
   u32 j;
@@ -1785,10 +1799,13 @@ static K crypt_(char*(*f)(const char*,size_t,unsigned char*,unsigned char*,size_
       prk[i]=p;
     }
     break;
-  case  0:
+  case  0: {
+    static i32 d=0;
+    if(++d>maxr || (!(d&7)&&stack_low())) { --d; ee=KERR_STACK; goto cleanup; }
     PRK(nx); PXK;
-    i(nx,prk[i]=crypt_(f,a,pxk[i]);if(E(prk[i])){ ee=prk[i]; goto cleanup; });
-    break;
+    i(nx,prk[i]=crypt_(f,a,pxk[i]);if(E(prk[i])){ --d; ee=prk[i]; goto cleanup; });
+    --d;
+  } break;
   default: r=KERR_TYPE;
   }
 goto noerr;
@@ -1825,7 +1842,7 @@ K decrypt_(K a, K x) { return crypt_(aes256d,a,x); }
 static int fncap_ring(K w, K sc) {
   static int d=0;
   int r=0; u64 j; K *p;
-  if(++d>maxr) { --d; return 1; }
+  if(++d>maxr || (!(d&7)&&stack_low())) { --d; return 1; }
   switch(s(w)) {
   case 0xc3: { K scp=((K*)px(w))[2]; r=6!=T(scp)&&((K*)px(scp))[0]==sc; break; }
   case 0xd9: case 0xd7: p=px(w); r=fncap_ring(p[0],sc)||fncap_ring(p[1],sc); break;
@@ -1853,7 +1870,7 @@ static int fncap_ring(K w, K sc) {
 static K fncap_strip(K w, K sc) {
   static int d=0;
   K r,*pr; u64 j;
-  if(++d>maxr) { --d; return k_(w); }
+  if(++d>maxr || (!(d&7)&&stack_low())) { --d; return k_(w); }
   switch(s(w)) {
   case 0xc3: {
     K scp=((K*)px(w))[2];

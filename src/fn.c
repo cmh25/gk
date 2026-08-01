@@ -165,7 +165,7 @@ static int on_wpath(K x) { i32 i; for(i=0;i<wpn;i++) if(wpath[i]==x) return 1; r
 static int proj_captures(K x, K s0) {
   static int d=0;
   int r=0; u64 j; K *p;
-  if(++d>maxr) { --d; return 1; }
+  if(++d>maxr || (!(d&7)&&stack_low())) { --d; return 1; }
 #ifdef FUZZING
   /* The wpath/depth guards bound recursion DEPTH and cut cycles, but a shared
      (DAG) surface -- cheap for a converge to build, e.g. f\{x#y}3 -- still
@@ -215,7 +215,7 @@ static int proj_captures(K x, K s0) {
 static K closure_any(K x, K s0, K closurescope) {
   static int d=0;
   u64 j; K *p, c;
-  if(++d>maxr) { --d; return KERR_STACK; }
+  if(++d>maxr || (!(d&7)&&stack_low())) { --d; return KERR_STACK; }
   switch(s(x)) {
   case 0xc3: --d; return closure(x,s0,closurescope);
   case 0xd9: case 0xd7:
@@ -299,7 +299,7 @@ static u64 ccthresh=256;         /* sweep when the registry grows past this */
 static int cc_scan(K w, K S, u64 *internal) {
   static int d=0;
   int r=1; u64 j; K *p;
-  if(++d>maxr) { --d; return 0; }
+  if(++d>maxr || (!(d&7)&&stack_low())) { --d; return 0; }
   if(kh(w) && (u64)((ko*)(b(48)&w))->r+1!=1) { --d; return 0; }
   switch(s(w)) {
   case 0xc3: {
@@ -333,6 +333,9 @@ static int cc_dead(K S) {
 static void cc_break(K w, K S) {
   static int d=0;
   u64 j; K *p;
+  /* counter only, no stack_low probe: a collecting break must reach everything
+     the completed cc_scan walk reached (a partial break leaves live back-refs
+     on the S cc_free is about to drop); scan's own probes bound that depth. */
   if(++d>maxr) { --d; return; }
   switch(s(w)) {
   case 0xc3: {
@@ -401,7 +404,7 @@ void cc_shutdown(void) {
 static void sib_(K w, K S, K s0, u64 *nref) {
   static int d=0;
   u64 j; K *p, cs1, e;
-  if(++d>maxr) { --d; return; }
+  if(++d>maxr || (!(d&7)&&stack_low())) { --d; return; }
   switch(s(w)) {
   case 0xc3:
     if(6==T(((K*)px(w))[2])) {          /* never realized: give it a scope, here */
@@ -458,7 +461,7 @@ static u64 closure_siblings(K closurescope, K s0) {
 static K relink_(K w, K sc, u64 *nref) {
   static int d=0;
   u64 j; K *p, cs0, e=0;
-  if(++d>maxr) { --d; return 0; }
+  if(++d>maxr || (!(d&7)&&stack_low())) { --d; return 0; }
   switch(s(w)) {
   case 0xc3:
     if(6==T(((K*)px(w))[2])) {

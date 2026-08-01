@@ -851,6 +851,7 @@ static K kamendi3v(K d, K i, K f) {
   td=T(d);
   ti=T(i);
   if(s(i)) { e=KERR_TYPE; goto cleanup; }
+  if(s(d)) { e=KERR_TYPE; goto cleanup; }
 
   switch(ti) {
   case  1: if(ik(i)<0||(K)ik(i)>=n(d)) { e=KERR_INDEX; goto cleanup; } break;
@@ -1283,6 +1284,7 @@ static K kamendi4v_(K d, K i, K f, K y) {
   ty=T(y);
   Ty=ty; if(s(y)) { if(!VST(y)) { e=KERR_TYPE; goto cleanup; } Ty=15; }
   if(s(i)) { e=KERR_TYPE; goto cleanup; }
+  if(s(d)) { e=KERR_TYPE; goto cleanup; }
   y=amend_yalias(y); EC(y);   /* y may reach d; d is amended in place */
 
   if(ti==-8 && n(d)<=(u64)INT32_MAX) {

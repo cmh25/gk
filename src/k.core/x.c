@@ -17,7 +17,7 @@
 #ifdef FUZZING
 extern long gk_alloc_budget;
 #define GK_CHARGE(n) do{ gk_alloc_budget-=(long)(n); if(gk_alloc_budget<0){ \
-  printf("wsfull\n"); exit(1); } }while(0)
+  fprintf(stderr,"wsfull\n"); exit(1); } }while(0)
 #else
 #define GK_CHARGE(n) ((void)0)
 #endif
@@ -202,7 +202,7 @@ void* xmalloc(size_t s) {
      BELOW, which then computes `malloc(s + 8)` and wraps there instead --
      s = SIZE_MAX-3 became malloc(4) and handed back a 4-byte block for a
      ~2^64-byte request.  Guard once, here, so BOTH arms are covered. */
-  if(s > SIZE_MAX - 8) { printf("wsfull\n"); exit(1); }
+  if(s > SIZE_MAX - 8) { fprintf(stderr,"wsfull\n"); exit(1); }
   GK_CHARGE(s);
 
   uint32_t lv = BUDDY_LEVEL(s);
@@ -211,7 +211,7 @@ void* xmalloc(size_t s) {
   if(lv >= BUDDY_LEVELS) {
     void *p = malloc(s + 8);
     if(!p) {
-      printf("wsfull\n");
+      fprintf(stderr,"wsfull\n");
       exit(1);
     }
     *(uint32_t*)p = BUDDY_SYS;
@@ -223,7 +223,7 @@ void* xmalloc(size_t s) {
     /* fallback to system malloc */
     void *p = malloc(s + 8);
     if(!p) {
-      printf("wsfull\n");
+      fprintf(stderr,"wsfull\n");
       exit(1);
     }
     *(uint32_t*)p = BUDDY_SYS;
@@ -269,7 +269,7 @@ void* xcalloc(size_t n, size_t s) {
      valid pointer with a matching quiet memset.  tn(0,n) reaches this for
      n >= 2^61. */
   size_t sz;
-  if(s && n > SIZE_MAX / s) { printf("wsfull\n"); exit(1); }
+  if(s && n > SIZE_MAX / s) { fprintf(stderr,"wsfull\n"); exit(1); }
   sz=n*s;
   void *p=xmalloc(sz);
   memset(p,0,sz);
@@ -279,7 +279,7 @@ void* xcalloc(size_t n, size_t s) {
 void* xrealloc(void *p, size_t s) {
   if(!p) return xmalloc(s);
   if(!s) { xfree(p); return xmalloc(1); }
-  if(s > SIZE_MAX - 8) { printf("wsfull\n"); exit(1); }  /* see xmalloc: the
+  if(s > SIZE_MAX - 8) { fprintf(stderr,"wsfull\n"); exit(1); }  /* see xmalloc: the
                               system arm below computes realloc(base, s+8) */
   GK_CHARGE(s);
 
@@ -290,7 +290,7 @@ void* xrealloc(void *p, size_t s) {
     /* system malloc - use system realloc */
     void *p2 = realloc((void*)base, s + 8);
     if(!p2) {
-      printf("wsfull\n");
+      fprintf(stderr,"wsfull\n");
       exit(1);
     }
     *(uint32_t*)p2 = BUDDY_SYS;
@@ -342,7 +342,7 @@ void* xmalloc(size_t s) {
   if(!s) s=1;
   GK_CHARGE(s);
   if(!(p=malloc(s))) {
-    printf("wsfull\n");
+    fprintf(stderr,"wsfull\n");
     exit(1);
   }
   return p;
@@ -357,7 +357,7 @@ void* xcalloc(size_t n, size_t s) {
   if(!n||!s) { n=1; s=1; }
   GK_CHARGE(n*s);
   if(!(p=calloc(n,s))) {
-    printf("wsfull\n");
+    fprintf(stderr,"wsfull\n");
     exit(1);
   }
   return p;
@@ -369,7 +369,7 @@ void* xrealloc(void *p, size_t s) {
   if(!s) { xfree(p); return xmalloc(1); }
   GK_CHARGE(s);
   if(!(p2=realloc(p,s))) {
-    printf("wsfull\n");
+    fprintf(stderr,"wsfull\n");
     exit(1);
   }
   return p2;

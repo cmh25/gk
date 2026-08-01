@@ -2614,6 +2614,7 @@ c3_apply:
           _k(v);
           v=kerror("");
         }
+        else { _k(v); v=kerror("parse"); }
       }
     }
     else if(!VST(v)||0x81==s(v)) { _k(v); v=kerror("parse"); }
@@ -2899,7 +2900,7 @@ K list19(pgs *s, pn *a) {
     pv[1]=listbc(s,a->a[1],0x41);
     r=st(0x44,v);
   }
-  else { printf("fatal\n"); exit(1); }
+  else { fprintf(stderr,"fatal\n"); exit(1); }
   return r;
 }
 

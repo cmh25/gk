@@ -196,7 +196,25 @@ int ipc_install_sigchld_reaper(void) {
  *
  * Strategy: prefer /proc/self/fd (Linux) or /dev/fd (macOS) for an exact
  * list of currently open fds. Fall back to a getrlimit-bounded loop. */
-void ipc_close_inherited_fds(int keep) {
+int ipc_close_inherited_fds(int keep) {
+#ifdef __FreeBSD__
+  /* Without fdescfs mounted, FreeBSD's /dev/fd opens successfully but lists
+   * only 0/1/2, so treating it as a complete descriptor inventory leaks every
+   * other fd. closefrom() is both complete and much cheaper than probing up to
+   * RLIMIT_NOFILE (28k by default). If a fork worker must retain its accepted
+   * socket, move it to fd 3 and close everything above it. */
+  if(keep < 3) {
+    closefrom(3);
+    return keep;
+  }
+  if(keep == 3) {
+    closefrom(4);
+    return keep;
+  }
+  if(dup2(keep,3) < 0) return -1;
+  closefrom(4);
+  return 3;
+#else
   const char *paths[] = { "/proc/self/fd", "/dev/fd", NULL };
   for(int p = 0; paths[p]; p++) {
     DIR *d = opendir(paths[p]);
@@ -216,7 +234,7 @@ void ipc_close_inherited_fds(int keep) {
     closedir(d);
     if(!overflow) {
       for(int i = 0; i < bn; i++) (void)close(buf[i]);
-      return;
+      return keep;
     }
     /* More than the fixed snapshot can hold: use the complete fallback
      * rather than silently leaking every descriptor after the first 256. */
@@ -229,6 +247,8 @@ void ipc_close_inherited_fds(int keep) {
     max = rl.rlim_cur > (rlim_t)INT_MAX ? INT_MAX : (int)rl.rlim_cur;
   for(int fd = 3; fd < max; fd++)
     if(fd != keep) (void)close(fd);
+  return keep;
+#endif
 }
 #endif
 
@@ -753,7 +773,9 @@ static void handle_accept(int lfd, int lmode) {
     tmr_fork_clear();
     /* Drop any other fds the parent had open (script files mid-\l, any
      * io.c FILE* still live at fork time, etc). Keeps the new cfd. */
-    ipc_close_inherited_fds((int)cfd);
+    int kept_fd = ipc_close_inherited_fds((int)cfd);
+    if(kept_fd < 0) _exit(1);
+    cfd = (sock_t)kept_fd;
     scope_refresh_pid();                     /* .z.P -> child pid */
     /* Reseed the xorshift RNG so siblings don't generate identical
      * sequences. Mix in pid + wall-clock so two children forked in the

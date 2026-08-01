@@ -536,7 +536,7 @@ K scope_find(char *x) {
     if(ps[2]==t(4,sp(x))) break;
   }
   if(i==SM) {
-    printf("error: scope_find() i==SM\n");
+    fprintf(stderr,"error: scope_find() i==SM\n");
     exit(1);
   }
   return scopea[i];

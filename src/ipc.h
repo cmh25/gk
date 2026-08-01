@@ -52,7 +52,9 @@ int  ipc_stdin_getc(void);
 /* POSIX child-process housekeeping shared by the IPC fork listener and the
  * shell-out verbs. */
 int  ipc_install_sigchld_reaper(void);
-void ipc_close_inherited_fds(int keep);
+/* Close non-standard descriptors, preserving `keep` when it is >= 0.
+ * Returns the preserved descriptor, which may be moved on some platforms. */
+int  ipc_close_inherited_fds(int keep);
 #endif
 
 /* Listener modes. */

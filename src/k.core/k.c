@@ -263,6 +263,11 @@ i32 kcmpr(K a, K x) {
 
   typedef struct { K a,x; size_t i; } sf;
   i32 sm=32,sp=0;
+#ifdef FUZZING
+  static long kcmpr_budget;
+  static i32 kcmpr_d=0;
+  if(++kcmpr_d==1) kcmpr_budget=1000000L;
+#endif
   sf *stack=xmalloc(sizeof(sf)*sm);
   stack[sp++]=(sf){a,x,0};
   while(sp) {
@@ -366,6 +371,9 @@ i32 kcmpr(K a, K x) {
       }
       K ai=pak[f->i],xi=pxk[f->i];
       ++f->i;
+#ifdef FUZZING
+      if(--kcmpr_budget<0) { r=0; break; }  /* bail as equal: see entry */
+#endif
       if(!ai) ai=t(6,0);  /* empty keeper slot (see top of loop) */
       if(!xi) xi=t(6,0);
       if(s(ai)||s(xi)) {
@@ -382,6 +390,9 @@ i32 kcmpr(K a, K x) {
     --sp;
   }
   xfree(stack);
+#ifdef FUZZING
+  --kcmpr_d;
+#endif
   return r;
 }
 

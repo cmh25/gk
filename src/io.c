@@ -1700,7 +1700,7 @@ static K b3colon(K x) {
   char *argv[4];
   if(s(x)||tx!=-3) return KERR_TYPE;
   if(!nx) return KERR_DOMAIN;
-  argv[0]="/bin/bash";
+  argv[0]="bash";
   argv[1]="-c";
   argv[2]=xstrndup((char*)px(x),nx);
   argv[3]=0;
@@ -1738,7 +1738,7 @@ static K b4colon(K x) {
   if(s(x)||tx!=-3) return KERR_TYPE;
   if(!nx) return KERR_DOMAIN;
   if(pipe(out)) return kerror("pipe");
-  argv[0]="/bin/bash";
+  argv[0]="bash";
   argv[1]="-c";
   argv[2]=xstrndup(px(x),nx);
   argv[3]=0;
@@ -1793,7 +1793,7 @@ static K b8colon(K x) {
   if(!nx) return KERR_DOMAIN;
   if(pipe(out)) return kerror("pipe");
   if(pipe(err)) { close(out[0]); close(out[1]); return kerror("pipe"); }
-  argv[0]="/bin/bash";
+  argv[0]="bash";
   argv[1]="-c";
   argv[2]=xstrndup((char*)px(x),nx);
   argv[3]=0;

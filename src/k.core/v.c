@@ -34,6 +34,8 @@ extern i32 vstcb(K x);
 #define IS0(x) (!s(x)&&!T(x))
 extern K irecur1(K(*ff)(K), K x);
 extern K irecur2(K(*ff)(K,K), K a, K x);
+extern i32 maxr;              /* eval depth cap (see k.core/k.c) */
+extern int stack_lowcb(void); /* RSP stack guard, same as the eval sites */
 
 /* JWO(OP,A,B): wrapping i64 arithmetic (mirrors the (u32)->(i32) int wrap) */
 #define JWO(OP,A,B) ((i64)((u64)(A) OP (u64)(B)))
@@ -871,11 +873,15 @@ K at(K a, K x) {
     case  1: case  8: case -1: case -8: return k_(x);   /* integer index -> itself */
     case  4: return null;                               /* symbol index misses */
     case -4: { K r=tn(0,nx),*pr=px(r); i(nx,pr[i]=null) return r; }
-    case  0:                                            /* elementwise */
+    case  0: {                                          /* elementwise */
       if(!nx) return tn(0,0);
+      static i32 d=0;
+      if(++d>maxr || (!(d&7)&&stack_lowcb())) { --d; return KERR_STACK; }
       r=tn(0,nx); pr=px(r); pxk=px(x);
-      i(nx, t=at(null,pxk[i]); if(E(t)) { n(r)=i; _k(r); return t; } pr[i]=t)
+      i(nx, t=at(null,pxk[i]); if(E(t)) { n(r)=i; _k(r); --d; return t; } pr[i]=t)
+      --d;
       return knorm(r);
+    }
     default:
       if(!ax&&!nx) return tn(0,0);   /* empty index -> () */
       return KERR_TYPE;              /* char, float, real */
