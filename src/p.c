@@ -797,6 +797,14 @@ cleanup:
 
 static K A0[EVALDEPTH][256];
 
+/* A postfix node parked below the current application belongs to a pending
+   outer head (`f'g'x`), not to the current verb as a dyadic left seed.  The
+   parser can represent that pending postfix as a bare adverb, an adverb plus
+   arguments, or a bracketed-adverb application. */
+static int pending_postfix(K x) {
+  return 0x85==s(x) || 0x45==s(x) || 0x43==s(x);
+}
+
 /* File-verb postfix-adverb application (0xcc monad `5:x`, 0xcd dyad
    `a 0:x`), kept out of pgreduce_ so its cases stay tiny.  A postfix adverb
    arrives as a 0x45(av,args) node (de-glued); strip the adverb, run the same
@@ -944,7 +952,7 @@ K pgreduce_(K x0, int *quiet) {
             *pA++ = *bavp ? avdo(k_(v),0,bv,bavp) : builtin(k_(v),0,bv);
             _k(b);
           }
-          else if(pA>A && !next_is_dyad_op) {
+          else if(pA>A && !pending_postfix(pA[-1]) && !next_is_dyad_op) {
             a=*--pA;
             if(s(a)) { a=reduce(a); if(E(a)||EXIT) { _k(bv); _k(b); *pA++=a; break; } }
             if(!VST(a)||!VST(bv)) { _k(a); _k(bv); _k(b); *pA++=KERR_TYPE; break; }
@@ -961,7 +969,7 @@ K pgreduce_(K x0, int *quiet) {
         if(s(b)) { b=reduce(b); if(E(b)||EXIT) { _k(v); *pA++=b; break; } }
         if(0x81==s(b)&&n(b)==2) { K *pb=px(b); *pA++=builtin(v,k_(pb[0]),k_(pb[1])); _k(b); }
         else if(0x81==s(b)) { _k(b); *pA++=KERR_VALENCE; } /* valence */
-        else if(pA>A) {
+        else if(pA>A && !pending_postfix(pA[-1])) {
           a=*--pA;
           if(0x40==s(a)&&i+1<nx&&64==ik(px[i+1])&&pA==A) { /* f:draw 3 */
             ++i;
@@ -1022,6 +1030,7 @@ K pgreduce_(K x0, int *quiet) {
              token is JUXT and a left seed is on stack.  Mirrors the
              dispatch in case 0xda (around line 1770-1786). */
           if(pA>A && i<nx-1 && 0xc0==s(px[i+1]) && ik(px[i+1])==0xff
+             && !pending_postfix(pA[-1])
              && (!strcmp(aavp,"/")||!strcmp(aavp,"\\"))) {
             ++i;
             K t0=*--pA;
@@ -1347,7 +1356,7 @@ K pgreduce_(K x0, int *quiet) {
               if((u32)valence==(u32)n(bv)) { *pA++=fne(f,bv,bavp); _k(b); }
               else { _k(bv); _k(b); _k(f); *pA++=KERR_VALENCE; }
             }
-            else if(pA>A) {
+            else if(pA>A && !pending_postfix(pA[-1])) {
               a=*--pA;
               if(s(a)) { a=reduce(a); if(E(a)||EXIT) { _k(f); _k(bv); _k(b); *pA++=a; break; } }
               if(!VST(a)||!VST(bv)) { _k(a); _k(bv); _k(b); _k(f); *pA++=KERR_TYPE; break; }
@@ -1397,7 +1406,7 @@ K pgreduce_(K x0, int *quiet) {
               *pA++=fne(f,k_(xx),0);
               _k(b); --paramsi;
             }
-            else {
+            else if(pA>A && !pending_postfix(pA[-1])) {
               a=*--pA;
               if(0x40==s(a)&&i+1<nx&&64==ik(px[i+1])&&pA==A) { /* f:lin 1 2 3 */
                 ++i;
@@ -1420,6 +1429,11 @@ K pgreduce_(K x0, int *quiet) {
               xx=params[paramsi++]; pxk=px(xx); pxk[0]=a; pxk[1]=b; n(xx)=2;
               *pA++=fne(f,k_(xx),0);
               _k(a); _k(b); --paramsi;
+            }
+            else {
+              xx=params[paramsi++]; pxk=px(xx); pxk[0]=b; n(xx)=1;
+              *pA++=fne(f,k_(xx),0);
+              _k(b); --paramsi;
             }
           }
           else if(valence==3) {
@@ -1899,7 +1913,7 @@ c3_apply:
                decline, apply monadically, and let the remaining JUXTs
                attach the head, so f'g'x == f'(g'x). */
             if(strlen(cav) && pA>A && i<nx-1 && 0xc0==s(px[i+1]) && ik(px[i+1])==0xff
-               && 0x85!=s(pA[-1]) && 0x45!=s(pA[-1]) && 0x43!=s(pA[-1])) {
+               && !pending_postfix(pA[-1])) {
               ++i;
               t=*--pA;
               if(s(t)) { t=reduce(t); if(E(t)||EXIT) { _k(a); _k(b); _k(b1); _k(b2); *pA++=t; break; } }
@@ -1976,7 +1990,7 @@ c3_apply:
             *pA++=fe(a,0,k_(pb[2]),mv);
             _k(b);
           }
-          else if(pA>A&&i<nx-1&&0xc0==s(px[i+1])&&ik(px[i+1])==0xff) {  /* dyadic juxtaposition */
+          else if(pA>A&&!pending_postfix(pA[-1])&&i<nx-1&&0xc0==s(px[i+1])&&ik(px[i+1])==0xff) {  /* dyadic juxtaposition */
             ++i;
             t=*--pA;
             if(s(t)) { t=reduce(t); if(E(t)||EXIT) { _k(a); _k(b); *pA++=t; break; } }
@@ -1999,7 +2013,7 @@ c3_apply:
             char *favp=-3==T(fav)?(char*)px(fav):"";
             if(av && *av) favp=av;
             if((!strcmp(favp,"/") || !strcmp(favp,"\\"))
-               &&pA>A&&i<nx-1&&0xc0==s(px[i+1])&&ik(px[i+1])==0xff) {  /* dyadic juxtaposition */
+               &&pA>A&&!pending_postfix(pA[-1])&&i<nx-1&&0xc0==s(px[i+1])&&ik(px[i+1])==0xff) {  /* dyadic juxtaposition */
               /* primitive do/while */
               ++i;
               t=*--pA;
@@ -2044,7 +2058,7 @@ c3_apply:
             }
           }
           else if(valence==2) { /* a f x */
-            if(pA>A&&i<nx-1&&0xc0==s(px[i+1])&&ik(px[i+1])==0xff) {  /* dyadic juxtaposition */
+            if(pA>A&&!pending_postfix(pA[-1])&&i<nx-1&&0xc0==s(px[i+1])&&ik(px[i+1])==0xff) {  /* dyadic juxtaposition */
               ++i;
               t=*--pA;
               if(0x43==s(b)) { *pA++=KERR_PARSE; _k(a); _k(b); break; } /* f[]'[] not handled here; push a real error, never a NULL operand (cf. sibling at ~1837) */
@@ -2075,7 +2089,7 @@ c3_apply:
           pb=px(b);
           mv=px(pb[1]);
           if(!VST(pb[2])) { _k(a); _k(b); *pA++=KERR_TYPE; break; }
-          if(pA>A&&i<nx-1&&0xc0==s(px[i+1])&&ik(px[i+1])==0xff) {  /* dyadic juxtaposition */
+          if(pA>A&&!pending_postfix(pA[-1])&&i<nx-1&&0xc0==s(px[i+1])&&ik(px[i+1])==0xff) {  /* dyadic juxtaposition */
             ++i;
             t=*--pA;
             if(s(t)) { t=reduce(t); if(E(t)||EXIT) { _k(a); _k(b); *pA++=t; break; } }
@@ -2243,7 +2257,7 @@ c3_apply:
            g 16.0 converges like the infix spelling. */
         if(0xc7==s(wf)||0xc6==s(wf)) {
           if(0x40==s(b)) { b=r40(b); if(E(b)||EXIT) { _k(a); *pA++=b; break; } }
-          if(pA>A && i<nx-1 && 0xc0==s(px[i+1]) && ik(px[i+1])==0xff) {  /* dyadic juxtaposition */
+          if(pA>A && !pending_postfix(pA[-1]) && i<nx-1 && 0xc0==s(px[i+1]) && ik(px[i+1])==0xff) {  /* dyadic juxtaposition */
             ++i;
             t=*--pA;
             if(s(t)) { t=reduce(t); if(E(t)||EXIT) { _k(a); _k(b); *pA++=t; break; } }
@@ -2258,7 +2272,7 @@ c3_apply:
         if(0x40==s(b)) { b=r40(b); if(E(b)||EXIT) { _k(a); *pA++=b; break; } }
         if(*avp) {
           if(0x45==s(b)) { /* adverbs with args, '1 2 */
-            if(pA>A&&i<nx-1&&0xc0==s(px[i+1])&&ik(px[i+1])==0xff) {  /* dyadic juxtaposition */
+            if(pA>A&&!pending_postfix(pA[-1])&&i<nx-1&&0xc0==s(px[i+1])&&ik(px[i+1])==0xff) {  /* dyadic juxtaposition */
               ++i;
               t=*--pA;
               if(s(t)) { t=reduce(t); if(E(t)||EXIT) { _k(a); _k(b); *pA++=t; break; } }
@@ -2282,7 +2296,7 @@ c3_apply:
               *pA++=avdo(vi,0,k_(pb[2]),buf);
             }
           }
-          else if(pA>A&&i<nx-1&&0xc0==s(px[i+1])&&ik(px[i+1])==0xff) {  /* dyadic juxtaposition */
+          else if(pA>A&&!pending_postfix(pA[-1])&&i<nx-1&&0xc0==s(px[i+1])&&ik(px[i+1])==0xff) {  /* dyadic juxtaposition */
             ++i;
             t=*--pA;
             if(s(t)) { t=reduce(t); if(E(t)||EXIT) { _k(a); _k(b); *pA++=t; break; } }
@@ -2351,7 +2365,7 @@ c3_apply:
           mv=px(pb[1]);
           if(!VST(pb[2])) { _k(a); _k(b); *pA++=KERR_TYPE; break; }
           t=0;
-          if(pA>A && i<nx-1 && 0xc0==s(px[i+1]) && ik(px[i+1])==0xff) { /* dyadic juxtaposition */
+          if(pA>A && !pending_postfix(pA[-1]) && i<nx-1 && 0xc0==s(px[i+1]) && ik(px[i+1])==0xff) { /* dyadic juxtaposition */
             ++i;
             t=*--pA;
             if(s(t)) { t=reduce(t); if(E(t)||EXIT) { _k(a); _k(b); *pA++=t; break; } }
@@ -2373,7 +2387,7 @@ c3_apply:
           *pA++=avdo(a,t,p,mv);
           _k(b);
         }
-        else if(0xc7==s(a) && pA>A && i<nx-1 && 0xc0==s(px[i+1]) && ik(px[i+1])==0xff) {
+        else if(0xc7==s(a) && pA>A && !pending_postfix(pA[-1]) && i<nx-1 && 0xc0==s(px[i+1]) && ik(px[i+1])==0xff) {
           /* 2 g 1 2 3 -- dyad with a juxtaposed left arg.  0xc6 monads
              never pull one ({x} abs 2 composes instead). */
           ++i;
@@ -2394,7 +2408,7 @@ c3_apply:
           pb=px(b);
           K av1=pb[1]; char *pav1=av1?px(av1):"";
           t=0;
-          if(pA>A&&i<nx-1&&0xc0==s(px[i+1])&&ik(px[i+1])==0xff) {  /* dyadic juxtaposition */
+          if(pA>A&&!pending_postfix(pA[-1])&&i<nx-1&&0xc0==s(px[i+1])&&ik(px[i+1])==0xff) {  /* dyadic juxtaposition */
             ++i;
             t=*--pA;
             if(s(t)) { t=reduce(t); if(E(t)||EXIT) { _k(a); _k(b); *pA++=t; break; } }
@@ -2423,7 +2437,7 @@ c3_apply:
         }
         else {
           t=0;
-          if(pA>A&&i<nx-1&&0xc0==s(px[i+1])&&ik(px[i+1])==0xff) {  /* dyadic juxtaposition */
+          if(pA>A&&!pending_postfix(pA[-1])&&i<nx-1&&0xc0==s(px[i+1])&&ik(px[i+1])==0xff) {  /* dyadic juxtaposition */
             ++i;
             t=*--pA;
             if(s(t)) { t=reduce(t); if(E(t)||EXIT) { _k(a); _k(b); *pA++=t; break; } }
@@ -2446,6 +2460,7 @@ c3_apply:
              overmonadn/scanmonadn for primitive do/while; otherwise
              falls back to avdo's monadic dispatch. */
           if(pA>A && i<nx-1 && 0xc0==s(px[i+1]) && ik(px[i+1])==0xff
+             && !pending_postfix(pA[-1])
              && (!strcmp(mv,"/")||!strcmp(mv,"\\"))
              && ik(val(a))==1) {
             ++i;
@@ -2476,7 +2491,7 @@ c3_apply:
           mv=px(pb[1]);
           if(!VST(pb[2])) { _k(a); _k(b); *pA++=KERR_TYPE; break; }
           t=0;
-          if(pA>A && i<nx-1 && 0xc0==s(px[i+1]) && ik(px[i+1])==0xff) { /* dyadic juxtaposition */
+          if(pA>A && !pending_postfix(pA[-1]) && i<nx-1 && 0xc0==s(px[i+1]) && ik(px[i+1])==0xff) { /* dyadic juxtaposition */
             ++i;
             t=*--pA;
             if(s(t)) { t=reduce(t); if(E(t)||EXIT) { _k(a); _k(b); *pA++=t; break; } }
@@ -2489,7 +2504,7 @@ c3_apply:
         }
         else {
           t=0;
-          if(pA>A && i<nx-1 && 0xc0==s(px[i+1]) && ik(px[i+1])==0xff) { /* dyadic juxtaposition */
+          if(pA>A && !pending_postfix(pA[-1]) && i<nx-1 && 0xc0==s(px[i+1]) && ik(px[i+1])==0xff) { /* dyadic juxtaposition */
             ++i;
             t=*--pA;
             if(s(t)) { t=reduce(t); if(E(t)||EXIT) { _k(a); _k(b); *pA++=t; break; } }

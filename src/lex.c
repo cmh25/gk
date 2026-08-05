@@ -916,6 +916,7 @@ K lex(pgs *pgs, int load) {
 #endif
         }
         else { /* trace in lambda */
+          if(p[1]&&strchr("'/\\",p[1])) goto parseerror;
           push(pgs,T015,t(4,st(0xd8,sp("\\"))));
           ++p;
           continue;
@@ -924,6 +925,7 @@ K lex(pgs *pgs, int load) {
       }
     }
     else if(b&&*p=='\\') { /* trace in opencode 1 + \2 3 */
+      if(p[1]&&strchr("'/\\",p[1])) goto parseerror;
       push(pgs,T015,t(4,st(0xd8,sp("\\"))));
       ++p;
       continue;
