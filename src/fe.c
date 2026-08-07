@@ -128,6 +128,13 @@ K fe(K f, K a, K x, char *av) {
         else if(*avp) r=avdo(k_(wf),0,x,avp);
         else { _k(x); r=KERR_PARSE; }
       }
+      else if(0xcc==s(wf) || 0xcd==s(wf)) {
+        /* A file verb can also be held in the generic modified-function
+           wrapper (`f:5:'`, `5:'[x]`).  The direct-token path dispatches
+           this same pair through fileverb_mon/avdo in p.c. */
+        if(*avp) r=avdo(k_(wf),0,x,avp);
+        else { _k(x); r=KERR_PARSE; }
+      }
       else if(0xc3==s(wf) || 0xc5==s(wf) || 0xd9==s(wf)) {
         /* Pass 2a / 3b-5 / Pass 4: 0xda(lambda/proj/composition,
            av).  0xc4 retired -- only 0xc3 / 0xc5 / 0xd9 inners
@@ -207,7 +214,8 @@ K fe(K f, K a, K x, char *av) {
                   arg-plist from bracket/./trap apply -- unpack like 0xc7
                   so both the monadic (1-arg) and dyadic (2-arg) forms
                   dispatch.  Bare x (juxtaposition) stays monadic. */
-      if(0x81==s(x)&&n(x)==1) { K *px=px(x); r=builtin(f,0,k_(px[0])); _k(x); }
+      if(av&&*av) r=avdo(k_(f),0,x,av);
+      else if(0x81==s(x)&&n(x)==1) { K *px=px(x); r=builtin(f,0,k_(px[0])); _k(x); }
       else if(0x81==s(x)&&n(x)==2) { K *px=px(x); r=builtin(f,k_(px[0]),k_(px[1])); _k(x); }
       else if(0x81==s(x)) { _k(x); r=KERR_VALENCE; }
       else r=builtin(f,0,x);
@@ -333,6 +341,10 @@ K fe(K f, K a, K x, char *av) {
             else if(s(a)==0xc3 && !strcmp(avp,"\\")) r=scanmonadb(k_(wf),a,x,"");
             else { _k(a); _k(x); r=KERR_TYPE; }
           }
+          else { _k(a); _k(x); r=KERR_PARSE; }
+        }
+        else if(0xcc==s(wf) || 0xcd==s(wf)) {
+          if(*avp) r=avdo(k_(wf),a,x,avp);
           else { _k(a); _k(x); r=KERR_PARSE; }
         }
         else if(0xc3==s(wf) || 0xc5==s(wf) || 0xd9==s(wf)) {

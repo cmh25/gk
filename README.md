@@ -37,7 +37,7 @@ make test
 
 ```
 $ ./gk
-gk-v5.0.4 Copyright (c) 2023-2026 Charles Hall
+gk-v5.0.5 Copyright (c) 2023-2026 Charles Hall
 
   1+2
 3

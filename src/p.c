@@ -1078,6 +1078,10 @@ K pgreduce_(K x0, int *quiet) {
         else { _k(a); *pA++=KERR_PARSE; } /* parse */
         break;
       case 0xcc: /* 5:x */
+        /* Keep the file verb available for case 7 to attach a following
+           postfix adverb (`f:5:'`, `5:'[x]`), just as for 0xc6/0xc7 and
+           the predefined functions below. */
+        if(i<nx-1 && 0x85==s(px[i+1])) { k_(v); break; }
         if(pA<=A+1) { k_(v); break; }
         --pA;
         a=*--pA;
@@ -1104,6 +1108,7 @@ K pgreduce_(K x0, int *quiet) {
         else *pA++=builtin(v,0,a);
         break;
       case 0xcd: /* a 0:x */
+        if(i<nx-1 && 0x85==s(px[i+1])) { k_(v); break; }
         if(pA<=A+2) { *pA++=KERR_VALENCE; break; }
         --pA;
         b=*--pA;
@@ -1326,6 +1331,12 @@ K pgreduce_(K x0, int *quiet) {
       case 0xca: /* predefined dyad (in lin dv dvl ...) */
       case 0xc9: /* predefined monad (gtime ltime ...) */
       case 0xcb: /* predefined triad (ssr) */
+        /* Like the 0xc6/0xc7 builtin cases above, leave a bare predefined
+           function on the stack when its postfix adverb is the next token.
+           Otherwise an assignment target already below it (`r:dv'[...]`)
+           is mistaken for the function's argument and resolved, raising
+           value before case 7 can wrap the function and adverb. */
+        if(i<nx-1 && 0x85==s(px[i+1])) { k_(v); break; }
         f=rpd(v);
         if(E(f)||EXIT) { *pA++=f; break; }
         if(pA>A+1) {
@@ -1356,7 +1367,8 @@ K pgreduce_(K x0, int *quiet) {
               if((u32)valence==(u32)n(bv)) { *pA++=fne(f,bv,bavp); _k(b); }
               else { _k(bv); _k(b); _k(f); *pA++=KERR_VALENCE; }
             }
-            else if(pA>A && !pending_postfix(pA[-1])) {
+            else if(pA>A && !pending_postfix(pA[-1])
+                    && !(i+1<nx && all_assign_targets_(px,nx,i+1,A,pA))) {
               a=*--pA;
               if(s(a)) { a=reduce(a); if(E(a)||EXIT) { _k(f); _k(bv); _k(b); *pA++=a; break; } }
               if(!VST(a)||!VST(bv)) { _k(a); _k(bv); _k(b); _k(f); *pA++=KERR_TYPE; break; }
@@ -1770,6 +1782,10 @@ apply_n_fallback: {
           /* resolve name -- post-pass-6 names never carry adverbs */
           a=vlookup(a);
           if(E(a)) { _k(b); *pA++=a; break; }
+        }
+        if(0xc9==s(a)||0xca==s(a)||0xcb==s(a)) {
+          K a2=rpd(a); _k(a); a=a2;
+          if(E(a)||EXIT) { _k(b); *pA++=a; break; }
         }
         if(0x44==s(a)) { a=r44(a); if(E(a)||EXIT) { _k(b); *pA++=a; break; } }
         if(0xc5==s(a)) { a=rc5(a); if(E(a)||EXIT) { _k(b); *pA++=a; break; } }
@@ -2254,8 +2270,10 @@ c3_apply:
            because the c3_apply branch only handles 0xc0/0xc3/0xd9.
            0xc6 builtin-monad inner (sqrt/, sin') takes the same route:
            fe's 0xda arm has matching branches for both, so g:sqrt/;
-           g 16.0 converges like the infix spelling. */
-        if(0xc7==s(wf)||0xc6==s(wf)) {
+           g 16.0 converges like the infix spelling.  File verbs (0xcc/0xcd)
+           and linked functions (0xdc) use that route as well when a postfix
+           wrapper is held as a value. */
+        if(0xc7==s(wf)||0xc6==s(wf)||0xcc==s(wf)||0xcd==s(wf)||0xdc==s(wf)) {
           if(0x40==s(b)) { b=r40(b); if(E(b)||EXIT) { _k(a); *pA++=b; break; } }
           if(pA>A && !pending_postfix(pA[-1]) && i<nx-1 && 0xc0==s(px[i+1]) && ik(px[i+1])==0xff) {  /* dyadic juxtaposition */
             ++i;

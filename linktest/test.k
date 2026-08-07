@@ -49,6 +49,12 @@ ck[1 2 3 add'10 20 30;11 22 33]        / each-pair (infix)
 ck[add/1 2 3 4;10]                     / fold
 ck[add\1 2 3 4;1 3 6 10]               / scan
 
+/ modified linked functions remain callable after assignment (the generic
+/ 0xda juxtaposition path used to omit 0xdc even though fe supported it)
+addeach:add'
+ck[addeach[1 2 3;10 20 30];11 22 33]
+ck[1 2 3 addeach 10 20 30;11 22 33]
+
 / A pending outer postfix belongs to its outer head, not to the linked inner
 / function as an optional left seed: f'g'x == f'(g'x).  Cover the plain and
 / adverbed 0xdc application paths.
