@@ -1,0 +1,94 @@
+/ A syntactically-known verb left of a modified verb is an outer application:
+/ f g'x == f(g'x).  A noun (including a lambda or name whose value happens to
+/ be a function) can instead occupy g's left slot.  Fixed-monad valence also
+/ forces any preceding noun outside.
+
+u:{100+x}
+i:{x}
+a:{x+y}
+d:{x+y}[100]
+b:{,x}
+rows:(1 2;3 4;5 6)
+
+/ original report and lambda/name variants
+(ep[-]{x}'!5)~ep[-]({x}'!5)
+({100+x}{x}'!5)~{100+x}({x}'!5)
+(u i'!5)~u(i'!5)
+(ep[-]i'!5)~ep[-](i'!5)
+
+/ Parentheses preserve the enclosed expression's syntactic class.  A modified
+/ primitive and a train remain known verbs; these ambivalent inner cases make
+/ that grouping decision observable.
+((+/)+/'rows)~(+/)(+/'rows)
+((%-)+/'rows)~(%-)(+/'rows)
+((ep[-])+/'rows)~ep[-](+/'rows)
+
+/ inner primitive, builtin, predefined, projection, and composition forms
+(ep[-]sqr'1 2 3)~ep[-](sqr'1 2 3)
+(ep[-]gtime'0 1)~ep[-](gtime'0 1)
+(ep[-]d'!5)~ep[-](d'!5)
+
+/ A known projection remains a verb even when the inner derived verb is
+/ ambivalent.  Cover primitive, builtin, each and over-derived inner forms.
+(ep[-]|'!5)~ep[-](|'!5)
+(ep[-]+/'rows)~ep[-](+/'rows)
+(-+/'rows)~-(+/'rows)
+(sqr+/'rows)~sqr(+/'rows)
+
+/ The same +/' value is monadic or dyadic according to whether syntax gave it
+/ a left noun.
+(+/'rows)~3 7 11
+(1+/'rows)~(2 3;4 5;6 7)
+
+/ dyadic each and all three argument spellings
+(u a'[1 2;3 4])~u(a'[1 2;3 4])
+(u +'[1 2;3 4])~u(+'[1 2;3 4])
+(u mul'[1 2;3 4])~u(mul'[1 2;3 4])
+(b dv'[("abc";"def");"be"])~b(dv'[("abc";"def");"be"])
+(u i'[!5])~u(i'[!5])
+(u i'(!5))~u(i'(!5))
+
+/ chained postfix and assignment contexts
+(u i''(0 1;2 3))~u(i''(0 1;2 3))
+r:u i'!5
+r~u(i'!5)
+s:r:u i'!5
+(s~r)&r~u(i'!5)
+z:1#,0
+z[0]:u i'!5
+z[0]~u(i'!5)
+
+/ the inner verb's valence, not the left value's type, decides the grouping
+n:10
+(n a'!5)~10 11 12 13 14
+right:{[x;y]y}
+({x}right'1 2)~1 2
+ty:{[f;x](1;"type")~@[f;x;:]}
+ty[{{x}+2};0]
+(a[100]i'!5)~a[100](i'!5)
+af:a[100]
+(af i'!5)~af(i'!5)
+fv:ep[-]
+ty[{fv +/'x};rows]
+ty[{(fv)+/'x};rows]
+ty[{({x})+/'x};rows]
+
+/ builtin/predefined values held in names
+bm:sqr
+pm:mul
+tm:gtime
+(u bm'1 2 3)~u(bm'1 2 3)
+(u pm'[1 2;3 4])~u(pm'[1 2;3 4])
+(ep[-]tm'0 1)~ep[-](tm'0 1)
+
+/ A file verb remains first-class after assignment.  With no syntactic left
+/ argument, postfix each uses it monadically.  With a function noun on the
+/ left it is dyadic by context, and 0: rejects that left type.
+files:`t000`t001
+ty[{{x}0:'x};files]
+(,[0;]0:'files)~0,(0:'files)
+((,/)0:'files)~(,/)(0:'files)
+fr:0:
+(fr'files)~(fr')files
+
+\\

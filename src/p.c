@@ -689,6 +689,16 @@ static K rc5(K x) {
       _k(pf[i]);
       pf[i]=t;
     }
+    else if(0x44==s(pf[i])) {
+      /* A statically-known bracket projection can be a member of a train
+         (`draw[1]*+`, `ep[-]*+`).  Train bytecode retains its ordinary 0x44
+         apply node so bound arguments are evaluated in the current scope;
+         resolve it to the resulting 0xd9 projection before execution. */
+      K t=r44(k_(pf[i]));
+      if(E(t)||EXIT) { _k(x); return t; }
+      _k(pf[i]);
+      pf[i]=t;
+    }
     else if(0xca==s(pf[i])||0xc9==s(pf[i])||0xcb==s(pf[i])) {
       K t=rpd(pf[i]);
       if(E(t)||EXIT) { _k(x); return t; }
@@ -803,6 +813,25 @@ static K A0[EVALDEPTH][256];
    arguments, or a bracketed-adverb application. */
 static int pending_postfix(K x) {
   return 0x85==s(x) || 0x45==s(x) || 0x43==s(x);
+}
+
+/* Is the value parked immediately below an inner application available as
+   that application's left argument?  Function values are nouns too: whether
+   the slot is an argument is determined by the INNER verb's valence, not by
+   the slot's runtime type.  accepts_left is true for a dyad/ambivalent verb
+   and for over/scan's count/predicate controller.  A pending postfix belongs
+   to an outer head (`f'g'x`), and an assignment target belongs to `:`. */
+static int left_arg_available_(K *slot, int accepts_left,
+                               int assignment_target) {
+  K x=*slot;
+  return accepts_left && !assignment_target && !pending_postfix(x);
+}
+
+/* In a multi-adverb chain, the final adverb determines whether the derived
+   verb exposes over/scan's left controller slot (`3 f'/x`, for example). */
+static int av_ends_overscan_(const char *av) {
+  size_t n=av?strlen(av):0;
+  return n && ('/'==av[n-1] || '\\'==av[n-1]);
 }
 
 /* File-verb postfix-adverb application (0xcc monad `5:x`, 0xcd dyad
@@ -952,7 +981,8 @@ K pgreduce_(K x0, int *quiet) {
             *pA++ = *bavp ? avdo(k_(v),0,bv,bavp) : builtin(k_(v),0,bv);
             _k(b);
           }
-          else if(pA>A && !pending_postfix(pA[-1]) && !next_is_dyad_op) {
+          else if(pA>A && left_arg_available_(&pA[-1],1,
+                  i+1<nx && all_assign_targets_(px,nx,i+1,A,pA)) && !next_is_dyad_op) {
             a=*--pA;
             if(s(a)) { a=reduce(a); if(E(a)||EXIT) { _k(bv); _k(b); *pA++=a; break; } }
             if(!VST(a)||!VST(bv)) { _k(a); _k(bv); _k(b); *pA++=KERR_TYPE; break; }
@@ -1030,8 +1060,9 @@ K pgreduce_(K x0, int *quiet) {
              token is JUXT and a left seed is on stack.  Mirrors the
              dispatch in case 0xda (around line 1770-1786). */
           if(pA>A && i<nx-1 && 0xc0==s(px[i+1]) && ik(px[i+1])==0xff
-             && !pending_postfix(pA[-1])
-             && (!strcmp(aavp,"/")||!strcmp(aavp,"\\"))) {
+             && left_arg_available_(&pA[-1],1,
+                  i+1<nx && all_assign_targets_(px,nx,i+1,A,pA))
+             && av_ends_overscan_(aavp)) {
             ++i;
             K t0=*--pA;
             if(s(t0)) { t0=reduce(t0); if(E(t0)||EXIT) { _k(a); _k(av_v); *pA++=t0; break; } }
@@ -1367,8 +1398,9 @@ K pgreduce_(K x0, int *quiet) {
               if((u32)valence==(u32)n(bv)) { *pA++=fne(f,bv,bavp); _k(b); }
               else { _k(bv); _k(b); _k(f); *pA++=KERR_VALENCE; }
             }
-            else if(pA>A && !pending_postfix(pA[-1])
-                    && !(i+1<nx && all_assign_targets_(px,nx,i+1,A,pA))) {
+            else if(pA>A && left_arg_available_(&pA[-1],
+                    ik(val(f))==2 || (ik(val(f))==1 && av_ends_overscan_(bavp)),
+                    i+1<nx && all_assign_targets_(px,nx,i+1,A,pA))) {
               a=*--pA;
               if(s(a)) { a=reduce(a); if(E(a)||EXIT) { _k(f); _k(bv); _k(b); *pA++=a; break; } }
               if(!VST(a)||!VST(bv)) { _k(a); _k(bv); _k(b); _k(f); *pA++=KERR_TYPE; break; }
@@ -1764,6 +1796,23 @@ apply_n_fallback: {
       if(!a||!b) { _k(a); _k(b); *pA++=KERR_TYPE; break; }
       if(0x42==s(b)) { b=r42(b); if(E(b)||EXIT) { _k(a); *pA++=b; break; } }
       if(0x42==s(a)) { a=r42(a); if(E(a)||EXIT) { _k(b); *pA++=a; break; } }
+
+      /* `outer g'[args]`: some right-leaning parse shapes emit the JUXT
+         between outer and the already-wrapped g' BEFORE the bracket token.
+         Do not apply outer to the modified FUNCTION value.  Compose the two
+         callables now; the pending bracket then applies that composition, so
+         the result is outer(g'[args]).  A noun in the same position remains
+         the genuine left argument of dyadic each. */
+      if(i+1<nx && (0x41==s(px[i+1])||0x81==s(px[i+1])) && 0xda==s(b)) {
+        if(0x40==s(a)||0x44==s(a)) a=reduce(a);
+        if(E(a)||EXIT) { _k(b); *pA++=a; break; }
+        if(s(a) && ISF(a)) {
+          K cvl=tn(0,2); K *pcvl=px(cvl); pcvl[0]=a; pcvl[1]=b;
+          K cq=tn(0,2); K *pcq=px(cq); pcq[0]=cvl; pcq[1]=tn(3,0);
+          *pA++=st(0xc5,cq);
+          break;
+        }
+      }
       char avb[256],*av=avb;
       *av=0;
 
@@ -1929,7 +1978,9 @@ c3_apply:
                decline, apply monadically, and let the remaining JUXTs
                attach the head, so f'g'x == f'(g'x). */
             if(strlen(cav) && pA>A && i<nx-1 && 0xc0==s(px[i+1]) && ik(px[i+1])==0xff
-               && !pending_postfix(pA[-1])) {
+               && left_arg_available_(&pA[-1],
+                    ik(val(a))==2 || (ik(val(a))==1 && av_ends_overscan_(cav)),
+                    i+1<nx && all_assign_targets_(px,nx,i+1,A,pA))) {
               ++i;
               t=*--pA;
               if(s(t)) { t=reduce(t); if(E(t)||EXIT) { _k(a); _k(b); _k(b1); _k(b2); *pA++=t; break; } }
@@ -1996,17 +2047,22 @@ c3_apply:
             _k(b); --paramsi;
           }
         }
+        /* Also reached by `goto c3_apply` after a generic 0xda wrapper is
+           peeled to a file verb; it is not limited to switch case 0xc3. */
         else if(0xcc==s(a)||0xcd==s(a)) {
           if(0x44==s(b)) b=r44(b);
           if(E(b)||EXIT) { _k(a); *pA++=b; break; }
           if(0x45==s(b)) {
             pb=px(b);
             mv=px(pb[1]);
-            if(!VST(pb[2])) { _k(a); _k(b); *pA++=KERR_TYPE; break; }
-            *pA++=fe(a,0,k_(pb[2]),mv);
+            if(s(pb[2])) { p=reduce(k_(pb[2])); if(E(p)||EXIT) { _k(a); _k(b); *pA++=p; break; } }
+            else p=k_(pb[2]);
+            if(!VST(p)) { _k(a); _k(b); _k(p); *pA++=KERR_TYPE; break; }
+            *pA++=fe(a,0,p,mv);
             _k(b);
           }
-          else if(pA>A&&!pending_postfix(pA[-1])&&i<nx-1&&0xc0==s(px[i+1])&&ik(px[i+1])==0xff) {  /* dyadic juxtaposition */
+          else if(pA>A&&i<nx-1&&0xc0==s(px[i+1])&&ik(px[i+1])==0xff
+                  &&left_arg_available_(&pA[-1],1,0)) {
             ++i;
             t=*--pA;
             if(s(t)) { t=reduce(t); if(E(t)||EXIT) { _k(a); _k(b); *pA++=t; break; } }
@@ -2028,8 +2084,8 @@ c3_apply:
             else { _k(a); _k(b); *pA++=KERR_PARSE; break; } /* 0xc4 retired */
             char *favp=-3==T(fav)?(char*)px(fav):"";
             if(av && *av) favp=av;
-            if((!strcmp(favp,"/") || !strcmp(favp,"\\"))
-               &&pA>A&&!pending_postfix(pA[-1])&&i<nx-1&&0xc0==s(px[i+1])&&ik(px[i+1])==0xff) {  /* dyadic juxtaposition */
+            if(av_ends_overscan_(favp)
+               &&pA>A&&i<nx-1&&0xc0==s(px[i+1])&&ik(px[i+1])==0xff&&left_arg_available_(&pA[-1],1,0)) {  /* dyadic juxtaposition */
               /* primitive do/while */
               ++i;
               t=*--pA;
@@ -2074,7 +2130,7 @@ c3_apply:
             }
           }
           else if(valence==2) { /* a f x */
-            if(pA>A&&!pending_postfix(pA[-1])&&i<nx-1&&0xc0==s(px[i+1])&&ik(px[i+1])==0xff) {  /* dyadic juxtaposition */
+            if(pA>A&&i<nx-1&&0xc0==s(px[i+1])&&ik(px[i+1])==0xff&&left_arg_available_(&pA[-1],1,0)) {  /* dyadic juxtaposition */
               ++i;
               t=*--pA;
               if(0x43==s(b)) { *pA++=KERR_PARSE; _k(a); _k(b); break; } /* f[]'[] not handled here; push a real error, never a NULL operand (cf. sibling at ~1837) */
@@ -2094,6 +2150,40 @@ c3_apply:
           else { *pA++=KERR_VALENCE; _k(a); _k(b); }
         }
         break;
+      case 0xcc: case 0xcd: /* file verb held in a name/value */
+        if(0x44==s(b)) b=r44(b);
+        if(E(b)||EXIT) { _k(a); *pA++=b; break; }
+        if(0x45==s(b)) {
+          pb=px(b);
+          mv=px(pb[1]);
+          if(s(pb[2])) { p=reduce(k_(pb[2])); if(E(p)||EXIT) { _k(a); _k(b); *pA++=p; break; } }
+          else p=k_(pb[2]);
+          if(!VST(p)) { _k(a); _k(b); _k(p); *pA++=KERR_TYPE; break; }
+          t=0;
+          if(pA>A&&i<nx-1&&0xc0==s(px[i+1])&&ik(px[i+1])==0xff
+             &&left_arg_available_(&pA[-1],1,0)) {
+            ++i;
+            t=*--pA;
+            if(s(t)) { t=reduce(t); if(E(t)||EXIT) { _k(a); _k(b); _k(p); *pA++=t; break; } }
+            if(!VST(t)) { _k(a); _k(b); _k(p); _k(t); *pA++=KERR_TYPE; break; }
+          }
+          if(!t && 0xcd==s(a)) a=set_sx(a,0xcc);
+          *pA++=fe(a,t,p,mv);
+          _k(b);
+        }
+        else if(pA>A&&i<nx-1&&0xc0==s(px[i+1])&&ik(px[i+1])==0xff
+                &&left_arg_available_(&pA[-1],1,0)) {
+          ++i;
+          t=*--pA;
+          if(s(t)) { t=reduce(t); if(E(t)||EXIT) { _k(a); _k(b); *pA++=t; break; } }
+          if(!VST(t)) { _k(a); _k(b); _k(t); *pA++=KERR_TYPE; break; }
+          *pA++=fe(a,t,b,av);
+        }
+        else {
+          if(0xcd==s(a)) a=set_sx(a,0xcc);
+          *pA++=fe(a,0,b,av);
+        }
+        break;
       case 0xc0:
         w=ck(a)%32;
         if(0x81==s(b)) { /* f[1;2] */
@@ -2105,7 +2195,7 @@ c3_apply:
           pb=px(b);
           mv=px(pb[1]);
           if(!VST(pb[2])) { _k(a); _k(b); *pA++=KERR_TYPE; break; }
-          if(pA>A&&!pending_postfix(pA[-1])&&i<nx-1&&0xc0==s(px[i+1])&&ik(px[i+1])==0xff) {  /* dyadic juxtaposition */
+          if(pA>A&&i<nx-1&&0xc0==s(px[i+1])&&ik(px[i+1])==0xff&&left_arg_available_(&pA[-1],1,0)) {  /* dyadic juxtaposition */
             ++i;
             t=*--pA;
             if(s(t)) { t=reduce(t); if(E(t)||EXIT) { _k(a); _k(b); *pA++=t; break; } }
@@ -2275,7 +2365,11 @@ c3_apply:
            wrapper is held as a value. */
         if(0xc7==s(wf)||0xc6==s(wf)||0xcc==s(wf)||0xcd==s(wf)||0xdc==s(wf)) {
           if(0x40==s(b)) { b=r40(b); if(E(b)||EXIT) { _k(a); *pA++=b; break; } }
-          if(pA>A && !pending_postfix(pA[-1]) && i<nx-1 && 0xc0==s(px[i+1]) && ik(px[i+1])==0xff) {  /* dyadic juxtaposition */
+          if(pA>A && i<nx-1 && 0xc0==s(px[i+1]) && ik(px[i+1])==0xff
+             && left_arg_available_(&pA[-1],
+                  0xc7==s(wf) || 0xcc==s(wf) || 0xcd==s(wf)
+                  || ik(val(wf))==2
+                  || (ik(val(wf))==1 && av_ends_overscan_(avp)),0)) {  /* dyadic juxtaposition */
             ++i;
             t=*--pA;
             if(s(t)) { t=reduce(t); if(E(t)||EXIT) { _k(a); _k(b); *pA++=t; break; } }
@@ -2290,7 +2384,7 @@ c3_apply:
         if(0x40==s(b)) { b=r40(b); if(E(b)||EXIT) { _k(a); *pA++=b; break; } }
         if(*avp) {
           if(0x45==s(b)) { /* adverbs with args, '1 2 */
-            if(pA>A&&!pending_postfix(pA[-1])&&i<nx-1&&0xc0==s(px[i+1])&&ik(px[i+1])==0xff) {  /* dyadic juxtaposition */
+            if(pA>A&&i<nx-1&&0xc0==s(px[i+1])&&ik(px[i+1])==0xff&&left_arg_available_(&pA[-1],1,0)) {  /* dyadic juxtaposition */
               ++i;
               t=*--pA;
               if(s(t)) { t=reduce(t); if(E(t)||EXIT) { _k(a); _k(b); *pA++=t; break; } }
@@ -2314,7 +2408,7 @@ c3_apply:
               *pA++=avdo(vi,0,k_(pb[2]),buf);
             }
           }
-          else if(pA>A&&!pending_postfix(pA[-1])&&i<nx-1&&0xc0==s(px[i+1])&&ik(px[i+1])==0xff) {  /* dyadic juxtaposition */
+          else if(pA>A&&i<nx-1&&0xc0==s(px[i+1])&&ik(px[i+1])==0xff&&left_arg_available_(&pA[-1],1,0)) {  /* dyadic juxtaposition */
             ++i;
             t=*--pA;
             if(s(t)) { t=reduce(t); if(E(t)||EXIT) { _k(a); _k(b); *pA++=t; break; } }
@@ -2383,7 +2477,9 @@ c3_apply:
           mv=px(pb[1]);
           if(!VST(pb[2])) { _k(a); _k(b); *pA++=KERR_TYPE; break; }
           t=0;
-          if(pA>A && !pending_postfix(pA[-1]) && i<nx-1 && 0xc0==s(px[i+1]) && ik(px[i+1])==0xff) { /* dyadic juxtaposition */
+          if(pA>A && i<nx-1 && 0xc0==s(px[i+1]) && ik(px[i+1])==0xff
+             && left_arg_available_(&pA[-1],
+                  0xc7==s(a) || (0xc6==s(a) && av_ends_overscan_(mv)),0)) { /* dyadic juxtaposition */
             ++i;
             t=*--pA;
             if(s(t)) { t=reduce(t); if(E(t)||EXIT) { _k(a); _k(b); *pA++=t; break; } }
@@ -2405,7 +2501,7 @@ c3_apply:
           *pA++=avdo(a,t,p,mv);
           _k(b);
         }
-        else if(0xc7==s(a) && pA>A && !pending_postfix(pA[-1]) && i<nx-1 && 0xc0==s(px[i+1]) && ik(px[i+1])==0xff) {
+        else if(0xc7==s(a) && pA>A && i<nx-1 && 0xc0==s(px[i+1]) && ik(px[i+1])==0xff && left_arg_available_(&pA[-1],1,0)) {
           /* 2 g 1 2 3 -- dyad with a juxtaposed left arg.  0xc6 monads
              never pull one ({x} abs 2 composes instead). */
           ++i;
@@ -2426,7 +2522,9 @@ c3_apply:
           pb=px(b);
           K av1=pb[1]; char *pav1=av1?px(av1):"";
           t=0;
-          if(pA>A&&!pending_postfix(pA[-1])&&i<nx-1&&0xc0==s(px[i+1])&&ik(px[i+1])==0xff) {  /* dyadic juxtaposition */
+          if(pA>A&&i<nx-1&&0xc0==s(px[i+1])&&ik(px[i+1])==0xff
+             &&left_arg_available_(&pA[-1],
+                  ik(val(a))==2 || (ik(val(a))==1 && av_ends_overscan_(pav1)),0)) {  /* dyadic juxtaposition */
             ++i;
             t=*--pA;
             if(s(t)) { t=reduce(t); if(E(t)||EXIT) { _k(a); _k(b); *pA++=t; break; } }
@@ -2455,7 +2553,7 @@ c3_apply:
         }
         else {
           t=0;
-          if(pA>A&&!pending_postfix(pA[-1])&&i<nx-1&&0xc0==s(px[i+1])&&ik(px[i+1])==0xff) {  /* dyadic juxtaposition */
+          if(pA>A&&i<nx-1&&0xc0==s(px[i+1])&&ik(px[i+1])==0xff&&left_arg_available_(&pA[-1],ik(val(a))==2,0)) {  /* dyadic juxtaposition */
             ++i;
             t=*--pA;
             if(s(t)) { t=reduce(t); if(E(t)||EXIT) { _k(a); _k(b); *pA++=t; break; } }
@@ -2478,8 +2576,9 @@ c3_apply:
              overmonadn/scanmonadn for primitive do/while; otherwise
              falls back to avdo's monadic dispatch. */
           if(pA>A && i<nx-1 && 0xc0==s(px[i+1]) && ik(px[i+1])==0xff
-             && !pending_postfix(pA[-1])
-             && (!strcmp(mv,"/")||!strcmp(mv,"\\"))
+             && left_arg_available_(&pA[-1],1,
+                  i+1<nx && all_assign_targets_(px,nx,i+1,A,pA))
+             && av_ends_overscan_(mv)
              && ik(val(a))==1) {
             ++i;
             t=*--pA;
@@ -2509,7 +2608,8 @@ c3_apply:
           mv=px(pb[1]);
           if(!VST(pb[2])) { _k(a); _k(b); *pA++=KERR_TYPE; break; }
           t=0;
-          if(pA>A && !pending_postfix(pA[-1]) && i<nx-1 && 0xc0==s(px[i+1]) && ik(px[i+1])==0xff) { /* dyadic juxtaposition */
+          if(pA>A && i<nx-1 && 0xc0==s(px[i+1]) && ik(px[i+1])==0xff
+             && left_arg_available_(&pA[-1],ik(val(a))==2 || (ik(val(a))==1 && av_ends_overscan_(mv)),0)) { /* dyadic juxtaposition */
             ++i;
             t=*--pA;
             if(s(t)) { t=reduce(t); if(E(t)||EXIT) { _k(a); _k(b); *pA++=t; break; } }
@@ -2522,7 +2622,7 @@ c3_apply:
         }
         else {
           t=0;
-          if(pA>A && !pending_postfix(pA[-1]) && i<nx-1 && 0xc0==s(px[i+1]) && ik(px[i+1])==0xff) { /* dyadic juxtaposition */
+          if(pA>A && i<nx-1 && 0xc0==s(px[i+1]) && ik(px[i+1])==0xff && left_arg_available_(&pA[-1],ik(val(a))==2,0)) { /* dyadic juxtaposition */
             ++i;
             t=*--pA;
             if(s(t)) { t=reduce(t); if(E(t)||EXIT) { _k(a); _k(b); *pA++=t; break; } }
@@ -2857,10 +2957,12 @@ static K wrap_c7_to_da(K c7_k) {
 }
 
 static int is_headless_chain(pn *n);
+K list19(pgs *s, pn *a);
+static K train_member_bc(pgs *s, pn *a);
 K list19(pgs *s, pn *a) {
   K r=0;
-  char *t;
   K v=tn(0,2); K *pv=px(v);
+  pv[0]=pv[1]=0;
   /* A headless bracket chain whose hole was never filled means no head ever
      attached (e.g. `'[3][3]`, `do[" "][1;2]` -- an adverb/control verb can't
      head a bracket chain).  Reject it rather than walk into the NULL hole.
@@ -2883,7 +2985,10 @@ K list19(pgs *s, pn *a) {
       K w=tn(0,depth); K *pw=px(w);
       n=a; for(int idx=depth-1; idx>=0; idx--){ pw[idx]=listbc(s,n->a[1],0x41); n=n->a[0]; }
       if(head->t==1) pv[0]=dupwrap_mv(head->v,0);
-      else if(head->t==19) pv[0]=list19(s,head);
+      else if(head->t==19) {
+        pv[0]=list19(s,head);
+        if(E(pv[0])) { K e=pv[0]; pv[0]=0; _k(w); _k(v); return e; }
+      }
       else pv[0]=k_(head->n);
       pv[1]=st(0x40,w);
       return st(0x44,v);
@@ -2895,28 +3000,8 @@ K list19(pgs *s, pn *a) {
       pn *q=a->a[0];
       K v3=tn(0,q->m); K *pv3=px(v3);
       for(int i=0;i<q->m;++i) {
-        if(q->a[i]->t==11) {
-          K v2=tn(0,2); K *pv2=px(v2);
-          if(q->a[i]->a[0]->t==6) pv2[0]=listbc(s,q->a[i]->a[0],0x42);
-          else pv2[0]=k_(q->a[i]->a[0]->n);
-          if(s(q->a[i]->v)) {
-            /* fixed dyad inside 0xc5 -- verb is in dyadic position */
-            pv2[1]=dupwrap_mv(q->a[i]->v,1);
-          }
-          else {
-            t=strchr(P,q->a[i]->v);
-            pv2[1]=t(1,st(0xc0,t-P));
-          }
-          pv3[i]=st(0xd0,v2);
-        }
-        else if(s(q->a[i]->v)) {
-          /* element of 0xc5 verb composition, e.g. +/ in (+/#) */
-          pv3[i]=dupwrap_mv(q->a[i]->v,0);
-        }
-        else {
-          t=strchr(P,q->a[i]->v);
-          pv3[i]=t(1,st(0xc0,t-P));
-        }
+        pv3[i]=train_member_bc(s,q->a[i]);
+        if(E(pv3[i])) { K e=pv3[i]; pv3[i]=0; _k(v3); _k(v); return e; }
       }
       K w=tn(0,2); K *pw=px(w);
       pw[0]=v3;
@@ -2926,6 +3011,7 @@ K list19(pgs *s, pn *a) {
     }
     else if(a->a[0]->t==19) {
       pv[0]=list19(s,a->a[0]);
+      if(E(pv[0])) { K e=pv[0]; pv[0]=0; _k(v); return e; }
     }
     /* f in `f[a;b]` (4-args). Wrap a lex 0xc1 modified verb. */
     else if(a->a[0]->t==1) pv[0]=dupwrap_mv(a->a[0]->v,0);
@@ -2935,6 +3021,34 @@ K list19(pgs *s, pn *a) {
   }
   else { fprintf(stderr,"fatal\n"); exit(1); }
   return r;
+}
+
+/* Compile one t==7 train member.  Projections are ordinary callable values,
+   not primitive leaves: retain their 0x44 application wrapper for rc5() to
+   reduce at execution time.  Singleton parentheses preserve verb class and
+   can be peeled here because the enclosing t==7 already supplies grouping. */
+static K train_member_bc(pgs *s, pn *a) {
+  char *p;
+  while(a && a->t==6 && a->m==1 && a->a[0]) a=a->a[0];
+  if(!a) return KERR_PARSE;
+  if(a->t==19) return list19(s,a);
+  if(a->t==11) {
+    K v=tn(0,2); K *pv=px(v);
+    if(a->a[0]->t==6) pv[0]=listbc(s,a->a[0],0x42);
+    else pv[0]=k_(a->a[0]->n);
+    if(s(a->v)) pv[1]=dupwrap_mv(a->v,1);
+    else {
+      p=strchr(P,a->v);
+      if(!p) { _k(v); return KERR_PARSE; }
+      pv[1]=t(1,st(0xc0,p-P));
+    }
+    return st(0xd0,v);
+  }
+  if(a->t!=1) return KERR_PARSE;
+  if(s(a->v)) return dupwrap_mv(a->v,0);
+  p=strchr(P,a->v);
+  if(!p) return KERR_PARSE;
+  return t(1,st(0xc0,p-P));
 }
 
 static int hasav(pn *a) {
@@ -3210,7 +3324,10 @@ static void bc(pgs *s, pn *a, K values, K index, K line, int *vm) {
     else if(a->t==19) {
       int N=can_inline_call(a);
       if(N>=0) pvalues[j++]=t(1,st(0xb0,N)); /* APPLY_N */
-      else pvalues[j++]=list19(s,a); /* f[x] aka 0x44 subtype */
+      else { /* f[x] aka 0x44 subtype */
+        K z=list19(s,a);
+        pvalues[j++]=z<EMAX?kerror(E[z]):z; /* a 0x84 token routes through the eval error funnel; a bare sentinel would skip it (case-0 continue) */
+      }
     }
     else if(a->t==11) {  /* 1+ */
       K v=tn(0,2); K *pv=px(v);
@@ -3228,34 +3345,18 @@ static void bc(pgs *s, pn *a, K values, K index, K line, int *vm) {
     }
     else if(a->t==7) {  /* +- */
       K v=tn(0,a->m); K *pv=px(v);
-      for(int i=0;i<a->m;++i) {
-        if(a->a[i]->t==11) {
-          K v2=tn(0,2); K *pv2=px(v2);
-          if(a->a[i]->a[0]->t==6) pv2[0]=listbc(s,a->a[i]->a[0],0x42);
-          else pv2[0]=k_(a->a[i]->a[0]->n);
-          if(s(a->a[i]->v)) {
-            /* 0xd0 fixed dyad inside t==7 composition */
-            pv2[1]=dupwrap_mv(a->a[i]->v,1);
-          }
-          else {
-            t=strchr(P,a->a[i]->v);
-            pv2[1]=t(1,st(0xc0,t-P));
-          }
-          pv[i]=st(0xd0,v2);
-        }
-        else if(s(a->a[i]->v)) {
-          /* element of 0xc5 verb-list, e.g. +/ in (+/-) */
-          pv[i]=dupwrap_mv(a->a[i]->v,0);
-        }
-        else {
-          t=strchr(P,a->a[i]->v);
-          pv[i]=t(1,st(0xc0,t-P));
-        }
+      K e=0;
+      for(int i=0;i<a->m&&!e;++i) {
+        pv[i]=train_member_bc(s,a->a[i]);
+        if(E(pv[i])) { e=pv[i]; pv[i]=0; }
       }
-      K w=tn(0,2); K *pw=px(w);
-      pw[0]=v;
-      pw[1]=tn(3,0); /* adverbs */
-      pvalues[j++]=st(0xc5,w);
+      if(e) { _k(v); pvalues[j++]=e<EMAX?kerror(E[e]):e; } /* a 0x84 token routes through the eval error funnel; a bare sentinel would skip it (case-0 continue) */
+      else {
+        K w=tn(0,2); K *pw=px(w);
+        pw[0]=v;
+        pw[1]=tn(3,0); /* adverbs */
+        pvalues[j++]=st(0xc5,w);
+      }
     }
     /* node will be freed in pgfree() */
     if(j==*vm) {
@@ -3515,6 +3616,95 @@ static int has_overscan_in_chain(pn *b) {
   }
   return is_overscan_pn(b);
 }
+
+/* Return a statically-known callable's remaining valence, or zero when the
+   expression is a noun whose value must be discovered at execution time.
+
+   This is deliberately a parse-tree classification, not an ISF() test:
+   names and lambdas are nouns even when they evaluate to functions.  Bare
+   primitives/builtins/predefined functions/trains are verbs, and a bracket
+   application of one remains a known verb only when it is a projection.
+   The projection arithmetic mirrors val(0xd9). */
+static int known_verb_valence_pn(pn *a) {
+  if(!a) return 0;
+  /* Parentheses group; they do not turn a recognized verb into a noun.
+     A singleton group around a name/lambda still returns zero recursively. */
+  if(a->t==6 && a->m==1 && a->a[0])
+    return known_verb_valence_pn(a->a[0]);
+  if(a->t==7) return 2;             /* train/composition */
+  if(a->t==11) return 1;            /* statically projected dyad: 1+ */
+  if(a->t==1) {
+    if((a->m>0 && a->a[0]) || (a->m>1 && a->a[1])) return 0;
+    if(0xc1==s(a->v)) return 2;      /* modified primitive, e.g. +/ */
+    if(!s(a->v)) {
+      /* Ordinary primitive verbs.  Exclude parser-only juxtaposition and
+         assignment/control punctuation. */
+      return a->v>0 && a->v<128 && a->v!=0xff && a->v!=':' ? 2 : 0;
+    }
+    K v=val(a->v);
+    if(E(v)) { _k(v); return 0; }
+    int n=ik(v);
+    _k(v);
+    return n>0?n:0;
+  }
+  if(a->t==19 && a->a[0] && a->a[1] && a->a[1]->t==4) {
+    int n=known_verb_valence_pn(a->a[0]);
+    if(!n) return 0;
+    int bound=0,holes=0;
+    pn *p=a->a[1];
+    for(int i=0;i<p->m;i++) {
+      pn *x=p->a[i];
+      if(x && x->t==2 && !x->n) ++holes;
+      else ++bound;
+    }
+    int rem=n-bound;
+    if(rem<holes) rem=holes;
+    return rem>0?rem:0;
+  }
+  return 0;
+}
+
+/* Join two statically-known verb expressions into the parser's flat t==7
+   train representation.  A projection may carry bracket children, and a
+   singleton group may surround any known verb; neither makes it a noun. */
+static pn *known_train_join(pgs *s, pn *a, pn *b) {
+  while(a && a->t==6 && a->m==1 && a->a[0]
+        && known_verb_valence_pn(a)>0) a=a->a[0];
+  while(b && b->t==6 && b->m==1 && b->a[0]
+        && known_verb_valence_pn(b)>0) b=b->a[0];
+  if(b->t==7) {
+    b->m++;
+    b->a=xrealloc(b->a,b->m*sizeof(pn*));
+    i(b->m-1,b->a[b->m-i-1]=b->a[b->m-i-2])
+    b->a[0]=a;
+    return b;
+  }
+  if(a->t==7) {
+    a->m++;
+    a->a=xrealloc(a->a,a->m*sizeof(pn*));
+    a->a[a->m-1]=b;
+    return a;
+  }
+  pn *q=pnnewi(s,7,0,0,2,1,a->i,a->line);
+  q->a[0]=a;
+  q->a[1]=b;
+  return q;
+}
+
+/* These verbs also provide explicit function-value operand contexts.  In
+   particular `+[1;],+[;2]` constructs a list of projections; the comma is
+   not the next member of a train. */
+static int projection_operand_verb(pn *a) {
+  while(a && a->t==6 && a->m==1 && a->a[0]) a=a->a[0];
+  if(a && a->t==7 && a->m) return projection_operand_verb(a->a[0]);
+  return a && a->t==1 && !a->a[0]
+    && (','==a->v || '@'==a->v || '.'==a->v || ':'==a->v);
+}
+
+static int known_projection_pn(pn *a) {
+  while(a && a->t==6 && a->m==1 && a->a[0]) a=a->a[0];
+  return a && a->t==19 && known_verb_valence_pn(a)>0;
+}
 /* `prime{x+1}\4` -- a monadic builtin left of an over/scan derived verb is the
    do/while CONTROLLER, exactly as a lambda (`{prime x}{x+1}\4`), a variable
    holding the same builtin (`c:prime; c{x+1}\4`) and the bracket spelling
@@ -3577,6 +3767,7 @@ static pn *postfix_restructure(pgs *s, pn *a, pn *b) {
   }
   return postfix_peel_el(s,a,b);
 }
+
 static void r003_(pgs *s) { /* body of e > o ez (wrapped by r003) */
   pn *q;
   pn *b=s->V[s->vi--];
@@ -3677,6 +3868,14 @@ static void r003_(pgs *s) { /* body of e > o ez (wrapped by r003) */
        (post-pass-6 no path produces this shape -- the lexer emits
        adverbs as standalone 0x85 leaves which r003 wraps via the
        earlier `0x85==s(b->v)` branch and postfix-restructure). */
+    else if(known_projection_pn(a)
+            && known_verb_valence_pn(b)>0
+            && !projection_operand_verb(b)) {
+      /* A bracket projection of a known primitive/builtin/predefined verb is
+         still a verb.  Compose it exactly like a primitive leaf; its bracket
+         child records bound arguments, not an application result. */
+      s->V[s->vi]=known_train_join(s,a,b);
+    }
     else if(a->t==7 && 0xff==b->v && b->a[0] && 0x85==s(b->a[0]->v)) {
       q=pnnewi(s,1,0xff,0,2,1,a->i,a->line);
       q->a[0]=a;
@@ -3688,6 +3887,18 @@ static void r003_(pgs *s) { /* body of e > o ez (wrapped by r003) */
       a->a=xrealloc(a->a,a->m*sizeof(pn*));
       a->a[a->m-1]=b;
       s->V[s->vi]=a;
+    }
+    else if(a->t==19 && known_verb_valence_pn(a)>0
+            && !projection_operand_verb(b)) {
+      /* b already has an operand, so this is outer(inner-expression), not a
+         dyadic b with the projection as its left noun.  Isolate b from the
+         flat value stack just as postfix_restructure_top does. */
+      pn *inner=pnnewi(s,6,0,0,1,1,b->i,b->line);
+      inner->a[0]=b;
+      q=pnnewi(s,1,0xff,0,2,1,a->i,a->line);
+      q->a[0]=a;
+      q->a[1]=inner;
+      s->V[s->vi]=q;
     }
     else if(!a->a[1]) {
       if(b->a[0]&&b->a[0]->t==4&&b->v!=0xff) { /* v[] higher precedence (except for juxtaposition) */
@@ -3886,6 +4097,76 @@ static void r003_(pgs *s) { /* body of e > o ez (wrapped by r003) */
    left-fold it. */
 static pn *postfix_restructure_top(pgs *s, pn *r) {
   if(!r) return r;
+  /* A projection remains a verb when it is adjacent to another statically
+     known verb.  Some reductions reach this post-pass as juxt(projection,
+     train) rather than visiting r003_'s V(a)/V(b) train branch, so normalize
+     the final shape here as well. */
+  if(r->t==1 && r->v==0xff && r->m>=2 && r->a[0] && r->a[1]
+     && known_projection_pn(r->a[0])
+     && known_verb_valence_pn(r->a[1])>0
+     && !projection_operand_verb(r->a[1]))
+    return known_train_join(s,r->a[0],r->a[1]);
+  /* A postfix application can arrive with its syntactic left context already
+     installed in a[0].  There are two reasons that value belongs outside:
+
+       * it is a statically-known verb (`ep[-]+/'x`), so it cannot be the
+         inner derived verb's left NOUN; or
+       * the inner verb is a fixed monad (`f sqr'x`), so it has no left slot.
+
+     For a known outer verb, put the inner application in a one-statement
+     klist.  Besides representing the intended tree directly, that evaluation
+     boundary matters to the RPN evaluator: an ambivalent inner verb must not
+     see the outer verb parked on its value stack and consume it as a dyadic
+     argument.  Names and lambdas remain nouns; parentheses preserve the class
+     of the expression they group.  Runtime function values do not affect this
+     parse-time decision. */
+  if(r->t==1 && r->m>=2 && r->a[0] && r->a[1]) {
+    u64 rs=s(r->v);
+    int left_valence=known_verb_valence_pn(r->a[0]);
+    int left_is_verb=left_valence>0;
+    int modified=0,overscan=0;
+    if(0xc1==rs) {
+      char *mv=(char*)px(r->v);
+      size_t mn=strlen(mv);
+      modified=mn>1;
+      overscan=mn>1 && ('/'==mv[mn-1] || '\\'==mv[mn-1]);
+    }
+    else {
+      modified=has_adverb_in_chain(r->a[1]);
+      overscan=has_overscan_in_chain(r->a[1]);
+    }
+    int fixed_monad=(0xc6==rs || 0xc9==rs)
+                    && !overscan;
+    int left_is_projection=known_projection_pn(r->a[0]);
+    int left_is_postfix_base=0xff==r->v
+      && (is_adverb_pn(r->a[1]) || is_args_pn(r->a[1])
+          || (r->a[1]->t==1 && r->a[1]->v==0xff && r->a[1]->a[0]
+              && (is_adverb_pn(r->a[1]->a[0])
+                  || is_args_pn(r->a[1]->a[0]))));
+    int left_is_controller=overscan && left_valence==1;
+    /* Comma constructs function lists, @ and . explicitly apply a function
+       value, and : supplies its own operand context; a projection is a noun
+       in those slots. */
+    int projection_is_operand=','==r->v || '@'==r->v || '.'==r->v || ':'==r->v;
+    if(!left_is_postfix_base && !left_is_controller
+       && ((left_is_projection && !projection_is_operand)
+           || (modified && (left_is_verb || fixed_monad)))) {
+      pn *left=r->a[0];
+      r->a[0]=0;
+      /* r003_ promotes monadic file 0: to its dyadic parser subtype as soon
+         as it installs a left node.  A known verb was never that noun. */
+      if(left_is_verb && 0xcd==rs) r->v=set_sx(r->v,0xcc);
+      pn *q=pnnewi(s,1,0xff,0,2,1,left->i,left->line);
+      q->a[0]=left;
+      if(left_is_verb) {
+        pn *inner=pnnewi(s,6,0,0,1,1,r->i,r->line);
+        inner->a[0]=r;
+        q->a[1]=inner;
+      }
+      else q->a[1]=r;
+      return q;
+    }
+  }
   if(r->t==1 && r->v==0xff && r->m>=2 && r->a[0] && r->a[1]) {
     pn *b=r->a[1];
     if(b->t==1 && b->v==0xff && b->m>=2 && b->a[0] && b->a[1]
