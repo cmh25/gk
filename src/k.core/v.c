@@ -3106,6 +3106,66 @@ static K lsdir(char *p) {
 }
 #endif
 
+/* Integer-vector enumerate is a mixed-radix odometer.  The result has one
+   coordinate vector per radix, with the rightmost coordinate changing
+   fastest.  Validate every radix before noticing a zero: 0 -1 must be domain,
+   not an empty result. */
+static K odometer(K x) {
+  K r,*prk;
+  i32 *pxi=0,*pri;
+  i64 *pxj=0,*prj,total=1,stride=1,radix,digit,pos,end;
+  i32 longv=tx==-8,zero=0;
+
+  if(!nx) return tn(0,0);              /* zero coordinate rows */
+  if(longv) PXJ; else PXI;
+
+  /* Pass 1: domain validation.  Sentinels are not dimensions, including the
+     positive infinity sentinels that the v<0 test cannot catch. */
+  i(nx,
+    radix=longv?pxj[i]:(i64)pxi[i];
+    if(radix<0 || (longv?radix==J_INF:radix==INT32_MAX)) return KERR_DOMAIN;
+    zero|=!radix)
+
+  /* A zero radix makes the product zero regardless of the other (valid)
+     radices.  Otherwise compute the product without signed overflow and then
+     apply the build-specific vector-length limit. */
+  if(zero) total=0;
+  else {
+    i(nx,
+      radix=longv?pxj[i]:(i64)pxi[i];
+      if(total>(VMAX-1)/radix) return KERR_WSFULL;
+      total*=radix)
+    VLEN(total);
+  }
+
+  r=tn(0,nx); prk=px(r);
+  i(nx,prk[i]=tn(longv?8:1,total))
+  if(!total) return r;
+
+  /* Fill in blocks rather than evaluating (column/stride)%radix for every
+     element.  total's checked product proves every end and stride multiply is
+     bounded and that each row ends on a complete cycle. */
+  for(i64 dim=(i64)nx-1;dim>=0;--dim) {
+    radix=longv?pxj[dim]:(i64)pxi[dim];
+    pos=0;
+    if(longv) {
+      prj=px(prk[dim]);
+      while(pos<total) for(digit=0;digit<radix;++digit) {
+        end=pos+stride;
+        while(pos<end) prj[pos++]=digit;
+      }
+    } else {
+      pri=px(prk[dim]);
+      while(pos<total) for(digit=0;digit<radix;++digit) {
+        end=pos+stride;
+        while(pos<end) pri[pos++]=(i32)digit;
+      }
+    }
+    stride*=radix;
+  }
+  return r;
+}
+
 K enumerate(K x) {
   K r=0,q=null;
   char s[2],*p=s;
@@ -3119,6 +3179,9 @@ K enumerate(K x) {
   case  3: p[0]=ck(x); p[1]=0; r=lsdir(p); break;
   case  4: return enumeratecb(x);
   case  6: r=tn(4,0); break;
+  case  0: return irecur1(enumerate,x);
+  case -1:
+  case -8: return odometer(x);
   case -3: p=xmalloc(1+nx); memcpy(p,px(x),nx); p[nx]=0; r=lsdir(p); xfree(p); break;
   default: return KERR_TYPE;
   }

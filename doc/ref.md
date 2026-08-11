@@ -1275,13 +1275,21 @@ value error
 </details>
 
 <a id="m-enumerate"></a>
-#### `!x` (enumerate / keys)
+#### `!x` (enumerate / odometer / keys)
 
-With positive int `x`, `0..x-1`. With a dict, key list.
+With a non-negative int atom `x`, `0..x-1`. With a non-negative int vector,
+the mixed-radix odometer whose rightmost coordinate changes fastest. With a
+general list, `!` recurses. With a dict, key list.
 
 ```
   !5
 0 1 2 3 4
+  !2 3
+(0 0 0 1 1 1
+ 0 1 2 0 1 2)
+  !(2;3j)                 / a true mixed-type list: recurse
+(0 1
+ 0 1 2j)
   d:.+(`a`b;1 2)
   !d
 `a `b
@@ -1292,11 +1300,17 @@ With positive int `x`, `0..x-1`. With a dict, key list.
 
 **Types:**
 - non-negative int `n` → `0 1 … n-1` (`!0` is the empty int vector)
+- non-negative int vector → one coordinate vector per input radix; int input
+  produces int coordinates and long input produces long coordinates
+- general list → recursive application to its items (`!()`, `!!0`, and
+  `!0#0j` are all `()`)
 - dictionary → its key list
 
 Other types follow [Dictionaries](#dictionaries) and implementation rules.
 
-**Errors:** `domain` when `x` is a negative count.
+**Errors:** `domain` when an integer count/radix is negative or an integer
+sentinel; `wsfull` when the product of the radices cannot be represented or
+allocated.
 
 </details>
 
@@ -3241,4 +3255,3 @@ b+:`
   @[{x+1};5;:]
 0 6
 ```
-
