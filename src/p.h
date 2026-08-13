@@ -37,6 +37,7 @@ typedef struct pn {
   int line;
   char *file;
   int gline;     /* global line in lambda */
+  int grouped;   /* enclosed by singleton parentheses without a klist node */
   int lv;        /* 1 if this t==19 is in lvalue context (assignment LHS) */
   int call_n;    /* cached can_inline_call result for t==19 nodes; -2 = not
                     yet computed, -1 = not inlinable, >=0 = arity */

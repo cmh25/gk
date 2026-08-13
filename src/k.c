@@ -497,7 +497,18 @@ const char* kprint_(K x, char *s, char *e, char *s0) {
       }
       else {
         mprintf("%s",s);
-        i(n(f),kprint_(pff[i],"","",""))
+        i(n(f),
+          /* A fixed-left dyad immediately after monadic - needs an explicit
+             value boundary.  `-(2+)` reparses as composition; `-2+`
+             reparses as a negative literal followed by +.  Other train
+             adjacency is already unambiguous and keeps its established
+             compact display. */
+          if(i && 0xd0==s(pff[i]) && 0xc0==s(pff[i-1])
+             && 2==ck(pff[i-1])%32) {
+            mprintf("("); kprint_(pff[i],"","",""); mprintf(")");
+          }
+          else kprint_(pff[i],"","","");
+        )
         mprintf("%s",e);
       }
       break;
@@ -511,9 +522,21 @@ const char* kprint_(K x, char *s, char *e, char *s0) {
     case 0xdc: { K *pw=px(x); mprintf("%s%s%s",s,sk(pw[2]),e); } break;
     case 0xd0:
       px=px(x);
-      kprint_(px[0],s,"","");
-      if(s(px[1])) kprint_(px[1],"",e,"");
-      else { u32 c2=ck(px[1])%32; if(c2<strlen(P)) mprintf("%s%c%s","",P[c2],e); else mprintf("%s%s","",e); }
+      /* Preserve familiar operand-first projection spelling, but delimit a
+         function-valued left operand when its own spelling has no boundary.
+         Without the parentheses `(2+),` (a projection) collides with `2+,`
+         (a train).  Lambdas and bracket projections are self-delimiting, so
+         `{x}+` and `+[;2],` remain the compact, round-trippable spellings. */
+      if(px[0] && ISF(px[0]) && 0xc3!=s(px[0]) && 0xd9!=s(px[0])) {
+        mprintf("%s(",s); kprint_(px[0],"","",s0); mprintf(")");
+        if(s(px[1])) kprint_(px[1],"",e,s0);
+        else { u32 c2=ck(px[1])%32; if(c2<strlen(P)) mprintf("%s%c%s","",P[c2],e); else mprintf("%s%s","",e); }
+      }
+      else {
+        kprint_(px[0],s,"",s0);
+        if(s(px[1])) kprint_(px[1],"",e,s0);
+        else { u32 c2=ck(px[1])%32; if(c2<strlen(P)) mprintf("%s%c%s","",P[c2],e); else mprintf("%s%s","",e); }
+      }
       break;
     case 0xd1: mprintf("%s%s%s",s,sk(x),e); break;
     case 0xd2: mprintf("%s%s%s",s,sk(x),e); break;

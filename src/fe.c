@@ -56,6 +56,16 @@ K fe(K f, K a, K x, char *av) {
     }
   }
 
+  /* `f@x` applies a fixed-dyad value f in p.c before entering fe().  The
+     equivalent explicit projection `@[f;]x` arrives here instead; preserve
+     the same function-application semantics rather than handing the 0xd0
+     object to k.core's noun-indexing @ path. */
+  if(a && 0xd0==s(a) && 0xc0==s(f) && 13==ck(f)%32 && (!av||!*av)) {
+    K f2=a;
+    _k(f);
+    return fe(f2,0,x,0);
+  }
+
   /* a predefined k.core fn (0xc9/0xca/0xcb: gtime dv ssr ...) applied as a
      VALUE -- fetched from .r or any dict -- rather than as a lexer token
      (those are resolved by p.c reduce()/rpd before they get here).  Swap in

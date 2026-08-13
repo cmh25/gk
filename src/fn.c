@@ -1046,6 +1046,21 @@ K fapply(K f, K x, char *av_outer) {
 static K fapply_impl(K f, K x, char *av_outer) {
   if(0xda==s(f)) {
     K *pw=px(f);
+    /* A monadic builtin under over/scan accepts the do/while controller as
+       an optional left argument.  Its explicit projection spelling
+       (`sqrt/[5;]`) completes here with a 2-item plist.  Peeling 0xda into
+       bare sqrt + an outer adverb loses that special dyadic dispatch; keep
+       the wrapper intact and let fe() handle it exactly like `5 sqrt/ x`.
+       Thus the explicit infix and bracket spellings remain equivalent. */
+    if((!av_outer || !*av_outer) && 0xc6==s(pw[0])
+       && T(pw[1])==-3 && n(pw[1])==1
+       && ('/'==*(char*)px(pw[1]) || '\\'==*(char*)px(pw[1]))
+       && 0x81==s(x) && n(x)==2) {
+      K *pxk=px(x);
+      K a=k_(pxk[0]); K x1=k_(pxk[1]);
+      _k(x);
+      return fe(f,a,x1,0);
+    }
     K wf=k_(pw[0]);
     K wav=pw[1];
     char av2[256];

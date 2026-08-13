@@ -47,10 +47,19 @@ int gline,glinei,gline0,gline0i,fileline;
 
 /* A projection of a LAMBDA is a noun, exactly like the lambda itself: a verb
    juxtaposed on its left applies (`,{x+y}[1]` enlists, as `,{x+y}` does), it
-   does not form a train.  Only primitive/builtin-headed values (0xd0, 0xd9
-   of a verb, 0xc5) compose.  fn_inner reaches the head through the wrapper
-   chain. */
+   does not form a train.  Primitive/builtin-headed projections (0xd0/0xd9),
+   compositions (0xc5), and adverb-derived functions (0xda) compose.
+   fn_inner reaches the head through the wrapper chain. */
 static int lambda_noun(K b) { return 0xd9==s(b) && 0xc3==s(fn_inner(b)); }
+
+/* Values which retain verb semantics when preceded by another verb.  Keep
+   this in one place: the distinction is user-visible, while the individual
+   heap subtypes are not.  In particular 0xda is an adverb-derived function
+   value (e.g. +/) and must compose just like a projection or train. */
+static int composition_value(K x) {
+  return 0xd0==s(x) || 0xc5==s(x) || 0xda==s(x)
+      || (0xd9==s(x) && !lambda_noun(x));
+}
 char *glinep,*gline0p;
 
 #define PARAMSMAX EVALDEPTH
@@ -827,6 +836,33 @@ static int left_arg_available_(K *slot, int accepts_left,
   return accepts_left && !assignment_target && !pending_postfix(x);
 }
 
+/* Raw-token lookahead used by the fusion hooks below.  Primitive tokens store
+   32+their P-table index; an adverb-modified primitive is a 0xda wrapper. */
+static int fusion_prim_token_(K x, int verb) {
+  return 0xc0==s(x) && 32+verb==ck(x);
+}
+static int fusion_dyad_token_(K x, int verb) {
+  return 0xc0==s(x) && 64+verb==ck(x);
+}
+static int fusion_modified_prim_(K x, int verb, char adverb) {
+  K *p;
+  if(0xda!=s(x) || n(x)<2) return 0;
+  p=(K*)px(x);
+  return fusion_prim_token_(p[0],verb)
+      && T(p[1])==-3 && n(p[1])==1 && adverb==*(char*)px(p[1]);
+}
+
+/* A filter's left argument is parked below the comparison operands.  Plain
+   values can be borrowed directly; a simple name is resolved through a new
+   reference so declining the fast path leaves the evaluator stack intact.
+   More involved delayed expressions fall through to the ordinary pipeline,
+   preserving its evaluation/error order.  The caller owns the result. */
+static K fusion_payload_(K x) {
+  if(!s(x)) return k_(x);
+  if(0x40==s(x)) return r40(k_(x));
+  return 0;
+}
+
 /* In a multi-adverb chain, the final adverb determines whether the derived
    verb exposes over/scan's left controller slot (`3 f'/x`, for example). */
 static int av_ends_overscan_(const char *av) {
@@ -1349,7 +1385,7 @@ K pgreduce_(K x0, int *quiet) {
           }
           else {
             if(s(b)) { b=reduce(b); if(E(b)||EXIT) { *pA++=b; break; } }
-            if((0xd0==s(b)||0xd9==s(b)||0xc5==s(b))&&!lambda_noun(b)) {
+            if(composition_value(b)) {
               K cvl=tn(0,2); K *pcvl=px(cvl); pcvl[0]=k_(v); pcvl[1]=b;
               K cq=tn(0,2); K *pcq=px(cq); pcq[0]=cvl; pcq[1]=tn(3,0);
               *pA++=st(0xc5,cq);
@@ -1704,15 +1740,66 @@ apply_n_fallback: {
           _k(a);
         }
         else if(!VST(a)) { _k(a); *pA++=KERR_TYPE; }
-        else if((0xd0==s(a)||0xd9==s(a)||0xc5==s(a))&&!lambda_noun(a)) {
-          /* A primitive verb JUXTAPOSED with a TRAIN (fixed-dyad / projection /
-             composition value: 0xd0/0xd9/0xc5) COMPOSES (prepends) instead of
-             executing.  A LAMBDA projection is a noun and falls through. */
+        else if(composition_value(a)) {
+          /* A primitive verb JUXTAPOSED with a function value (fixed dyad /
+             projection / composition / derived verb: 0xd0/0xd9/0xc5/0xda)
+             COMPOSES (prepends) instead of executing.  A LAMBDA projection
+             is a noun and falls through.
+             Keep this ahead of monadic fusion lookahead: a kernel may decline
+             a train, but the generic monad fallback would execute it rather
+             than preserving composition. */
           K cvl=tn(0,2); K *pcvl=px(cvl);
           pcvl[0]=t(1,st(0xc0,(c%32)+32)); /* the primitive as a 0xc0 verb atom */
           pcvl[1]=a;                       /* the train (ownership transfers) */
           K cq=tn(0,2); K *pcq=px(cq); pcq[0]=cvl; pcq[1]=tn(3,0);
           *pA++=st(0xc5,cq);
+        }
+        else if((c%32==7||c%32==8) && i+1<nx) {
+          int down=c%32==8;
+          K fr=0;
+          /* a@<a / a@>a: both source occurrences resolve to the same
+             underlying value.  Requiring identity avoids changing the more
+             general y@<x evaluation order while covering the sort idiom. */
+          if(fusion_dyad_token_(px[i+1],13) && pA>A
+             && left_arg_available_(&pA[-1],1,0)) {
+            K y=fusion_payload_(pA[-1]);
+            if(y && !E(y) && !EXIT && y==a && sortvalues(a,down,&fr)) {
+              _k(y); _k(*--pA); _k(a); *pA++=fr; ++i; break;
+            }
+            if(y && !E(y)) _k(y);
+          }
+          /* k#<a and y@k#<a (and descending variants).  The take count is
+             already parked below a in RPN; only nonnegative k<=#a is fused,
+             leaving cycling/negative/sentinel behavior to ordinary take. */
+          if(fusion_dyad_token_(px[i+1],15) && pA>A
+             && left_arg_available_(&pA[-1],1,0)) {
+            K take=fusion_payload_(pA[-1]);
+            if(take && !E(take) && !EXIT) {
+              if(i+2<nx && fusion_dyad_token_(px[i+2],13) && pA>A+1
+                 && left_arg_available_(&pA[-2],1,0)) {
+                K y=fusion_payload_(pA[-2]);
+                if(y && !E(y) && !EXIT
+                   && topgradeat(y,a,take,down,&fr)) {
+                  _k(y); _k(take); _k(*--pA); _k(*--pA); _k(a);
+                  *pA++=fr; i+=2; break;
+                }
+                if(y && !E(y)) _k(y);
+              }
+              if(topgrade(a,take,down,&fr)) {
+                _k(take); _k(*--pA); _k(a); *pA++=fr; ++i; break;
+              }
+              _k(take);
+            }
+          }
+          *pA++=k(c%32,0,a);
+        }
+        else if(c%32==9 && i+1<nx
+                && fusion_modified_prim_(px[i+1],15,'\'')) {
+          K fr;
+          if(groupcounts(a,&fr)) {
+            _k(a); *pA++=fr; ++i; break;
+          }
+          *pA++=k(c%32,0,a);
         }
         else *pA++=k(c%32,0,a);
       }
@@ -1755,10 +1842,15 @@ apply_n_fallback: {
         if(0x41==s(a)||0x41==s(b)) { _k(a); _k(b); *pA++=KERR_TYPE; break; }
         if(s(b)) { b=reduce(b); if(E(b)||EXIT) { _k(a); *pA++=b; break; } }
         if(s(a)) { a=reduce(a); if(E(a)||EXIT) { _k(b); *pA++=a; break; } }
-        if(0xd0==s(a) && 0xd0!=s(b)) *pA++=fe(a,0,b,0);
-        else if(0xd7==s(a)) *pA++=fe(a,0,b,0);
+        w=c%32;
+        /* A function value on the left is still a noun for ordinary dyads:
+           `(2+),3` joins the function and 3.  Only . and @ explicitly apply
+           that value (`(2+)@3`), matching names and other function subtypes.  The
+           old subtype-only shortcut fired for every dyad and silently turned
+           comma/plus/etc. into function application. */
+        if((w==11||w==13) && 0xd0==s(a) && 0xd0!=s(b)) *pA++=fe(a,0,b,0);
+        else if((w==11||w==13) && 0xd7==s(a)) *pA++=fe(a,0,b,0);
         else {
-          int w=c%32;
           if((w==11||w==13)&&0x04==T(a)&&!s(a)) { /* `a . 0; `a @ 0 */
             a=vlookup(a);
             if(KERR_VALUE==a) a=null;
@@ -1770,19 +1862,82 @@ apply_n_fallback: {
             break;
           }
           if(!VST(a)||!VST(b)) { _k(b); _k(a); *pA++=KERR_TYPE; break; }
-          /* Fuse `a<x` / `a>x` / `a=x` with a following monadic `&` (token 32+5)
-             so the 0/1 mask is never materialised.  RPN guarantees the compare's
-             result is consumed by that very `&` and nothing else.  A bare verb
-             token only: an adverb (0x85) after it, or a projected/assigned `&`,
-             arrives as a different subtype and takes the normal path.  wherecmp
-             borrows a and b, and declines (0) on any shape it can't handle --
-             declining is not an error, k(w,a,b) below computes those. */
-          if((w==7||w==8||w==9) && i+1<nx
-             && 0xc0==s(px[i+1]) && 37==ck(px[i+1])
-             && (i+2>=nx || 0x85!=s(px[i+2]))) {
-            K wr;
-            if(wherecmp(a,b,(i8)(w==7?-1:w==8?1:0),&wr)) {
+          /* +\\0j+x: collapse sentinel-aware int-to-long widening with its
+             immediately following sum scan.  The analogous fold loses to the
+             generic SIMD-friendly widen-then-sum pipeline, so leave it alone. */
+          if(w==1 && i+1<nx
+             && fusion_modified_prim_(px[i+1],1,'\\')) {
+            K wx=0,wr;
+            if(T(a)==8 && !jk(a) && T(b)==-1 && !s(b)) wx=b;
+            else if(T(b)==8 && !jk(b) && T(a)==-1 && !s(a)) wx=a;
+            if(wx && widenintscan(wx,&wr)) {
               _k(a); _k(b); *pA++=wr; ++i; break;
+            }
+          }
+          /* Comparison consumers are adjacent in emitted RPN, so collapse
+             the longest applicable sequence before materialising its 0/1
+             vector.  A literal monadic ~ is kept as an inversion flag (not
+             rewritten to an opposite comparator: NaN semantics differ).
+             Every kernel borrows inputs and declines on unsupported shapes;
+             the generic evaluator below then retains exact errors/semantics. */
+          if(w==7||w==8||w==9) {
+            u64 u=i+1;
+            i8 inv=0,op=(i8)(w==7?-1:w==8?1:0);
+            K wr=0;
+            if(u<nx && fusion_prim_token_(px[u],10)) { inv=1; ++u; }
+
+            if(u<nx && fusion_prim_token_(px[u],5)) { /* & comparison */
+              /* F/y@&comparison: filtered numeric fold. */
+              if(u+2<nx && fusion_dyad_token_(px[u+1],13)
+                 && (fusion_modified_prim_(px[u+2],1,'/')
+                     ||fusion_modified_prim_(px[u+2],5,'/')
+                     ||fusion_modified_prim_(px[u+2],6,'/'))
+                 && pA>A && left_arg_available_(&pA[-1],1,0)) {
+                K y=fusion_payload_(pA[-1]);
+                if(y && !E(y) && !EXIT
+                   && filterredcmp(y,a,b,op,inv,
+                        fusion_modified_prim_(px[u+2],1,'/')?1:
+                        fusion_modified_prim_(px[u+2],5,'/')?5:6,&wr)) {
+                  _k(y); _k(*--pA); _k(a); _k(b); *pA++=wr;
+                  i=u+2; break;
+                }
+                if(y && !E(y)) _k(y);
+              }
+              /* y@&comparison: copy selected payload values directly. */
+              if(u+1<nx && fusion_dyad_token_(px[u+1],13)
+                 && pA>A && left_arg_available_(&pA[-1],1,0)) {
+                K y=fusion_payload_(pA[-1]);
+                if(y && !E(y) && !EXIT && filtercmp(y,a,b,op,inv,&wr)) {
+                  _k(y); _k(*--pA); _k(a); _k(b); *pA++=wr;
+                  i=u+1; break;
+                }
+                if(y && !E(y)) _k(y);
+              }
+              /* #&comparison and *&comparison. */
+              if(u+1<nx && (fusion_prim_token_(px[u+1],15)
+                             ||fusion_prim_token_(px[u+1],3))) {
+                i8 mode=fusion_prim_token_(px[u+1],15)
+                          ?CMP_COUNT_WHERE:CMP_FIRST_WHERE;
+                if(cmpterminal(a,b,op,inv,mode,&wr)) {
+                  _k(a); _k(b); *pA++=wr; i=u+1; break;
+                }
+              }
+              /* Bare &comparison, including &~comparison.  Do not capture an
+                 adverbed &: its valence/derived-function behavior is distinct. */
+              if((u+1>=nx || 0x85!=s(px[u+1]))
+                 && wherecmp(a,b,op,inv,&wr)) {
+                _k(a); _k(b); *pA++=wr; i=u; break;
+              }
+            }
+            /* +/comparison, &/comparison, |/comparison. */
+            if(u<nx && (fusion_modified_prim_(px[u],1,'/')
+                         ||fusion_modified_prim_(px[u],5,'/')
+                         ||fusion_modified_prim_(px[u],6,'/'))) {
+              i8 mode=fusion_modified_prim_(px[u],1,'/')?CMP_SUM_BOOL:
+                      fusion_modified_prim_(px[u],5,'/')?CMP_ALL_BOOL:CMP_ANY_BOOL;
+              if(cmpterminal(a,b,op,inv,mode,&wr)) {
+                _k(a); _k(b); *pA++=wr; i=u; break;
+              }
             }
           }
           *pA++=k(w,a,b);
@@ -2207,7 +2362,7 @@ c3_apply:
           else *pA++=avdo(w,0,k_(pb[2]),mv);
           _k(b);
         }
-        else if((0xd0==s(b)||0xd9==s(b)||0xc5==s(b))&&!lambda_noun(b)) {
+        else if(composition_value(b)) {
           /* compose a plain monadic verb with a projection/composition:
              `(# proj) x` == #(proj x).  See the sibling branch in case 0xda. */
           K cvl=tn(0,2); K *pcvl=px(cvl); pcvl[0]=k_(a); pcvl[1]=b;
@@ -2415,7 +2570,7 @@ c3_apply:
             if(!VST(t)) { _k(a); _k(b); _k(t); *pA++=KERR_TYPE; break; }
             *pA++=avdo(vi,t,k_(b),avp);
           }
-          else if((0xd0==s(b)||0xd9==s(b)||0xc5==s(b))&&!lambda_noun(b)) {
+          else if(composition_value(b)) {
             /* compose a derived-verb VALUE with a projection/composition,
                e.g. (g f) where g=|/ and f="."in' -- `(g f) x` == g(f x).
                Mirrors the token-push case 0xda branch; a,b are owned here
@@ -3438,6 +3593,7 @@ pn* pnnew(pgs *s, int t, K v, K n, int m, int f) {
   r->m=m;
   r->f=f;
   r->i=-1;
+  r->grouped=0;
   r->lv=0;
   r->call_n=-2;
   r->a=m?xcalloc(m,sizeof(pn*)):0;
@@ -3773,6 +3929,22 @@ static void r003_(pgs *s) { /* body of e > o ez (wrapped by r003) */
   pn *b=s->V[s->vi--];
   pn *a=s->V[s->vi];
   if(!b) return;
+  /* A singleton group around a statically-known callable, or a completed
+     bracket projection literal, is a value boundary when that value is on
+     the LEFT of another verb: `(<2+)+` and `+[;2]+` project just like their
+     name-bound forms.  Retain only a marker for the parenthesized case at
+     r012 rather than eagerly turning the group into a klist -- `(-%)[1;]`
+     must still attach brackets to the train, and `(0[])0*` must retain its
+     historical keeper shape.  A t==19 projection already carries its own
+     syntactic boundary in the brackets, so recognize it directly here. */
+  if(V(a) && (a->grouped || known_projection_pn(a))
+     && known_verb_valence_pn(a)>0
+     && ((b->t==1 && !b->a[0] && !b->a[1]) || b->t==7 || b->t==11)) {
+    q=pnnewi(s,6,0,0,1,1,a->i,a->line);
+    q->a[0]=a;
+    a=q;
+    s->V[s->vi]=a;
+  }
   /* Postfix-restructure (immediate case): a=value, b=juxt(adverb, ...).
      Triggered by r003 calls that combine a value with a juxt whose
      leftmost spine element is an adverb. Other paths in r003 may
@@ -3861,7 +4033,18 @@ static void r003_(pgs *s) { /* body of e > o ez (wrapped by r003) */
       s->V[s->vi]=b;
     }
     else if(0x85!=s(a->v)&&!is_headless_chain(b)&&b->a[0]&&(b->a[0]->t==4||is_headless_chain(b->a[0]))) { /* sqr[2]+sqr[3] */
-      b->a[0]=attach_args(s,a,b->a[0]);
+      pn *ap=attach_args(s,a,b->a[0]);
+      if(known_projection_pn(ap) && !b->a[1]) {
+        /* The bracket tail has already absorbed the following dyad, so
+           `+[;2],` reaches this branch before `+[;2]` exists as a standalone
+           node.  Finish that projection, then make it the dyad's left VALUE,
+           matching `g:+[;2];g,` rather than treating it as a train member. */
+        q=pnnewi(s,6,0,0,1,1,ap->i,ap->line);
+        q->a[0]=ap;
+        b->a[0]=q;
+        b->t=11;
+      }
+      else b->a[0]=ap;
       s->V[s->vi]=b;
     }
     /* Issue #2 Pass 6 cleanup: `a->t==7 && 0x85==s(b->v)` retired
@@ -4066,15 +4249,10 @@ static void r003_(pgs *s) { /* body of e > o ez (wrapped by r003) */
         b->a[0]=a;
         s->V[s->vi]=b;
       }
-      else if(0xc3==s(a->n) || 0xda==s(a->n)) {
-        /* Pass 2b-step-4: 0xda(c3,av) inline lambda also fires the
-           dyad-juxt insertion path. */
-        q=pnnewi(s,1,0xff,0,2,1,a->i,a->line);
-        q->a[0]=a;
-        q->a[1]=b;
-        s->V[s->vi]=q;
-      }
       else {
+        /* A literal lambda is no different from the same value reached
+           through a name or singleton parentheses here.  The former
+           dyad-juxt exception silently discarded terminal +, * and |. */
         b->a[0]=a;
         b->t=11;
         s->V[s->vi]=b;
@@ -4225,6 +4403,13 @@ static void r012(pgs *s) { /* klist > '(' elist ')' */
   pn *a=s->V[s->vi--];
   if(!a) a=pnnew(s,5,0,0,2,1);
   else if(a->t==3) a->t=6;
+  else if(a->t==7 && known_verb_valence_pn(a)>0) {
+    /* Keep callability (`(-%)[1;]` still applies the train), while r003 uses
+       this boundary when the grouped value is specifically on the left of a
+       bare following verb (`(+*),` is a comma projection, not a longer
+       train). */
+    a->grouped=1;
+  }
   a->i=s->V[s->vi]->i;
   a->line=s->V[s->vi]->line;
   s->V[s->vi]=a;
