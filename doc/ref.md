@@ -1891,6 +1891,19 @@ spelling is `eachright`); express it with an ignored third argument:
 2 100 4
 ```
 
+An indexed assignment expression returns the selected region after the write,
+not necessarily the right-hand value. This makes broadcast and repeated-index
+effects visible in the result, and applies equally to `:`, `::`, and compound
+forms such as `+:` and `,:`.
+
+```
+  a:!5
+  a[1 2]:9
+9 9
+  a
+0 9 9 3 4
+```
+
 ### Global Assignment
 
 ```

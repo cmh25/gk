@@ -434,8 +434,8 @@ static K rl(K x, K t) {
 }
 
 static K assign(K d, K i, K y) {
-  K r=0,p=0,v=d,rs=0;
-  int rredir=0;
+  K r=0,p=0,t=0,v=d,rs=0;
+  int rredir=0,deep=0;
   if(!d||!i||!y) { _k(d); d=KERR_TYPE; goto cleanup; }
   if(0x40!=s(d)) { _k(d); d=KERR_TYPE; goto cleanup; }
   d=vlookuprs(d,&rs);
@@ -448,7 +448,10 @@ static K assign(K d, K i, K y) {
   if(s(d)!=0x80 && T(d)>0) { _k(d); d=KERR_TYPE; goto cleanup; }
   if(0x40==s(i)) { i=vlookup(i); if(E(i)) { _k(d); d=i; goto cleanup; } }
   if(0x40==s(y)) { y=vlookup(y); if(E(y)) { _k(d); d=y; goto cleanup; } }
-  if(s(y)&&s(y)!=0x80&&s(y)!=0xc3) { _k(d); d=KERR_TYPE; goto cleanup; } /* 0xc4 retired */
+  /* Indexed slots may hold any ordinary noun or callable value.  The old
+     c3-only exception admitted literal lambdas but rejected projections and
+     compositions even though they are first-class values everywhere else. */
+  if(s(y)&&s(y)!=0x80&&!ISF(y)) { _k(d); d=KERR_TYPE; goto cleanup; }
   if(s(i)&&0x81!=s(i)) { _k(d); d=KERR_TYPE; goto cleanup; }
   ko *kd=(ko*)(b(48)&d);
   if(kd->r>1 || (rredir && kd->r)) { /* copy on write; also when the write is
@@ -459,14 +462,22 @@ static K assign(K d, K i, K y) {
     d=kcp(d); if(E(d)) goto cleanup;
   }
 
-  if(s(i)&&0x81==s(i)) r=kamend4(d,b(48)&i,0,k_(y));
+  deep=s(i)&&0x81==s(i);
+  K sel=k_(i);  /* amend consumes i; retain it for the post-write selection */
+  if(deep) r=kamend4(d,b(48)&i,0,k_(y));
   else r=kamendi4(d,i,0,k_(y));
-  if(E(r)||EXIT) { _k(y); return r; }
+  if(E(r)||EXIT) { _k(sel); _k(y); return r; }
   else {
+    /* Indexed assignment returns the selected region after write-back.  This
+       exposes scalar broadcast (d[]:5 -> one 5 per selected item) and the
+       final value at repeated indices, matching the read side. */
+    t=k(deep?11:13,k_(r),deep?(b(48)&sel):sel);  /* deep path uses .; one-level selection uses @ */
+    if(E(t)||EXIT) { _k(r); _k(y); return t; }
     if(v) p=scope_set(rs,v,r);
-    if(E(p)) { _k(y); return p; }  /* r already freed by scope_set */
-    _k(p);  /* free the stored array ref - we return the assigned value */
-    return y;  /* return the assigned value, not the array */
+    if(E(p)) { _k(t); _k(y); return p; }  /* r already freed by scope_set */
+    _k(p);
+    _k(y);
+    return t;
   }
 
 cleanup:
@@ -1211,7 +1222,7 @@ K pgreduce_(K x0, int *quiet) {
         else if(0x44==s(a)) { /* d[`a]::1 */
           if(!VST(b)) { _k(a); _k(b); *pA++=KERR_PARSE; break; }
           pa=px(a);
-          K a_=k_(pa[0]); K i_=k_(pa[1]); _k(a);
+          K target=pa[0]; K a_=k_(target); K i_=k_(pa[1]); _k(a);
           /* resolve index */
           if(0x41==s(i_)) {
             if(n(i_)) {
@@ -1236,13 +1247,17 @@ K pgreduce_(K x0, int *quiet) {
               K a2=kcp(a_); _k(a_); a_=a2;
               if(E(a_)) { _k(b); _k(i_); *pA++=a_; break; }
             } }
-          /* amend dict and save */
-          K r=kamend4(a_,i_,0,k_(b));
-          if(E(r)) { _k(b); *pA++=r; }
+          K r=kamend4(a_,k_(i_),0,k_(b));
+          if(E(r)) { _k(i_); _k(b); *pA++=r; }
           else {
-            p=scope_set(rs,pa[0],r);
-            if(E(p)) { _k(b); *pA++=p; }
-            else { _k(p); *pA++=b; *quiet=1; }
+            /* :: changes the destination scope, not indexed assignment's
+               result: return the selected region after broadcast/write-back. */
+            t=k(11,k_(r),i_);
+            if(E(t)||EXIT) { _k(r); _k(b); *pA++=t; break; }
+            p=scope_set(rs,target,r);
+            _k(b);
+            if(E(p)) { _k(t); *pA++=p; }
+            else { _k(p); *pA++=t; *quiet=1; }
           }
         }
         else { _k(a); _k(b); *pA++=KERR_VALUE; break; }
@@ -1286,7 +1301,7 @@ K pgreduce_(K x0, int *quiet) {
           if(s(b)) { b=reduce(b); if(E(b)||EXIT) { _k(a); *pA++=b; break; } }
           if(!VST(b)) { _k(a); _k(b); *pA++=KERR_PARSE; break; }
           pa=px(a);
-          K a_=k_(pa[0]); K i_=k_(pa[1]); _k(a);
+          K target=pa[0]; K a_=k_(target); K i_=k_(pa[1]); _k(a);
 
           //if(0x41!=s(i_)) { _k(a_); _k(i_); _k(b); *pA++=KERR_TYPE; break; }
           if(0x41==s(i_)) {
@@ -1313,25 +1328,23 @@ K pgreduce_(K x0, int *quiet) {
               K a2=kcp(a_); _k(a_); a_=a2;
               if(E(a_)) { _k(b); _k(i_); *pA++=a_; break; }
             } }
-          a=k(11,k_(a_),k_(i_));
-          if(E(a)) { _k(b); _k(a_); _k(i_); *pA++=a; break; }
-          if(T(i_)>0) {
-            t=avdo(strchr(P,ik(v))-P,a,b,"'");
-            if(E(t)||EXIT) { _k(a_); *pA++=t; break; };
-          }
+          /* Apply the compound verb at the leaves of the original path.  The
+             old select/verb-each/replace lowering lost the path structure
+             when a leaf changed shape: d[;0],:2 computed a matrix of 1 2s,
+             then tried to replace each scalar slot with a row and raised
+             length.  It also collapsed repeated indices instead of amending
+             them successively.  kamend4 already implements both deep path
+             scatter and duplicate-index semantics, so use it directly. */
+          K r=kamend4(a_,k_(i_),strchr(P,ik(v))-P,b);
+          if(E(r)) { _k(i_); *pA++=r; }
           else {
-            K *pi=px(i_);
-            K pi0=pi[0];
-            if(T(pi0)<=0||pi0==null) t=avdo(strchr(P,ik(v))-P,a,b,"'");
-            else t=k(strchr(P,ik(v))-P,a,b);
-            if(E(t)||EXIT) { _k(a_); _k(i_); *pA++=t; break; };
-          }
-          K r=kamend4(a_,i_,0,k_(t));
-          if(E(r)) { _k(t); *pA++=r; }
-          else {
-            p=scope_set(rs,pa[0],r);
+            /* Compound assignment returns the selected values after the
+               complete amend (not the whole amended container). */
+            t=k(11,k_(r),i_);
+            if(E(t)||EXIT) { _k(r); *pA++=t; break; }
+            p=scope_set(rs,target,r);
             if(E(p)) { _k(t); *pA++=p; }  /* r already freed by scope_set */
-            else { _k(p); *pA++=t; *quiet=1; }  /* return the computed value t, not the dict */
+            else { _k(p); *pA++=t; *quiet=1; }
           }
         }
         else { _k(a); _k(b); *pA++=KERR_TYPE; break; }
