@@ -21,6 +21,32 @@ d . 0#`
 d[]
 v3:9 8 7
 `v3 . !0
+
+/ Nonempty data paths: long/real vectors use the same deep-index dispatch as
+/ the older flat vector types. These two used to rank-error.
+1 2j . 0
+1.0e 2.0e . 0
+
+/ A typed vector on the right of function `.` is an argument vector, for every
+/ callable subtype. Long/real used to be passed as one argument instead.
+{x+y} . 1 2j
+{x+y} . 1.0 2.0e
+.[+;1 2j]
+.[+;1.0 2.0e]
+mul . 2 3j
+mul . 2.0 3.0e
+p:{x+y}[10;]
+p . ,2j
+p . ,2.0e
+q:+'
+q . 1 2j
+q . 1.0 2.0e
+fd:5+
+fd . ,2j
+fd . ,2.0e
+co:-(2+)
+co . ,3j
+co . ,3.0e
 / FUNCTIONS: `.` takes an ARGUMENT LIST, and a typed empty still calls
 / with that type's PROTOTYPE argument (t647 "prototype conformance",
 / a . x = a[*x]); the long/real arms were missing -- f . !0j passed the

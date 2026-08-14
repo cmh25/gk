@@ -912,8 +912,9 @@ cleanup:
 
 K sleep_(K x) {
   if(s(x)) return KERR_TYPE;
-  if(tx != 1 && tx != 2) return KERR_TYPE;
-  double d = (tx == 1) ? fi(ik(x)) : fk(x);   /* fi(): sleep 0I slept 24.8 DAYS */
+  if(tx != 1 && tx != 2 && tx != 8 && tx != 9) return KERR_TYPE;
+  double d = tx==1 ? fi(ik(x)) : tx==2 ? fk(x) : tx==8 ? fj(jk(x)) : (double)ek(x);
+  /* fi()/fj(): integer null/infinity are controls, not enormous delays. */
   if(!isfinite(d) || d < 0) return KERR_DOMAIN;
 #ifdef FUZZING
   return null;  /* a fuzzed `sleep 5e17` is not a hang worth saving */
@@ -975,7 +976,7 @@ K do_(K x) {
                        px[0]) must still be an int/long like the live path */
     return intatom(px[0]) ? null : KERR_TYPE;
   }
-  a=pgreduce_(px[i],&q);
+  a=pgreduce_(px[i],&q); if(!a) a=null;  /* a gap count reduces to 0x0; as in cond_ */
   if(E(a)) return a;
   if(!intatom(a)) { _k(a); return KERR_TYPE; }
   c = ta==8 ? jk(a) : ik(a);  /* use each integer type's encoded count */
@@ -1015,7 +1016,7 @@ K while_(K x) {
       if(STOP) { STOP=0; return kerror("stop"); }
     }
   }
-  a=pgreduce_(px[nx-1],&q);
+  a=pgreduce_(px[nx-1],&q); if(!a) a=null;  /* a gap condition reduces to 0x0; as in cond_ */
   if(E(a)) return a;
   if(!intatom(a)) { _k(a); return KERR_TYPE; }
   i64 c = ta==8 ? jk(a) : ik(a); _k(a);
@@ -1030,7 +1031,7 @@ K while_(K x) {
       _k(p);
       if(EXIT) return kerror("abort");
     }
-    a=pgreduce_(px[nx-1],&q);
+    a=pgreduce_(px[nx-1],&q); if(!a) a=null;
     if(E(a)) return a;
     if(!intatom(a)) { _k(a); return KERR_TYPE; }
     c = ta==8 ? jk(a) : ik(a); _k(a);
@@ -1050,7 +1051,7 @@ K if_(K x) {
                        order, px[0]) must still be an int/long */
     return intatom(px[0]) ? null : KERR_TYPE;
   }
-  a=pgreduce_(px[i],&q);
+  a=pgreduce_(px[i],&q); if(!a) a=null;  /* a gap condition reduces to 0x0; as in cond_ */
   if(E(a)) return a;
   if(!intatom(a)) { _k(a); return KERR_TYPE; }
   i64 c = ta==8 ? jk(a) : ik(a); _k(a);

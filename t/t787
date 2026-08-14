@@ -23,9 +23,17 @@ dm[{_[x;,;1 2]};-0Ij]
 ("c"1:("b3";4;4))~"c"1:("b3";4j;4j)
 (("cc";1 1)1:("b3";4;4))~("cc";1 1)1:("b3";4j;4j)
 (("IFCS";7 9 10 3)0:("a.txt";30;30))~("IFCS";7 9 10 3)0:("a.txt";30j;30j)
+/ Real offsets/counts follow the same finite numeric rule as float.
+("c"1:("b3";4;4))~"c"1:("b3";4.0e;4.0e)
+(("cc";1 1)1:("b3";4;4))~("cc";1 1)1:("b3";4.0e;4.0e)
+(("IFCS";7 9 10 3)0:("a.txt";30;30))~("IFCS";7 9 10 3)0:("a.txt";30.0e;30.0e)
 ln[{"c"1:("b3";x;0j)};3000000000j]
 dm[{"c"1:("b3";x;0j)};0Nj]
 dm[{"c"1:("b3";x;0j)};0Ij]
 dm[{"c"1:("b3";x;0j)};-0Ij]
+
+/ Numeric atom subtypes are interchangeable as zero-duration sleeps.
+nul~sleep 0j
+nul~sleep 0.0e
 
 \\

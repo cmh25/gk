@@ -692,7 +692,7 @@ K dot(K a, K x) {
   if(!ax&&nx==0) { r=k_(a); if(b) _k(x); return r; }
   if(ta==4||ta==3||ta==-3) { r=dotcb(a,x); if(r) { if(b) _k(x); return r; } }
   switch(ta) {
-  case -1: case -2: case -3: case -4:
+  case -1: case -2: case -3: case -4: case -8: case -9:
     switch(tx) {
     case 1: case 8: case 6: r=at(a,x); break;
     case 0:
@@ -2238,7 +2238,7 @@ K form(K a, K x) {
     switch(tx) {
     case  3:
     case -3: PRK(na); i(na,prk[i]=ki(19,a,x,i,-1); EC(prk[i])); break;
-    case -1: case -2:
+    case -1: case -2: case -8: case -9:
     case  0: PRK(na); i(na,prk[i]=ki(19,a,x,i,i); EC(prk[i])); break;
     default: return KERR_TYPE;
     } break;

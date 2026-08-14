@@ -208,7 +208,7 @@ K dotcb(K a,K x) {
   else if(0xc3==s(a)) { /* 0xc4 retired in Pass 4 */
     switch(tx) {
     case  0: r=fne(k_(a),k_(x),0); break;
-    case -1: case -2: case -3: case -4:
+    case -1: case -2: case -3: case -4: case -8: case -9:
       t=kmix(x); if(E(t)) { --d; return t; }
       r=fne(k_(a),t,0);
       break;
@@ -218,7 +218,7 @@ K dotcb(K a,K x) {
   else if(0xdc==s(a)) { /* 2:-linked C function applied with `.`: spread args */
     switch(tx) {
     case  0: r=linkcall(k_(a),k_(x)); break;
-    case -1: case -2: case -3: case -4:
+    case -1: case -2: case -3: case -4: case -8: case -9:
       t=kmix(x); if(E(t)) { --d; return t; }
       r=linkcall(k_(a),t);
       break;
@@ -229,7 +229,7 @@ K dotcb(K a,K x) {
     u8 c=ck(a);
     i32 w=c%32;
     switch(tx) {
-    case -1: case -2: case -3: case -4: case 0:
+    case -1: case -2: case -3: case -4: case -8: case -9: case 0:
       t=kmix(x); if(E(t)) { --d; return t; }
       pt=px(t);
       switch(n(t)) {
@@ -251,7 +251,7 @@ K dotcb(K a,K x) {
                             0xcc/0xcd are the file verbs (0:,1:,...): like a
                             builtin dyad, `.` spreads the arg list by valence. */
     switch(tx) {
-    case -1: case -2: case -3: case -4: case 0:
+    case -1: case -2: case -3: case -4: case -8: case -9: case 0:
       t=kmix(x); if(E(t)) { --d; return t; }
       pt=px(t);
       switch(n(t)) {
@@ -266,7 +266,7 @@ K dotcb(K a,K x) {
   }
   else if(0xc5==s(a)) {
     switch(tx) {
-    case -1: case -2: case -3: case -4: case 0:
+    case -1: case -2: case -3: case -4: case -8: case -9: case 0:
       t=kmix(x); if(E(t)) { --d; return t; }
       pt=px(t);
       switch(n(t)) {
@@ -281,7 +281,7 @@ K dotcb(K a,K x) {
   }
   else if(0xda==s(a)) { /* (f;av) modified-verb wrapper, replaces 0xc1 */
     switch(tx) {
-    case -1: case -2: case -3: case -4: case 0:
+    case -1: case -2: case -3: case -4: case -8: case -9: case 0:
       t=kmix(x); if(E(t)) { --d; return t; }
       pt=px(t);
       switch(n(t)) {
@@ -298,7 +298,7 @@ K dotcb(K a,K x) {
                            wrapper -- fe() routes through fapply,
                            which peels and merges. */
     switch(tx) {
-    case -1: case -2: case -3: case -4: case 0:
+    case -1: case -2: case -3: case -4: case -8: case -9: case 0:
       t=kmix(x); if(E(t)) { --d; return t; }
       pt=px(t);
       switch(n(t)) {
@@ -313,7 +313,7 @@ K dotcb(K a,K x) {
   }
   else if(0xd0==s(a)) {
     switch(tx) {
-    case -1: case -2: case -3: case -4: case 0:
+    case -1: case -2: case -3: case -4: case -8: case -9: case 0:
       t=kmix(x); if(E(t)) { --d; return t; }
       pt=px(t);
       switch(n(t)) {

@@ -170,8 +170,8 @@ static K slice_size_(K x, size_t *z) {
     *z=(size_t)v;
     return null;
   }
-  if(T(x)==2) {
-    double v=fk(x);
+  if(T(x)==2 || T(x)==9) {
+    double v=T(x)==2 ? fk(x) : (double)ek(x);
     if(!isfinite(v) || v<0 || v>=(double)SIZE_MAX) return KERR_DOMAIN;
     *z=(size_t)v;
     return null;
@@ -382,8 +382,8 @@ static K zerocolon2(K a, K x) {
       if(nx!=3) return KERR_TYPE;
       pxk=px(x);
       if(s(pxk[0])||(T(pxk[0])!=-3 && T(pxk[0])!=3 && T(pxk[0])!=4)) return KERR_TYPE;
-      if(s(pxk[1])||(T(pxk[1])!=1 && T(pxk[1])!=2 && T(pxk[1])!=8)) return KERR_TYPE;
-      if(s(pxk[2])||(T(pxk[2])!=1 && T(pxk[2])!=2 && T(pxk[2])!=8)) return KERR_TYPE;
+      if(s(pxk[1])||(T(pxk[1])!=1 && T(pxk[1])!=2 && T(pxk[1])!=8 && T(pxk[1])!=9)) return KERR_TYPE;
+      if(s(pxk[2])||(T(pxk[2])!=1 && T(pxk[2])!=2 && T(pxk[2])!=8 && T(pxk[2])!=9)) return KERR_TYPE;
       EC(slice_size_(pxk[1],&B));
       EC(slice_size_(pxk[2],&N));
       ff=pxk[0];
@@ -758,8 +758,8 @@ static K onecolon2(K a, K x) {
       PXK;
       if(nx!=3) { e=KERR_TYPE; goto cleanup; }
       if(s(pxk[0])||(T(pxk[0])!=-3 && T(pxk[0])!=3 && T(pxk[0])!=4)) { e=KERR_TYPE; goto cleanup; }
-      if(s(pxk[1])||(T(pxk[1])!=1 && T(pxk[1])!=2 && T(pxk[1])!=8)) { e=KERR_TYPE; goto cleanup; }
-      if(s(pxk[2])||(T(pxk[2])!=1 && T(pxk[2])!=2 && T(pxk[2])!=8)) { e=KERR_TYPE; goto cleanup; }
+      if(s(pxk[1])||(T(pxk[1])!=1 && T(pxk[1])!=2 && T(pxk[1])!=8 && T(pxk[1])!=9)) { e=KERR_TYPE; goto cleanup; }
+      if(s(pxk[2])||(T(pxk[2])!=1 && T(pxk[2])!=2 && T(pxk[2])!=8 && T(pxk[2])!=9)) { e=KERR_TYPE; goto cleanup; }
       EC(slice_size_(pxk[1],&B));
       EC(slice_size_(pxk[2],&N));
       ff=pxk[0];
@@ -850,8 +850,8 @@ static K onecolon2(K a, K x) {
       PXK;
       if(nx!=3) { e=KERR_TYPE; goto cleanup; }
       if(s(pxk[0])||(T(pxk[0])!=-3 && T(pxk[0])!=3 && T(pxk[0])!=4)) { e=KERR_TYPE; goto cleanup; }
-      if(s(pxk[1])||(T(pxk[1])!=1 && T(pxk[1])!=2 && T(pxk[1])!=8)) { e=KERR_TYPE; goto cleanup; }
-      if(s(pxk[2])||(T(pxk[2])!=1 && T(pxk[2])!=2 && T(pxk[2])!=8)) { e=KERR_TYPE; goto cleanup; }
+      if(s(pxk[1])||(T(pxk[1])!=1 && T(pxk[1])!=2 && T(pxk[1])!=8 && T(pxk[1])!=9)) { e=KERR_TYPE; goto cleanup; }
+      if(s(pxk[2])||(T(pxk[2])!=1 && T(pxk[2])!=2 && T(pxk[2])!=8 && T(pxk[2])!=9)) { e=KERR_TYPE; goto cleanup; }
       EC(slice_size_(pxk[1],&B));
       EC(slice_size_(pxk[2],&N));
       ff=pxk[0];

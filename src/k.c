@@ -688,6 +688,23 @@ K kreserved_val(char *p) {
   return 0;
 }
 
+/* A postfix adverb changes the valence of the callable it derives.  Both
+   0xda wrappers and the legacy adverb slot on 0xc5 compositions use the
+   same rule. */
+static K val_apply_adverbs(K f,K wav) {
+  K vf=val(f);
+  if(E(vf)) return vf;
+  i32 vn=ik(vf);
+  _k(vf);
+  char *avp=(T(wav)==-3&&n(wav)>0)?(char*)px(wav):"";
+  for(int i=0;avp[i];++i) {
+    if(avp[i]=='\'') ; /* each preserves valence */
+    else if(avp[i]=='/'||avp[i]=='\\') vn=(vn>=2)?2:1;
+  }
+  if(vn<1) vn=1;
+  return t(1,vn);
+}
+
 K val(K x) {
   K r,*px;
   i32 n;
@@ -706,20 +723,19 @@ K val(K x) {
                   this was hardcoded to 2 regardless of inner;
                   the rebuild paths don't read val(0xda) on a
                   hot path so the recurse is safe. */
-    K *pw=px(x); K wf=pw[0]; K wav=pw[1];
-    char *avp = (T(wav)==-3 && n(wav)>0) ? (char*)px(wav) : "";
-    K vf=val(wf); if(E(vf)) { r=vf; break; }
-    i32 vn=ik(vf); _k(vf);
-    for(int i=0; avp[i]; ++i) {
-      if(avp[i]=='\'') ; /* each preserves */
-      else if(avp[i]=='/' || avp[i]=='\\') vn = (vn>=2) ? 2 : 1;
-    }
-    if(vn<1) vn=1;
-    r=t(1,vn);
+    K *pw=px(x);
+    r=val_apply_adverbs(pw[0],pw[1]);
     break;
   }
   case 0xc3: px=px(b(48)&x); n=FN_VALENCE(px[3]); r=t(1,n?n:1); break;  /* val[{}] = 1 */
-  case 0xc5: r=t(1,2); break;
+  case 0xc5: { /* composition: the rightmost member receives the arguments;
+                  every member before it is applied monadically by fc(). */
+    K *pw=px(x); K fs=pw[0];
+    if(T(fs)>0||!n(fs)) { r=KERR_TYPE; break; }
+    K *pfs=px(fs);
+    r=val_apply_adverbs(pfs[n(fs)-1],pw[1]);
+    break;
+  }
   case 0xc6: r=t(1,1); break;
   case 0xc7: r=t(1,2); break;
   case 0xc9: r=t(1,1); break;

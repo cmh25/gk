@@ -7,7 +7,7 @@
 (val[(+[1;])*+])~2
 (val[ep[-]*+])~2
 (val[(ep[-])*+])~2
-(val[draw[1]+[1;]])~2
+(val[draw[1]+[1;]])~1
 
 / Once the following train has an argument, its first verb must not consume
 / the projection as a dyadic left noun.  Explicit grouping states the same

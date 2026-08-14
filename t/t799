@@ -1,0 +1,15 @@
+a:{x}1-
+val a
+b:-{x}1-
+val b
+c:+{x}*%
+val c
+d:&+{x}*%
+val d
+e:,sqrt
+val e
+f:(,{x}1-)'
+val f
+g:(,{x}1-)/
+val g
+\\
