@@ -98,6 +98,10 @@ New to gk? Try the [tutorial](tutorial.md) first. If you already know **k3**, se
   - [Minimum Valence is 1](#valence-minimum)
   - [Dictionaries](#valence-dictionaries)
   - [Summary](#valence-summary)
+- [Compositions](#compositions)
+  - [Juxtaposition Rule](#compositions-rule)
+  - [Application Spellings](#compositions-apply)
+  - [Divergence from K3](#compositions-k3)
 - [Builtins](#builtins)
   - [Math](#math)
   - [Bitwise and Integer](#bitwise-and-integer)
@@ -1894,11 +1898,14 @@ spelling is `eachright`); express it with an ignored third argument:
 An indexed assignment expression returns the selected region after the write,
 not necessarily the right-hand value. This makes broadcast and repeated-index
 effects visible in the result, and applies equally to `:`, `::`, and compound
-forms such as `+:` and `,:`.
+forms such as `+:` and `,:`.  Like any assignment it does not echo at the
+prompt; the value is observable where the assignment is embedded in a larger
+expression or ends a function body.
 
 ```
   a:!5
-  a[1 2]:9
+  r:a[1 2]:9   / value context: the selected region after the write
+  r
 9 9
   a
 0 9 9 3 4
@@ -2222,6 +2229,106 @@ gk's position:
 Note: `f[]` is not the same as `f[()]`. The latter passes the empty list itself as an argument.
 
 Other k implementations may take different approaches, and it may be possible to construct other consistent models.
+
+---
+
+<h2 id="compositions">Compositions</h2>
+
+Two rules govern how function values combine:
+
+1. **Application treats functions as nouns, always.**  In every application
+   context — brackets, `@`, `.`, indexing, adverbs — a function value is an
+   ordinary argument: `{x}[f]` returns `f`'s value, `{x}'v` maps over a list
+   leaving its function elements alone.
+2. **Juxtaposition composes verb-class values.**  Writing one function next
+   to a verb-class value builds a composition: the rightmost member receives
+   the arguments (and determines the valence, see [Valence](#valence)), and
+   every member before it applies monadically to the result.
+
+```
+  q:{x}(<2+)
+  val q
+1
+  q 1 2 3
+0 1 2
+  {x}'(1;2.0;2+;`a)
+(1;2.0;2+;`a)
+  {x}[2+]
+2+
+```
+
+A composition means the same thing spelled with a parenthesized value or
+through a name — parentheses and naming are transparent:
+
+```
+  {x}(2+)
+{x}2+
+  g:(2+)
+  {x} g
+{x}2+
+  c:(<2+)
+  ({x}(<2+))~{x} c
+1
+```
+
+A *bare* inline spelling is train syntax instead, where a dyad-capable verb
+between two operands binds the left one as its argument (the K3 reading):
+`{x}<2+` is `<` with `{x}` bound on the left (a type error when applied),
+while `{x}(<2+)` is the composition — the parentheses close the value.
+
+<a id="compositions-rule"></a>
+### Juxtaposition Rule
+
+Not every function value composes: lambdas held as values are **nouns**, so a
+function to their left applies to them instead (`,{x+y}` enlists the lambda,
+`{x} g` returns `g`'s value). The full rule, by the kind of the value on the
+right:
+
+| value on the right             | after a verb (`<v`)     | after a lambda (`{x} v`) |
+|--------------------------------|-------------------------|--------------------------|
+| projection `(2+)`              | composes                | composes                 |
+| composition `(<2+)`            | composes                | composes                 |
+| derived verb `(+/)`            | composes                | left-binds: the lambda becomes the seed / do-while controller (`{b}f/x`) |
+| bracket projection `+[;2]`     | composes                | noun — the lambda applies |
+| primitive / builtin (`f:+`)    | noun — the verb applies | composes                 |
+| lambda / lambda projection     | noun — the verb applies | noun — the lambda applies |
+
+Because compositions are ordinary values, building one in a loop grows it
+without bound — `do[n;f:{x} f]` wraps one layer per iteration, exactly like
+`do[n;f:(1;f)]` nests a list. A value too deep to display is elided with
+`...` at the prompt (the display is lossy, like `\p` precision); `5:` of it
+raises a stack error instead — a program reading a display must never get a
+string that re-parses to a different function.
+
+<a id="compositions-apply"></a>
+### Application Spellings
+
+When the operand would compose and application is wanted instead, apply
+explicitly:
+
+```
+  f:+
+  {x} f        / composes
+{x}+
+  {x}[f]       / applies
++
+  {x}@f
++
+  {x} . ,f
++
+```
+
+<a id="compositions-k3"></a>
+### Divergence from K3
+
+This is a deliberate extension. K3 forms trains only from bare inline
+spellings; once a function value is parenthesized or saved to a name, K3
+treats it as a noun on the right of a juxtaposition (`*(+)` is `+`,
+`{x} f` applies), so `<2+`, `<(2+)`, and `g:(2+);<g` mean three different
+things there — and K3's projection display collides with its train spelling
+(`(2+),` prints as `2+,`, which re-parses as a different function). gk trades
+that position-dependence for the uniform rule above, and parenthesizes
+displays (`(2+),`) so they round-trip.
 
 ---
 

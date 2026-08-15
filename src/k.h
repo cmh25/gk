@@ -16,6 +16,12 @@ static inline int intatom(K x) {
   return !s(x) && (T(x)==1 || T(x)==8);
 }
 
+/* Numeric atom (T in {1,2,8,9}) to f64; integer null/infinity map through
+   fi()/fj() to nan/inf.  Callers check s()==0 and the type set first. */
+static inline double fnumatom(K x) {
+  return T(x)==1 ? fi(ik(x)) : T(x)==2 ? fk(x) : T(x)==8 ? fj(jk(x)) : (double)ek(x);
+}
+
 #ifdef _WIN32
 #define MAXR 100
 #else
@@ -72,6 +78,8 @@ static inline K kerror(char *e) { return t(4,st(0x84,sp(e))); }
 
 void kinit(void);
 const char* kprint_(K x, char *s, char *e, char *s0);
+extern int kprint_deep;  /* set when kprint_'s depth guard elided structure;
+                            top-level callers turn it into a stack error */
 void kprint(K x, char *s, char *e, char *s0);
 i32 kreserved(char *p);
 i32 kreserved_n(void);     /* number of reserved names (RTAB, k.c) */

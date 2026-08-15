@@ -235,8 +235,19 @@ K dotcb(K a,K x) {
       switch(n(t)) {
       case 1: r=k(w,0,k_(pt[0])); break;
       case 2: r=k(w,k_(pt[0]),k_(pt[1])); break;
-      case 3: r=kamend3(k_(pt[0]),k_(pt[1]),k_(pt[2])); break;
-      case 4: r=kamend4(k_(pt[0]),k_(pt[1]),k_(pt[2]),k_(pt[3])); break;
+      /* 3/4-arg forms exist only for @ (at-amend), . (dot-amend) and
+         triadic _ (slide) -- same dispatch as fe() for the named verbs */
+      case 3:
+        if(w==13) r=kamendi3(k_(pt[0]),k_(pt[1]),k_(pt[2]));
+        else if(w==11) r=kamend3(k_(pt[0]),k_(pt[1]),k_(pt[2]));
+        else if(w==16) r=kslide(k_(pt[1]),k_(pt[0]),k_(pt[2]),"");
+        else r=KERR_VALENCE;
+        break;
+      case 4:
+        if(w==13) r=kamendi4(k_(pt[0]),k_(pt[1]),k_(pt[2]),k_(pt[3]));
+        else if(w==11) r=kamend4(k_(pt[0]),k_(pt[1]),k_(pt[2]),k_(pt[3]));
+        else r=KERR_VALENCE;
+        break;
       default: r=KERR_VALENCE;
       }
       _k(t);

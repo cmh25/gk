@@ -2236,6 +2236,24 @@ K form(K a, K x) {
     } break;
   case -2:
     switch(tx) {
+    case  1: case  2: case  8: case  9: /* numeric-atom broadcast, as int widths */
+    case  3:
+    case -3: PRK(na); i(na,prk[i]=ki(19,a,x,i,-1); EC(prk[i])); break;
+    case -1: case -2: case -8: case -9:
+    case  0: PRK(na); i(na,prk[i]=ki(19,a,x,i,i); EC(prk[i])); break;
+    default: return KERR_TYPE;
+    } break;
+  case -8: /* long widths: per-element delegation, case 8 guards each width */
+    switch(tx) {
+    case  1: case  2: case  8: case  9: case  3: case -3: case  4:
+      PRK(na); i(na,prk[i]=ki(19,a,x,i,-1); EC(prk[i])); break;
+    case -1: case -2: case -8: case -9: case -4:
+    case  0: PRK(na); i(na,prk[i]=ki(19,a,x,i,i); EC(prk[i])); break;
+    default: return KERR_TYPE;
+    } break;
+  case -9: /* real widths: mirror float widths (no symbol atom, no -4) */
+    switch(tx) {
+    case  1: case  2: case  8: case  9:
     case  3:
     case -3: PRK(na); i(na,prk[i]=ki(19,a,x,i,-1); EC(prk[i])); break;
     case -1: case -2: case -8: case -9:

@@ -86,7 +86,7 @@ dK2:.((`a;1);(`b;2))
 @[dK2;`a`b;:;1.5 2.5e]
 @[dK2;`a`b;:;10 20]            / int baseline, unchanged
 
-/ --- K3 is NOT a bug: nul is the IDENTITY VECTOR, so the old value amend
+/ --- nul is the IDENTITY VECTOR, so the old value amend
 / hands f at index i really is nul@i == i
 nul . 2
 .[nul;2;{(x;99)}]              / -> 2 99   x is the old value, which IS 2

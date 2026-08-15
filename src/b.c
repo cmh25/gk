@@ -913,9 +913,11 @@ cleanup:
 K sleep_(K x) {
   if(s(x)) return KERR_TYPE;
   if(tx != 1 && tx != 2 && tx != 8 && tx != 9) return KERR_TYPE;
-  double d = tx==1 ? fi(ik(x)) : tx==2 ? fk(x) : tx==8 ? fj(jk(x)) : (double)ek(x);
-  /* fi()/fj(): integer null/infinity are controls, not enormous delays. */
-  if(!isfinite(d) || d < 0) return KERR_DOMAIN;
+  double d = fnumatom(x);
+  /* fi()/fj(): integer null/infinity are controls, not enormous delays.
+     The cap keeps the (i64)llround(d) / (time_t)(ns/1e9) conversions below
+     in range -- finite f32/f64 values reach 3e38, far past i64. */
+  if(!isfinite(d) || d < 0 || d >= 9.2e18) return KERR_DOMAIN;
 #ifdef FUZZING
   return null;  /* a fuzzed `sleep 5e17` is not a hang worth saving */
 #endif
@@ -987,6 +989,7 @@ K do_(K x) {
 #ifdef FUZZING
       if(--gk_budget<0) return kerror("limit");
 #endif
+      pgdiscard=1;  /* body statement: value freed unread (return spellings never end on the assign token) */
       p=pgreduce_(px[i],&q); if(!p)p=null;
       EC(p);
       if(RETURN) return p;
@@ -1025,6 +1028,7 @@ K while_(K x) {
     if(--gk_budget<0) return kerror("limit");
 #endif
     for(i=nx-2;i>=0;i--) {
+      pgdiscard=1;  /* body statement: value freed unread */
       p=pgreduce_(px[i],&q); if(!p)p=null;
       EC(p);
       if(RETURN) return p;
@@ -1057,6 +1061,7 @@ K if_(K x) {
   i64 c = ta==8 ? jk(a) : ik(a); _k(a);
   if(c)
     for(i=nx-2;i>=0;i--) {
+      pgdiscard=1;  /* body statement: value freed unread */
       p=pgreduce_(px[i],&q); if(!p)p=null;
       EC(p);
       if(RETURN) return p;
@@ -2469,8 +2474,12 @@ static K deserialize(char **b,u64 *m) {
          drove kprint_'s px[1] off the end of the list (heap over-read), and an
          empty slot-0 list underflows fc's n(f)-1 to a -1 index.  Pin the exact
          shape serialize emits (see p.c: tn(0,2), pw[0]=fn-list, pw[1]=tn(3,0)). */
+      /* Slot 1 additionally pinned EMPTY: the parser always writes tn(3,0)
+         there, and fc() never applies it -- but val() folds it into the
+         reported valence, so a forged "'/\\" string would make a wire value
+         report val 2 while applying monadically (juxtaposition mis-dispatch). */
       if(nlen!=2 || s(pw[0]) || T(pw[0])!=0 || !n(pw[0])
-         || !bd_adverbs(pw[1])) { _k(r); return KERR_TYPE; }
+         || !bd_adverbs(pw[1]) || n(pw[1])) { _k(r); return KERR_TYPE; }
       K *pf=px(pw[0]);
       for(u64 i=0;i<n(pw[0]);++i)
         if(!bd_callable(pf[i])) { _k(r); return KERR_TYPE; }
@@ -2835,7 +2844,7 @@ K bin_(K a, K x) {
     c=bin1j(v,ta,(i64)na,tx==1?ji(ik(x)):jk(x));
   else
     /* same for the NEEDLE: `1e10 2e10 bin 0I` gave 0 while `bin 0i` gave 2. */
-    c=bin1f(v,ta,(i64)na,tx==1?fi(ik(x)):tx==8?fj(jk(x)):tx==2?fk(x):(f64)ek(x));
+    c=bin1f(v,ta,(i64)na,fnumatom(x));
   return na>BIGV?tj(c):t(1,(u32)c);
 }
 K binl_(K a, K x) {

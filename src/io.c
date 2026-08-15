@@ -382,8 +382,7 @@ static K zerocolon2(K a, K x) {
       if(nx!=3) return KERR_TYPE;
       pxk=px(x);
       if(s(pxk[0])||(T(pxk[0])!=-3 && T(pxk[0])!=3 && T(pxk[0])!=4)) return KERR_TYPE;
-      if(s(pxk[1])||(T(pxk[1])!=1 && T(pxk[1])!=2 && T(pxk[1])!=8 && T(pxk[1])!=9)) return KERR_TYPE;
-      if(s(pxk[2])||(T(pxk[2])!=1 && T(pxk[2])!=2 && T(pxk[2])!=8 && T(pxk[2])!=9)) return KERR_TYPE;
+      /* offset/count types validated by slice_size_ */
       EC(slice_size_(pxk[1],&B));
       EC(slice_size_(pxk[2],&N));
       ff=pxk[0];
@@ -758,8 +757,7 @@ static K onecolon2(K a, K x) {
       PXK;
       if(nx!=3) { e=KERR_TYPE; goto cleanup; }
       if(s(pxk[0])||(T(pxk[0])!=-3 && T(pxk[0])!=3 && T(pxk[0])!=4)) { e=KERR_TYPE; goto cleanup; }
-      if(s(pxk[1])||(T(pxk[1])!=1 && T(pxk[1])!=2 && T(pxk[1])!=8 && T(pxk[1])!=9)) { e=KERR_TYPE; goto cleanup; }
-      if(s(pxk[2])||(T(pxk[2])!=1 && T(pxk[2])!=2 && T(pxk[2])!=8 && T(pxk[2])!=9)) { e=KERR_TYPE; goto cleanup; }
+      /* offset/count types validated by slice_size_ */
       EC(slice_size_(pxk[1],&B));
       EC(slice_size_(pxk[2],&N));
       ff=pxk[0];
@@ -850,8 +848,7 @@ static K onecolon2(K a, K x) {
       PXK;
       if(nx!=3) { e=KERR_TYPE; goto cleanup; }
       if(s(pxk[0])||(T(pxk[0])!=-3 && T(pxk[0])!=3 && T(pxk[0])!=4)) { e=KERR_TYPE; goto cleanup; }
-      if(s(pxk[1])||(T(pxk[1])!=1 && T(pxk[1])!=2 && T(pxk[1])!=8 && T(pxk[1])!=9)) { e=KERR_TYPE; goto cleanup; }
-      if(s(pxk[2])||(T(pxk[2])!=1 && T(pxk[2])!=2 && T(pxk[2])!=8 && T(pxk[2])!=9)) { e=KERR_TYPE; goto cleanup; }
+      /* offset/count types validated by slice_size_ */
       EC(slice_size_(pxk[1],&B));
       EC(slice_size_(pxk[2],&N));
       ff=pxk[0];
@@ -1106,7 +1103,9 @@ static K fivecolon1(K x) {
   K r;
   char *prc;
   mreset();
+  kprint_deep=0;
   const char *s=kprint_(x,"","","");
+  if(kprint_deep) { kprint_deep=0; return KERR_STACK; }  /* an elided display would not round-trip */
   PRC(strlen(s));
   i(n(r),prc[i]=s[i])
   return r;

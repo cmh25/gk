@@ -385,11 +385,24 @@ const char* kprint_(K x, char *s, char *e, char *s0) {
      but verb/projection/composition subtypes (0xd9/0xda/0xc5/0xc6 ...) still
      recurse via kprint_.  A pathological projection/adverb chain can nest
      deeply enough to overflow the C stack, so cap the depth at maxr (the same
-     recursion bound used elsewhere) and elide deeper structure with "...".
-     kprint_ returns char* not K, so it can't return KERR_STACK; single-
-     threaded, so a static depth counter is safe. */
+     recursion bound used elsewhere) and elide deeper structure with "..."
+     (suppressed when the buffer already ends in one, so adjacent elided
+     members fuse into a single ellipsis).  The display channel is lossy by
+     design (\p precision, \v column truncation) -- but 5: is a PROGRAM's
+     string, so it must never yield a non-round-tripping display: kprint_
+     can't return KERR_STACK itself (char*), so set kprint_deep and let
+     fivecolon1 surface the stack error.  Single-threaded, so the static
+     depth counter and flag are safe. */
   static i32 d=0;
-  if(++d>maxr || stack_print_low()) { --d; mprintf("%s...%s",s?s:"",e?e:""); return mbuffer(); }
+  if(++d>maxr || stack_print_low()) {
+    --d; kprint_deep=1;
+    /* fuse only truly adjacent ellipses: with a nonempty prefix/suffix the
+       structural characters must still be emitted */
+    const char *mb=mbuffer(); size_t ml=strlen(mb);
+    if((s&&*s)||(e&&*e)||!(ml>=3 && !strcmp(mb+ml-3,"...")))
+      mprintf("%s...%s",s?s:"",e?e:"");
+    return mbuffer();
+  }
 
   SF *stack=xmalloc(sizeof(SF)*sm);
   if(!stack) abort();
@@ -500,11 +513,14 @@ const char* kprint_(K x, char *s, char *e, char *s0) {
         i(n(f),
           /* A fixed-left dyad immediately after monadic - needs an explicit
              value boundary.  `-(2+)` reparses as composition; `-2+`
-             reparses as a negative literal followed by +.  Other train
-             adjacency is already unambiguous and keeps its established
-             compact display. */
-          if(i && 0xd0==s(pff[i]) && 0xc0==s(pff[i-1])
-             && 2==ck(pff[i-1])%32) {
+             reparses as a negative literal followed by +.  A NESTED
+             composition member likewise: flat `{x}<2+` re-parses as the
+             bare train (dyadic < reading); `{x}(<2+)` re-parses as the
+             value juxtaposition that built it.  Other train adjacency is
+             already unambiguous and keeps its established compact display. */
+          if(i && (0xc5==s(pff[i])
+                   || (0xd0==s(pff[i]) && 0xc0==s(pff[i-1])
+                       && 2==ck(pff[i-1])%32))) {
             mprintf("("); kprint_(pff[i],"","",""); mprintf(")");
           }
           else kprint_(pff[i],"","","");
@@ -651,9 +667,13 @@ const char* kprint_(K x, char *s, char *e, char *s0) {
   return mbuffer();
 }
 
+int kprint_deep;
+
 void kprint(K x, char *s, char *e, char *s0) {
   mreset();
-  const char *t=kprint_(x,s,e,s0);
+  const char *t=kprint_(x,s,e,s0);  /* human channel: elided "..." display is
+                                       fine here; only 5: (fivecolon1) turns
+                                       kprint_deep into a stack error */
   size_t n=strlen(t);
   size_t m=n/4096;
   size_t i;
@@ -708,7 +728,11 @@ static K val_apply_adverbs(K f,K wav) {
 K val(K x) {
   K r,*px;
   i32 n;
+  static i32 dd=0;
   if(x<20) return 2;  /* primitive */
+  /* 0xda/0xc5/0xd9 recurse (via val_apply_adverbs and directly); nested
+     compositions can be built to any depth, including from db/IPC input */
+  if(++dd>maxr || (!(dd&7)&&stack_low())) { --dd; return KERR_STACK; }
   switch(s(x)) {
   case 0xc0: r=t(1,2); break;
   case 0xda: { /* (f;av) modified-verb wrapper, Issue #2 Pass 5
@@ -772,6 +796,7 @@ K val(K x) {
   case 0x82: r=t(1,2); break;
   default: r=KERR_TYPE;
   }
+  --dd;
   return r;
 }
 

@@ -434,7 +434,9 @@ K avdo(K f, K a, K x, char *av) {
       /* monadic */
       if(!x) { _k(f); r=kerror("type"); }
       else if(isfn) {
-        i32 vf = ik(val(f));
+        K vfk = val(f);  /* can fail: KERR_STACK on deeply nested wrappers */
+        if(E(vfk)) { _k(f); _k(x); return vfk<EMAX?kerror(E[vfk]):vfk; }
+        i32 vf = ik(vfk); _k(vfk);
         /* In monadic avdo context, builtin-monad subtypes report
            val=2 (because they also support the dyadic call) but
            the effective monadic valence is 1.  Override here so

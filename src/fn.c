@@ -984,6 +984,7 @@ K fne_fast(K f, K x) {
   K r=null;
   for(u64 i=0;i<body_n;++i) {
     int q;
+    pgdiscard=(i+1<body_n);  /* non-final statement values are freed below */
     K p=pgreduce_(pbody[i],&q);
     if(E(p)) { _k(r); r=p; break; }
     if(EXIT) { _k(p); _k(r); r=null; break; }
@@ -1029,6 +1030,22 @@ cleanup:
 }
 
 K fne(K f, K x, char *av) {
+  /* f/[n;x] / f\[n;x]: bracket do/while for a val-1 projection or
+     composition -- the rule av.c applies to the infix spelling.  Lambdas
+     keep the fne_ path below; 0xda keeps fapply's 0xc6 peel. */
+  if(av && ('/'==*av||'\\'==*av) && !av[1] && (0xd9==s(f)||0xc5==s(f))
+     && 0x81==s(x) && 2==n(x)) {
+    K vf=val(f);
+    if(!E(vf) && 1==ik(vf)) {
+      _k(vf);
+      K *pxk=px(x); K a0=k_(pxk[0]), x0=k_(pxk[1]);
+      _k(x);
+      if(s(a0)==0 && (T(a0)==1||T(a0)==8)) return '/'==*av ? overmonadn(f,a0,x0,"") : scanmonadn(f,a0,x0,"");
+      if(ISF(a0) && ik(val(a0))==1) return '/'==*av ? overmonadb(f,a0,x0,"") : scanmonadb(f,a0,x0,"");
+      _k(f); _k(a0); _k(x0); return KERR_TYPE;
+    }
+    if(!E(vf)) _k(vf);
+  }
   if(0xd9==s(f)) return fapply(f,x,av);
   if(0xda==s(f)) return fapply(f,x,av);
   if(0xc3!=s(f)) return fapply(f,x,av);

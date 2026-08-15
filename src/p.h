@@ -109,6 +109,7 @@ void pnfree(pn *n);
 K pgparse(char *q, int load, K locals);
 K pgreduce_(K x, int *quiet);
 K pgreduce(K x, int p);
+extern int pgdiscard;  /* set before a pgreduce_ call whose value the caller frees unread */
 K prnew(int n);
 void prfree(K x);
 void pinit(void);

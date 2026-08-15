@@ -30,6 +30,13 @@ ee > | e
 */
 
 static char *P=":+-*%&|<>=~.!@?#_^,$'/\\";
+
+/* Set by a statement loop (pgreduce, fn.c body driver, b.c do/while/if)
+   right before a pgreduce_ call whose result it will free unread.
+   Consumed (cleared) at pgreduce_ entry, so nested evaluations inside the
+   statement never inherit it.  A final-token indexed assignment uses it to
+   skip materializing the post-write selection nobody will read. */
+int pgdiscard=0;
 static int inkl,inpl;
 
 int RETURN;
@@ -433,7 +440,7 @@ static K rl(K x, K t) {
   }
 }
 
-static K assign(K d, K i, K y) {
+static K assign(K d, K i, K y, int disc) {
   K r=0,p=0,t=0,v=d,rs=0;
   int rredir=0,deep=0;
   if(!d||!i||!y) { _k(d); d=KERR_TYPE; goto cleanup; }
@@ -463,22 +470,30 @@ static K assign(K d, K i, K y) {
   }
 
   deep=s(i)&&0x81==s(i);
-  K sel=k_(i);  /* amend consumes i; retain it for the post-write selection */
+  K sel=disc?0:k_(i);  /* amend consumes i; retain it for the post-write selection */
   if(deep) r=kamend4(d,b(48)&i,0,k_(y));
   else r=kamendi4(d,i,0,k_(y));
   if(E(r)||EXIT) { _k(sel); _k(y); return r; }
+  if(disc) t=null;  /* statement position: the caller frees the value unread */
   else {
     /* Indexed assignment returns the selected region after write-back.  This
        exposes scalar broadcast (d[]:5 -> one 5 per selected item) and the
        final value at repeated indices, matching the read side. */
     t=k(deep?11:13,k_(r),deep?(b(48)&sel):sel);  /* deep path uses .; one-level selection uses @ */
-    if(E(t)||EXIT) { _k(r); _k(y); return t; }
-    if(v) p=scope_set(rs,v,r);
-    if(E(p)) { _k(t); _k(y); return p; }  /* r already freed by scope_set */
-    _k(p);
-    _k(y);
-    return t;
+    if(E(t)||EXIT) {
+      /* selection failure (an index the amend tolerated as a no-op, or the
+         stack margin) must not discard the completed write -- in-place amends
+         are already visible.  Store r and fall back to the pre-5.2.2
+         contract: the assigned value. */
+      if(t>=256) _k(t);
+      t=y; y=0;
+    }
   }
+  if(v) p=scope_set(rs,v,r);
+  if(E(p)) { _k(t); _k(y); return p; }  /* r already freed by scope_set */
+  _k(p);
+  _k(y);
+  return t;
 
 cleanup:
   _k(i); _k(y);
@@ -495,6 +510,24 @@ cleanup:
 static K rpd(K x) { return fnpd(x); }
 
 static inline K r41(K x);
+
+/* Indexed-target twin of the c==64 0x44 branch, for the assign-lookahead
+   sites (f[i]:draw, d[`k]:+/, c[0]:5 sin/, ...): resolve the index list and
+   run assign().  Consumes a (the 0x44 node) and y.  Sets *quiet like the 64
+   handler does. */
+static K assign44(K a, K y, int *quiet) {
+  K p,r,*pa=px(a);
+  if(0x41==s(pa[1])) { p=r41(k_(pa[1])); if(E(p)||EXIT) { _k(a); _k(y); return p; } }
+  else if(0x81==s(pa[1])) p=k_(pa[1]);
+  else { _k(a); _k(y); return KERR_TYPE; }
+  K *pp=px(p);
+  if(n(p)==1) r=assign(k_(pa[0]),k_(pp[0]),y,0);
+  else if(n(p)) r=assign(k_(pa[0]),k_(p),y,0);
+  else r=assign(k_(pa[0]),null,y,0);
+  if(!E(r)) *quiet=1;
+  _k(a); _k(p);
+  return r;
+}
 static K rc5(K x);
 static K r44(K x) {
   K r,t;
@@ -692,6 +725,22 @@ static K rd0(K x) {
   else if(0xd1==s(px[1]) || 0xd2==s(px[1]) || 0xd3==s(px[1]) || 0xd8==s(px[1])) {
     _k(x);
     return KERR_PARSE;
+  }
+  /* A lambda-projection operand is a noun (see lambda_noun), so `g,` is the
+     join-projection ,[g;].  Build the 0xd9 directly: the 0xd0 spelling has
+     no literal source form, so its display could never re-parse.  0xda
+     seconds stay 0xd0 -- that pairing is the seed channel (5+/). */
+  if(lambda_noun(px[0]) && 0xda!=s(px[1])) {
+    K vf=val(px[1]);
+    if(!E(vf) && 2==ik(vf)) {
+      _k(vf);
+      K t=tn(0,2); K *pt=px(t);
+      pt[0]=k_(px[0]); pt[1]=inull;
+      K r=wrap_proj(k_(px[1]),st(0x81,t));
+      _k(x);
+      return r;
+    }
+    if(!E(vf)) _k(vf);
   }
   return x;
 }
@@ -935,6 +984,7 @@ K pgreduce_(K x0, int *quiet) {
   u8 c;
   size_t ma=2;
   static int d;
+  int disc=pgdiscard; pgdiscard=0;  /* consume-on-entry: see the definition */
   K *pA=A0[d],*A2=0,*A=A0[d],v=0,i,a,*pa,b,*pb,xx,*pxk,f,p,*pp,t,*pt,a_;
   K *px0=px(x0);
   K x=px0[0]; K *px=px(x); /* values */
@@ -968,7 +1018,12 @@ K pgreduce_(K x0, int *quiet) {
         if(i<nx-1 && 0x85==s(px[i+1])) { k_(v); break; }
         --pA;
         b=*--pA;
-        if(0x40==s(b)&&i+1<nx&&64==ik(px[i+1])&&pA==A) { /* f:draw */
+        if(0x44==s(b)&&i+1<nx&&64==ik(px[i+1])&&(pA==A||all_assign_targets_(px,nx,i+2,A,pA))) { /* f[i]:draw */
+          ++i;
+          *pA++=assign44(b,k_(v),quiet);
+          break;
+        }
+        if(0x40==s(b)&&i+1<nx&&64==ik(px[i+1])&&(pA==A||all_assign_targets_(px,nx,i+2,A,pA))) { /* f:draw */
           ++i;
           p=scope_set(cs,b,k_(v));  /* add ref since v is borrowed from parse tree */
           if(E(p)) { *pA++=p; }
@@ -1048,7 +1103,15 @@ K pgreduce_(K x0, int *quiet) {
         else if(0x81==s(b)) { _k(b); *pA++=KERR_VALENCE; } /* valence */
         else if(pA>A && !pending_postfix(pA[-1])) {
           a=*--pA;
-          if(0x40==s(a)&&i+1<nx&&64==ik(px[i+1])&&pA==A) { /* f:draw 3 */
+          if(0x44==s(a)&&i+1<nx&&64==ik(px[i+1])&&(pA==A||all_assign_targets_(px,nx,i+2,A,pA))) { /* f[i]:draw 3 */
+            ++i;
+            if(!VST(b)) { _k(v); _k(a); _k(b); *pA++=KERR_TYPE; break; }
+            t=builtin(v,0,b);
+            if(E(t)||EXIT) { _k(a); *pA++=t; }
+            else *pA++=assign44(a,t,quiet);
+            break;
+          }
+          if(0x40==s(a)&&i+1<nx&&64==ik(px[i+1])&&(pA==A||all_assign_targets_(px,nx,i+2,A,pA))) { /* f:draw 3 */
             ++i;
             if(!VST(b)) { _k(v); _k(b); *pA++=KERR_TYPE; break; }
             t=builtin(v,0,b);
@@ -1082,7 +1145,12 @@ K pgreduce_(K x0, int *quiet) {
         if(i<nx-1 && 0x85==s(px[i+1])) { k_(v); break; }
         --pA;
         a=*--pA;
-        if(0x40==s(a)&&i+1<nx&&64==ik(px[i+1])&&pA==A) { /* f:+ */
+        if(0x44==s(a)&&i+1<nx&&64==ik(px[i+1])&&(pA==A||all_assign_targets_(px,nx,i+2,A,pA))) { /* f[i]:sin */
+          ++i;
+          *pA++=assign44(a,k_(v),quiet);
+          break;
+        }
+        if(0x40==s(a)&&i+1<nx&&64==ik(px[i+1])&&(pA==A||all_assign_targets_(px,nx,i+2,A,pA))) { /* f:+ */
           ++i;
           p=scope_set(cs,a,k_(v));  /* add ref since v is borrowed from parse tree */
           if(E(p)) { _k(a); *pA++=p; }
@@ -1163,7 +1231,12 @@ K pgreduce_(K x0, int *quiet) {
         if(pA<=A+1) { k_(v); break; }
         --pA;
         a=*--pA;
-        if(0x40==s(a)&&i+1<nx&&64==ik(px[i+1])&&pA==A) { /* f:0: */
+        if(0x44==s(a)&&i+1<nx&&64==ik(px[i+1])&&(pA==A||all_assign_targets_(px,nx,i+2,A,pA))) { /* f[i]:0: */
+          ++i;
+          *pA++=assign44(a,k_(v),quiet);
+          break;
+        }
+        if(0x40==s(a)&&i+1<nx&&64==ik(px[i+1])&&(pA==A||all_assign_targets_(px,nx,i+2,A,pA))) { /* f:0: */
           ++i;
           p=scope_set(cs,a,k_(v));  /* add ref since v is borrowed from parse tree */
           if(E(p)) { _k(a); *pA++=p; }
@@ -1250,10 +1323,16 @@ K pgreduce_(K x0, int *quiet) {
           K r=kamend4(a_,k_(i_),0,k_(b));
           if(E(r)) { _k(i_); _k(b); *pA++=r; }
           else {
-            /* :: changes the destination scope, not indexed assignment's
-               result: return the selected region after broadcast/write-back. */
-            t=k(11,k_(r),i_);
-            if(E(t)||EXIT) { _k(r); _k(b); *pA++=t; break; }
+            u64 zi=i+1; while(zi<nx && 0x83==s(px[zi])) ++zi;
+            if(disc&&zi>=nx) { _k(i_); t=null; }  /* statement position: value freed unread */
+            else {
+              /* :: changes the destination scope, not indexed assignment's
+                 result: return the selected region after broadcast/write-back. */
+              t=k(11,k_(r),i_);
+              /* selection failure must not discard the completed write:
+                 fall back to the assigned value, the pre-5.2.2 contract */
+              if(E(t)||EXIT) { if(t>=256) _k(t); t=k_(b); }
+            }
             p=scope_set(rs,target,r);
             _k(b);
             if(E(p)) { _k(t); *pA++=p; }
@@ -1306,7 +1385,7 @@ K pgreduce_(K x0, int *quiet) {
           //if(0x41!=s(i_)) { _k(a_); _k(i_); _k(b); *pA++=KERR_TYPE; break; }
           if(0x41==s(i_)) {
             if(n(i_)) {
-              i_=r41(i_); if(E(i_)) { _k(a_); _k(b); *pA++=i_; break; }
+              i_=r41(i_); if(E(i_)||EXIT) { _k(a_); _k(b); *pA++=i_; break; }
               if(0x81==s(i_)) i_=b(48)&i_;
             }
             else { _k(i_); i_=null; }
@@ -1338,10 +1417,15 @@ K pgreduce_(K x0, int *quiet) {
           K r=kamend4(a_,k_(i_),strchr(P,ik(v))-P,b);
           if(E(r)) { _k(i_); *pA++=r; }
           else {
-            /* Compound assignment returns the selected values after the
-               complete amend (not the whole amended container). */
-            t=k(11,k_(r),i_);
-            if(E(t)||EXIT) { _k(r); *pA++=t; break; }
+            u64 zi=i+1; while(zi<nx && 0x83==s(px[zi])) ++zi;
+            if(disc&&zi>=nx) { _k(i_); t=null; }  /* statement position: value freed unread */
+            else {
+              /* Compound assignment returns the selected values after the
+                 complete amend (not the whole amended container). */
+              t=k(11,k_(r),i_);
+              /* selection failure must not discard the completed write */
+              if(E(t)||EXIT) { if(t>=256) _k(t); t=null; }
+            }
             p=scope_set(rs,target,r);
             if(E(p)) { _k(t); *pA++=p; }  /* r already freed by scope_set */
             else { _k(p); *pA++=t; *quiet=1; }
@@ -1383,8 +1467,14 @@ K pgreduce_(K x0, int *quiet) {
           /* The b:+' assignment lookahead from the old 0xc1 case --
              if next token is the dyad-juxt marker (0xc0 ik 64) and
              stack has only this name on it, we're assigning. */
+          if(0x44==s(b)&&i+1<nx&&64==ik(px[i+1])
+             &&(pA<=A||all_assign_targets_(px,nx,i+2,A,pA))) { /* f[i]:+' */
+            ++i;
+            *pA++=assign44(b,k_(v),quiet);
+            break;
+          }
           if(0x40==s(b)&&i+1<nx&&64==ik(px[i+1])) {
-            if(pA<=A) {
+            if(pA<=A||all_assign_targets_(px,nx,i+2,A,pA)) {
               ++i;
               p=scope_set(cs,b,k_(v));
               if(E(p)) *pA++=p;
@@ -1422,7 +1512,12 @@ K pgreduce_(K x0, int *quiet) {
         if(pA>A+1) {
           --pA;
           b=*--pA;
-          if(0x40==s(b)&&i+1<nx&&64==ik(px[i+1])&&pA==A) { /* f:gtime */
+          if(0x44==s(b)&&i+1<nx&&64==ik(px[i+1])&&(pA==A||all_assign_targets_(px,nx,i+2,A,pA))) { /* f[i]:gtime */
+            ++i;
+            *pA++=assign44(b,f,quiet);
+            break;
+          }
+          if(0x40==s(b)&&i+1<nx&&64==ik(px[i+1])&&(pA==A||all_assign_targets_(px,nx,i+2,A,pA))) { /* f:gtime */
             ++i;
             p=scope_set(cs,b,f);
             if(E(p)) { *pA++=p; }  /* f already freed by scope_set */
@@ -1501,7 +1596,17 @@ K pgreduce_(K x0, int *quiet) {
             }
             else if(pA>A && !pending_postfix(pA[-1])) {
               a=*--pA;
-              if(0x40==s(a)&&i+1<nx&&64==ik(px[i+1])&&pA==A) { /* f:lin 1 2 3 */
+              if(0x44==s(a)&&i+1<nx&&64==ik(px[i+1])&&(pA==A||all_assign_targets_(px,nx,i+2,A,pA))) { /* f[i]:lin 1 2 3 */
+                ++i;
+                if(0x85==s(b)) { _k(f); _k(a); _k(b); *pA++=KERR_TYPE; break; }
+                xx=params[paramsi++]; pxk=px(xx); pxk[0]=b; n(xx)=1;
+                t=fne(f,k_(xx),0);
+                _k(b); --paramsi;
+                if(E(t)||EXIT) { _k(a); *pA++=t; }
+                else *pA++=assign44(a,t,quiet);
+                break;
+              }
+              if(0x40==s(a)&&i+1<nx&&64==ik(px[i+1])&&(pA==A||all_assign_targets_(px,nx,i+2,A,pA))) { /* f:lin 1 2 3 */
                 ++i;
                 if(0x85==s(b)) { _k(f); _k(b); *pA++=KERR_TYPE; break; }
                 xx=params[paramsi++]; pxk=px(xx); pxk[0]=b; n(xx)=1;
@@ -1716,7 +1821,11 @@ apply_n_fallback: {
         *pA++=st(0x44,jn);
         break;
       }
-      if(0x40==s(a)&&i+1<nx&&64==ik(px[i+1])&&pA==A) { /* f:+ */
+      if(0x44==s(a)&&i+1<nx&&64==ik(px[i+1])&&(pA==A||all_assign_targets_(px,nx,i+2,A,pA))) { /* f[i]:+ */
+        ++i;
+        *pA++=assign44(a,k_(v),quiet);
+      }
+      else if(0x40==s(a)&&i+1<nx&&64==ik(px[i+1])&&(pA==A||all_assign_targets_(px,nx,i+2,A,pA))) { /* f:+ */
         ++i;
         p=scope_set(cs,a,k_(v));  /* add ref since v is borrowed from parse tree */
         if(E(p)) { _k(a); *pA++=p; }
@@ -1835,16 +1944,21 @@ apply_n_fallback: {
           else { *pA++=p; *quiet=1; }
         }
         else if(0x44==s(a)) {
-          if(0x44==s(b)) { b=r44(b); if(E(b)||EXIT) { _k(a); *pA++=b; break; } }
+          /* reduce any subtyped RHS, as the 0x40-target branch above does:
+             literal spellings like c[0]:(2+), or c[0]:+[;2], arrive as
+             0xd0/0x44/0xc5 and must collapse to the same value a name would */
+          if(s(b)) { b=reduce(b); if(E(b)||EXIT) { _k(a); *pA++=b; break; } }
           pa=px(a);
           //if(0x41!=s(pa[1])) { _k(a); _k(b); *pA++=KERR_TYPE; break; }
           if(0x41==s(pa[1])) { p=r41(k_(pa[1])); if(E(p)||EXIT) { _k(a); _k(b); *pA++=p; break; } }
           else if(0x81==s(pa[1])) p=k_(pa[1]);
           else { _k(a); _k(b); *pA++=KERR_TYPE; break; }
           K *pp=px(p);
-          if(n(p)==1) *pA++=assign(k_(pa[0]),k_(pp[0]),b);
-          else if(n(p)) *pA++=assign(k_(pa[0]),k_(p),b);
-          else *pA++=assign(k_(pa[0]),null,b);
+          u64 zi=i+1; while(zi<nx && 0x83==s(px[zi])) ++zi;  /* trailing markers, as in return */
+          int dsc=disc&&zi>=nx;  /* final token of a discarded statement */
+          if(n(p)==1) *pA++=assign(k_(pa[0]),k_(pp[0]),b,dsc);
+          else if(n(p)) *pA++=assign(k_(pa[0]),k_(p),b,dsc);
+          else *pA++=assign(k_(pa[0]),null,b,dsc);
           if(!E(pA[-1])) *quiet=1;
           _k(a); _k(p);
         }
@@ -2080,10 +2194,11 @@ apply_n_fallback: {
              The 0xd0 second slot holds the adverbed verb; rd0/fe
              understand 0xda(0xc6,av) via the case 0xda blocks. */
           K target=*--pA;
-          if(0x40!=s(target)) { _k(target); _k(a); _k(b); *pA++=KERR_TYPE; break; }
+          if(0x40!=s(target)&&0x44!=s(target)) { _k(target); _k(a); _k(b); *pA++=KERR_TYPE; break; }
           ++i;
           K d0=tn(0,2); K *pd0=px(d0);
           pd0[0]=a; pd0[1]=b;  /* b is the 0xda(sin,av) wrapper; transfer ownership */
+          if(0x44==s(target)) { *pA++=assign44(target,st(0xd0,d0),quiet); break; } /* f[i]:5 sin/ */
           p=scope_set(cs,target,st(0xd0,d0));
           if(E(p)) { *pA++=p; }
           else { *pA++=p; *quiet=1; }
@@ -2700,6 +2815,27 @@ c3_apply:
           }
           if(s(pb[2])) { p=reduce(k_(pb[2])); if(E(p)||EXIT) { _k(a); _k(b); _k(t); *pA++=p; break; } }
           else p=k_(pb[2]);
+          /* n q/x, b q\x -- a val-1 composition in do/while position follows
+             the same rule as every other monadic callable (mirror the 0xd9
+             branch below). */
+          if(t && ik(val(a))==1 && (!strcmp(pav1,"/")||!strcmp(pav1,"\\"))) {
+            if(s(t)==0 && (T(t)==1||T(t)==8)) { *pA++ = *pav1=='/' ? overmonadn(a,t,p,"") : scanmonadn(a,t,p,""); *quiet=0; }
+            else if(ISF(t) && ik(val(t))==1) { *pA++ = *pav1=='/' ? overmonadb(a,t,p,"") : scanmonadb(a,t,p,""); *quiet=0; }
+            else { _k(a); _k(t); _k(p); *pA++=KERR_TYPE; }
+            _k(b);
+            break;
+          }
+          /* q/[n;x] bracket spelling of the same forms (mirror av.c's
+             monadic-avdo do/while dispatch). */
+          if(!t && ik(val(a))==1 && 0x81==s(p) && n(p)==2
+             && (!strcmp(pav1,"/")||!strcmp(pav1,"\\"))) {
+            K *pp2=px(p); K a0=k_(pp2[0]), x0=k_(pp2[1]);
+            if(s(a0)==0 && (T(a0)==1||T(a0)==8)) *pA++ = *pav1=='/' ? overmonadn(a,a0,x0,"") : scanmonadn(a,a0,x0,"");
+            else if(ISF(a0) && ik(val(a0))==1) *pA++ = *pav1=='/' ? overmonadb(a,a0,x0,"") : scanmonadb(a,a0,x0,"");
+            else { _k(a); _k(a0); _k(x0); *pA++=KERR_TYPE; }
+            _k(p); _k(b);
+            break;
+          }
           *pA++=fe(a,t,p,pav1);
           _k(b);
         }
@@ -3023,6 +3159,7 @@ K pgreduce(K x, int p) {
         continue;
       }
     }
+    pgdiscard=(p||i<nx-1);  /* p mode: value feeds only the quiet-gated echo */
     r=pgreduce_(px[i],&quiet);
     if(E(r)) {
       if(cs!=gs) return r;
@@ -4191,6 +4328,20 @@ static void r003_(pgs *s) { /* body of e > o ez (wrapped by r003) */
             && a->a[0] && a->a[0]->t==1 && 0xcc==s(a->a[0]->v)) {
       b->a[0]=a->a[0];  /* (0:) . args */
       s->V[s->vi]=b;
+    }
+    else if(b->t==7 && b->grouped) {
+      /* Parens close the value (r012 marked the grouped train), so this is
+         value JUXTAPOSITION, not train absorption: {x}(<2+) must mean what
+         c:(<2+); {x} c means.  Wrap the train so bc emits it as a closed
+         sub-program (the r003_ left-boundary wrap, mirrored), and join with
+         a juxt node.  Bare trains below keep the historical dyadic reading
+         ({x}<2+ binds {x} as <'s left argument, as in K3). */
+      q=pnnewi(s,6,0,0,1,1,b->i,b->line);
+      q->a[0]=b;
+      pn *j=pnnewi(s,1,0xff,0,2,1,a->i,a->line);
+      j->a[0]=a;
+      j->a[1]=q;
+      s->V[s->vi]=j;
     }
     else if(b->t==7 && b->a[0]) {   /* 1+- */
       b->a[0]->a[0]=a;
