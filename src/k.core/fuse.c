@@ -545,6 +545,21 @@ int topgradeat(K y, K x, K take, i8 down, K *out) {
   return 1;
 }
 
+/* Direct `*|x` (first reverse / last) without materialising the reverse.
+   Atoms and subtypes are unchanged by both verbs.  Empty vectors keep
+   first()'s type-specific prototype; nonempty vectors return their final
+   item directly. */
+K last_(K x) {
+  if(T(x)>0||s(x)) return k_(x);
+  if(!n(x)) return first(x);
+  switch(T(x)) {
+  case -1: case -2: case -3: case -4: case -8: case -9: case 0:
+    return xi_(x,n(x)-1,T(x));
+  default:
+    return KERR_TYPE;
+  }
+}
+
 /* Fast `,/x` (join-over / raze) for a general list x (Tx==0, nx>=2).
    The generic fold does r=r,x[i] one item at a time -- O(n^2) copying.
    We always know the result up front and build it in a single O(total) pass:

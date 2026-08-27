@@ -16,6 +16,7 @@
      sortvalues a@<a / a@>a                kernel here; parser hook in p.c
      topgrade    k#<a / k#>a               kernel here; parser hook in p.c
      topgradeat  a@k#<a / a@k#>a           kernel here; parser hook in p.c
+     last_       *|x                       kernel here; parser hook in p.c
      raze_       ,/x on a general list   kernel here; driven from overd (av.c)
      seeded fold +/a,x -> seeded over    parse-time rewrite in p.c (0xd7
                                          seeded-fold channel); no kernel
@@ -45,6 +46,7 @@ int groupcounts(K x, K *out);
 int sortvalues(K x, i8 down, K *out);
 int topgrade(K x, K take, i8 down, K *out);
 int topgradeat(K y, K x, K take, i8 down, K *out);
+K last_(K x);
 K raze_(K x);
 
 #endif /* FUSE_H */

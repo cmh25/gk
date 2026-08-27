@@ -1876,6 +1876,11 @@ apply_n_fallback: {
           K cq=tn(0,2); K *pcq=px(cq); pcq[0]=cvl; pcq[1]=tn(3,0);
           *pA++=st(0xc5,cq);
         }
+        else if(c%32==6 && i+1<nx
+                && fusion_prim_token_(px[i+1],3)) {
+          /* *|a: return a's final item without allocating/reversing a. */
+          *pA++=last_(a); _k(a); ++i;
+        }
         else if((c%32==7||c%32==8) && i+1<nx) {
           int down=c%32==8;
           K fr=0;
