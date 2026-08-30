@@ -1012,7 +1012,7 @@ K kamendi3(K d, K i, K f) {
     K args=tn(0,3); K *pa=px(args);
     pa[0]=kcp(d); if(E(pa[0])) { e=pa[0]; _k(args); goto cleanup; }
     pa[1]=kcp(i); if(E(pa[1])) { e=pa[1]; _k(args); goto cleanup; }
-    pa[2]=f?kcp(f):inull; if(E(pa[2])) { e=pa[2]; _k(args); goto cleanup; }
+    pa[2]=!f?inull:f<256?t(1,st(0xc0,f+32)):kcp(f); if(E(pa[2])) { e=pa[2]; _k(args); goto cleanup; }
     args=st(0x81,args);
     K g=t(1,st(0xc0,45)); /* @ */
     _k(d); _k(i); _k(f);
@@ -1784,7 +1784,7 @@ K kamendi4(K d, K i, K f, K y) {
     K args=tn(0,4); K *pa=px(args);
     pa[0]=kcp(d); if(E(pa[0])) { e=pa[0]; _k(args); goto cleanup; }
     pa[1]=kcp(i); if(E(pa[1])) { e=pa[1]; _k(args); goto cleanup; }
-    pa[2]=f?kcp(f):inull; if(E(pa[2])) { e=pa[2]; _k(args); goto cleanup; }
+    pa[2]=!f?inull:f<256?t(1,st(0xc0,f+32)):kcp(f); if(E(pa[2])) { e=pa[2]; _k(args); goto cleanup; }
     pa[3]=kcp(y); if(E(pa[3])) { e=pa[3]; _k(args); goto cleanup; }
     args=st(0x81,args);
     K g=t(1,st(0xc0,45)); /* @ */
@@ -2401,7 +2401,7 @@ K kamend3(K d, K i, K f) {
     K args=tn(0,3); K *pa=px(args);
     pa[0]=kcp(d); if(E(pa[0])) { e=pa[0]; _k(args); goto cleanup; }
     pa[1]=kcp(i); if(E(pa[1])) { e=pa[1]; _k(args); goto cleanup; }
-    pa[2]=f?kcp(f):inull; if(E(pa[2])) { e=pa[2]; _k(args); goto cleanup; }
+    pa[2]=!f?inull:f<256?t(1,st(0xc0,f+32)):kcp(f); if(E(pa[2])) { e=pa[2]; _k(args); goto cleanup; }
     args=st(0x81,args);
     K g=t(1,st(0xc0,43)); /* . */
     _k(d); _k(i); _k(f);
@@ -3043,7 +3043,7 @@ K kamend4(K d, K i, K f, K y) {
     K args=tn(0,4); K *pa=px(args);
     pa[0]=kcp(d); if(E(pa[0])) { e=pa[0]; _k(args); goto cleanup; }
     pa[1]=kcp(i); if(E(pa[1])) { e=pa[1]; _k(args); goto cleanup; }
-    pa[2]=f?kcp(f):inull; if(E(pa[2])) { e=pa[2]; _k(args); goto cleanup; }
+    pa[2]=!f?inull:f<256?t(1,st(0xc0,f+32)):kcp(f); if(E(pa[2])) { e=pa[2]; _k(args); goto cleanup; }
     pa[3]=kcp(y); if(E(pa[3])) { e=pa[3]; _k(args); goto cleanup; }
     args=st(0x81,args);
     K g=t(1,st(0xc0,43)); /* . */

@@ -590,7 +590,7 @@ static int gf(pgs *pgs) {
       char *p1_=p1;
       int line_=line;
       int fileline0=fileline;
-      fileline+=startline;
+      if(!filevirtual) fileline+=startline;
       f=fnnew(q);
       p=p_; p0=p0_; p1=p1_; line=line_;
       fileline=fileline0;

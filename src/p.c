@@ -50,7 +50,7 @@ long gk_alloc_budget=GK_ALLOC_BUDGET;
 #endif
 int opencode=1;
 char *pfile="";
-int gline,glinei,gline0,gline0i,fileline;
+int gline,glinei,gline0,gline0i,fileline,filevirtual;
 
 /* A projection of a LAMBDA is a noun, exactly like the lambda itself: a verb
    juxtaposed on its left applies (`,{x+y}[1]` enlists, as `,{x+y}` does), it
@@ -264,8 +264,15 @@ static void printerror(K v, K x0, int i) {
     char *ff0=px(f0);
     if(pline[i]) { /* multiline lambda */
       if(strlen(pfile)) {
-        fprintf(stderr,"%s ... + %d in %s:%d\n",ff0,pline[i],pfile,1+pline[i]+ik(px0[6]));
-        LOADLINE=1+pline[i]+ik(px0[6]);
+        i32 base=ik(px0[6]);
+        if(base<0) {
+          fprintf(stderr,"%s ... + %d from %s:%d\n",ff0,pline[i],pfile,-base);
+          LOADLINE=-base;
+        }
+        else {
+          fprintf(stderr,"%s ... + %d in %s:%d\n",ff0,pline[i],pfile,1+pline[i]+base);
+          LOADLINE=1+pline[i]+base;
+        }
       }
       else fprintf(stderr,"%s ... + %d\n",ff0,pline[i]);
       kprint(v,"","\n","");
@@ -278,8 +285,9 @@ static void printerror(K v, K x0, int i) {
     }
     else { /* single line lambda */
       if(strlen(pfile)) {
-        fprintf(stderr,"in %s:%d\n",pfile,1+ik(px0[6]));
-        LOADLINE=1+ik(px0[6]);
+        i32 base=ik(px0[6]);
+        if(base<0) { fprintf(stderr,"from %s:%d\n",pfile,-base); LOADLINE=-base; }
+        else { fprintf(stderr,"in %s:%d\n",pfile,1+base); LOADLINE=1+base; }
       }
       kprint(v,"","\n","");
       fprintf(stderr,"%s\n",ff0);
@@ -554,6 +562,9 @@ static K r44(K x) {
     _k(x);
     return r;
   }
+
+  /* The assign verbs ':' and '::' never take a bracket RHS */
+  if(':'==f0 || 0x82==s(f0)) { _k(x); return KERR_PARSE; }
 
   /* fast path: f[a;b;...] where f is a simple variable resolving to a
      0xc3 lambda, 0xd9 projection, or 0xda wrapper, and the param list
@@ -1277,7 +1288,9 @@ K pgreduce_(K x0, int *quiet) {
         --pA;
         b=*--pA;
         a=*--pA;
-        if(!a||!b) { _k(a); _k(b); *pA++=KERR_TYPE; break; } /* backstop: never store/amend a NULL operand (mirrors the 0x81 guard above). Known producers are fixed at the push site, but the operand-stack-never-NULL invariant has several entry points. */
+        if(!a||!b) { _k(a); _k(b); *pA++=KERR_TYPE; break; } /* backstop: never store/amend a NULL operand */
+        /* a bare bracket group is not a value */
+        if(0x41==s(b)) { _k(a); _k(b); *pA++=KERR_PARSE; break; }
         if(s(b)) { b=reduce(b); if(E(b)||EXIT) { _k(a); *pA++=b; break; } }
         if(0x40==s(a)) { /* a::1 */
           if(!VST(b)) { _k(b); *pA++=KERR_PARSE; break; }
@@ -1345,14 +1358,60 @@ K pgreduce_(K x0, int *quiet) {
         if(pA<=A+1) { k_(v); break; }
         --pA;
         a=*--pA;
-        if(0x40!=s(a)) { _k(a); *pA++=KERR_VALUE; break; }
-        if(KERR_VALUE==(a_=vlookup(a))) a_=null;
-        if(E(a_)) { *pA++=a_; break; }
-        t=k(strchr(P,ik(v))-P,0,a_);
-        if(E(t)) { *pA++=t; break; };
-        p=scope_set(cs,a,t);
-        if(E(p)) { *pA++=p; }  /* t already freed by scope_set */
-        else { *pA++=p; *quiet=1; }
+        if(0x40==s(a)) {
+          K rs; if(KERR_VALUE==(a_=vlookuprs(a,&rs))) { a_=null; rs=scope_home(); }
+          if(E(a_)) { *pA++=a_; break; }
+          rs=asnrs(rs);
+          t=k(strchr(P,ik(v))-P,0,a_);
+          if(E(t)||EXIT) { *pA++=t; break; };
+          p=scope_set(rs,a,t);
+          if(E(p)) { *pA++=p; }  /* t already freed by scope_set */
+          else { *pA++=p; *quiet=1; }
+        }
+        else if(0x44==s(a)) { /* a[0]-: - amend with the monad */
+          pa=px(a);
+          K target=pa[0]; K a_=k_(target); K i_=k_(pa[1]); _k(a);
+          if(0x41==s(i_)) {
+            if(n(i_)) {
+              i_=r41(i_); if(E(i_)||EXIT) { _k(a_); *pA++=i_; break; }
+              if(0x81==s(i_)) i_=b(48)&i_;
+            }
+            else { _k(i_); i_=null; }
+          }
+          else if(0x81==s(i_)) {
+            if(n(i_)) i_=b(48)&i_;
+            else { _k(i_); i_=null; }
+          }
+          else { _k(a_); _k(i_); *pA++=KERR_TYPE; break; }
+          if(0x40!=s(a_)) { _k(a_); _k(i_); *pA++=KERR_TYPE; break; }
+          // resolve, then apply closure check
+          K rs; if(KERR_VALUE==(a_=vlookuprs(a_,&rs))) { a_=null; rs=scope_home(); }
+          if(E(a_)) { _k(i_); *pA++=a_; break; }
+          { K rsf=rs; rs=asnrs(rsf);
+            /* redirected write (non-closure parent / namespace): the found
+               binding survives, so kamend3 must not amend it in place */
+            if(rs!=rsf && a_!=null && (T(a_)<=0||T(a_)==2) && ((ko*)(b(48)&a_))->r) {
+              K a2=kcp(a_); _k(a_); a_=a2;
+              if(E(a_)) { _k(i_); *pA++=a_; break; }
+            } }
+          K r=kamend3(a_,k_(i_),strchr(P,ik(v))-P);
+          if(E(r)) { _k(i_); *pA++=r; }
+          else {
+            u64 zi=i+1; while(zi<nx && 0x83==s(px[zi])) ++zi;
+            if(disc&&zi>=nx) { _k(i_); t=null; }  /* statement position: value freed unread */
+            else {
+              /* Compound assignment returns the selected values after the
+                 complete amend (not the whole amended container). */
+              t=k(11,k_(r),i_);
+              /* selection failure must not discard the completed write */
+              if(E(t)||EXIT) { if(t>=256) _k(t); t=null; }
+            }
+            p=scope_set(rs,target,r);
+            if(E(p)) { _k(t); *pA++=p; }  /* r already freed by scope_set */
+            else { _k(p); *pA++=t; *quiet=1; }
+          }
+        }
+        else { _k(a); *pA++=KERR_VALUE; break; }
         break;
       case 0xce: /* a+:1 */
         if(pA<=A+2) {
@@ -1932,7 +1991,8 @@ apply_n_fallback: {
       }
       break;
     case 2: /* 64 64 66 ... */
-      if(pA<=A+1) { *pA++=KERR_VALENCE; break; }
+      /* an assign token with no target/value to consume is a malformed statement */
+      if(pA<=A+1) { *pA++=KERR_PARSE; break; }
       b=*--pA;
       a=*--pA;
 
@@ -3710,7 +3770,7 @@ static K listbc(pgs *s, pn *a, int t) {
     ((K*)px(pz[k]))[3]=line;
     ((K*)px(pz[k]))[4]=tnv(3,strlen(s->file),xmemdup(s->file,1+strlen(s->file)));
     ((K*)px(pz[k]))[5]=t(1,(u32)a->line); // gline
-    ((K*)px(pz[k]))[6]=t(1,(u32)fileline); // ggline
+    ((K*)px(pz[k]))[6]=t(1,(u32)s->fileline); // ggline
     bc(s,a->a[i],values,index,line,&vm);
     if(n(values)==1) {
       pv=px(values);
@@ -4819,6 +4879,12 @@ K pgparse(char *q, int load, K locals) {
   pz=px(z);
   s->p=q;
   s->file=pfile;
+  /* A negative frame base marks source reconstructed from a serialized
+     definition.  Its relative lambda lines are real, but its file location is
+     only an anchor, so printerror prints "+N from FILE:LINE" without adding N
+     to the physical line.  Keep the process-global fileline itself ordinary:
+     the lexer performs arithmetic on it while finding nested lambdas. */
+  s->fileline=filevirtual?~fileline:fileline;
   s->valuesmax=256;
   s->ti=0;s->tc=0;s->si=-1;s->ri=-1;s->vi=-1;
   if(opencode) stmt=ksplit(q,"\r\n");
@@ -4842,9 +4908,9 @@ K pgparse(char *q, int load, K locals) {
     ((K*)px(pz[zn]))[1]=index;
     ((K*)px(pz[zn]))[2]=k_(stmt);
     ((K*)px(pz[zn]))[3]=line;
-    ((K*)px(pz[zn]))[4]=tnv(3,strlen(pfile),xmemdup(pfile,1+strlen(pfile)));
+    ((K*)px(pz[zn]))[4]=tnv(3,strlen(s->file),xmemdup(s->file,1+strlen(s->file)));
     ((K*)px(pz[zn]))[5]=t(1,(u32)gline);
-    ((K*)px(pz[zn]))[6]=t(1,(u32)fileline);
+    ((K*)px(pz[zn]))[6]=t(1,(u32)s->fileline);
     n(z)++;
     s->values=values;
     s->index=index;

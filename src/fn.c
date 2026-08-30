@@ -11,6 +11,26 @@ K fnestack[EVALDEPTH];   /* per-lambda-call stack; depth-indexed, must match A0/
 int fnestacki=-1;
 static char* spf;
 
+/* A deserialized lambda has definition text but no parse result.  Until its
+   first fnd(), slot 1 carries this private (file;line) marker: the db call is
+   its local provenance anchor, while line offsets reconstructed from the text
+   remain virtual.  It is never serialized (bd already writes slot 1 as null)
+   and fnd() consumes it before installing the real parse result. */
+static int fnanchor(K x, char **file, int *line) {
+  if(!x || s(x) || T(x)!=0 || n(x)!=2) return 0;
+  K *p=px(x);
+  if(s(p[0]) || T(p[0])!=-3 || s(p[1]) || T(p[1])!=1) return 0;
+  *file=px(p[0]); *line=ik(p[1]);
+  return 1;
+}
+
+static K fnanchor_new(void) {
+  K r=tn(0,2),*p=px(r);
+  p[0]=tnv(3,strlen(pfile),xmemdup(pfile,1+strlen(pfile)));
+  p[1]=t(1,(u32)fileline);
+  return r;
+}
+
 void fninit(void) {
   K f;
   f=fnnew("{x dvl,y}"); dset(C,sp("dv"),f); fnfree(f);
@@ -71,7 +91,40 @@ static K fncp_(K x) {
   pf[1]=null;       /* parse result */
   pf[2]=null;       /* scope */
   pf[3]=FN_VF(0,0); /* valence + force-monad FM[] index */
-  if((p=fnd(f))) { fnfree(f); return p; }
+
+  /* fnd() reparses the definition, and pgparse() stamps that fresh parse with
+     the current pfile/fileline globals.  A copy may be made long after and in
+     a different file from the definition (a lambda projection does exactly
+     that), so using the current globals moves error locations to the copy
+     site.  Recover the definition location from the source parse before the
+     reparse; lex() will add the proper relative offsets for nested lambdas. */
+  char *pfile0=pfile;
+  int fileline0=fileline;
+  int filevirtual0=filevirtual;
+  char *anchorfile;
+  int anchorline;
+  if(fnanchor(px[1],&anchorfile,&anchorline)) {
+    pfile=anchorfile;
+    fileline=anchorline;
+    filevirtual=1;
+  }
+  else if(px[1] && px[1]!=null && !T(px[1]) && n(px[1])) {
+    K loc=((K*)px(px[1]))[0];
+    if(loc && !T(loc) && n(loc)>=7) {
+      K *ploc=px(loc);
+      if(-3==T(ploc[4]) && 1==T(ploc[6])) {
+        pfile=px(ploc[4]);
+        i32 base=ik(ploc[6]);
+        filevirtual=base<0;
+        fileline=filevirtual?~base:base;
+      }
+    }
+  }
+  p=fnd(f);
+  pfile=pfile0;
+  fileline=fileline0;
+  filevirtual=filevirtual0;
+  if(p) { fnfree(f); return p; }
   /* A lambda scope's slot[0] (parent) is the environment its FREE variables
      resolve against.  fnd just bound the fresh copy's parent to the ambient
      cs -- but a COPY of a lambda must keep the SOURCE's captured environment,
@@ -79,7 +132,7 @@ static K fncp_(K x) {
      scope; lost closures -- e.g. a local-capturing lambda passed to another
      function).  The source parent is correct whether it is a live lexical
      enclosing scope or a frozen closure snapshot (slot[3]==1). */
-  if(px[2]!=null && pf[2]!=null) {
+  if(px[2] && px[2]!=null && pf[2] && pf[2]!=null) {
     K *sps=px(px[2]); K *nps=px(pf[2]);
     _k(nps[0]); nps[0]=k_(sps[0]);
     ((K*)px(nps[0]))[4]=t(1,1);  /* the copy parents there too (scope.c slot 4) */
@@ -497,6 +550,7 @@ K fnrestore(K f) {
   K *pf, cap, sc, *psc, *ps, p;
   if(0xc3!=s(f)) return f;
   pf=px(f);
+  if(pf[1]==null) pf[1]=fnanchor_new();
   if(0x80!=s(pf[2])) return f;   /* not a closure blob */
   cap=pf[2];
   pf[2]=null;                    /* let fnd() build the real scope */
@@ -532,7 +586,7 @@ K fnrestore(K f) {
   (b)[(l)]=(c); \
 } while (0)
 
-K fnd(K f) {
+static K fnd_(K f) {
   K p,r=0,*pf;
   char *ff=0,*ff0=0,*b,**v,*g,*h;
   int j,s,n,q,vx,vy,vz,ffq=0,first=1,params=1;
@@ -757,6 +811,24 @@ K fnd(K f) {
   }
 cleanup:
   xfree(b); xfree(v);
+  return r;
+}
+
+K fnd(K f) {
+  K *pf=px(f),anchor=pf[1],r;
+  char *anchorfile,*pfile0;
+  int anchorline,fileline0,filevirtual0;
+  if(!fnanchor(anchor,&anchorfile,&anchorline)) return fnd_(f);
+
+  /* The marker owns anchorfile, so keep anchor alive until fnd_ has copied the
+     filename into every parse frame.  Detach it first: fnd_ replaces slot 1
+     with the actual parse result. */
+  pf[1]=null;
+  pfile0=pfile; fileline0=fileline; filevirtual0=filevirtual;
+  pfile=anchorfile; fileline=anchorline; filevirtual=1;
+  r=fnd_(f);
+  pfile=pfile0; fileline=fileline0; filevirtual=filevirtual0;
+  _k(anchor);
   return r;
 }
 

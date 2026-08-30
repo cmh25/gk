@@ -67,6 +67,7 @@ typedef struct {
   K locals;
   int overflow;    /* set by mark_lvalues when a statement's parse tree exceeds
                       maxr depth; pgparse turns it into a "stack" error */
+  int fileline;    /* file base line captured with file at pgparse entry */
 } pgs;
 
 extern int quiet,RETURN;
@@ -96,7 +97,7 @@ extern long gk_budget;
 extern long gk_alloc_budget;
 #define GK_ALLOC_BUDGET (64L*1024*1024)
 #endif
-extern int gline,glinei,gline0,gline0i,fileline;
+extern int gline,glinei,gline0,gline0i,fileline,filevirtual;
 extern char *glinep,*gline0p;
 extern K params[];
 extern int paramsi;

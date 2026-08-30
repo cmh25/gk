@@ -23,7 +23,7 @@ ty[{x{x+1}/0};3.0]
 ty[{if[0.0;`x]};0]
 ty[{do[0.0;`x]};0]
 ty[{while[0.0;`x]};0]
-ty[{:[0.0;`t;`f]};0]
+ty[{$[0.0;`t;`f]};0]
 
 / Named builtins have an integer storage tag plus a callable subtype. They
 / are functions, not conditions or counts; neither folded nor live control
@@ -31,11 +31,11 @@ ty[{:[0.0;`t;`f]};0]
 ty[{if[abs;`x]};0]
 ty[{do[abs;`x]};0]
 ty[{while[abs;`x]};0]
-ty[{:[abs;`t;`f]};0]
+ty[{$[abs;`t;`f]};0]
 ty[{a:0;if[abs;a:1]};0]
 ty[{a:0;do[abs;a+:1]};0]
 ty[{a:0;while[abs;a+:1]};0]
-ty[{a:0;:[abs;a:1;a:2]};0]
+ty[{a:0;$[abs;a:1;a:2]};0]
 
 / Other numeric-control consumers must reject the same callable subtype.
 ty[{draw[draw;x]};10]
