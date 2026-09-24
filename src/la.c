@@ -202,8 +202,19 @@ static K svdcmp(double **a, int m, int n, double *w, double **v, double *t) {
  * present => stay f64. Computation itself is untouched. */
 
 /* OR-accumulate type flags over a (possibly nested) numeric K:
-   bit0 = real(9/-9), bit1 = long(8/-8), bit2 = float64(2/-2). */
+   bit0 = real(9/-9), bit1 = long(8/-8), bit2 = float64(2/-2),
+   bit3 = nest too deep (a reshape like (300000#1)#0 nests one list level per
+   dimension; unguarded recursion here overran the C stack).  bit3 ORs up the
+   recursion, so callers check it once and return KERR_STACK. */
+static int la_tflags_(K x);
 static int la_tflags(K x) {
+  static i32 d=0;
+  if(++d>maxr || (!(d&7)&&stack_low())) { --d; return 8; }
+  int f=la_tflags_(x);
+  --d;
+  return f;
+}
+static int la_tflags_(K x) {
   if(!x||s(x)) return 0;
   i8 t=T(x);
   if(t==9||t==-9) return 1;
@@ -214,8 +225,17 @@ static int la_tflags(K x) {
 }
 
 /* deep copy widening real/long -> float64; int/f64 (and anything else) pass
-   through as new refs; recurses into general lists. */
+   through as new refs; recurses into general lists.  la_tflags' bit3 gates the
+   depth at every entry point, so the guards here are backstops. */
+static K la_widen_(K x);
 static K la_widen(K x) {
+  static i32 d=0;
+  if(++d>maxr || (!(d&7)&&stack_low())) { --d; return KERR_STACK; }
+  K r=la_widen_(x);
+  --d;
+  return r;
+}
+static K la_widen_(K x) {
   K r; double *pr;
   if(!x||s(x)) return k_(x);
   i8 t=T(x);
@@ -223,25 +243,33 @@ static K la_widen(K x) {
   if(t==8) return t2(fj(jk(x)));
   if(t==-9) { r=tn(2,n(x)); pr=px(r); float *pe=(float*)px(x); i(n(x),pr[i]=(double)pe[i]) return r; }
   if(t==-8) { r=tn(2,n(x)); pr=px(r); i64 *pj=(i64*)px(x); i(n(x),pr[i]=fj(pj[i])) return r; }
-  if(t==0) { r=tn(0,n(x)); K *prk=px(r),*pp=px(x); i(n(x),prk[i]=la_widen(pp[i])) return r; }
+  if(t==0) { r=tn(0,n(x)); K *prk=px(r),*pp=px(x); i(n(x),{ K c=la_widen(pp[i]); if(E(c)) { n(r)=i; _k(r); return c; } prk[i]=c; }) return r; }
   return k_(x);
 }
 
 /* deep copy narrowing float64 -> real(f32); recurses into general lists. */
+static K la_narrow_(K x);
 static K la_narrow(K x) {
+  static i32 d=0;
+  if(++d>maxr || (!(d&7)&&stack_low())) { --d; return KERR_STACK; }
+  K r=la_narrow_(x);
+  --d;
+  return r;
+}
+static K la_narrow_(K x) {
   K r; float *pr;
   if(!x||s(x)) return k_(x);
   i8 t=T(x);
   if(t==2) return te((float)fk(x));
   if(t==-2) { r=tn(9,n(x)); pr=px(r); double *pf=px(x); i(n(x),pr[i]=(float)pf[i]) return r; }
-  if(t==0) { r=tn(0,n(x)); K *prk=px(r),*pp=px(x); i(n(x),prk[i]=la_narrow(pp[i])) return r; }
+  if(t==0) { r=tn(0,n(x)); K *prk=px(r),*pp=px(x); i(n(x),{ K c=la_narrow(pp[i]); if(E(c)) { n(r)=i; _k(r); return c; } prk[i]=c; }) return r; }
   return k_(x);
 }
 
 /* coerce guard for a single-matrix LA entry point. If real/long present, widen
    to f64, run FN on the copy, and narrow back to f32 iff input was pure-real. */
-#define LA_COERCE1(FN,X) do{ int _f=la_tflags(X); if(_f&3){ \
-  K _x=la_widen(X); K _r=FN(_x); _k(_x); \
+#define LA_COERCE1(FN,X) do{ int _f=la_tflags(X); if(_f&8) return KERR_STACK; if(_f&3){ \
+  K _x=la_widen(X); if(E(_x)) return _x; K _r=FN(_x); _k(_x); \
   if(E(_r) || !((_f&1)&&!(_f&6))) return _r; \
   K _q=la_narrow(_r); _k(_r); return _q; } }while(0)
 
@@ -278,13 +306,21 @@ static K la_rowf(K row) {
    Used when a matrix has MIXED int/f64 rows: lsq transposes its design
    matrix, and mixed rows flip to general-list columns, so make the rows
    uniform f64 first. */
+static K la_widen_int_(K x);
 static K la_widen_int(K x) {
+  static i32 d=0;
+  if(++d>maxr || (!(d&7)&&stack_low())) { --d; return KERR_STACK; }
+  K r=la_widen_int_(x);
+  --d;
+  return r;
+}
+static K la_widen_int_(K x) {
   K r; double *pr;
   if(!x||s(x)) return k_(x);
   i8 t=T(x);
   if(t==1) return t2(fi(ik(x)));
   if(t==-1) { r=tn(2,n(x)); pr=px(r); int *pi=px(x); i(n(x),pr[i]=fi(pi[i])) return r; }
-  if(t==0) { r=tn(0,n(x)); K *prk=px(r),*pp=px(x); i(n(x),prk[i]=la_widen_int(pp[i])) return r; }
+  if(t==0) { r=tn(0,n(x)); K *prk=px(r),*pp=px(x); i(n(x),{ K c=la_widen_int(pp[i]); if(E(c)) { n(r)=i; _k(r); return c; } prk[i]=c; }) return r; }
   return k_(x);
 }
 
@@ -300,12 +336,14 @@ static int la_mixedrows(K x) {
 }
 
 K lsq_(K a, K x) {
-  { int _f=la_tflags(a)|la_tflags(x); if(_f&3) {
-      K _a=la_widen(a), _x=la_widen(x); K _r=lsq_(_a,_x); _k(_a); _k(_x);
+  { int _f=la_tflags(a)|la_tflags(x); if(_f&8) return KERR_STACK; if(_f&3) {
+      K _a=la_widen(a), _x=la_widen(x);
+      if(E(_a)||E(_x)) { K _e=E(_a)?_a:_x; if(!E(_a)) _k(_a); if(!E(_x)) _k(_x); return _e; }
+      K _r=lsq_(_a,_x); _k(_a); _k(_x);
       if(E(_r) || !((_f&1)&&!(_f&6))) return _r;
       K _q=la_narrow(_r); _k(_r); return _q; } }
   if(la_mixedrows(x)) {
-    K _x=la_widen_int(x); K _r=lsq_(a,_x); _k(_x); return _r; }
+    K _x=la_widen_int(x); if(E(_x)) return _x; K _r=lsq_(a,_x); _k(_x); return _r; }
   K e=0, svdres=0, *psv, U=0, S=0, V=0, Sinv=0, Ut=0, Uy=0, Su=0, Vy=0, r=0, t=0;
   u64 i,j,n;
 

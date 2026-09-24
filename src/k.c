@@ -2280,7 +2280,10 @@ static K kamend3_(K d, K i, K f) {
                without this, deeper paths hit pf->j>=n(i0) on entry: 'index */
             if(!n(i0)) { _k(i0); _k(i2); PROPAGATE_RESULT(k_(d_)); break; }
             i32 *pi0=px(i0);
-            i(n(i0),if(pi0[i]<0||(K)pi0[i]>=n(d_)) { _k(i0); _k(i2); e=KERR_INDEX; goto cleanup; })
+            /* first visit only: the bounds depend on i0/n(d_), both fixed for
+               the frame's life -- re-validating per revisit made a repeated
+               index quadratic (a[;860132#0j;1]:"9" ran ~25min) */
+            if(!pf->j) i(n(i0),if(pi0[i]<0||(K)pi0[i]>=n(d_)) { _k(i0); _k(i2); e=KERR_INDEX; goto cleanup; })
             if(n(i2)) {
               if(pf->j>=n(i0)) { _k(i0); _k(i2); e=KERR_INDEX; goto cleanup; }
               _k(pf->ri); pf->ri=i0;
@@ -2297,7 +2300,7 @@ static K kamend3_(K d, K i, K f) {
           case -8: {
             if(!n(i0)) { _k(i0); _k(i2); PROPAGATE_RESULT(k_(d_)); break; } /* see case -1 */
             i64 *pj0=px(i0);
-            i(n(i0),if(pj0[i]<0||(u64)pj0[i]>=n(d_)) { _k(i0); _k(i2); e=KERR_INDEX; goto cleanup; })
+            if(!pf->j) i(n(i0),if(pj0[i]<0||(u64)pj0[i]>=n(d_)) { _k(i0); _k(i2); e=KERR_INDEX; goto cleanup; }) /* see case -1 */
             if(n(i2)) {
               if(pf->j>=n(i0)) { _k(i0); _k(i2); e=KERR_INDEX; goto cleanup; }
               _k(pf->ri); pf->ri=i0;
@@ -2911,7 +2914,8 @@ static K kamend4_(K d, K i, K f, K y) {
             }
             else ym=0;
             i32 *pi0=px(i0);
-            i(n(i0),if(pi0[i]<0||(K)pi0[i]>=n(d_)) { _k(i0); _k(i2); _k(ym); e=KERR_INDEX; goto cleanup; })
+            /* first visit only -- see kamend3_ case -1 */
+            if(!pf->j) i(n(i0),if(pi0[i]<0||(K)pi0[i]>=n(d_)) { _k(i0); _k(i2); _k(ym); e=KERR_INDEX; goto cleanup; })
             if(n(i2)) {
               if(pf->j>=n(i0)) { _k(i0); _k(i2); _k(ym); e=KERR_INDEX; goto cleanup; }
               _k(pf->ri); pf->ri=i0;
@@ -2936,7 +2940,7 @@ static K kamend4_(K d, K i, K f, K y) {
             }
             else ym=0;
             i64 *pj0=px(i0);
-            i(n(i0),if(pj0[i]<0||(u64)pj0[i]>=n(d_)) { _k(i0); _k(i2); _k(ym); e=KERR_INDEX; goto cleanup; })
+            if(!pf->j) i(n(i0),if(pj0[i]<0||(u64)pj0[i]>=n(d_)) { _k(i0); _k(i2); _k(ym); e=KERR_INDEX; goto cleanup; }) /* see case -1 */
             if(n(i2)) {
               if(pf->j>=n(i0)) { _k(i0); _k(i2); _k(ym); e=KERR_INDEX; goto cleanup; }
               _k(pf->ri); pf->ri=i0;

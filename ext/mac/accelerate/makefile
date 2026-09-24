@@ -2,7 +2,7 @@ GKDIR  ?= ../../..
 GK     := $(GKDIR)/gk
 
 CC     ?= cc
-CFLAGS ?= -O2 -shared -fPIC -undefined dynamic_lookup -I$(GKDIR)
+CFLAGS ?= -O2 -shared -fPIC -undefined dynamic_lookup -DACCELERATE_NEW_LAPACK -I$(GKDIR)
 LDLIBS := -framework Accelerate
 
 all: accelerate.dylib

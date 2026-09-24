@@ -66,7 +66,10 @@ static int poll_getc(void) {
      * disabled, in a sub-repl, or already inside a tick. */
     tmr_maybe_fire();
 
-    if(pfd[0].revents & (POLLIN|POLLHUP|POLLERR)) {
+    /* POLLNVAL too: macOS poll() reports it for fds it can't poll (e.g. stdin
+     * redirected from /dev/null on macOS 26) and returns immediately -- without
+     * it we'd spin. read(2) then settles the matter: 0 bytes -> EOF. */
+    if(pfd[0].revents & (POLLIN|POLLHUP|POLLERR|POLLNVAL)) {
       unsigned char c;
       ssize_t r = read(STDIN_FILENO, &c, 1);
       if(r == 0) return EOF;

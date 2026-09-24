@@ -12,10 +12,12 @@
  * rebuild the same list-of-real-vectors result.
  *
  * Build:  make
- *   cc -O2 -shared -fPIC -undefined dynamic_lookup -I<gkdir> \
- *      accelerate.c -o accelerate.dylib -framework Accelerate
+ *   cc -O2 -shared -fPIC -undefined dynamic_lookup -DACCELERATE_NEW_LAPACK \
+ *      -I<gkdir> accelerate.c -o accelerate.dylib -framework Accelerate
  * (-undefined dynamic_lookup lets the gk_* symbols resolve at load time against
- *  the gk executable, exactly like dlopen on Linux.)
+ *  the gk executable, exactly like dlopen on Linux. -DACCELERATE_NEW_LAPACK
+ *  selects the current CBLAS headers; the legacy cblas_sgemm declaration is
+ *  deprecated since macOS 13.3 and warns without it.)
  */
 #include <Accelerate/Accelerate.h>
 #include <stdlib.h>
