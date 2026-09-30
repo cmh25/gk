@@ -1,4 +1,5 @@
 SRC=src
+3RD=3rd
 CORE=$(SRC)/k.core
 MEM=-DBUDDY
 
@@ -18,18 +19,22 @@ ifeq ($(shell uname -s),OpenBSD)
 CCBIN=cc
 endif
 
-LTO := $(shell $(CCBIN) -flto=auto -E -x c /dev/null >/dev/null 2>&1 && echo -flto=auto || echo -flto)
-CC=$(CCBIN) -O3 -march=native $(LTO) $(MEM) -I.
-CCD=$(CCBIN) -g -Wall -Wformat=2 -Wextra -Wformat-security -Wno-format-nonliteral -Wpedantic -I.
+LTO:=$(shell $(CCBIN) -flto=auto -E -x c /dev/null >/dev/null 2>&1 && echo -flto=auto || echo -flto)
+CCBIN:=$(CCBIN) -march=native $(LTO)
+
+O=o/
+CC=$(CCBIN) $(CFLAGS) $(MEM) -I. -O3
+CCD=$(CCBIN) $(CFLAGS) -g -Wall -Wformat=2 -Wextra -Wformat-security -Wno-format-nonliteral -Wpedantic -I.
 CCA=afl-clang-fast -g -O0 -fsanitize=address,undefined -fno-omit-frame-pointer -fno-optimize-sibling-calls -shared-libasan -I.
 CCF=afl-clang-fast -g -O2 -I.
+
+# c files
 CFILES=$(addprefix $(SRC)/,p.c lex.c timer.c k.c main.c repl.c dict.c scope.c fn.c b.c v.c av.c ms.c h.c fe.c lzw.c md5.c sha1.c sha2.c aes256.c io.c irecur.c la.c nt.c ipc.c tmr.c watch.c ffi.c)
 COREFILES=$(CORE)/k.c $(CORE)/v.c $(CORE)/av.c $(CORE)/fuse.c $(CORE)/sort.c $(CORE)/rand.c $(CORE)/sym.c $(CORE)/x.c
 
-ifeq ($(shell uname -s),Linux)
-DL=-ldl
-DLEXPORT=-Wl,--dynamic-list=ffi.list
-endif
+# obj files
+OCFILES=$(patsubst $(SRC)/%.c, $(O)/$(SRC)/%.o, $(CFILES))
+OCOREFILES=$(patsubst $(CORE)/%.c, $(O)/$(CORE)/%.o, $(COREFILES))
 
 ifeq ($(shell uname -s),Darwin)
 DLEXPORT=-Wl,-export_dynamic
@@ -56,17 +61,30 @@ DL = -lws2_32
 MEM=
 endif
 
-all: gk
+EXE=gk
+EXED=gkd
 
-gk:
-	$(CC) -ogk $(CFILES) $(COREFILES) -lm $(DL) $(DLEXPORT)
+all: $(O) $(EXE)
+
+$(O):
+	mkdir -p $(O)/$(SRC)
+	mkdir -p $(O)/$(CORE)
+
+$(O)/$(SRC)/%.o: $(SRC)/%.c
+	$(CC) -c $(CFLAGS) -o$@ $<
+
+$(O)/$(CORE)/%.o: $(CORE)/%.c
+	$(CC) -c $(CFLAGS) -o$@ $<
+
+$(EXE): $(OCFILES) $(OCOREFILES)
+	$(CC) $(CFLAGS) -o$@ $^ -lm $(DL) $(DLEXPORT)
 
 # CR-tolerant comparator used by tests
 ndiff: $(SRC)/ndiff.c
 	cc -O2 -o ndiff $(SRC)/ndiff.c
 
-gkd:
-	$(CCD) -ogk $(CFILES) $(COREFILES) -lm $(DL) $(DLEXPORT)
+$(EXED):
+	$(CCD) -o$(EXED) $(CFILES) $(COREFILES) -lm $(DL) $(DLEXPORT)
 
 test:
 	@test -f gk || $(MAKE) gk
@@ -82,6 +100,7 @@ testp:
 	cd t && ./p.sh
 
 clean:
+	rm -rf $(O)
 	rm -f t/[0-9]* t/[dev][0-9]*
 	rm -f gk ndiff libgk.dll.a *.o
 
