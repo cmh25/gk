@@ -1,5 +1,4 @@
 SRC=src
-3RD=3rd
 CORE=$(SRC)/k.core
 MEM=-DBUDDY
 
@@ -19,12 +18,10 @@ ifeq ($(shell uname -s),OpenBSD)
 CCBIN=cc
 endif
 
-LTO:=$(shell $(CCBIN) -flto=auto -E -x c /dev/null >/dev/null 2>&1 && echo -flto=auto || echo -flto)
-CCBIN:=$(CCBIN) -march=native $(LTO)
-
 O=o/
-CC=$(CCBIN) $(CFLAGS) $(MEM) -I. -O3
-CCD=$(CCBIN) $(CFLAGS) -g -Wall -Wformat=2 -Wextra -Wformat-security -Wno-format-nonliteral -Wpedantic -I.
+LTO:=$(shell $(CCBIN) -flto=auto -E -x c /dev/null >/dev/null 2>&1 && echo -flto=auto || echo -flto)
+CC=$(CCBIN) -O3 -march=native $(LTO) $(MEM) -I.
+CCD=$(CCBIN) -g -Wall -Wformat=2 -Wextra -Wformat-security -Wno-format-nonliteral -Wpedantic -I.
 CCA=afl-clang-fast -g -O0 -fsanitize=address,undefined -fno-omit-frame-pointer -fno-optimize-sibling-calls -shared-libasan -I.
 CCF=afl-clang-fast -g -O2 -I.
 
@@ -35,6 +32,11 @@ COREFILES=$(CORE)/k.c $(CORE)/v.c $(CORE)/av.c $(CORE)/fuse.c $(CORE)/sort.c $(C
 # obj files
 OCFILES=$(patsubst $(SRC)/%.c, $(O)/$(SRC)/%.o, $(CFILES))
 OCOREFILES=$(patsubst $(CORE)/%.c, $(O)/$(CORE)/%.o, $(COREFILES))
+
+ifeq ($(shell uname -s),Linux)
+DL=-ldl
+DLEXPORT=-Wl,--dynamic-list=ffi.list
+endif
 
 ifeq ($(shell uname -s),Darwin)
 DLEXPORT=-Wl,-export_dynamic
