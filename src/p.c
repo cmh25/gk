@@ -707,6 +707,25 @@ static K r44(K x) {
 }
 
 static K rd0(K x) {
+  /* Resolve on a PRIVATE copy.  x is normally a bytecode token shared with
+     the lambda body that holds it (pgreduce pushes tokens by reference), and
+     the seed is looked up in the CALLER's scope: writing the value back into
+     the shared token baked the first call's seed into every later call --
+     f:{(x,)"a"}; f"1"; f"2" gave "1a" twice (v5.0.6 through v5.3.0; reported
+     by bleedsa as a stale path prefix).  ko.r counts holders beyond the
+     first (_k frees at r==0), so r>0 means shared; a uniquely owned x, the
+     result of an earlier reduction, is still resolved in place. */
+  ko *kx=(ko*)(b(48)&x);
+  if(kx->r>0) {
+    /* Shallow copy: rd0 only ever replaces a slot, so the pair is private
+       and the slots stay shared until they are.  (kcp cannot copy a raw
+       name token, and would deep-copy the verb for nothing.) */
+    K *po=px(x); i64 nn=n(x);
+    K c=tn(0,nn); K *pc=px(c);
+    for(i64 i=0;i<nn;++i) pc[i]=k_(po[i]);
+    _k(x);
+    x=st(0xd0,c);
+  }
   K *px=px(x);
   if(0x42==s(px[0])) {
     K t=rl(k_(px[0]),0);
@@ -762,31 +781,32 @@ static K rc5(K x) {
   K f=px[0];
   if(T(f)>0) return x;           /* slot 0 must be the verb LIST, not an atom */
   K *pf=px(f);
-  for(i64 i=n(f)-1;i>=0;--i) {
-    if(0xd0==s(pf[i])) {
-      K t=rd0(k_(pf[i]));
-      if(E(t)||EXIT) { _k(x); return t; }
-      _k(pf[i]);
-      pf[i]=t;
-    }
-    else if(0x44==s(pf[i])) {
-      /* A statically-known bracket projection can be a member of a train
-         (`draw[1]*+`, `ep[-]*+`).  Train bytecode retains its ordinary 0x44
-         apply node so bound arguments are evaluated in the current scope;
-         resolve it to the resulting 0xd9 projection before execution. */
-      K t=r44(k_(pf[i]));
-      if(E(t)||EXIT) { _k(x); return t; }
-      _k(pf[i]);
-      pf[i]=t;
-    }
-    else if(0xca==s(pf[i])||0xc9==s(pf[i])||0xcb==s(pf[i])) {
-      K t=rpd(pf[i]);
-      if(E(t)||EXIT) { _k(x); return t; }
-      _k(pf[i]);
-      pf[i]=t;
-    }
+  i64 nf=n(f);
+  /* Members that must be resolved in the current scope -- fixed dyads
+     (0xd0: `|x,` holds the NAME x), bracket projections (0x44: `draw[1]*+`
+     evaluates its bound arguments here) and predefined names -- are
+     resolved into a NEW verb list, never written back into x: x is normally
+     a bytecode token shared with its lambda body, and an in-place write
+     baked the first call's values into every later call ({(|x,)"a"} gave
+     "a1" for x "2").  Nothing to resolve: x is returned untouched. */
+  K nl=0,*pnl=0;
+  for(i64 i=nf-1;i>=0;--i) {
+    K t;
+    if(0xd0==s(pf[i])) t=rd0(k_(pf[i]));
+    else if(0x44==s(pf[i])) t=r44(k_(pf[i]));
+    else if(0xca==s(pf[i])||0xc9==s(pf[i])||0xcb==s(pf[i])) t=rpd(pf[i]);
+    else continue;
+    if(E(t)||EXIT) { if(nl) _k(nl); _k(x); return t; }
+    if(!nl) { nl=tn(0,nf); pnl=px(nl); for(i64 j=0;j<nf;++j) pnl[j]=k_(pf[j]); }
+    _k(pnl[i]);
+    pnl[i]=t;
   }
-  return x;
+  if(!nl) return x;
+  K nc=tn(0,n(x)); K *pnc=px(nc);
+  pnc[0]=nl;
+  for(i64 j=1;j<(i64)n(x);++j) pnc[j]=k_(px[j]);
+  _k(x);
+  return st(0xc5,nc);
 }
 
 static inline K r41(K x) {
@@ -1892,7 +1912,12 @@ apply_n_fallback: {
       a=*--pA;
       if(!a) { *pA++=KERR_TYPE; break; }
       if(0x42==s(a)) { a=r42(a); if(E(a)||EXIT) { *pA++=a; break; } }
-      if((0x41==s(a)||0x81==s(a))&&c%32!=19) { /* except for cond, $[1;2;3] */
+      /* Except for cond, $[c;t;f].  A one- or two-slot $[..] is never a
+         cond (r44 keeps that n>2 test): it is an ordinary bracket call of
+         the format verb, and must build the same 0x44 node every other verb
+         gets, so that a hole projects ($[x;] is $[x;], as #[x;] is) instead
+         of reaching k() with a bare hole as its argument (a type error). */
+      if((0x41==s(a)||0x81==s(a))&&(c%32!=19||n(a)<=2)) {
         K jn=tn(0,2); K *pjn=px(jn);
         pjn[0]=v;
         pjn[1]=a;
@@ -2447,7 +2472,7 @@ c3_apply:
             K fav=0;
             /* Issue #2 Pass 6: bare 0xc3 has no av slot; 0xd9 wraps
                leave av (if any) on the outer 0xda wrapper. */
-            if(0xc3==s(a) || 0xd9==s(a)) fav=0;
+            if(0xc3==s(a) || 0xd9==s(a) || 0xd0==s(a)) fav=0; /* 0xd0: h:(1+)'; h 1 2 3 */
             else { _k(a); _k(b); *pA++=KERR_PARSE; break; } /* 0xc4 retired */
             char *favp=-3==T(fav)?(char*)px(fav):"";
             if(av && *av) favp=av;
@@ -2583,16 +2608,6 @@ c3_apply:
         }
         else *pA++=k(w,0,b);
         break;
-      case 0xd0: /* fixed dyad */
-        if(0x45==s(b)) {
-          pb=px(b);
-          mv=px(pb[1]);
-          if(!VST(pb[2])) { _k(a); _k(b); *pA++=KERR_TYPE; break; }
-          *pA++=fep(a,0,k_(pb[2]),mv);
-          _k(b);
-        }
-        else *pA++=fep(a,0,b,"");
-        break;
       case 0: case 0x80:
         if(0x81==s(b)) {
           if(aa) { _k(a); _k(b); *pA++=KERR_RANK; break; } /* 0[] */
@@ -2694,16 +2709,21 @@ c3_apply:
         break;
       case 0xda: { /* (f;av) modified-verb wrapper, juxtaposition path */
         K *pw=px(a); K wf=pw[0]; K wav=pw[1];
-        char *avp=(T(wav)==-3 && n(wav)>0) ? (char*)px(wav) : "";
+        char avpbuf[256]; { const char *_s=(T(wav)==-3 && n(wav)>0)?(char*)px(wav):"";
+          size_t _l=strnlen(_s,255); memcpy(avpbuf,_s,_l); avpbuf[_l]=0; }
+        char *avp=avpbuf;
         /* Issue #2 Pass 2b-step-3 / Pass 4: 0xc3/0xd9 inner -- peel
            and replay through case 0xc3 with combined av. Avoids
            duplicating the ~140-line case 0xc3 body. After Pass
            2b-step-4 flips producers, an adverbed lambda K is
            0xda(c3,av) and lands here instead of case 0xc3.  0xc4
            retired in Pass 4. */
-        if(0xc3==s(wf) || 0xd9==s(wf)) {
+        if(0xc3==s(wf) || 0xd9==s(wf) || 0xd0==s(wf)) {
           /* Pass 3b-5: 0xd9 projection inner -- treat like 0xc3
              for pgreduce_'s c3_apply: val(0xd9) is well-defined,
+             and so is val(0xd0) -- an adverbed fixed dyad held as a value
+             (h:(1+)'; h'(1 2;3 4), 3 h/0) is the same callable as +[1;]'
+             and fne/fapply accept the 0xd0 head.
              and overmonadn/scanmonadn use fe() which routes 0xd9
              through fapply for projection peel. */
           if(0x40==s(b)) { b=r40(b); if(E(b)||EXIT) { _k(a); *pA++=b; break; } }
@@ -2950,6 +2970,12 @@ c3_apply:
           *pA++=fep(a,t,b,"");
         }
         break;
+      case 0xd0: /* fixed dyad (1+): the same monadic callable as the
+                    projection +[1;], so it takes the 0xd9 path below --
+                    fe() and fapply() both accept a 0xd0 head.  Its own case
+                    used to call fep without the dyadic-juxt detection, so
+                    `3 (1+)/0`, `{x<5}k/0` and `2 k\0` dropped the controller
+                    and converged forever. */
       case 0xd9: /* Issue #2 Pass 3b-1: simple bare projection juxt
                     -- fe() routes 0xd9 through fapply for inull-fill /
                     nest. Adverbed-projection juxtaposition reaches
@@ -2976,6 +3002,7 @@ c3_apply:
             else if(ISF(t) && ik(val(t))==1 && !strcmp(mv,"/")) { *pA++=overmonadbp(a,t,k_(pb[2]),""); *quiet=0; }
             else if(s(t)==0 && (T(t)==1||T(t)==8) && !strcmp(mv,"\\")) { *pA++=scanmonadnp(a,t,k_(pb[2]),""); *quiet=0; }
             else if(ISF(t) && ik(val(t))==1 && !strcmp(mv,"\\")) { *pA++=scanmonadbp(a,t,k_(pb[2]),""); *quiet=0; }
+            else if(mv[1]) { *pA++=avdop(a,t,k_(pb[2]),mv); *quiet=0; } /* `3 +[1;]'/0`, `3 (1+)'/0`: a chain -- avdo peels the last adverb and runs do-n/while on the rest */
             else { _k(a); _k(t); *pA++=KERR_TYPE; }
             _k(b);
             break;
@@ -3954,6 +3981,16 @@ static int is_pure_postfix_chain(pn *b) {
    0x41/0x81 -> 0x44 packing path, which routes through r44/fapply
    correctly for our 0xda/0xd9-headed left side. */
 static pn *postfix_peel(pgs *s, pn *a, pn *head) {
+  /* A bare verb followed by a bracket group is a bracket CALL, exactly as
+     outside a postfix chain: `+[1;]'` folds to adverb(+[1;]).  The juxt
+     form left `+` a dyad next to a plist, which worked with nothing on its
+     left but took an assignment target as its left operand -- `m:+[1;]'`
+     (and `m:#[2;]'/`) looked m up and raised value (reference K: a
+     projection, m 1 2 3 is 2 3 4).  Names and lambdas keep the juxt: r44
+     applies them. */
+  if(head && head->t==4 && a && a->t==1 && a->v!=0xff && 0x85!=s(a->v)
+     && !a->a[0] && !a->a[1])
+    return attach_args(s,a,head);
   pn *q=pnnewi(s,1,0xff,0,2,1,a->i,a->line);
   q->a[0]=a;
   q->a[1]=head;
@@ -4007,6 +4044,25 @@ static int has_overscan_in_chain(pn *b) {
   return is_overscan_pn(b);
 }
 
+/* Does a statically-known head have a FIXED valence, so that a bracket call
+   supplying fewer arguments than that valence yields a projection at run
+   time?  True for builtins (0xc6/0xc7), predefined functions (0xc9-0xcb) and
+   bracket projections (a 0xd9 whose valence is its hole count: `#[;][5]` is
+   the projection #[5;], and `ssr[;"b";]["abc"]` re-projects).  A bare
+   primitive, file verb, derived verb (+/), train or projected dyad (1+) is
+   ambivalent: fe() applies it with whatever it is given.  A hole-less bracket
+   call on a fixed-valence head that still counts as a verb is itself an
+   under-supplied projection, hence fixed-valence too. */
+static int known_verb_valence_pn(pn *a);
+static int fixed_valence_head_pn(pn *a) {
+  while(a && a->t==6 && a->m==1 && a->a[0]) a=a->a[0];
+  if(!a) return 0;
+  if(a->t==19) return known_verb_valence_pn(a)>0;
+  if(a->t!=1) return 0;
+  u64 sx=s(a->v);
+  return 0xc6==sx || 0xc7==sx || 0xc9==sx || 0xca==sx || 0xcb==sx;
+}
+
 /* Return a statically-known callable's remaining valence, or zero when the
    expression is a noun whose value must be discovered at execution time.
 
@@ -4047,6 +4103,18 @@ static int known_verb_valence_pn(pn *a) {
       if(x && x->t==2 && !x->n) ++holes;
       else ++bound;
     }
+    /* A hole-less bracket group is an APPLICATION unless the head has a
+       fixed valence.  r44 hands f[x] to fe(f,0,x): a primitive, file verb,
+       derived verb, train or projected dyad is ambivalent and simply applies
+       there (#[e] is #e, +/[x] is the sum, 5:[x] is the display string), so
+       the call node is a NOUN whose value only exists at run time.  Calling
+       it a monadic verb here made r003_ compose it into a train: `#[e]#|p`
+       applied the count 3 to `#|p` (a type error, indexing an atom) and
+       `#[1 2 3]+[4]` built a train of two nouns that displayed as `34`.
+       Only a builtin/predefined function or an existing projection has a
+       fixed valence and projects when under-supplied (`bin[1 2 3]` is
+       bin[1 2 3;], `#[;][5]` is #[5;]); those keep the arithmetic below. */
+    if(!holes && !fixed_valence_head_pn(a->a[0])) return 0;
     int rem=n-bound;
     if(rem<holes) rem=holes;
     return rem>0?rem:0;
@@ -4306,10 +4374,16 @@ static void r003_(pgs *s) { /* body of e > o ez (wrapped by r003) */
       s->V[s->vi]=a;
     }
     else if(a->t==19 && known_verb_valence_pn(a)>0
-            && !projection_operand_verb(b)) {
+            && !projection_operand_verb(b)
+            && !(b->v==0xff && b->a[0] && is_adverb_pn(b->a[0]))) {
       /* b already has an operand, so this is outer(inner-expression), not a
          dyadic b with the projection as its left noun.  Isolate b from the
-         flat value stack just as postfix_restructure_top does. */
+         flat value stack just as postfix_restructure_top does.
+         Not when b is a postfix adverb chain on a (`(#[;2])'p`: the bare
+         spelling folds `[;2]'p` first and never gets here); boxing the
+         chain would strand the adverb without its head (a parse error).
+         That shape falls through to the occupied-left-slot juxtaposition
+         below and postfix_restructure_top folds it, as for the bare form. */
       pn *inner=pnnewi(s,6,0,0,1,1,b->i,b->line);
       inner->a[0]=b;
       q=pnnewi(s,1,0xff,0,2,1,a->i,a->line);
@@ -4380,6 +4454,19 @@ static void r003_(pgs *s) { /* body of e > o ez (wrapped by r003) */
       }
       else a->a[1]=b; /* 1+2*3 */
     }
+    else if(b->a[0]) {
+      /* a is complete (it has its right operand, or is a bracket call) and
+         b's left slot is already taken -- a juxtaposition chain (`{y}5`, a
+         postfix adverb chain) or a dyad with both operands (`1*3`).  The
+         value in front juxtaposes, exactly as the bare spelling (which
+         reduces the chain first) and a name do.  Writing a into that slot
+         silently discarded the head: `(#[e]){y}5` lost the lambda and
+         `(#[e])1+2` gave 5. */
+      q=pnnewi(s,1,0xff,0,2,1,a->i,a->line);
+      q->a[0]=a;
+      q->a[1]=b;
+      s->V[s->vi]=q;
+    }
     else { /* (1+2)*3 */
       b->a[0]=a;
       s->V[s->vi]=b;
@@ -4439,7 +4526,17 @@ static void r003_(pgs *s) { /* body of e > o ez (wrapped by r003) */
          512+/1024+ space.  Post-pass-6 the adverb is a standalone
          leaf and composition happens via the postfix-restructure
          juxt path, so b->v never carries 0x27/0xce/0x5c here. */
-      if(b->a[0] && (b->a[0]->t==4||is_headless_chain(b->a[0])) && b->v!=58 && b->v!=0xff) { /* d[],1   b->v != : */
+      /* d[],1 (b->v != :).  A parenthesized group in front of a
+         juxtaposition chain headed by its brackets takes them the same way
+         (`(1+)[e] 5`, `(1 2 3)[1]{y}5`): a name reached the a->t==2 attach
+         branch above, but a group fell to the plain juxtaposition below and
+         left the plist dangling in the chain -- `(1+)[e]{y}5` gave 6, the
+         plist never applied.  The juxt(group, plist) node is the shape
+         `(x)[0]` already compiles to.  Not when an adverb follows in the
+         chain: `(;{})[]'0` is the bracketed-adverb form a[]'x, which the
+         evaluator recognizes from the unattached plist (t808/t809/t812). */
+      if(b->a[0] && (b->a[0]->t==4||is_headless_chain(b->a[0])) && b->v!=58
+         && (b->v!=0xff || (a->t==6 && !has_adverb_in_chain(b)))) {
         if(is_headless_chain(b->a[0])) { b->a[0]=attach_args(s,a,b->a[0]); }
         else {
           q=pnnewi(s,1,0xff,0,2,1,a->i,a->line);

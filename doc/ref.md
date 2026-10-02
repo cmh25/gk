@@ -115,6 +115,7 @@ New to gk? Try the [tutorial](tutorial.md) first. If you already know **k3**, se
   - [System](#system)
   - [Matrix](#matrix)
 - [System Commands](#system-commands)
+  - [Command Line](#command-line)
 - [IPC](#ipc)
   - [Quick Start](#quick-start)
   - [Client](#client)
@@ -2083,6 +2084,10 @@ Valence is the number of parameters a function expects.
 ```
 
 If a function is called with fewer than the required number of parameters, the result is a projection.
+This is a rule about functions of fixed valence: lambdas, builtins and predefined functions.
+Primitives, derived verbs (`+/`), trains and file verbs are ambivalent, so a bracket call
+that fills every slot simply applies them: `#[x]` is `#x`, `-[5]` is `-5`, `+/[x]` is the sum.
+To project one, leave a hole: `#[x;]` fixes the left argument, `#[;2]` the right.
 ```
   f:{x,y,z}
   val f
@@ -2705,6 +2710,27 @@ like any single-letter top-level name.
 | `\\` | exit |
 
 In the **interactive** top-level REPL, **`\`** alone (then Enter) prints a **help index** of further `\`-topics, for example `\0` (data), `\+` (verbs), `\'` (adverbs), `\_` (reserved), `\.` (assign / control / debug), `\:` (I/O), `\-` (client/server), `` \` `` (OS), `\?` (commands). At nested prompts (e.g. debug under `\e 1`), a lone `\` is **abort**, not this menu.
+
+<a id="command-line"></a>
+### Command Line
+
+```
+gk [-q] [-i PORT] [-f PORT] [script] [-- args...]
+```
+
+`-q` suppresses the banner, `-i`/`-f` start an IPC listener (see [IPC](#ipc)).
+The first non-flag token is the script; every later non-flag token is a user
+argument, collected as a list of strings in **`.z.i`**. Flags are consumed
+wherever they appear, so their position does not matter. `--` ends flag
+parsing: everything after it is positional (the script if none has been seen
+yet, otherwise a user argument), which is how a script receives an argument
+that looks like a flag.
+
+```
+$ gk prog.k -q one two        / .z.i is ("one";"two")
+$ gk prog.k -- -q --          / .z.i is ("-q";"--")
+$ gk -- prog.k one            / prog.k runs; .z.i is ,,"one"
+```
 
 ### Load path (`GKPATH`)
 

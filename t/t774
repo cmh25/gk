@@ -2,7 +2,7 @@
 / 2026-07-18.  Two independent defects, both in src/k.core/k.c.
 /
 / 1. NULL keeper slot.  p.c builds a 0xd0 fixed-dyad keeper as (seed;verb),
-/    and the seed channel can be empty -- `b:(0[])0*` leaves 0xd0(NULL,0xc0'*').
+/    and the seed channel could be empty -- `b:(0[])0*` left 0xd0(NULL,0xc0'*').
 /    khashcb strips the subtype and hands the payload back to khash as a plain
 /    general list, where NULL reads as t0/no-subtype: the case-0 walk pushed it
 /    and then deref'd it via n(x_) -> SIGSEGV (si_addr 0x0).  khash now folds a
@@ -11,10 +11,16 @@
 /    The b must be reached THROUGH a list -- a bare `?(b;1;b)` hashes the
 /    keeper by a path that never walked the payload, so the nesting is load-
 /    bearing, not incidental.
-b:(0[])0*
+/    2026-09-30: the empty seed was itself a parser defect -- r003_'s fallback
+/    wrote the complete `(0[])` into the keeper's occupied left slot, discarding
+/    the 0 (the same clobber turned `(#[e])1+2` into 5).  `(0[])0*` now reads
+/    `(0[]) (0*)`, so no source spelling builds a NULL seed any more; the khash
+/    guard stays as defense in depth, and the keeper-through-a-list hashing is
+/    kept with a real seed.
+b:0*
 ?(,b;,b;,1)
 / same shape via a different primitive
-c:(0[])0+
+c:0+
 ?(,c;,c;,1)
 / ordinary values still hash and compare unchanged (positive control)
 ?(,1;,1;,2;,1)

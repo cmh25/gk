@@ -1198,14 +1198,42 @@ static K fapply_impl(K f, K x, char *av_outer) {
         args_new=st(0x81,t);
       }
       else { K t=tn(0,1); ((K*)px(t))[0]=x; args_new=st(0x81,t); }
-      K nested=wrap_proj(f, args_new);
       if(av_outer && *av_outer) {
+        /* An each applied WHILE binding arguments (f'[3 4], the chain
+           '[a]'[b]) goes INSIDE the projection: 0xd9(0xda(f,av), new_args).
+           Completing it then runs the each in lockstep over these bound
+           items and the later ones -- v3:f[;2;]'[3 4]; v3[5 6] is 13 16,
+           and {x+y*z}'[1 1]'[2 2]'[3 3] is 2x2x2.
+           An each applied to a FINISHED projection, (+[1 2 3;])' or
+           f:+[1 2 3;]; f'[0 2 4], stays OUTSIDE (0xda(0xd9,av), built by
+           the parser) and iterates only the new arguments.  Lifting the
+           adverb onto an outer 0xda here made the two shapes identical, so
+           one of the two readings was always wrong. */
         K w=tn(0,2); K *pw=px(w);
-        pw[0]=nested;
+        pw[0]=f;
         pw[1]=tnv(3,strlen(av_outer),xmemdup(av_outer,1+strlen(av_outer)));
-        return st(0xda,w);
+        return wrap_proj(st(0xda,w), args_new);
       }
-      return nested;
+      return wrap_proj(f, args_new);
+    }
+    if(av_outer && *av_outer) {
+      /* `(+[1 2 3;]')0 2 4`, `f'[0 2 4]`, `(bin[1 2 3]')0 2 4`: the adverb
+         modifies the PROJECTION, so it iterates the NEW arguments only --
+         (1 2 3;3 4 5;5 6 7) and 0 1 3, as the inline
+         spellings `+[1 2 3;]'0 2 4` / `f'0 2 4` give.  Forwarding av_outer
+         into the completed inner call made a dyadic each over the fixed
+         argument as well (`1 2 3 +' 0 2 4` -> 1 4 7; a rank error for bin).
+         avdo iterates, completing each item through fapply with no adverb. */
+      if(0x81==s(x) && 1==n(x)) { K *pxk=px(x); K x0=k_(pxk[0]); _k(x); x=x0; }
+      /* each over an ATOM is the plain call ((+[1;]')5 is 6).  avdo's own
+         projection rule hands an atom back to fapply with the each kept
+         (so chained '[args] compose), which would recurse with this branch
+         forever (3 (+[1;]')/0 iterates on atoms).  Drop the leading eaches
+         for an atom; anything left (/ \) still goes to avdo. */
+      char *avp=av_outer;
+      if(T(x)>0) while('\''==*avp) ++avp;
+      if(*avp) return avdo(f,0,x,avp);
+      av_outer=0;
     }
     K *pw=px(f);
     K wf=pw[0];

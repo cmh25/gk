@@ -1,0 +1,13 @@
+/ `--` ends flag parsing (contributed by bleedsa): later tokens are positional,
+/ so a script can receive -q, a second --, or a dash-prefixed name in .z.i.
+/ Without --, flags are consumed wherever they appear (t784's exe/cmd probe).
+cmd:0="%COMSPEC%"~*`4:"echo %COMSPEC%"
+exe:$[cmd;"..\\gk";"../gk"]
+`4:exe," -q args.k a b"
+`4:exe," -q args.k -q a -q"
+`4:exe," -q args.k -- -q -i 5"
+`4:exe," -q args.k a -- b -q"
+`4:exe," -q args.k -- --"
+`4:exe," -q args.k --"
+`4:exe," -q -- args.k -x"
+\\

@@ -1848,6 +1848,7 @@ K decrypt_(K a, K x) { return crypt_(aes256d,a,x); }
 static int fncap_ring(K w, K sc) {
   static int d=0;
   int r=0; u64 j; K *p;
+  if(!w) return 0;
   if(++d>maxr || (!(d&7)&&stack_low())) { --d; return 1; }
   switch(s(w)) {
   case 0xc3: { K scp=((K*)px(w))[2]; r=6!=T(scp)&&((K*)px(scp))[0]==sc; break; }
@@ -1876,6 +1877,7 @@ static int fncap_ring(K w, K sc) {
 static K fncap_strip(K w, K sc) {
   static int d=0;
   K r,*pr; u64 j;
+  if(!w) return 0;
   if(++d>maxr || (!(d&7)&&stack_low())) { --d; return k_(w); }
   switch(s(w)) {
   case 0xc3: {
@@ -1936,6 +1938,7 @@ static K fncap(K f) {
       /* a forged scope dict can have keys longer than values (dget/dset index
          values by a key slot); bound to the values count too */
       for(j=0;j<n(ky)&&j<n(vl);++j) {
+        if(!pvl[j]) continue;
         if(pvl[j]==f) continue;  /* the frame holds the very lambda we are
                                     capturing for (`f:{...}` beside its own
                                     definition).  Shipping it inside its own

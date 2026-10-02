@@ -138,6 +138,19 @@ K fe(K f, K a, K x, char *av) {
         else if(*avp) r=avdo(k_(wf),0,x,avp);
         else { _k(x); r=KERR_PARSE; }
       }
+      else if(0xd0==s(wf)) {
+        /* adverbed FIXED DYAD held as a value -- h:(1+)'; h 1 2 3, h@1 2 3,
+           and the inline bracket spellings (1+)'[1 2 3], (0&)/[5].  The
+           bare spelling (1+)'1 2 3 reaches case 0xd0 below directly, and the
+           bracket call on a NAME (h[1 2 3]) goes through fapply_impl, which
+           peels this pair itself; every other route arrived here and found
+           no arm.  Mirror the 0xc6 arm: unwrap a one-slot plist (a keeper is
+           monadic), then avdo with the wrapper's adverbs. */
+        if(0x81==s(x)&&n(x)==1) { K x2=k_(((K*)px(x))[0]); _k(x); x=x2; }
+        if(0x81==s(x)) { _k(x); r=KERR_VALENCE; }
+        else if(*avp) r=avdo(k_(wf),a,x,avp); /* a: do/while controller (3 k/0) */
+        else { _k(x); r=KERR_PARSE; }
+      }
       else if(0xcc==s(wf) || 0xcd==s(wf)) {
         /* A file verb can also be held in the generic modified-function
            wrapper (`f:5:'`, `5:'[x]`).  The direct-token path dispatches

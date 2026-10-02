@@ -379,8 +379,15 @@ cleanup:
   return e;
 }
 
+static int avdo_bad_slot(K x, K *bad) {
+  if(0x81!=s(x)) return 0;
+  K *p=px(x); u64 m=n(x),i;
+  for(i=0;i<m;++i) if(E(p[i])) { *bad=p[i]; return 1; }
+  return 0;
+}
+
 K avdo(K f, K a, K x, char *av) {
-  K r=0;
+  K r=0, badslot=0;
   int w,n=strlen(av);
   char av2[256];
   /* Force monad: a {Vx} lambda is semantically the bare MONADIC primitive V,
@@ -409,6 +416,10 @@ K avdo(K f, K a, K x, char *av) {
   else if(0x85==s(a)||0x85==s(x)) { _k(f); _k(a); _k(x); r=kerror("type"); }
   else if(n>32) { _k(f); _k(a); _k(x); r=kerror("length"); }
   else if(0xd1==s(f)||0xd2==s(f)||0xd3==s(f)) { _k(f); _k(a); _k(x); r=kerror("type"); }
+  else if(avdo_bad_slot(x,&badslot)) {
+    r = (0<badslot && badslot<(K)EMAX) || 0x84==s(badslot) ? badslot : kerror("type");
+    _k(f); _k(a); _k(x);
+  }
   else if(n==1) {
     if(a) {
       /* dyadic: iterate (a,x) in lockstep, leftward, or rightward */

@@ -34,13 +34,13 @@ void ctlc(int n) { (void)n; STOP=1; }
 #endif
 
 static void usage(char *s) {
-  fprintf(stderr,"usage: %s [-q] [-i PORT] [-f PORT] [script]\n",s);
+  fprintf(stderr,"usage: %s [-q] [-i PORT] [-f PORT] [script] [-- args...]\n",s);
   exit(1);
 }
 
 int main(int argc, char **argv) {
   K r=0;
-  int i,quiet=0,iter_port=0,fork_port=0,nargs=0;
+  int i,quiet=0,iter_port=0,fork_port=0,nargs=0,fwd=0;
   char *a,*script=0,**args;
 #ifdef _WIN32
   /* gk prints LF, never CRLF: put stdout/stderr in binary mode so the Windows
@@ -52,12 +52,17 @@ int main(int argc, char **argv) {
   _setmode(_fileno(stderr), _O_BINARY);
 #endif
   /* .z.i collects every non-flag token after the script.  Flags (-q/-i/-f)
-   * are consumed wherever they appear, so flag position is irrelevant */
+   * are consumed wherever they appear, so flag position is irrelevant.
+   * `--` ends flag parsing (contributed by bleedsa): every later token is
+   * positional -- the script if none has been seen yet, otherwise a user
+   * argument -- so a script can receive `-q`, a second `--`, or a name that
+   * starts with a dash. */
   args=malloc((argc>1?argc:1)*sizeof(*args));
   if(!args) { fprintf(stderr,"gk: out of memory\n"); exit(1); }
   for(i=1;i<argc;++i) {
     a=argv[i];
-    if(a[0]=='-') {
+    if(fwd) { if(!script) script=a; else args[nargs++]=a; }
+    else if(a[0]=='-') {
       if(!a[1]) usage(argv[0]);
       else if(!strcmp(a,"-q")) quiet=1;
       else if(!strcmp(a,"-i") || !strcmp(a,"-f")) {
@@ -73,6 +78,7 @@ int main(int argc, char **argv) {
         if(is_fork) { if(fork_port) usage(argv[0]); fork_port=(int)v; }
         else        { if(iter_port) usage(argv[0]); iter_port=(int)v; }
       }
+      else if(!strcmp(a,"--")) fwd=1;
       else usage(argv[0]);
     }
     else if(!script) script=a;  /* first non-flag token is the script */
@@ -82,7 +88,7 @@ int main(int argc, char **argv) {
   setvbuf(stderr, NULL, _IONBF, 0);  /* glibc has this by default; Windows pipes
     don't -- without it, buffered stderr (prompts/errors) races the unbuffered
     stdout (results) and the merged transcript reorders intermittently */
-  if(!quiet) fprintf(stderr, "gk-v5.2.5 Copyright (c) 2023-2026 Charles Hall\n\n");
+  if(!quiet) fprintf(stderr, "gk-v5.3.0 Copyright (c) 2023-2026 Charles Hall\n\n");
 #ifdef _WIN32
   SetConsoleCtrlHandler(ctlc,TRUE);
 #else
