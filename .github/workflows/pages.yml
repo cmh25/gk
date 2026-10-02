@@ -2,10 +2,11 @@ name: Deploy web REPL to Pages
 
 # Publishes the web/ folder (the gk WebAssembly REPL) as the GitHub Pages site.
 # The prebuilt gk.js / gk.wasm in web/ are committed and served as-is — no build step.
+# Deploys on release tags only, so the live REPL always matches a tagged release
+# rather than whatever is on master between releases.
 on:
   push:
-    branches: [master]
-    paths: ['web/**', '.github/workflows/pages.yml']
+    tags: ['v*']
   workflow_dispatch:        # lets you trigger a deploy by hand from the Actions tab
 
 permissions:
