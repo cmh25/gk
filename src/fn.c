@@ -1055,7 +1055,7 @@ K fne_fast(K f, K x) {
   u64 body_n=n(body);
   K r=null;
   for(u64 i=0;i<body_n;++i) {
-    int q;
+    int q=0;
     pgdiscard=(i+1<body_n);  /* non-final statement values are freed below */
     K p=pgreduce_(pbody[i],&q);
     if(E(p)) { _k(r); r=p; break; }

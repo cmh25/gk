@@ -56,7 +56,7 @@ static void watch_run(K e, K sc) {
   K q = pgparse(h, 0, 0);
   opencode = oc;
   if(!E(q) && q) {
-    K r = pgreduce(q, 0);
+    int q0 = quiet; K r = pgreduce(q, 0); quiet = q0;
     prfree(q);
     if(E(r)) { if(0x84 == s(r)) _k(r); } else _k(r);
   } else if(E(q) && 0x84 == s(q)) _k(q);

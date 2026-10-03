@@ -425,7 +425,6 @@ K valuecb(K x) {
     if(E(q)) r=q;
     else if(q) {
       r=pgreduce(q,0); prfree(q);
-      if(quiet) { _k(r); r=null; }
     }
     else r=KERR_PARSE;
     break;

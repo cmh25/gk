@@ -4,6 +4,7 @@
 #include "b.h"
 #include "fe.h"
 #include <stdio.h>
+extern int quiet;
 
 static char *P=":+-*%&|<>=~.!@?#_^,$'/\\";
 
@@ -640,6 +641,7 @@ K avdo(K f, K a, K x, char *av) {
     }
   }
   --d;
+  quiet=0;
   return knorm(r);
 }
 

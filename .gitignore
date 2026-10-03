@@ -12,3 +12,5 @@
 *.pdb
 .DS_Store
 gk.dSYM
+/x/
+/.claude

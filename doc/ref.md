@@ -80,6 +80,7 @@ New to gk? Try the [tutorial](tutorial.md) first. If you already know **k3**, se
   - [Index at Depth](#index-at-depth)
   - [Dictionary Indexing](#dictionary-indexing)
 - [Assignment](#assignment)
+  - [Quiet Values](#quiet-values)
   - [Global Assignment](#global-assignment)
 - [Dictionaries](#dictionaries)
   - [Creation](#creation)
@@ -1910,6 +1911,36 @@ expression or ends a function body.
 9 9
   a
 0 9 9 3 4
+```
+
+### Quiet Values
+
+The value of an assignment is *quiet*: the prompt does not echo it, but it is
+an ordinary value in every other way.  Quietness travels with the value through
+anything that passes it along unchanged -- a lambda's return (on every call
+spelling), the branch a `$[...]` selects, an eval, a parenthesised expression --
+so none of these echo either, while the value is there to be used.  Anything
+that computes a new value from it is loud and echoes as usual: a verb or an
+adverb applied to it, a list built from it, an amend.
+
+```
+  {a:1}`           / quiet: the body ends in an assignment
+  r:{a:2}`
+  r
+2
+  $[1;a:3;0]       / quiet: the selected branch is an assignment
+  ."a:4"           / quiet: the text ends in an assignment
+  r:."a:5"
+  r
+5
+  (a:6)            / quiet: parens pass the value along
+  1+(a:6)          / loud: a new value
+7
+  f:{a:x}
+  (f 1)+1
+2
+  f'1 2            / loud: an adverb builds a new list
+1 2
 ```
 
 ### Global Assignment

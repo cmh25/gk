@@ -71,6 +71,8 @@ typedef struct {
 } pgs;
 
 extern int quiet,RETURN;
+static inline K loud(K r) { quiet=0; return r; }
+static inline K kq(i32 i, K a, K x) { quiet=0; return k(i,a,x); }
 /* STOP is set asynchronously by the Ctrl-C handler (main.c), so it's the textbook
  * volatile sig_atomic_t -- the only correct type for a flag a signal handler writes. */
 extern volatile sig_atomic_t STOP;

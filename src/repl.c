@@ -265,7 +265,7 @@ K load(char *fn, int load) {
       i=0;
       fileline=newfileline;
     }
-    f=1; s=0;
+    f=1; s=(s==1||s==11); /* a string literal spans the newline */
     if(EXIT) { break; }
   }
   if(EXIT) { e=kerror("abort"); goto cleanup; }
@@ -360,7 +360,7 @@ static K repl_(void) {
     if(!pcount&&!scount&&!ccount&&!qcount) break;
     if(i==m) { m<<=1; b=xrealloc(b,m+2); }
     b[i++]='\n';
-    f=1; s=0;
+    f=1; s=(s==1||s==11); /* a string literal spans the newline */
   }
   if(i==m) { m<<=1; b=xrealloc(b,m+2); }
   b[i++]='\n'; b[i]=0;

@@ -442,6 +442,7 @@ static K rl(K x, K t) {
         pr[nx-i-1]=a;
       }
     }
+    quiet=0;
     _k(x);
     RETURN=0;
     return st(t,r);
@@ -487,7 +488,7 @@ static K assign(K d, K i, K y, int disc) {
     /* Indexed assignment returns the selected region after write-back.  This
        exposes scalar broadcast (d[]:5 -> one 5 per selected item) and the
        final value at repeated indices, matching the read side. */
-    t=k(deep?11:13,k_(r),deep?(b(48)&sel):sel);  /* deep path uses .; one-level selection uses @ */
+    t=kq(deep?11:13,k_(r),deep?(b(48)&sel):sel);  /* deep path uses .; one-level selection uses @ */
     if(E(t)||EXIT) {
       /* selection failure (an index the amend tolerated as a no-op, or the
          stack margin) must not discard the completed write -- in-place amends
@@ -676,8 +677,8 @@ static K r44(K x) {
         else r=fe(r,0,k_(x3),av);
       }
       else {
-        if(n(x1)==1) r=k(13,r,k_(px3[0]));
-        else r=k(11,r,b(48)&k_(x3)); /* f . x */
+        if(n(x1)==1) r=kq(13,r,k_(px3[0]));
+        else r=kq(11,r,b(48)&k_(x3)); /* f . x */
       }
       if(E(r)||EXIT) { _k(x1); _k(x2); _k(x); return r; }
     }
@@ -692,13 +693,13 @@ static K r44(K x) {
       /* null is exempt from the atom rank-out: nul is the identity VECTOR, so
          nul[1] indexes it and yields 1, exactly as nul 1 does.  Every other
          atom ranks under any index -- see the nul notes in doc/ref.md. */
-      if(4==T(f)&&!s(f)) r=k(11,f,b(48)&k_(x2)); /* `a . path */
+      if(4==T(f)&&!s(f)) r=kq(11,f,b(48)&k_(x2)); /* `a . path */
       else if(T(f)>0&&f!=null) { _k(f); r=KERR_RANK; }
-      else if(n(x1)==1) r=k(13,f,k_(px2[0])); /* f @ x */
-      else r=k(11,f,b(48)&k_(x2)); /* f . x */
+      else if(n(x1)==1) r=kq(13,f,k_(px2[0])); /* f @ x */
+      else r=kq(11,f,b(48)&k_(x2)); /* f . x */
     }
   }
-  else r=k(13,f,k_(x2)); /* f @ x */
+  else r=kq(13,f,k_(x2)); /* f @ x */
 
   _k(x1);
   _k(x2);
@@ -850,13 +851,13 @@ static K indexconvergeover(K a, K x) {
   K r=0,e,p=0,q=0;
   if(s(a)||ta>0) { _k(a); _k(x); return KERR_RANK; }
   q=k_(x);                    /* first */
-  p=k(13,k_(a),k_(x)); EC(p); /* previous */
+  p=kq(13,k_(a),k_(x)); EC(p); /* previous */
   if(kcmpr(p,q)) {
-    r=k(13,k_(a),k_(p)); EC(r);
+    r=kq(13,k_(a),k_(p)); EC(r);
     while(kcmpr(r,q)&&kcmpr(r,p)) {
       _k(p);
       p=r;
-      r=k(13,k_(a),k_(p)); EC(r);
+      r=kq(13,k_(a),k_(p)); EC(r);
       if(STOP) { STOP=0; _k(p); _k(r); e=kerror("stop"); goto cleanup; }
     }
     _k(r);
@@ -874,12 +875,12 @@ static K indexconvergescan(K a, K x) {
   i64 j=0,m=32;
 
   q=k_(x);                    /* first */
-  p=k(13,k_(a),k_(x)); EC(p); /* previous */
+  p=kq(13,k_(a),k_(x)); EC(p); /* previous */
   sr=tn(0,m); psr=px(sr);
   psr[j++]=k_(q);
   if(kcmpr(p,q)) {
     psr[j++]=k_(p);
-    r=k(13,k_(a),p); EC(r);
+    r=kq(13,k_(a),p); EC(r);
     while(kcmpr(r,q)&&kcmpr(r,p)) {
       if(j==m) {
         if(m>=VMAX/2) { e=KERR_WSFULL; goto cleanup; }
@@ -887,7 +888,7 @@ static K indexconvergescan(K a, K x) {
       }
       psr[j++]=k_(r);
       p=r;
-      r=k(13,k_(a),p); EC(r);
+      r=kq(13,k_(a),p); EC(r);
       if(STOP) { STOP=0; e=kerror("stop"); goto cleanup; }
     }
     _k(q);
@@ -1025,7 +1026,7 @@ static int all_assign_targets_(K *toks, K ntoks, K at, K *base, K *top) {
   return nasn >= (K)(top-base);
 }
 
-K pgreduce_(K x0, int *quiet) {
+K pgreduce_(K x0, int *qp) {
   char q,*mv,*s;
   u8 c;
   size_t ma=2;
@@ -1048,7 +1049,7 @@ K pgreduce_(K x0, int *quiet) {
     A=A2;
   }
   for(i=0;i<nx;i++) {
-    *quiet=0; c=0; q=0;
+    quiet=0; c=0; q=0;
     u64 si=s(px[i]);                 /* compute subtype once per token */
     if(0xc0==si) { v=px[i]; c=ck(px[i]); q=c>>5; }
     switch(q) {
@@ -1066,14 +1067,14 @@ K pgreduce_(K x0, int *quiet) {
         b=*--pA;
         if(0x44==s(b)&&i+1<nx&&64==ik(px[i+1])&&(pA==A||all_assign_targets_(px,nx,i+2,A,pA))) { /* f[i]:draw */
           ++i;
-          *pA++=assign44(b,k_(v),quiet);
+          *pA++=assign44(b,k_(v),&quiet);
           break;
         }
         if(0x40==s(b)&&i+1<nx&&64==ik(px[i+1])&&(pA==A||all_assign_targets_(px,nx,i+2,A,pA))) { /* f:draw */
           ++i;
           p=scope_set(cs,b,k_(v));  /* add ref since v is borrowed from parse tree */
           if(E(p)) { *pA++=p; }
-          else { *pA++=p; *quiet=1; }
+          else { *pA++=p; quiet=1; }
           break;
         }
         /* Issue #2 Pass 6: builtin with postfix adverb produces 0x45
@@ -1154,7 +1155,7 @@ K pgreduce_(K x0, int *quiet) {
             if(!VST(b)) { _k(v); _k(a); _k(b); *pA++=KERR_TYPE; break; }
             t=builtin(v,0,b);
             if(E(t)||EXIT) { _k(a); *pA++=t; }
-            else *pA++=assign44(a,t,quiet);
+            else *pA++=assign44(a,t,&quiet);
             break;
           }
           if(0x40==s(a)&&i+1<nx&&64==ik(px[i+1])&&(pA==A||all_assign_targets_(px,nx,i+2,A,pA))) { /* f:draw 3 */
@@ -1165,7 +1166,7 @@ K pgreduce_(K x0, int *quiet) {
             else {
               p=scope_set(cs,a,t);
               if(E(p)) { *pA++=p; }  /* t already freed by scope_set */
-              else { *pA++=p; *quiet=1; }
+              else { *pA++=p; quiet=1; }
             }
             break;
           }
@@ -1193,14 +1194,14 @@ K pgreduce_(K x0, int *quiet) {
         a=*--pA;
         if(0x44==s(a)&&i+1<nx&&64==ik(px[i+1])&&(pA==A||all_assign_targets_(px,nx,i+2,A,pA))) { /* f[i]:sin */
           ++i;
-          *pA++=assign44(a,k_(v),quiet);
+          *pA++=assign44(a,k_(v),&quiet);
           break;
         }
         if(0x40==s(a)&&i+1<nx&&64==ik(px[i+1])&&(pA==A||all_assign_targets_(px,nx,i+2,A,pA))) { /* f:+ */
           ++i;
           p=scope_set(cs,a,k_(v));  /* add ref since v is borrowed from parse tree */
           if(E(p)) { _k(a); *pA++=p; }
-          else { *pA++=p; *quiet=1; }
+          else { *pA++=p; quiet=1; }
           break;
         }
         /* Issue #2 Pass 6: monadic builtin with postfix adverb produces
@@ -1229,10 +1230,10 @@ K pgreduce_(K x0, int *quiet) {
             if(s(t0)) { t0=reduce(t0); if(E(t0)||EXIT) { _k(a); _k(av_v); *pA++=t0; break; } }
             if(!VST(t0)) { _k(a); _k(av_v); _k(t0); *pA++=KERR_TYPE; break; }
             K f=k_(v); /* bare sin (no av) for over/scan */
-            if(s(t0)==0 && (T(t0)==1||T(t0)==8) && !strcmp(aavp,"/")) { *pA++=overmonadnp(f,t0,av_v,""); *quiet=0; }
-            else if(ISF(t0) && ik(val(t0))==1 && !strcmp(aavp,"/")) { *pA++=overmonadbp(f,t0,av_v,""); *quiet=0; }
-            else if(s(t0)==0 && (T(t0)==1||T(t0)==8) && !strcmp(aavp,"\\")) { *pA++=scanmonadnp(f,t0,av_v,""); *quiet=0; }
-            else if(ISF(t0) && ik(val(t0))==1 && !strcmp(aavp,"\\")) { *pA++=scanmonadbp(f,t0,av_v,""); *quiet=0; }
+            if(s(t0)==0 && (T(t0)==1||T(t0)==8) && !strcmp(aavp,"/")) { *pA++=overmonadnp(f,t0,av_v,""); quiet=0; }
+            else if(ISF(t0) && ik(val(t0))==1 && !strcmp(aavp,"/")) { *pA++=overmonadbp(f,t0,av_v,""); quiet=0; }
+            else if(s(t0)==0 && (T(t0)==1||T(t0)==8) && !strcmp(aavp,"\\")) { *pA++=scanmonadnp(f,t0,av_v,""); quiet=0; }
+            else if(ISF(t0) && ik(val(t0))==1 && !strcmp(aavp,"\\")) { *pA++=scanmonadbp(f,t0,av_v,""); quiet=0; }
             else { _k(f); _k(t0); _k(av_v); *pA++=KERR_TYPE; }
             _k(a);
             break;
@@ -1279,17 +1280,17 @@ K pgreduce_(K x0, int *quiet) {
         a=*--pA;
         if(0x44==s(a)&&i+1<nx&&64==ik(px[i+1])&&(pA==A||all_assign_targets_(px,nx,i+2,A,pA))) { /* f[i]:0: */
           ++i;
-          *pA++=assign44(a,k_(v),quiet);
+          *pA++=assign44(a,k_(v),&quiet);
           break;
         }
         if(0x40==s(a)&&i+1<nx&&64==ik(px[i+1])&&(pA==A||all_assign_targets_(px,nx,i+2,A,pA))) { /* f:0: */
           ++i;
           p=scope_set(cs,a,k_(v));  /* add ref since v is borrowed from parse tree */
           if(E(p)) { _k(a); *pA++=p; }
-          else { *pA++=p; *quiet=1; }
+          else { *pA++=p; quiet=1; }
           break;
         }
-        if(0x45==s(a)) { *pA++=fileverb_mon(v,a); break; } /* de-glued postfix adverb */
+        if(0x45==s(a)) { *pA++=loud(fileverb_mon(v,a)); break; } /* de-glued postfix adverb */
         if(s(a)) { a=reduce(a); if(E(a)||EXIT) { *pA++=a; break; } }
         if(s(a)==0x41) {
           a=r41(a); if(E(a)||EXIT) { *pA++=a; break; }
@@ -1310,7 +1311,7 @@ K pgreduce_(K x0, int *quiet) {
         --pA;
         b=*--pA;
         a=*--pA;
-        if(0x45==s(b)) { *pA++=fileverb_dyad(v,a,b); break; } /* de-glued postfix adverb */
+        if(0x45==s(b)) { *pA++=loud(fileverb_dyad(v,a,b)); break; } /* de-glued postfix adverb */
         if(!a||!b) { _k(a); _k(b); *pA++=KERR_TYPE; break; }
         if(0x41==s(b)) { _k(a); _k(b); *pA++=KERR_TYPE; break; }
         if(s(b)) { b=reduce(b); if(E(b)||EXIT) { _k(a); *pA++=b; break; } }
@@ -1338,7 +1339,7 @@ K pgreduce_(K x0, int *quiet) {
           }
           p=scope_set(rs,a,b);
           if(E(p)) { _k(a); *pA++=p; }
-          else { *pA++=p; *quiet=1; }
+          else { *pA++=p; quiet=1; }
         }
         else if(0x44==s(a)) { /* d[`a]::1 */
           if(!VST(b)) { _k(a); _k(b); *pA++=KERR_PARSE; break; }
@@ -1376,7 +1377,7 @@ K pgreduce_(K x0, int *quiet) {
             else {
               /* :: changes the destination scope, not indexed assignment's
                  result: return the selected region after broadcast/write-back. */
-              t=k(11,k_(r),i_);
+              t=kq(11,k_(r),i_);
               /* selection failure must not discard the completed write:
                  fall back to the assigned value, the pre-5.2.2 contract */
               if(E(t)||EXIT) { if(t>=256) _k(t); t=k_(b); }
@@ -1384,7 +1385,7 @@ K pgreduce_(K x0, int *quiet) {
             p=scope_set(rs,target,r);
             _k(b);
             if(E(p)) { _k(t); *pA++=p; }
-            else { _k(p); *pA++=t; *quiet=1; }
+            else { _k(p); *pA++=t; quiet=1; }
           }
         }
         else { _k(a); _k(b); *pA++=KERR_VALUE; break; }
@@ -1397,11 +1398,11 @@ K pgreduce_(K x0, int *quiet) {
           K rs; if(KERR_VALUE==(a_=vlookuprs(a,&rs))) { a_=null; rs=scope_home(); }
           if(E(a_)) { *pA++=a_; break; }
           rs=asnrs(rs);
-          t=k(strchr(P,ik(v))-P,0,a_);
+          t=kq(strchr(P,ik(v))-P,0,a_);
           if(E(t)||EXIT) { *pA++=t; break; };
           p=scope_set(rs,a,t);
           if(E(p)) { *pA++=p; }  /* t already freed by scope_set */
-          else { *pA++=p; *quiet=1; }
+          else { *pA++=p; quiet=1; }
         }
         else if(0x44==s(a)) { /* a[0]-: - amend with the monad */
           pa=px(a);
@@ -1437,13 +1438,13 @@ K pgreduce_(K x0, int *quiet) {
             else {
               /* Compound assignment returns the selected values after the
                  complete amend (not the whole amended container). */
-              t=k(11,k_(r),i_);
+              t=kq(11,k_(r),i_);
               /* selection failure must not discard the completed write */
               if(E(t)||EXIT) { if(t>=256) _k(t); t=null; }
             }
             p=scope_set(rs,target,r);
             if(E(p)) { _k(t); *pA++=p; }  /* r already freed by scope_set */
-            else { _k(p); *pA++=t; *quiet=1; }
+            else { _k(p); *pA++=t; quiet=1; }
           }
         }
         else { _k(a); *pA++=KERR_VALUE; break; }
@@ -1468,11 +1469,11 @@ K pgreduce_(K x0, int *quiet) {
           K rs; if(KERR_VALUE==(a_=vlookuprs(a,&rs))) { a_=null; rs=scope_home(); }
           if(E(a_)) { _k(b); *pA++=a_; break; }
           rs=asnrs(rs);
-          t=k(strchr(P,ik(v))-P,a_,b);
+          t=kq(strchr(P,ik(v))-P,a_,b);
           if(E(t)||EXIT) { *pA++=t; break; };
           p=scope_set(rs,a,t);
           if(E(p)) { *pA++=p; }  /* t already freed by scope_set */
-          else { *pA++=p; *quiet=1; }
+          else { *pA++=p; quiet=1; }
         }
         else if(0x44==s(a)) {
           if(s(b)) { b=reduce(b); if(E(b)||EXIT) { _k(a); *pA++=b; break; } }
@@ -1520,13 +1521,13 @@ K pgreduce_(K x0, int *quiet) {
             else {
               /* Compound assignment returns the selected values after the
                  complete amend (not the whole amended container). */
-              t=k(11,k_(r),i_);
+              t=kq(11,k_(r),i_);
               /* selection failure must not discard the completed write */
               if(E(t)||EXIT) { if(t>=256) _k(t); t=null; }
             }
             p=scope_set(rs,target,r);
             if(E(p)) { _k(t); *pA++=p; }  /* r already freed by scope_set */
-            else { _k(p); *pA++=t; *quiet=1; }
+            else { _k(p); *pA++=t; quiet=1; }
           }
         }
         else { _k(a); _k(b); *pA++=KERR_TYPE; break; }
@@ -1568,7 +1569,7 @@ K pgreduce_(K x0, int *quiet) {
           if(0x44==s(b)&&i+1<nx&&64==ik(px[i+1])
              &&(pA<=A||all_assign_targets_(px,nx,i+2,A,pA))) { /* f[i]:+' */
             ++i;
-            *pA++=assign44(b,k_(v),quiet);
+            *pA++=assign44(b,k_(v),&quiet);
             break;
           }
           if(0x40==s(b)&&i+1<nx&&64==ik(px[i+1])) {
@@ -1576,7 +1577,7 @@ K pgreduce_(K x0, int *quiet) {
               ++i;
               p=scope_set(cs,b,k_(v));
               if(E(p)) *pA++=p;
-              else { *pA++=p; *quiet=1; }
+              else { *pA++=p; quiet=1; }
             }
             else {
               if(s(b)) { b=reduce(b); if(E(b)||EXIT) { *pA++=b; break; } }
@@ -1612,14 +1613,14 @@ K pgreduce_(K x0, int *quiet) {
           b=*--pA;
           if(0x44==s(b)&&i+1<nx&&64==ik(px[i+1])&&(pA==A||all_assign_targets_(px,nx,i+2,A,pA))) { /* f[i]:gtime */
             ++i;
-            *pA++=assign44(b,f,quiet);
+            *pA++=assign44(b,f,&quiet);
             break;
           }
           if(0x40==s(b)&&i+1<nx&&64==ik(px[i+1])&&(pA==A||all_assign_targets_(px,nx,i+2,A,pA))) { /* f:gtime */
             ++i;
             p=scope_set(cs,b,f);
             if(E(p)) { *pA++=p; }  /* f already freed by scope_set */
-            else { *pA++=p; *quiet=1; }
+            else { *pA++=p; quiet=1; }
             break;
           }
           /* Issue #2 Pass 6: predefined function with postfix adverb
@@ -1701,7 +1702,7 @@ K pgreduce_(K x0, int *quiet) {
                 t=fne(f,k_(xx),0);
                 _k(b); --paramsi;
                 if(E(t)||EXIT) { _k(a); *pA++=t; }
-                else *pA++=assign44(a,t,quiet);
+                else *pA++=assign44(a,t,&quiet);
                 break;
               }
               if(0x40==s(a)&&i+1<nx&&64==ik(px[i+1])&&(pA==A||all_assign_targets_(px,nx,i+2,A,pA))) { /* f:lin 1 2 3 */
@@ -1714,7 +1715,7 @@ K pgreduce_(K x0, int *quiet) {
                 else {
                   p=scope_set(cs,a,t);
                   if(E(p)) { *pA++=p; }  /* t already freed by scope_set */
-                  else { *pA++=p; *quiet=1; }
+                  else { *pA++=p; quiet=1; }
                 }
                 break;
               }
@@ -1926,13 +1927,13 @@ apply_n_fallback: {
       }
       if(0x44==s(a)&&i+1<nx&&64==ik(px[i+1])&&(pA==A||all_assign_targets_(px,nx,i+2,A,pA))) { /* f[i]:+ */
         ++i;
-        *pA++=assign44(a,k_(v),quiet);
+        *pA++=assign44(a,k_(v),&quiet);
       }
       else if(0x40==s(a)&&i+1<nx&&64==ik(px[i+1])&&(pA==A||all_assign_targets_(px,nx,i+2,A,pA))) { /* f:+ */
         ++i;
         p=scope_set(cs,a,k_(v));  /* add ref since v is borrowed from parse tree */
         if(E(p)) { _k(a); *pA++=p; }
-        else { *pA++=p; *quiet=1; }
+        else { *pA++=p; quiet=1; }
       }
       else {
         if(s(a)) {
@@ -1955,12 +1956,12 @@ apply_n_fallback: {
         else if(0x41==s(a)||0x81==s(a)) {
           if(0x41==s(a)) { a=rl(a,0x81); if(E(a)||EXIT) { *pA++=a; break; } }
           pa=px(a);
-          if(na==1) *pA++=k(c%32,0,k_(pa[0]));
-          else if(na==2) *pA++=k(c%32,k_(pa[0]),k_(pa[1]));
-          else if(na==3&&c%32==13) *pA++=kamendi3(k_(pa[0]),k_(pa[1]),k_(pa[2]));
-          else if(na==4&&c%32==13) *pA++=kamendi4(k_(pa[0]),k_(pa[1]),k_(pa[2]),k_(pa[3]));
-          else if(na==3&&c%32==11) *pA++=kamend3(k_(pa[0]),k_(pa[1]),k_(pa[2]));
-          else if(na==4&&c%32==11) *pA++=kamend4(k_(pa[0]),k_(pa[1]),k_(pa[2]),k_(pa[3]));
+          if(na==1) *pA++=kq(c%32,0,k_(pa[0]));
+          else if(na==2) *pA++=kq(c%32,k_(pa[0]),k_(pa[1]));
+          else if(na==3&&c%32==13) *pA++=loud(kamendi3(k_(pa[0]),k_(pa[1]),k_(pa[2])));
+          else if(na==4&&c%32==13) *pA++=loud(kamendi4(k_(pa[0]),k_(pa[1]),k_(pa[2]),k_(pa[3])));
+          else if(na==3&&c%32==11) *pA++=loud(kamend3(k_(pa[0]),k_(pa[1]),k_(pa[2])));
+          else if(na==4&&c%32==11) *pA++=loud(kamend4(k_(pa[0]),k_(pa[1]),k_(pa[2]),k_(pa[3])));
           else *pA++=KERR_VALENCE; /* valence */
           _k(a);
         }
@@ -1982,7 +1983,7 @@ apply_n_fallback: {
         else if(c%32==6 && i+1<nx
                 && fusion_prim_token_(px[i+1],3)) {
           /* *|a: return a's final item without allocating/reversing a. */
-          *pA++=last_(a); _k(a); ++i;
+          *pA++=loud(last_(a)); _k(a); ++i;
         }
         else if((c%32==7||c%32==8) && i+1<nx) {
           int down=c%32==8;
@@ -2021,7 +2022,7 @@ apply_n_fallback: {
               _k(take);
             }
           }
-          *pA++=k(c%32,0,a);
+          *pA++=kq(c%32,0,a);
         }
         else if(c%32==9 && i+1<nx
                 && fusion_modified_prim_(px[i+1],15,'\'')) {
@@ -2029,9 +2030,9 @@ apply_n_fallback: {
           if(groupcounts(a,&fr)) {
             _k(a); *pA++=fr; ++i; break;
           }
-          *pA++=k(c%32,0,a);
+          *pA++=kq(c%32,0,a);
         }
-        else *pA++=k(c%32,0,a);
+        else *pA++=kq(c%32,0,a);
       }
       break;
     case 2: /* 64 64 66 ... */
@@ -2050,7 +2051,7 @@ apply_n_fallback: {
           if(!VST(b)) { _k(b); *pA++=KERR_PARSE; break; }
           p=scope_set(cs,a,b);
           if(E(p)) { _k(a); *pA++=p; }  /* b already freed by scope_set */
-          else { *pA++=p; *quiet=1; }
+          else { *pA++=p; quiet=1; }
         }
         else if(0x44==s(a)) {
           /* reduce any subtyped RHS, as the 0x40-target branch above does:
@@ -2068,7 +2069,7 @@ apply_n_fallback: {
           if(n(p)==1) *pA++=assign(k_(pa[0]),k_(pp[0]),b,dsc);
           else if(n(p)) *pA++=assign(k_(pa[0]),k_(p),b,dsc);
           else *pA++=assign(k_(pa[0]),null,b,dsc);
-          if(!E(pA[-1])) *quiet=1;
+          if(!E(pA[-1])) quiet=1;
           _k(a); _k(p);
         }
         else if(0x40!=s(a)) { _k(a); _k(b); *pA++=KERR_TYPE; } /* 1:1 (type) */
@@ -2176,7 +2177,7 @@ apply_n_fallback: {
               }
             }
           }
-          *pA++=k(w,a,b);
+          *pA++=kq(w,a,b);
         }
       }
       break;
@@ -2307,10 +2308,10 @@ apply_n_fallback: {
           ++i;
           K d0=tn(0,2); K *pd0=px(d0);
           pd0[0]=a; pd0[1]=b;  /* b is the 0xda(sin,av) wrapper; transfer ownership */
-          if(0x44==s(target)) { *pA++=assign44(target,st(0xd0,d0),quiet); break; } /* f[i]:5 sin/ */
+          if(0x44==s(target)) { *pA++=assign44(target,st(0xd0,d0),&quiet); break; } /* f[i]:5 sin/ */
           p=scope_set(cs,target,st(0xd0,d0));
           if(E(p)) { *pA++=p; }
-          else { *pA++=p; *quiet=1; }
+          else { *pA++=p; quiet=1; }
           break;
         }
       }
@@ -2385,10 +2386,10 @@ c3_apply:
                  && (!strcmp(cav,"/")||!strcmp(cav,"\\"))) {
                 K f=kcp(a);
                 if(E(f)) { _k(a); _k(b); _k(b1); _k(b2); _k(t); *pA++=f; break; }
-                if(s(t)==0 && (T(t)==1||T(t)==8) && !strcmp(cav,"/")) { *pA++=overmonadnp(f,t,b2,""); *quiet=0; }
-                else if(ISF(t) && ik(val(t))==1 && !strcmp(cav,"/")) { *pA++=overmonadbp(f,t,b2,""); *quiet=0; }
-                else if(s(t)==0 && (T(t)==1||T(t)==8) && !strcmp(cav,"\\")) { *pA++=scanmonadnp(f,t,b2,""); *quiet=0; }
-                else if(ISF(t) && ik(val(t))==1 && !strcmp(cav,"\\")) { *pA++=scanmonadbp(f,t,b2,""); *quiet=0; }
+                if(s(t)==0 && (T(t)==1||T(t)==8) && !strcmp(cav,"/")) { *pA++=overmonadnp(f,t,b2,""); quiet=0; }
+                else if(ISF(t) && ik(val(t))==1 && !strcmp(cav,"/")) { *pA++=overmonadbp(f,t,b2,""); quiet=0; }
+                else if(s(t)==0 && (T(t)==1||T(t)==8) && !strcmp(cav,"\\")) { *pA++=scanmonadnp(f,t,b2,""); quiet=0; }
+                else if(ISF(t) && ik(val(t))==1 && !strcmp(cav,"\\")) { *pA++=scanmonadbp(f,t,b2,""); quiet=0; }
                 else { _k(f); _k(t); _k(b2); *pA++=KERR_TYPE; }
                 _k(a); _k(b); _k(b1);
                 break;
@@ -2486,10 +2487,10 @@ c3_apply:
               if(!VST(t)) { _k(a); _k(b); _k(t); *pA++=KERR_TYPE; break; }
               K f=kcp(a); _k(a);
               if(E(f)) { _k(b); _k(t); *pA++=f; break; }
-              if(s(t)==0 && (T(t)==1||T(t)==8) && !strcmp(favp,"/")) { *pA++=overmonadnp(f,t,b,""); *quiet=0; }
-              else if(ISF(t) && ik(val(t))==1 && !strcmp(favp,"/")) { *pA++=overmonadbp(f,t,b,""); *quiet=0; }
-              else if(s(t)==0 && (T(t)==1||T(t)==8) && !strcmp(favp,"\\")) { *pA++=scanmonadnp(f,t,b,""); *quiet=0; }
-              else if(ISF(t) && ik(val(t))==1 && !strcmp(favp,"\\")) { *pA++=scanmonadbp(f,t,b,""); *quiet=0; }
+              if(s(t)==0 && (T(t)==1||T(t)==8) && !strcmp(favp,"/")) { *pA++=overmonadnp(f,t,b,""); quiet=0; }
+              else if(ISF(t) && ik(val(t))==1 && !strcmp(favp,"/")) { *pA++=overmonadbp(f,t,b,""); quiet=0; }
+              else if(s(t)==0 && (T(t)==1||T(t)==8) && !strcmp(favp,"\\")) { *pA++=scanmonadnp(f,t,b,""); quiet=0; }
+              else if(ISF(t) && ik(val(t))==1 && !strcmp(favp,"\\")) { *pA++=scanmonadbp(f,t,b,""); quiet=0; }
               else { _k(f); _k(b); _k(t); *pA++=KERR_TYPE; break; }
             }
             else if(!strcmp(favp,"'")&&0==ik(val(a))) {
@@ -2579,7 +2580,7 @@ c3_apply:
       case 0xc0:
         w=ck(a)%32;
         if(0x81==s(b)) { /* f[1;2] */
-          if(n(b)==2) { pb=px(b); *pA++=k(w,k_(pb[0]),k_(pb[1])); }
+          if(n(b)==2) { pb=px(b); *pA++=kq(w,k_(pb[0]),k_(pb[1])); }
           else *pA++=KERR_VALENCE;
           _k(b);
         }
@@ -2606,14 +2607,14 @@ c3_apply:
           K cq=tn(0,2); K *pcq=px(cq); pcq[0]=cvl; pcq[1]=tn(3,0);
           *pA++=st(0xc5,cq);
         }
-        else *pA++=k(w,0,b);
+        else *pA++=kq(w,0,b);
         break;
       case 0: case 0x80:
         if(0x81==s(b)) {
           if(aa) { _k(a); _k(b); *pA++=KERR_RANK; break; } /* 0[] */
-          if(n(b)==1) { pb=px(b); *pA++=k(13,a,k_(pb[0])); /* a[b] */ }
-          else if(n(b)==0) *pA++=k(13,a,null); /* a[] */
-          else *pA++=k(11,a,k_(b(48)&b)); /* a[;1] */
+          if(n(b)==1) { pb=px(b); *pA++=kq(13,a,k_(pb[0])); /* a[b] */ }
+          else if(n(b)==0) *pA++=kq(13,a,null); /* a[] */
+          else *pA++=kq(11,a,k_(b(48)&b)); /* a[;1] */
           _k(b);
         }
         else if(0x43==s(b)) { /* a[]'x */
@@ -2623,9 +2624,9 @@ c3_apply:
           else b0=k_(b0);
           K *pb0=px(b0);
 
-          if(n(b0)==1) { t=k(13,a,k_(pb0[0])); /* a[b] */ }
-          else if(n(b0)==0) t=k(13,a,null); /* a[] */
-          else t=k(11,a,k_(b(48)&b0)); /* a[;1] */
+          if(n(b0)==1) { t=kq(13,a,k_(pb0[0])); /* a[b] */ }
+          else if(n(b0)==0) t=kq(13,a,null); /* a[] */
+          else t=kq(11,a,k_(b(48)&b0)); /* a[;1] */
 
           if(E(t)||EXIT) *pA++=t;
           else if(0xc3==s(t) || 0xd9==s(t)) { /* 0xc4 retired */
@@ -2659,8 +2660,8 @@ c3_apply:
           K av1=pb[1]; char *pav1=av1?px(av1):"";
           if(s(pb[2])) { t=reduce(k_(pb[2])); if(E(t)) { _k(a); _k(b); *pA++=t; break; } _k(pb[2]); pb[2]=t; }
           if(pav1&&*pav1)  {
-            if(!strcmp(pav1,"/")) *pA++=vnul(indexconvergeover(a,k_(pb[2])));
-            else if(!strcmp(pav1,"\\")) *pA++=vnul(indexconvergescan(a,k_(pb[2])));
+            if(!strcmp(pav1,"/")) *pA++=loud(vnul(indexconvergeover(a,k_(pb[2]))));
+            else if(!strcmp(pav1,"\\")) *pA++=loud(vnul(indexconvergescan(a,k_(pb[2]))));
             else { _k(a); _k(b); *pA++=KERR_RANK; break; }
           }
           _k(b);
@@ -2700,11 +2701,11 @@ c3_apply:
             else if(E(a)||EXIT) { _k(b); *pA++=a; break; }
           }
           if(av&&*av)  {
-            if(!strcmp(av,"/")) *pA++=vnul(indexconvergeover(a,b));
-            else if(!strcmp(av,"\\")) *pA++=vnul(indexconvergescan(a,b));
+            if(!strcmp(av,"/")) *pA++=loud(vnul(indexconvergeover(a,b)));
+            else if(!strcmp(av,"\\")) *pA++=loud(vnul(indexconvergescan(a,b)));
             else { _k(a); _k(b); *pA++=KERR_RANK; break; }
           }
-          else *pA++=k(13,a,b); /* a b */
+          else *pA++=kq(13,a,b); /* a b */
         }
         break;
       case 0xda: { /* (f;av) modified-verb wrapper, juxtaposition path */
@@ -2851,7 +2852,7 @@ c3_apply:
           pb[0]=a;
           *pA++=st(0x43,b);
         }
-        else *pA++=k(13,a,b); /* a b */
+        else *pA++=kq(13,a,b); /* a b */
         break;
       case 0xc6:
       case 0xc7:
@@ -2923,8 +2924,8 @@ c3_apply:
              the same rule as every other monadic callable (mirror the 0xd9
              branch below). */
           if(t && ik(val(a))==1 && (!strcmp(pav1,"/")||!strcmp(pav1,"\\"))) {
-            if(s(t)==0 && (T(t)==1||T(t)==8)) { *pA++ = *pav1=='/' ? overmonadn(a,t,p,"") : scanmonadn(a,t,p,""); *quiet=0; }
-            else if(ISF(t) && ik(val(t))==1) { *pA++ = *pav1=='/' ? overmonadb(a,t,p,"") : scanmonadb(a,t,p,""); *quiet=0; }
+            if(s(t)==0 && (T(t)==1||T(t)==8)) { *pA++ = *pav1=='/' ? overmonadn(a,t,p,"") : scanmonadn(a,t,p,""); quiet=0; }
+            else if(ISF(t) && ik(val(t))==1) { *pA++ = *pav1=='/' ? overmonadb(a,t,p,"") : scanmonadb(a,t,p,""); quiet=0; }
             else { _k(a); _k(t); _k(p); *pA++=KERR_TYPE; }
             _k(b);
             break;
@@ -2998,11 +2999,11 @@ c3_apply:
             t=*--pA;
             if(s(t)) { t=reduce(t); if(E(t)||EXIT) { _k(a); _k(b); *pA++=t; break; } }
             if(!VST(t)) { _k(a); _k(b); _k(t); *pA++=KERR_TYPE; break; }
-            if(s(t)==0 && (T(t)==1||T(t)==8) && !strcmp(mv,"/")) { *pA++=overmonadnp(a,t,k_(pb[2]),""); *quiet=0; }
-            else if(ISF(t) && ik(val(t))==1 && !strcmp(mv,"/")) { *pA++=overmonadbp(a,t,k_(pb[2]),""); *quiet=0; }
-            else if(s(t)==0 && (T(t)==1||T(t)==8) && !strcmp(mv,"\\")) { *pA++=scanmonadnp(a,t,k_(pb[2]),""); *quiet=0; }
-            else if(ISF(t) && ik(val(t))==1 && !strcmp(mv,"\\")) { *pA++=scanmonadbp(a,t,k_(pb[2]),""); *quiet=0; }
-            else if(mv[1]) { *pA++=avdop(a,t,k_(pb[2]),mv); *quiet=0; } /* `3 +[1;]'/0`, `3 (1+)'/0`: a chain -- avdo peels the last adverb and runs do-n/while on the rest */
+            if(s(t)==0 && (T(t)==1||T(t)==8) && !strcmp(mv,"/")) { *pA++=overmonadnp(a,t,k_(pb[2]),""); quiet=0; }
+            else if(ISF(t) && ik(val(t))==1 && !strcmp(mv,"/")) { *pA++=overmonadbp(a,t,k_(pb[2]),""); quiet=0; }
+            else if(s(t)==0 && (T(t)==1||T(t)==8) && !strcmp(mv,"\\")) { *pA++=scanmonadnp(a,t,k_(pb[2]),""); quiet=0; }
+            else if(ISF(t) && ik(val(t))==1 && !strcmp(mv,"\\")) { *pA++=scanmonadbp(a,t,k_(pb[2]),""); quiet=0; }
+            else if(mv[1]) { *pA++=avdop(a,t,k_(pb[2]),mv); quiet=0; }
             else { _k(a); _k(t); *pA++=KERR_TYPE; }
             _k(b);
             break;
@@ -3044,10 +3045,10 @@ c3_apply:
             if(!VST(t)) { _k(a); _k(b); _k(t); *pA++=KERR_TYPE; break; }
           }
           if(t) *pA++=fep(a,t,b,"");
-          else *pA++=k(13,a,b); /* plain juxtaposition -> apply */
+          else *pA++=kq(13,a,b); /* plain juxtaposition -> apply */
         }
         break;
-      default: *pA++=k(13,a,b); /* a b */
+      default: *pA++=kq(13,a,b); /* a b */
       } break;
     }
     /* suspend console, invoke repl */
@@ -3102,7 +3103,7 @@ c3_apply:
       }
     }
     if(RETURN) break;
-    if(EXIT) { *quiet=1; break; }
+    if(EXIT) { quiet=1; break; }
   }
   v=pA>A?*--pA:0;
   if(s(v)) {
@@ -3167,6 +3168,7 @@ c3_apply:
     }
     else if(!VST(v)||0x81==s(v)) { _k(v); v=kerror("parse"); }
   }
+  *qp=quiet;
   --d;
   if(A2) xfree(A2);
   return v;

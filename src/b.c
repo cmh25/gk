@@ -157,6 +157,7 @@ K builtin(K f, K a, K x) {
     else r=KERR_VALUE;
   }
   --d;
+  quiet=0;
   _k(a); _k(x);
   return r;
 }

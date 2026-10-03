@@ -292,12 +292,12 @@ K fe(K f, K a, K x, char *av) {
       else if(ff>0&&ff<32) {
         if(0x81==s(x)) {
           K *px=px(x);
-          if(nx==1) r=k(ff,0,k_(px[0]));
-          else if(nx==2) r=k(ff,k_(px[0]),k_(px[1]));
-          else if(nx==3&&ff==13) r=kamendi3(k_(px[0]),k_(px[1]),k_(px[2]));
-          else if(nx==4&&ff==13) r=kamendi4(k_(px[0]),k_(px[1]),k_(px[2]),k_(px[3]));
-          else if(nx==3&&ff==11) r=kamend3(k_(px[0]),k_(px[1]),k_(px[2]));
-          else if(nx==4&&ff==11) r=kamend4(k_(px[0]),k_(px[1]),k_(px[2]),k_(px[3]));
+          if(nx==1) r=kq(ff,0,k_(px[0]));
+          else if(nx==2) r=kq(ff,k_(px[0]),k_(px[1]));
+          else if(nx==3&&ff==13) r=loud(kamendi3(k_(px[0]),k_(px[1]),k_(px[2])));
+          else if(nx==4&&ff==13) r=loud(kamendi4(k_(px[0]),k_(px[1]),k_(px[2]),k_(px[3])));
+          else if(nx==3&&ff==11) r=loud(kamend3(k_(px[0]),k_(px[1]),k_(px[2])));
+          else if(nx==4&&ff==11) r=loud(kamend4(k_(px[0]),k_(px[1]),k_(px[2]),k_(px[3])));
           else if(nx==3&&ff==16) r=kslide(k_(px[1]),k_(px[0]),k_(px[2]),"");
           else r=KERR_VALENCE;
           _k(x);
@@ -308,7 +308,7 @@ K fe(K f, K a, K x, char *av) {
           if(n==1) {
             char *p=strchr(P,*av);
             if(!p) { _k(x); r=KERR_TYPE; }
-            else r=k((int)(p-P),ff,x);
+            else r=kq((int)(p-P),ff,x);
           }
           else {
             char av2[256];
@@ -317,7 +317,7 @@ K fe(K f, K a, K x, char *av) {
             r=avdo(ff,0,x,av2);
           }
         }
-        else r=k(ff,0,x);
+        else r=kq(ff,0,x);
       }
       else _k(x);
     }
@@ -472,7 +472,7 @@ K fe(K f, K a, K x, char *av) {
           pr[1]=st(0x81,t);
           r=st(0xd9,r);
         }
-        else r=k(ff,a,x);
+        else r=kq(ff,a,x);
       }
       else { _k(a); _k(x); }
     }
