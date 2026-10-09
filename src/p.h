@@ -89,7 +89,7 @@ extern char *pfile;
  * turns language-legal non-termination into a fast clean error instead of an
  * AFL hang, and never touches the shipping binary (no FUZZING -> no counter). */
 extern long gk_budget;
-#define GK_BUDGET 1000000L
+#define GK_BUDGET 200000L
 /* Companion allocation budget: the iteration cap above only counts loop turns,
  * so it can't catch a SINGLE primitive that allocates/copies a huge structure
  * (e.g. 88888888#x, big take/drop/arith) -- those march toward the OS memory

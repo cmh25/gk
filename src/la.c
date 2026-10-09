@@ -210,6 +210,7 @@ static int la_tflags_(K x);
 static int la_tflags(K x) {
   static i32 d=0;
   if(++d>maxr || (!(d&7)&&stack_low())) { --d; return 8; }
+  GK_WORK(1);
   int f=la_tflags_(x);
   --d;
   return f;
@@ -1347,6 +1348,7 @@ K det_(K x) {
 K mag_(K x) {
   if(!x||s(x)) return kerror("type");
   LA_COERCE1(mag_,x);
+  GK_WORK(tx<0?nx:1);
 
   switch(tx) {
   case 1: {

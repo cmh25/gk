@@ -104,15 +104,17 @@ int cmpterminal(K a, K x, i8 op, i8 invert, i8 mode, K *out) {
     }                                                                     \
   } while(0)
 
-#define FILTER_COPY_4(P0)                                                 \
+#define FILTER_COPY_T(P0,TY)                                              \
   do {                                                                    \
     u64 m=0,j=0;                                                          \
     for(u64 i=0;i<N;++i) m+=(u64)(invert^!!(P0));                         \
     r=tn(-ty,m);                                                          \
-    { u32 *py=px(y),*pr=px(r);                                           \
+    { TY *py=px(y),*pr=px(r);                                             \
       for(u64 i=0;i<N;++i) if(invert^!!(P0)) pr[j++]=py[i];               \
     }                                                                     \
   } while(0)
+#define FILTER_COPY_4(P0) FILTER_COPY_T(P0,u32)
+#define FILTER_COPY_8(P0) FILTER_COPY_T(P0,u64)
 
 int filtercmp(K y, K a, K x, i8 op, i8 invert, K *out) {
   K r=0; u64 N,ny,width; i8 ty=T(y);
@@ -124,11 +126,8 @@ int filtercmp(K y, K a, K x, i8 op, i8 invert, K *out) {
   else if(ty==-4) width=sizeof(char*);
   else return 0;
   if(N>VMAX||ny!=N) return 0;
-  if(ty==-1||ty==-9) {
-    CMP_DISPATCH(FILTER_COPY_4);
-    *out=r;
-    return 1;
-  }
+  if(width==4) { CMP_DISPATCH(FILTER_COPY_4); *out=r; return 1; }
+  if(width==8) { CMP_DISPATCH(FILTER_COPY_8); *out=r; return 1; }
   CMP_DISPATCH(FILTER_COPY);
   *out=r;
   return 1;
@@ -202,7 +201,9 @@ int filterredcmp(K y, K a, K x, i8 op, i8 invert, i32 reducer, K *out) {
 #undef FILTER_REDUCE
 #undef FILTER_REDUCE_I32
 #undef FILTER_COPY
+#undef FILTER_COPY_T
 #undef FILTER_COPY_4
+#undef FILTER_COPY_8
 #undef CMP_DISPATCH
 #undef CT_FIRST
 #undef CT_RUN
@@ -246,25 +247,27 @@ static inline u64 fuse_hash_f32_(float v) {
     }                                                                     \
   } while(0)
 
+#define GC_DENSE(TY)                                                      \
+  do { TY *p=px(x),min=p[0],max=p[0];                                     \
+    for(u64 i=1;i<N;++i) { if(p[i]<min)min=p[i]; if(p[i]>max)max=p[i]; }  \
+    if(min>=0 && (u64)max<N*8) { u64 span=(u64)max+1;                     \
+      u32 *dc=xcalloc(span,sizeof(u32));                                  \
+      TY *ord=xmalloc((span<N?span:N)*sizeof(TY));                        \
+      for(u64 i=0;i<N;++i) { u64 v=(u64)p[i]; if(!dc[v])ord[ng++]=p[i]; ++dc[v]; } \
+      r=tn(1,ng);                                                         \
+      { i32 *z=px(r); for(u64 i=0;i<ng;++i)z[i]=(i32)dc[(u64)ord[i]]; }  \
+      xfree(dc);xfree(ord);*out=r;return 1;                               \
+    }                                                                     \
+  } while(0)
+
 int groupcounts(K x, K *out) {
   K r; u64 N,w=1,q,ng=0,*cnt,*first,*order;
   if(E(x)||s(x)||T(x)>0) return 0;
   N=n(x);
   if(!N) { *out=tn(0,0); return 1; }
   if(N>BIGV) return 0;                 /* groupj can produce long counts */
-  if(T(x)==-1) {
-    i32 *p=px(x),min=INT32_MAX,max=INT32_MIN;
-    for(u64 i=0;i<N;++i) { if(p[i]<min)min=p[i]; if(p[i]>max)max=p[i]; }
-    u64 span=(u64)(u32)max+1;
-    if(min>=0 && span<=N*8) {
-      u32 *dc=xcalloc(span,sizeof(u32));
-      u32 *ord=xmalloc((span<N?span:N)*sizeof(u32));
-      for(u64 i=0;i<N;++i) { u32 v=(u32)p[i]; if(!dc[v])ord[ng++]=v; ++dc[v]; }
-      r=tn(1,ng);
-      { i32 *z=px(r); for(u64 i=0;i<ng;++i)z[i]=(i32)dc[ord[i]]; }
-      xfree(dc);xfree(ord);*out=r;return 1;
-    }
-  }
+  if(T(x)==-1) GC_DENSE(i32);
+  if(T(x)==-8) GC_DENSE(i64);
   while(w<=N) w<<=1;
   q=w-1;
   cnt=xcalloc(w,sizeof(u64));
@@ -288,6 +291,7 @@ int groupcounts(K x, K *out) {
 }
 
 #undef GC_RUN
+#undef GC_DENSE
 
 /* Stable direct value sort.  Flat numeric/char vectors use an LSD radix on
    values themselves (no grade vector and no gather); symbols/general lists
@@ -467,45 +471,72 @@ static int top_count_i32_(i32 *p,u32 N,u32 k,i8 down,K *out) {
 /* Order-independent fallback for descending sparse/wide int data.  A
    three-way quickselect finds the cutoff value; a stable source scan retains
    the earliest cutoff ties, then heap-sorts only the k chosen indices. */
-static int top_select_i32_(i32 *p,u32 N,u32 k,i8 down,K *out) {
+#define TOP_SELECT_DEFINE(NAME,TY)                                        \
+static int top_select_##NAME##_(TY *p,u32 N,u32 k,i8 down,K *out) {        \
+  if(!down||!k) return 0;                                                 \
+  TY *v=xmalloc((u64)N*sizeof(TY)); memcpy(v,p,(u64)N*sizeof(TY));        \
+  u32 lo=0,hi=N,target=N-k;                                               \
+  TY pivot=0; u32 depth=0,q=N,seed=N^(k*0x9e3779b9u);                     \
+  while(q) { depth+=3; q>>=1; }                                           \
+  while(hi-lo>1) {                                                        \
+    if(!depth--) { xfree(v);*out=top_##NAME(p,N,k,down);return 1; }       \
+    u32 span=hi-lo;                                                       \
+    seed^=seed<<13;seed^=seed>>17;seed^=seed<<5;                          \
+    TY a=v[lo+seed%span];                                                 \
+    seed^=seed<<13;seed^=seed>>17;seed^=seed<<5;                          \
+    TY b=v[lo+seed%span];                                                 \
+    seed^=seed<<13;seed^=seed>>17;seed^=seed<<5;                          \
+    TY c=v[lo+seed%span];                                                 \
+    pivot=a<b?(b<c?b:(a<c?c:a)):(a<c?a:(b<c?c:b));                        \
+    u32 lt=lo,i=lo,gt=hi;                                                 \
+    while(i<gt) {                                                         \
+      if(v[i]<pivot) { TY z=v[lt];v[lt++]=v[i];v[i++]=z; }                \
+      else if(v[i]>pivot) { TY z=v[--gt];v[gt]=v[i];v[i]=z; }             \
+      else ++i;                                                           \
+    }                                                                     \
+    if(target<lt) hi=lt;                                                  \
+    else if(target>=gt) lo=gt;                                            \
+    else break;                                                           \
+  }                                                                       \
+  if(hi-lo==1) pivot=v[lo];                                               \
+  xfree(v);                                                               \
+  u32 strict=0; for(u32 i=0;i<N;++i) strict+=(u32)(p[i]>pivot);           \
+  u32 ties=k-strict,j=0;                                                  \
+  K r=tn(1,k); i32 *h=px(r);                                              \
+  for(u32 i=0;i<N;++i) {                                                  \
+    if(p[i]>pivot) h[j++]=(i32)i;                                         \
+    else if(p[i]==pivot&&ties) { h[j++]=(i32)i;--ties; }                  \
+  }                                                                       \
+  for(u32 root=k/2;root--;) topsift_##NAME(h,k,root,p,down);              \
+  for(u32 end=k;end>1;) { i32 z=h[0];h[0]=h[--end];h[end]=z;              \
+                          topsift_##NAME(h,end,0,p,down); }               \
+  *out=r;return 1;                                                        \
+}
+
+TOP_SELECT_DEFINE(i32,i32)
+TOP_SELECT_DEFINE(i64,i64)
+
+#undef TOP_SELECT_DEFINE
+
+/* Longs whose spread fits i32: shift to i32 and reuse the paths above. */
+static int top_shift_i64_(i64 *p,u32 N,u32 k,i8 down,K *out) {
+  if(!N) return 0;
+  i64 min=p[0],max=p[0];
+  for(u32 i=1;i<N;++i) { if(p[i]<min)min=p[i];if(p[i]>max)max=p[i]; }
+  if((u64)max-(u64)min>=0x7fffffffu) return 0;
+  i32 *q=xmalloc((u64)N*sizeof(i32));
+  for(u32 i=0;i<N;++i) q[i]=(i32)(p[i]-min);
+  int r=top_count_i32_(q,N,k,down,out)||top_select_i32_(q,N,k,down,out);
+  xfree(q);return r;
+}
+
+/* Floats: select on the order-preserving radix key (NaN lowest, -0 = +0). */
+static int top_key_f64_(double *p,u32 N,u32 k,i8 down,K *out) {
   if(!down||!k) return 0;
-  i32 *v=xmalloc((u64)N*sizeof(i32)); memcpy(v,p,(u64)N*sizeof(i32));
-  u32 lo=0,hi=N,target=N-k;
-  i32 pivot=0; u32 depth=0,q=N,seed=N^(k*0x9e3779b9u);
-  while(q) { depth+=3; q>>=1; }
-  while(hi-lo>1) {
-    if(!depth--) { xfree(v);*out=top_i32(p,N,k,down);return 1; }
-    u32 span=hi-lo;
-    seed^=seed<<13;seed^=seed>>17;seed^=seed<<5;
-    i32 a=v[lo+seed%span];
-    seed^=seed<<13;seed^=seed>>17;seed^=seed<<5;
-    i32 b=v[lo+seed%span];
-    seed^=seed<<13;seed^=seed>>17;seed^=seed<<5;
-    i32 c=v[lo+seed%span];
-    pivot=a<b?(b<c?b:(a<c?c:a)):(a<c?a:(b<c?c:b));
-    u32 lt=lo,i=lo,gt=hi;
-    while(i<gt) {
-      if(v[i]<pivot) { i32 z=v[lt];v[lt++]=v[i];v[i++]=z; }
-      else if(v[i]>pivot) { i32 z=v[--gt];v[gt]=v[i];v[i]=z; }
-      else ++i;
-    }
-    if(target<lt) hi=lt;
-    else if(target>=gt) lo=gt;
-    else break;
-  }
-  if(hi-lo==1) pivot=v[lo];
-  xfree(v);
-  u32 strict=0; for(u32 i=0;i<N;++i) strict+=(u32)(p[i]>pivot);
-  u32 ties=k-strict,j=0;
-  K r=tn(1,k); i32 *h=px(r);
-  for(u32 i=0;i<N;++i) {
-    if(p[i]>pivot) h[j++]=(i32)i;
-    else if(p[i]==pivot&&ties) { h[j++]=(i32)i;--ties; }
-  }
-  for(u32 root=k/2;root--;) topsift_i32(h,k,root,p,down);
-  for(u32 end=k;end>1;) { i32 z=h[0];h[0]=h[--end];h[end]=z;
-                          topsift_i32(h,end,0,p,down); }
-  *out=r;return 1;
+  i64 *q=xmalloc((u64)N*sizeof(i64));
+  for(u32 i=0;i<N;++i) q[i]=(i64)(fuse_key_f64_(p[i])^0x8000000000000000ULL);
+  int r=top_select_i64_(q,N,k,down,out);
+  xfree(q);return r;
 }
 
 int topgrade(K x, K take, i8 down, K *out) {
@@ -519,6 +550,9 @@ int topgrade(K x, K take, i8 down, K *out) {
   if(z && (u64)z>N/4) return 0;
   if(t==-1 && top_count_i32_((i32*)px(x),(u32)N,(u32)z,down,out)) return 1;
   if(t==-1 && top_select_i32_((i32*)px(x),(u32)N,(u32)z,down,out)) return 1;
+  if(t==-8 && top_shift_i64_((i64*)px(x),(u32)N,(u32)z,down,out)) return 1;
+  if(t==-8 && top_select_i64_((i64*)px(x),(u32)N,(u32)z,down,out)) return 1;
+  if(t==-2 && top_key_f64_((double*)px(x),(u32)N,(u32)z,down,out)) return 1;
   switch(t) {
   case -1: r=top_i32((i32*)px(x),(u32)N,(u32)z,down); break;
   case -8: r=top_i64((i64*)px(x),(u32)N,(u32)z,down); break;

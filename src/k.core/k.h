@@ -173,6 +173,16 @@ static inline i32 cmpfft(double a, double b) {
   return ((b!=b)-(a!=a)) + ((a>b)-(a<b));
 }
 
+#ifdef FUZZING
+/* per-eval work budget for walkers over shared (DAG) values; exits like the alloc budget */
+#include <stdio.h>
+#define GK_WORK_BUDGET 20000000L
+extern long gk_work;
+#define GK_WORK(n) do{ if((gk_work-=(long)(n))<0){ fprintf(stderr,"limit\n"); exit(1); } }while(0)
+#else
+#define GK_WORK(n) ((void)0)
+#endif
+
 /* hash-table index mixer (murmur3 finalizer).  A bare multiplicative hash
    ((v*2654435761)&q) keeps only LOW product bits, which depend only on the
    input's low bits -- and whole data classes have constant low bits

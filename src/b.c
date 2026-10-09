@@ -604,6 +604,7 @@ static i32 maxw(K x, u64 b) {
   K *pxk;
   i32 *pxi,w=0,z;
   u64 n;
+  GK_WORK(1);
   if(tx==1) {
     if(b==1) return b;
     w=1; n=(u32)x; while(b&&n>=b) { n/=b; ++w; }

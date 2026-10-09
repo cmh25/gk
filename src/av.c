@@ -391,6 +391,7 @@ K avdo(K f, K a, K x, char *av) {
   K r=0, badslot=0;
   int w,n=strlen(av);
   char av2[256];
+  GK_WORK(1);
   /* Force monad: a {Vx} lambda is semantically the bare MONADIC primitive V,
      so a monadic adverb application (each/over/scan over one list) must
      dispatch identically -- and in bulk, not by iterating the lambda per

@@ -250,6 +250,7 @@ K load(char *fn, int load) {
 #ifdef FUZZING
         gk_budget=GK_BUDGET;
         gk_alloc_budget=GK_ALLOC_BUDGET;
+        gk_work=GK_WORK_BUDGET;
 #endif
         ++DEPTH;
         K rr=pgreduce(r,1);
@@ -315,7 +316,9 @@ static K repl_(void) {
   f=1; s=0;
   while(1) {
     j=i;
+#ifndef FUZZING
     i(ecount+pcount+scount+ccount+qcount,putc('>',stderr))
+#endif
     fputs(prompt,stderr);
     while((c=repl_getc())!=EOF&&c!='\n') {
       if(c=='\r') continue;
@@ -390,6 +393,7 @@ static K repl_(void) {
 #ifdef FUZZING
     gk_budget=GK_BUDGET;
     gk_alloc_budget=GK_ALLOC_BUDGET;
+    gk_work=GK_WORK_BUDGET;
 #endif
     int opencode0=opencode; opencode=1;
     K t=pgreduce(r,0);

@@ -276,11 +276,13 @@ i32 kcmpr(K a, K x) {
     x=f->x;
 
     if(a==x) { --sp; continue; } /* identical tagged word: same heap object or same inline atom -> equal (r stays 0); skips full element walk, e.g. converge fixed-point match(v,v) */
+    GK_WORK(1);
     if(!a) a=t(6,0);  /* empty keeper slot: the null atom, as kcp reads it.
        The literal (==null, k.c:16) rather than the global: it lets the static
        analyzer compute T()==6 and prove the word never reaches the ta==0
        deref arm, which the unknown-valued global does not. */
     if(!x) x=t(6,0);
+    if(!s(a)&&!s(x)&&ta<0&&ta==tx) GK_WORK(na<nx?na:nx);
     if(s(a)||s(x)) r=kcmprcb(a,x);
     else if(aa<ax) r=-1;
     else if(aa>ax) r= 1;
@@ -569,6 +571,7 @@ u64 khash(K x) {
      payload, so releasing the depth first made the mutual recursion run at a
      constant d -- neither the depth guard nor the budget (reset on d==1) could
      ever fire, and a cyclic subtyped value blew the stack. */
+  GK_WORK((tx<0&&!s(x))?nx:1);
   if(s(x)) { r=khashcb(x); --d; return r; }
   switch(tx) {
   case  1: r=r+hmul((u32)ik(x)); break;
@@ -578,7 +581,7 @@ u64 khash(K x) {
   case  9: ef=ek(x); if(ef==0) ef=0.0f;
            memcpy(&fb,&ef,4); r=r+hmul((u64)fb); break;
   case  3: r=r+hmul((u64)ck(x)); break;
-  case  4: r=r+xfnv1a(sk(x),strlen(sk(x))); break;
+  case  4: GK_WORK(strlen(sk(x))); r=r+xfnv1a(sk(x),strlen(sk(x))); break;
   case  6: case 10: break;
   case  0: {
     if(s(x)) { r=khashcb(x); --d; return r; }
@@ -601,6 +604,7 @@ u64 khash(K x) {
            compare on collision, and the budget resets per call so equal values
            bail identically). */
         if(--khash_budget<0) { xfree(stack); --d; return KERR_STACK; }
+        GK_WORK(1);
 #endif
         if(!xi) { xi=null; t=T(xi); }  /* empty keeper slot (see entry) */
         if(t==0 && !s(xi)) {
@@ -626,7 +630,7 @@ u64 khash(K x) {
   case -9: PXE; i(nx,ef=pxe[i]; if(ef==0) ef=0.0f; memcpy(&fb,&ef,4); r^=r+hmul((u64)fb)) break;
   case -3: PXC; r=r+xfnv1a(pxc,nx); break; /* per-char r^=r+hmul(c) mixed
     too weakly: grouping 100k digit strings probed quadratically */
-  case -4: PXS; i(nx,r^=r+xfnv1a(pxs[i],strlen(pxs[i]))) break;
+  case -4: PXS; i(nx,u64 l=strlen(pxs[i]); GK_WORK(l); r^=r+xfnv1a(pxs[i],l)) break;
   default:
     fprintf(stderr,"error: unsupported type in khash()\n");
     exit(1);

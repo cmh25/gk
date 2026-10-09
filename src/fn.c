@@ -269,6 +269,7 @@ static K closure_any(K x, K s0, K closurescope) {
   static int d=0;
   u64 j; K *p, c;
   if(++d>maxr || (!(d&7)&&stack_low())) { --d; return KERR_STACK; }
+  GK_WORK(1+wpn);
   switch(s(x)) {
   case 0xc3: --d; return closure(x,s0,closurescope);
   case 0xd9: case 0xd7:

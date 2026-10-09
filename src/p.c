@@ -47,6 +47,7 @@ K EXIT;
 #ifdef FUZZING
 long gk_budget=GK_BUDGET;
 long gk_alloc_budget=GK_ALLOC_BUDGET;
+long gk_work=GK_WORK_BUDGET;
 #endif
 int opencode=1;
 char *pfile="";
@@ -1037,6 +1038,7 @@ K pgreduce_(K x0, int *qp) {
   K x=px0[0]; K *px=px(x); /* values */
   int w,valence;
   if(STOP) { STOP=0; return kerror("stop"); }
+  GK_WORK(1);
   if(++d>1+maxr || (!(d&7)&&stack_low())) { --d; return kerror("stack"); } /* must be one greater than fne_() */
   /* Value-stack depth is bounded by the token count: every branch below does
      at most one net push (*pA++) per token, so depth <= nx.  Allocate nx + a

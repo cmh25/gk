@@ -942,6 +942,7 @@ static K kamendi3v(K d, K i, K f) {
       K *piu=px(i_);
       while(pf->j<n(i_)) {
         K i2=piu[pf->j++];
+        GK_WORK(1);
         if(s(i2)) { e=KERR_TYPE; goto cleanup; }
         if(T(i2)==0) {
           if(sp==sm) stack=xrealloc(stack,sizeof(sf)*(sm*=2));

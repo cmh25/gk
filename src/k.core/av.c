@@ -17,6 +17,26 @@ static inline float av_esel(float a, float b, i8 op) {
 static inline double av_fsel(double a, double b, i8 op) {
   return cmpfft(a, b) == op ? a : b;
 }
+/* min/max fold of a float vector, bit-identical to the sequential av_fsel
+   fold: NaN is the minimum; ties go to the last tying element. */
+static double av_ffold(double *p, u64 n, i8 op) {
+  u64 i=0,lz=n,ln=n;  /* index of the last zero / last NaN seen */
+  while(i<n && p[i]!=p[i]) ++i;
+  if(i==n) return p[n-1];
+  if(i) ln=i-1;
+  double a=p[i],b=a,c=a,d=a;
+  for(;i+4<=n;i+=4) { double w=p[i],x=p[i+1],y=p[i+2],z=p[i+3];
+    ln=w!=w?i:ln; ln=x!=x?i+1:ln; ln=y!=y?i+2:ln; ln=z!=z?i+3:ln;
+    lz=w==0.0?i:lz; lz=x==0.0?i+1:lz; lz=y==0.0?i+2:lz; lz=z==0.0?i+3:lz;
+    if(op<0) { a=w<a?w:a; b=x<b?x:b; c=y<c?y:c; d=z<d?z:d; }
+    else     { a=w>a?w:a; b=x>b?x:b; c=y>c?y:c; d=z>d?z:d; } }
+  for(;i<n;++i) { double w=p[i]; ln=w!=w?i:ln; lz=w==0.0?i:lz;
+    if(op<0) a=w<a?w:a; else a=w>a?w:a; }
+  if(op<0) { a=b<a?b:a; a=c<a?c:a; a=d<a?d:a; } else { a=b>a?b:a; a=c>a?c:a; a=d>a?d:a; }
+  if(op<0 && ln<n) return p[ln];
+  if(a==0.0) return p[lz];
+  return a;
+}
 
 // P=":+-*%&|<>=~.!@?#_^,$'/\\"
 K each(i32 f, K a, K x) {
@@ -185,7 +205,7 @@ K overd(i32 f, K x) {
   case 5:
     switch(Tx) {
     case -1: PXI; { i32 su=*pxi++; i(nx-1,su=av_isel(su,*pxi++,-1)); r=t(1,(u32)su); } break;
-    case -2: PXF; sf=*pxf++; i(nx-1,sf=av_fsel(sf,*pxf++,-1)); r=t2(sf); break;
+    case -2: PXF; r=t2(av_ffold(pxf,nx,-1)); break;
     case -8: PXJ; { i64 su=*pxj++; i(nx-1,su=av_jsel(su,*pxj++,-1)); r=tj(su); } break;
     case -9: PXE; { float su=*pxe++; i(nx-1,su=av_esel(su,*pxe++,-1)); r=te(su); } break;
     case  0: PXK; r=k_(*pxk++); i1(nx,p=ki(f,r,x,-1,i);_k(r);r=0;EC(p);r=p) break;
@@ -196,7 +216,7 @@ K overd(i32 f, K x) {
   case 6:
     switch(Tx) {
     case -1: PXI; { i32 su=*pxi++; i(nx-1,su=av_isel(su,*pxi++,1)); r=t(1,(u32)su); } break;
-    case -2: PXF; sf=*pxf++; i(nx-1,sf=av_fsel(sf,*pxf++,1)); r=t2(sf); break;
+    case -2: PXF; r=t2(av_ffold(pxf,nx,1)); break;
     case -8: PXJ; { i64 su=*pxj++; i(nx-1,su=av_jsel(su,*pxj++,1)); r=tj(su); } break;
     case -9: PXE; { float su=*pxe++; i(nx-1,su=av_esel(su,*pxe++,1)); r=te(su); } break;
     case  0: PXK; r=k_(*pxk++); i1(nx,p=ki(f,r,x,-1,i);_k(r);r=0;EC(p);r=p) break;
