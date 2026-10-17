@@ -38,6 +38,27 @@ static i32* csortg8(i32 *g, i64 *a, u32 n, i64 min, i64 max, i32 down) {
    correctly as unsigned keys (INT_MIN..-1 before 0..INT_MAX).  The low half is
    unaffected by the flip, so LO16 needs no change. */
 #define HI16S(x) (((((u32)ik(x)) >> 16) ^ 0x8000u))
+/* Grades of up to 64 elements use a stable insertion sort of the index
+   permutation.  Every histogram path has a per-call setup cost -- the counting
+   sort zeroes a range-sized table, the radix a 257- or 65537-entry one -- that
+   dwarfs the work for a short vector (`<10?1000000` cost 360us, `<10?1.0`
+   93us).  BEFORE(x,y) is "x strictly precedes y in the requested order", so
+   ties keep their original, ascending-index order like every path below. */
+#define INSG_N 64
+#define INSG(BEFORE)                                                          \
+  do { u32 z_,y_; i32 v_;                                                     \
+    for(z_=0;z_<n;z_++) g[z_]=(i32)z_;                                        \
+    for(z_=1;z_<n;z_++) { v_=g[z_]; y_=z_;                                    \
+      while(y_>0 && BEFORE(a[v_],a[g[y_-1]])) { g[y_]=g[y_-1]; y_--; }        \
+      g[y_]=v_; }                                                             \
+    return g; } while(0)
+#define LT_(x,y) ((x)<(y))
+#define GT_(x,y) ((x)>(y))
+#define FLT_(x,y) (cmpfft((double)(x),(double)(y))<0)
+#define FGT_(x,y) (cmpfft((double)(x),(double)(y))>0)
+static i32* radixgkey(i32 *g, u64 *key, u32 n, i32 npass, i32 down);
+static i64* radixgkeyj(i64 *g, u64 *key, u64 n, i32 npass, i32 down);
+
 i32* rcsortg(i32 *g, i32 *a, u32 n, i32 down) {
   i32 i=0,mm1=0,as=0;
   u32 k;
@@ -56,7 +77,21 @@ i32* rcsortg(i32 *g, i32 *a, u32 n, i32 down) {
      relative to n (plus a small absolute floor) — otherwise a short vector with
      a wide range would calloc a ~4*mm1-byte count array (e.g. <0 100000000 ->
      400MB).  The 2-level radix path below is bounded (~256KB) for sparse data. */
-  if(mm1<0x10000000 && (i64)mm1 <= (i64)n*8 + 1000000) return csortg(g,a,n,min,max,down);
+  if(mm1<0x10000000 && (i64)mm1 <= (i64)n*8 + 1000000 && (i64)mm1 <= (i64)n*64) return csortg(g,a,n,min,max,down);
+
+  /* short and sparse: insertion sort (the dense counting sort above is still
+     cheaper for a short vector with a tiny range) */
+  if(n<=INSG_N) { if(down) INSG(GT_); else INSG(LT_); }
+
+  /* short-but-sparse: the 8-bit-digit radix (see radixgkey) beats the two
+     65537-entry histograms below, which cost ~25us per call */
+  if(n<0x10000) {
+    u64 *key=xmalloc(n*sizeof(u64));
+    for(k=0;k<n;k++) key[k]=(u64)((u32)a[k]^0x80000000u);
+    radixgkey(g,key,n,2,down);
+    xfree(key);
+    return g;
+  }
 
   t=xcalloc(n,sizeof(i32));
   count=xcalloc(0x10001,sizeof(i32));
@@ -85,18 +120,25 @@ i32* rcsortg(i32 *g, i32 *a, u32 n, i32 down) {
 }
 
 /* grade for 64-bit ints: counting sort when the value range is small,
- * otherwise fall back to merge sort (no radix tier yet) */
+ * otherwise the same stable LSD radix the float grade uses, on the value
+ * with its sign bit flipped (a monotone map from i64 to u64).  Replaces a
+ * merge-sort fallback that took 1.3s on 1e7 random longs (int32: 0.16s). */
 i32* rcsortg8(i32 *g, i64 *a, u32 n, i32 down) {
   u32 k;
+  u64 *key;
   i64 max=INT64_MIN,min=INT64_MAX;
   for(k=0;k<n;k++) {
     max = max < a[k] ? a[k] : max;
     min = min > a[k] ? a[k] : min;
   }
   if(n && (u64)max-(u64)min < 0x10000000u-1
-       && (u64)max-(u64)min <= (u64)n*8 + 1000000) return csortg8(g,a,n,min,max,down);
-  i(n,g[i]=i);
-  msortg8(g,a,0,(i32)n-1,down);
+       && (u64)max-(u64)min <= (u64)n*8 + 1000000
+       && (u64)max-(u64)min <= (u64)n*64) return csortg8(g,a,n,min,max,down);
+  if(n<=INSG_N) { if(down) INSG(GT_); else INSG(LT_); }   /* short and sparse */
+  key=xmalloc(n*sizeof(u64));
+  for(k=0;k<n;k++) key[k]=(u64)a[k]^0x8000000000000000ULL;
+  radixgkey(g,key,n,4,down);
+  xfree(key);
   return g;
 }
 
@@ -118,18 +160,24 @@ i32* rcsortg8(i32 *g, i64 *a, u32 n, i32 down) {
    rcsortg's ascending/descending prefix-sum + backward-fill (so ties keep their
    original, ascending-index order — matching the merge sort it replaces). */
 
+/* npass counts 16-bit digits.  Below 64K elements the digits are 8 bits
+   (twice the passes, a 257-entry histogram): clearing and prefix-summing a
+   65537-entry histogram per pass is ~90us per call, which dominated grades of
+   small vectors (grading 10 floats cost 1000x grading 10 ints, and a per-group
+   sort or median over 1e5 groups spent seconds in it). */
 static i32* radixgkey(i32 *g, u64 *key, u32 n, i32 npass, i32 down) {
-  i32 *scratch=xmalloc(n*sizeof(i32)),*count=xmalloc(0x10001*sizeof(i32));
+  i32 bits=n<0x10000?8:16, nb=1<<bits, mask=nb-1, passes=npass*(16/bits);
+  i32 *scratch=xmalloc(n*sizeof(i32)),*count=xmalloc((nb+1)*sizeof(i32));
   i32 *src=g,*dst=scratch,*tt,i,p,sh;
   u32 k;
   for(k=0;k<n;k++) g[k]=(i32)k;
-  for(p=0;p<npass;p++) {
-    sh=p*16;
-    memset(count,0,0x10001*sizeof(i32));
-    for(k=0;k<n;k++) count[(key[src[k]]>>sh)&0xffff]++;
-    if(down) for(i=0x10000-1;i>=0;i--) count[i] += count[i+1];
-    else for(i=1;i<0x10000;i++) count[i] += count[i-1];
-    for(i=(i32)n-1;i>=0;i--) dst[--count[(key[src[i]]>>sh)&0xffff]] = src[i];
+  for(p=0;p<passes;p++) {
+    sh=p*bits;
+    memset(count,0,(nb+1)*sizeof(i32));
+    for(k=0;k<n;k++) count[(key[src[k]]>>sh)&mask]++;
+    if(down) for(i=nb-1;i>=0;i--) count[i] += count[i+1];
+    else for(i=1;i<nb;i++) count[i] += count[i-1];
+    for(i=(i32)n-1;i>=0;i--) dst[--count[(key[src[i]]>>sh)&mask]] = src[i];
     tt=src; src=dst; dst=tt;
   }
   if(src!=g) memcpy(g,src,n*sizeof(i32)); /* odd npass leaves result in scratch */
@@ -138,8 +186,10 @@ static i32* radixgkey(i32 *g, u64 *key, u32 n, i32 npass, i32 down) {
 }
 
 i32* rcsortg2(i32 *g, double *a, u32 n, i32 down) {
-  u64 *key=xmalloc(n*sizeof(u64)),u;
+  u64 *key,u;
   double v; u32 k;
+  if(n<=INSG_N) { if(down) INSG(FGT_); else INSG(FLT_); }
+  key=xmalloc(n*sizeof(u64));
   for(k=0;k<n;k++) {
     v=a[k];
     if(isnan(v)) { key[k]=0; continue; }
@@ -152,7 +202,9 @@ i32* rcsortg2(i32 *g, double *a, u32 n, i32 down) {
 }
 
 i32* rcsortg9(i32 *g, float *a, u32 n, i32 down) {
-  u64 *key=xmalloc(n*sizeof(u64)); u32 u,k; float v;
+  u64 *key; u32 u,k; float v;
+  if(n<=INSG_N) { if(down) INSG(FGT_); else INSG(FLT_); }
+  key=xmalloc(n*sizeof(u64));
   for(k=0;k<n;k++) {
     v=a[k];
     if(isnan(v)) { key[k]=0; continue; }
@@ -400,23 +452,26 @@ i64* rcsortg8j(i64 *g, i64 *a, u64 n, i32 down) {
   for(k=0;k<n;k++) { max = max<a[k]?a[k]:max; min = min>a[k]?a[k]:min; }
   if(n && (u64)max-(u64)min < 0x10000000u-1
        && (u64)max-(u64)min <= (u64)n + 1000000) return csortg8j(g,a,n,min,max,down);
-  for(q=0;q<n;q++) g[q]=(i64)q;
-  msortg8j(g,a,0,(i64)n-1,down);
+  { u64 *key=xmalloc(n*sizeof(u64));                 /* see rcsortg8 */
+    for(q=0;q<n;q++) key[q]=(u64)a[q]^0x8000000000000000ULL;
+    radixgkeyj(g,key,n,4,down);
+    xfree(key); }
   return g;
 }
 
 static i64* radixgkeyj(i64 *g, u64 *key, u64 n, i32 npass, i32 down) {
-  i64 *scratch=xmalloc(n*sizeof(i64)),*count=xmalloc(0x10001*sizeof(i64));
+  i32 bits=n<0x10000?8:16, nb=1<<bits, mask=nb-1, passes=npass*(16/bits);  /* see radixgkey */
+  i64 *scratch=xmalloc(n*sizeof(i64)),*count=xmalloc((nb+1)*sizeof(i64));
   i64 *src=g,*dst=scratch,*tt,i; i32 p,sh;
   u64 k;
   for(k=0;k<n;k++) g[k]=(i64)k;
-  for(p=0;p<npass;p++) {
-    sh=p*16;
-    memset(count,0,0x10001*sizeof(i64));
-    for(k=0;k<n;k++) count[(key[src[k]]>>sh)&0xffff]++;
-    if(down) for(i=0x10000-1;i>=0;i--) count[i] += count[i+1];
-    else for(i=1;i<0x10000;i++) count[i] += count[i-1];
-    for(i=(i64)n-1;i>=0;i--) dst[--count[(key[src[i]]>>sh)&0xffff]] = src[i];
+  for(p=0;p<passes;p++) {
+    sh=p*bits;
+    memset(count,0,(nb+1)*sizeof(i64));
+    for(k=0;k<n;k++) count[(key[src[k]]>>sh)&mask]++;
+    if(down) for(i=nb-1;i>=0;i--) count[i] += count[i+1];
+    else for(i=1;i<nb;i++) count[i] += count[i-1];
+    for(i=(i64)n-1;i>=0;i--) dst[--count[(key[src[i]]>>sh)&mask]] = src[i];
     tt=src; src=dst; dst=tt;
   }
   if(src!=g) memcpy(g,src,n*sizeof(i64));

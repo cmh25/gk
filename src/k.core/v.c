@@ -473,7 +473,7 @@ K maxor(K a, K x)  { return mamo(a,x,1,maxor,6); }
 /* compact comparison: op=-1(less), 0(equal), 1(more) */
 /* icmp/jcmp hoisted to v.h (shared with fuse.c and the k() inline) */
 static inline i32 ccmp(char a,char b,i8 op) { return op<0?a<b:op>0?a>b:a==b; }
-static inline i32 scmp(char *a,char *b,i8 op) { i32 c=strcmp(a,b); return op<0?c<0:op>0?c>0:c==0; }
+static inline i32 scmp(char *a,char *b,i8 op) { if(!op) return a==b; { i32 c=strcmp(a,b); return op<0?c<0:c>0; } } /* interned: = is identity */
 static K lme(K a, K x, i8 op, K(*F)(K,K), i32 idx) {
   K r=0;
   i32 *pri,*pai,*pxi;
@@ -1018,7 +1018,7 @@ K find(K a, K x) {
   case -8: if(tx!=8) break; PAJ; i(na,if(paj[i]==jk(x)){idx=i; break;}) break;
   case -9: if(tx!=9) break; PAE; if(isnan(ek(x))) { i(na,if(isnan(pae[i])){idx=i; break;}) } else i(na,if(pae[i]==ek(x)){idx=i; break;}) break;
   case -3: if(tx!=3) break; PAC; { char *p=memchr(pac,(u8)ck(x),na); if(p) idx=(i64)(p-pac); } break;
-  case -4: if(tx!=4) break; PAS; i(na,if(!strcmp(pas[i],sk(x))){idx=i; break;}) break;
+  case -4: if(tx!=4) break; PAS; i(na,if(pas[i]==sk(x)){idx=i; break;}) break;
   case  0: PAK; i(na,if(!kcmpr(pak[i],x)){idx=i; break;}) break;
   default: return KERR_TYPE;
   }
@@ -2548,6 +2548,31 @@ static inline u64 hmule(float v) {
   return hmul((u64)b);
 }
 
+/* Interned-symbol hash set that grows with the number of DISTINCT keys.
+   (*hs)[slot] is the key; (*hm)[slot] (optional: hm may be 0) is a count that
+   travels with it on growth.  Returns the key's slot, inserting it when new,
+   at a load of 1/2 or less.  Sizing these tables to the vector length, as
+   before, meant an xcalloc -- an eager memset under BUDDY -- of 3 x 128MB to
+   group 1e7 symbols that have 8 distinct values. */
+static u64 symslot(char *s, char ***hs, u64 **hm, u64 *w, u64 *nd) {
+  char **H=*hs; u64 *M=hm?*hm:0, q=*w-1, h=symh(s)&q;
+  while(H[h] && H[h]!=s) h=(h+1)&q;
+  if(H[h]) return h;
+  if(2*(*nd+1)>*w) {
+    u64 w2=*w<<1, q2=w2-1, i, h2;
+    char **H2=xcalloc(w2,sizeof(char*)); u64 *M2=M?xcalloc(w2,sizeof(u64)):0;
+    for(i=0;i<*w;i++) if(H[i]) {
+      h2=symh(H[i])&q2; while(H2[h2]) h2=(h2+1)&q2;
+      H2[h2]=H[i]; if(M2) M2[h2]=M[i];
+    }
+    xfree(H); if(M) xfree(M);
+    *hs=H=H2; if(hm) *hm=M2; *w=w2; q=q2;
+    h=symh(s)&q; while(H[h]) h=(h+1)&q;
+  }
+  H[h]=s; ++*nd;
+  return h;
+}
+
 static K groupj(K x) {
   K r=0,p=0,*ht,*pk,*hk,*prk,*pxk;
   i32 *n,min=INT32_MAX,max=INT32_MIN,*hi,bni=0,*pxi;
@@ -2755,24 +2780,23 @@ static K groupj(K x) {
     break;
   case -4:
     PRK(rs); nr=0; PXS;
-    m=nx;
-    w=1; while(w<=m) w<<=1; q=w-1;
-    ht=xcalloc(w,sizeof(K));
+    { u64 nd=0; w=64;                /* grows with the distinct count (symslot) */
     hm=xcalloc(w,sizeof(u64));
     hs=xcalloc(w,sizeof(char*));
     s=pxs-1;
-    for(i=0;i<nx;i++) {
-      s++;
-      h=xfnv1a((char*)*s, strlen(*s))&q;
-      if(*s) while(!h || (hs[h] && strcmp(hs[h],*s))) h=(h+1)&q;
-      hs[h]=*s;
+    q=w-1;
+    for(i=0;i<nx;i++) {                      /* inline probe; the helper only on a new key */
+      s++; h=symh(*s)&q;
+      while(hs[h] && hs[h]!=*s) h=(h+1)&q;
+      if(!hs[h]) { h=symslot(*s,&hs,&hm,&w,&nd); q=w-1; }
       hm[h]++;
     }
+    q=w-1; ht=xcalloc(w,sizeof(K)); }
     s=pxs-1;
     for(i=0;i<nx;i++) {
       s++;
-      h=xfnv1a((char*)*s, strlen(*s))&q;
-      if(*s) while(!h || (hs[h] && strcmp(hs[h],*s))) h=(h+1)&q;
+      h=symh(*s)&q;
+      while(hs[h]!=*s) h=(h+1)&q;
       p=ht[h];
       if(!p) {
         p=tn(8,hm[h]);
@@ -3008,24 +3032,23 @@ K group(K x) {
     break;
   case -4:
     PRK(rs); nr=0; PXS;
-    m=nx;
-    w=1; while(w<=m) w<<=1; q=w-1;
-    ht=xcalloc(w,sizeof(K));
+    { u64 nd=0; w=64;                /* grows with the distinct count (symslot) */
     hm=xcalloc(w,sizeof(u64));
     hs=xcalloc(w,sizeof(char*));
     s=pxs-1;
-    for(i=0;i<nx;i++) {
-      s++;
-      h=xfnv1a((char*)*s, strlen(*s))&q;
-      if(*s) while(!h || (hs[h] && strcmp(hs[h],*s))) h=(h+1)&q; /* h=0 iff *s=0 */
-      hs[h]=*s;
+    q=w-1;
+    for(i=0;i<nx;i++) {                      /* inline probe; the helper only on a new key */
+      s++; h=symh(*s)&q;
+      while(hs[h] && hs[h]!=*s) h=(h+1)&q;
+      if(!hs[h]) { h=symslot(*s,&hs,&hm,&w,&nd); q=w-1; }
       hm[h]++;
     }
+    q=w-1; ht=xcalloc(w,sizeof(K)); }
     s=pxs-1;
     for(i=0;i<nx;i++) {
       s++;
-      h=xfnv1a((char*)*s, strlen(*s))&q;
-      if(*s) while(!h || (hs[h] && strcmp(hs[h],*s))) h=(h+1)&q; /* h=0 iff *s=0 */
+      h=symh(*s)&q;
+      while(hs[h]!=*s) h=(h+1)&q;
       p=ht[h];
       if(!p) {
         p=tn(1,hm[h]);
@@ -3342,17 +3365,17 @@ K unique(K x) {
   case -4:
     if(!nx) return k_(x);
     PRS(nx); PXS;
-    w=1; while(w<=nx) w<<=1; q=w-1;
+    { u64 nd=0; w=64;                /* grows with the distinct count (symslot) */
     hs=xcalloc(w,sizeof(char*));
     pxs--;
-    for(i=0;i<nx;i++) {
-      pxs++;
-      h=xfnv1a((char*)*pxs, strlen(*pxs))&q;
-      while(hs[h]!=0 && strcmp(hs[h],*pxs)) h=(h+1)&q;
-      if(!hs[h]) hs[h]=prs[j++]=*pxs;
+    q=w-1;
+    for(i=0;i<nx;i++) {                      /* inline probe; the helper only on a new key */
+      pxs++; h=symh(*pxs)&q;
+      while(hs[h] && hs[h]!=*pxs) h=(h+1)&q;
+      if(!hs[h]) { (void)symslot(*pxs,&hs,0,&w,&nd); q=w-1; prs[j++]=*pxs; }
     }
     nr=j;
-    xfree(hs);
+    xfree(hs); }
     break;
   default: return KERR_TYPE;
   }
@@ -3394,10 +3417,13 @@ static i64 ftoj(double f) {
 }
 /* int clamp for the non-promoting arms, same sentinel mapping */
 static i32 ftoi_(double f) {
-  if(f!=f) return INT32_MIN;               /* NaN -> 0N */
-  if(f>=INT32_MAX) return INT32_MAX;       /* +inf -> 0I */
-  if(f<INT32_MIN) return INT32_MIN+1;      /* -inf -> -0I */
-  return (i32)f;
+  /* branch-free so the vector floor arms vectorize.  Same mapping as the
+     old if-ladder: NaN -> 0N, >=INT32_MAX (+inf) -> 0I, <INT32_MIN (-inf) ->
+     -0I, else truncate.  The clamps run before the NaN select, so (i32)c is
+     only ever evaluated on a finite in-range value. */
+  double c=f<(double)INT32_MIN?(double)(INT32_MIN+1):f;
+  c=c>=(double)INT32_MAX?(double)INT32_MAX:c;
+  return f!=f?INT32_MIN:(i32)c;
 }
 
 K floor__(K x) {
@@ -3422,15 +3448,16 @@ K floor__(K x) {
     break;
   case -1: r=k_(x); break;
   case -8: r=k_(x); break;
-  case -2: { int needj=0; PXF;
-    i(nx,if(promotej(floor(pxf[i]))){needj=1;break;})
-    if(needj) { r=tn(8,nx); prj=(i64*)px(r); i(nx,prj[i]=ftoj(floor(pxf[i]))) }
-    else { PRI(nx); i(nx,pri[i]=ftoi_(floor(pxf[i]))) }
+  case -2: { int needj=0; PXF; PRI(nx);
+    /* one pass (was two, each calling floor): floor once, OR the promotion
+       test into a flag, clamp into the int result; redo as longs only if a
+       value needed promoting */
+    i(nx,{double f=floor(pxf[i]); needj|=promotej(f); pri[i]=ftoi_(f);})
+    if(needj) { _k(r); r=tn(8,nx); prj=(i64*)px(r); i(nx,prj[i]=ftoj(floor(pxf[i]))) }
     } break;
-  case -9: { int needj=0; PXE;
-    i(nx,if(promotej(floor((double)pxe[i]))){needj=1;break;})
-    if(needj) { r=tn(8,nx); prj=(i64*)px(r); i(nx,prj[i]=ftoj(floor((double)pxe[i]))) }
-    else { PRI(nx); i(nx,pri[i]=ftoi_(floor((double)pxe[i]))) }
+  case -9: { int needj=0; PXE; PRI(nx);
+    i(nx,{double f=floor((double)pxe[i]); needj|=promotej(f); pri[i]=ftoi_(f);})
+    if(needj) { _k(r); r=tn(8,nx); prj=(i64*)px(r); i(nx,prj[i]=ftoj(floor((double)pxe[i]))) }
     } break;
   case  0: r=irecur1(floor__,x); break;
   default: return KERR_TYPE;

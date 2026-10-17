@@ -53,6 +53,10 @@ K format(K x);
    inline (k.c) -- fast paths must call the SAME definitions the verbs do */
 static inline i32 icmp(i32 a,i32 b,i8 op) { return op<0?a<b:op>0?a>b:a==b; }
 static inline i32 jcmp(i64 a,i64 b,i8 op) { return op<0?a<b:op>0?a>b:a==b; }
+/* symbols are interned (sym.c sp returns ONE pointer per distinct name), so
+   equality is pointer identity and the address is the hash key -- the same
+   finalizer dict.c's dhash_ uses for symbol keys.  Orderings still strcmp. */
+static inline u64 symh(char *p) { u64 h=(u64)p; h^=h>>33; h*=0xff51afd7ed558ccdULL; h^=h>>29; return h; }
 static inline i32 modi(i32 a, i32 b){ i32 r; if(!b) return INT32_MIN; if(b==-1) return 0; r=a%b; if(r&&((r<0)!=(b<0))) r+=b; return r; }
 
 #endif /* V_H */

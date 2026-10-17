@@ -208,19 +208,55 @@ int scope_vktp(char *x) {
   return v;
 }
 
-/* n is a global reference. ex: .k.a.b.c */
+/* n is a global reference. ex: .k.a.b.c
+   Every read miss and every write in a namespace scope resolves the scope's
+   own path here (scope_get_/scope_set_ refresh the dict from the tree), so
+   re-parsing the string and re-interning each component was the largest
+   single cost of a global assignment (30% of `a:a+1`).  A small direct-mapped
+   cache maps the path to its interned components; the hit test compares the
+   TEXT, not the pointer, so a reused stack buffer cannot alias an entry.
+   Validation (scope_vktp) happens once, when the entry is made. */
+#define KPCN 64
+#define KPCC 8
+static struct { char str[256]; size_t len; int nc; char *c[KPCC]; } kpc[KPCN];
 static K ktree_get(char *n) {
   K r=0,q;
-  char s[256],*p,*t;
+  char s[256],*p,*t,**c;
+  int i,nc;
+  size_t len;
   if(!*n) return k_(ktree);
-  if(!scope_vktp(n)) return KERR_DOMAIN;
-  memcpy(s,n,1+strlen(n));
-  p=strtok_r(s,".",&t);
-  r=dget(ktree,sp(p));
-  while((p=strtok_r(0,".",&t))) {
+  len=strlen(n);
+  { u64 h=xfnv1a(n,len)&(KPCN-1);
+    if(kpc[h].len==len && !memcmp(kpc[h].str,n,len)) { c=kpc[h].c; nc=kpc[h].nc; }
+    else {
+      if(!scope_vktp(n)) return KERR_DOMAIN;
+      if(len>255) return KERR_LENGTH;
+      memcpy(s,n,len+1);
+      char *cc[KPCC];                           /* parse locally; the slot is only replaced on success */
+      nc=0;
+      for(p=strtok_r(s,".",&t);p&&nc<KPCC;p=strtok_r(0,".",&t)) cc[nc++]=sp(p);
+      if(p) {                                   /* more than KPCC components: resolve uncached */
+        memcpy(s,n,len+1);
+        p=strtok_r(s,".",&t);
+        r=dget(ktree,sp(p));
+        while((p=strtok_r(0,".",&t))) {
+          if(!r) return KERR_VALUE;
+          if(0x80!=s(r)) { _k(r); return KERR_VALUE; }
+          q=dget(r,sp(p));
+          _k(r); r=q;
+        }
+        return r?r:KERR_VALUE;
+      }
+      memcpy(kpc[h].str,n,len+1);
+      memcpy(kpc[h].c,cc,nc*sizeof(char*));
+      kpc[h].len=len; kpc[h].nc=nc; c=kpc[h].c;
+    }
+  }
+  r=nc?dget(ktree,c[0]):0;
+  for(i=1;i<nc;i++) {
     if(!r) return KERR_VALUE;
     if(0x80!=s(r)) { _k(r); return KERR_VALUE; }
-    q=dget(r,sp(p));
+    q=dget(r,c[i]);
     _k(r); r=q;
   }
   return r?r:KERR_VALUE;
@@ -338,6 +374,9 @@ static K scope_set_local(K s, int n, K v) {
  - returns p (the stored value, caller owns one reference)
  - on error, v is freed and error is returned
  */
+/* n is an INTERNED name on both call paths (scope_set passes sk(n), the
+   dotted writeback passes sp(u)), so the simple-name path below uses it
+   directly; only the strtok pieces of a dotted name go through sp(). */
 static K scope_set_(K s, char *n, K v) {
   K d,e=0,m,*psu,w;
   char *rp,nn[256],*t,*ss,*u;
@@ -368,7 +407,7 @@ static K scope_set_(K s, char *n, K v) {
   if(s==ks && strlen(n)==1 && *n!='k' && *n!='m') { // top level, single letters reserved, except k and m (.m is the ipc namespace)
     _k(v); return KERR_RESERVED;
   }
-  if(kreserved(sp(n))) { // reserved names
+  if(kreserved(n)) { // reserved names (n interned)
     _k(v); return KERR_RESERVED;
   }
   if(strchr(n,'.')) {
@@ -448,15 +487,15 @@ static K scope_set_(K s, char *n, K v) {
        exists to stop a fetched dict from aliasing a SECOND slot; storing a
        slot's own value back creates no new alias, and copying here is what
        made every by-name dict amend O(n) -- the whole map, per key. */
-    if(gcopy) { w=kcp(v); if(E(w)) { _k(v); return w; } (void)dset(psu[1],sp(n),w); _k(v); }
-    else { (void)dset(psu[1],sp(n),v); w=v; }
+    if(gcopy) { w=kcp(v); if(E(w)) { _k(v); return w; } (void)dset(psu[1],n,w); _k(v); }
+    else { (void)dset(psu[1],n,v); w=v; }
     /* Fire for a write into ANY namespace scope (slot 2 non-null), not just the
        current one.  A `::` inside a fn defined under `\d foo` writes foo's
        globals even when called from elsewhere (scope_home), so gating on
        s==gs skipped the trigger for exactly those writes -- the variable
        changed and its watch stayed silent.  A lambda frame has a null slot 2,
        so locals still never fire. */
-    if(nwatch && null!=psu[2]) watch_fire(s,sp(n));
+    if(nwatch && null!=psu[2]) watch_fire(s,n);
     return w;
   }
 }

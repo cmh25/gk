@@ -104,15 +104,21 @@ int cmpterminal(K a, K x, i8 op, i8 invert, i8 mode, K *out) {
     }                                                                     \
   } while(0)
 
+/* Branchless compaction: store unconditionally, advance j by the predicate.
+   A data-dependent `if` mispredicts once per element on a random mask (a 50%
+   filter of 1e7 floats took 82ms; this takes ~20).  The loop is bounded by
+   j<m, not i<N, so the unconditional pr[j] store never passes the end of r
+   once every match has been copied. */
 #define FILTER_COPY_T(P0,TY)                                              \
   do {                                                                    \
     u64 m=0,j=0;                                                          \
     for(u64 i=0;i<N;++i) m+=(u64)(invert^!!(P0));                         \
     r=tn(-ty,m);                                                          \
     { TY *py=px(y),*pr=px(r);                                             \
-      for(u64 i=0;i<N;++i) if(invert^!!(P0)) pr[j++]=py[i];               \
+      for(u64 i=0;i<N && j<m;++i) { pr[j]=py[i]; j+=(u64)(invert^!!(P0)); } \
     }                                                                     \
   } while(0)
+#define FILTER_COPY_1(P0) FILTER_COPY_T(P0,u8)
 #define FILTER_COPY_4(P0) FILTER_COPY_T(P0,u32)
 #define FILTER_COPY_8(P0) FILTER_COPY_T(P0,u64)
 
@@ -126,6 +132,7 @@ int filtercmp(K y, K a, K x, i8 op, i8 invert, K *out) {
   else if(ty==-4) width=sizeof(char*);
   else return 0;
   if(N>VMAX||ny!=N) return 0;
+  if(width==1) { CMP_DISPATCH(FILTER_COPY_1); *out=r; return 1; }
   if(width==4) { CMP_DISPATCH(FILTER_COPY_4); *out=r; return 1; }
   if(width==8) { CMP_DISPATCH(FILTER_COPY_8); *out=r; return 1; }
   CMP_DISPATCH(FILTER_COPY);
@@ -202,6 +209,7 @@ int filterredcmp(K y, K a, K x, i8 op, i8 invert, i32 reducer, K *out) {
 #undef FILTER_REDUCE_I32
 #undef FILTER_COPY
 #undef FILTER_COPY_T
+#undef FILTER_COPY_1
 #undef FILTER_COPY_4
 #undef FILTER_COPY_8
 #undef CMP_DISPATCH
@@ -223,7 +231,18 @@ int widenintscan(K x, K *out) {
 }
 
 /* #'=x: count groups in first-occurrence order without allocating an index
-   vector for every group.  The hash/equality pairs mirror group(). */
+   vector for every group.  The hash/equality pairs mirror group().  The table
+   maps slot -> 1-based group id (plus the stored hash) and grows with the
+   number of DISTINCT keys; each group's first index and count live in arrays
+   indexed by group id, so growth only rehashes (id,hash) pairs.  Sizing the
+   table to N, as before, meant an eager-memset xcalloc of 128MB per call for
+   a 1e7-element vector with a handful of groups. */
+static void gc_grow(u64 **gid, u64 **hv, u64 *w) {
+  u64 w2=*w<<1, q2=w2-1, i, h;
+  u64 *g2=xcalloc(w2,sizeof(u64)), *v2=xmalloc(w2*sizeof(u64));
+  for(i=0;i<*w;i++) if((*gid)[i]) { h=(*hv)[i]&q2; while(g2[h]) h=(h+1)&q2; g2[h]=(*gid)[i]; v2[h]=(*hv)[i]; }
+  xfree(*gid); xfree(*hv); *gid=g2; *hv=v2; *w=w2;
+}
 static inline u64 fuse_hash_f64_(double v) {
   u64 u;
   if(v==0) v=0.0;
@@ -240,10 +259,14 @@ static inline u64 fuse_hash_f32_(float v) {
 #define GC_RUN(HASH,EQ)                                                   \
   do {                                                                    \
     for(u64 i=0;i<N;++i) {                                                \
-      u64 h=(HASH)&q;                                                      \
-      while(cnt[h] && !(EQ)) h=(h+1)&q;                                  \
-      if(!cnt[h]) { first[h]=i; order[ng++]=h; }                          \
-      ++cnt[h];                                                           \
+      u64 hh=(HASH), h=hh&q, fi=0;                                        \
+      while(gid[h] && !(hv[h]==hh && (fi=firstg[gid[h]-1], (EQ)))) h=(h+1)&q; \
+      if(!gid[h]) {                                                       \
+        if(2*(ng+1)>w) { gc_grow(&gid,&hv,&w); q=w-1; h=hh&q; while(gid[h]) h=(h+1)&q; } \
+        if(ng==gcap) { gcap<<=1; firstg=xrealloc(firstg,gcap*sizeof(u64)); cntg=xrealloc(cntg,gcap*sizeof(u64)); } \
+        firstg[ng]=i; cntg[ng]=0; gid[h]=++ng; hv[h]=hh;                  \
+      }                                                                   \
+      ++cntg[gid[h]-1];                                                   \
     }                                                                     \
   } while(0)
 
@@ -261,31 +284,29 @@ static inline u64 fuse_hash_f32_(float v) {
   } while(0)
 
 int groupcounts(K x, K *out) {
-  K r; u64 N,w=1,q,ng=0,*cnt,*first,*order;
+  K r; u64 N,w,q,ng=0,gcap,*gid,*hv,*firstg,*cntg;
   if(E(x)||s(x)||T(x)>0) return 0;
   N=n(x);
   if(!N) { *out=tn(0,0); return 1; }
   if(N>BIGV) return 0;                 /* groupj can produce long counts */
   if(T(x)==-1) GC_DENSE(i32);
   if(T(x)==-8) GC_DENSE(i64);
-  while(w<=N) w<<=1;
-  q=w-1;
-  cnt=xcalloc(w,sizeof(u64));
-  first=xmalloc(w*sizeof(u64));
-  order=xmalloc(N*sizeof(u64));
+  w=64; q=w-1; gcap=64;
+  gid=xcalloc(w,sizeof(u64)); hv=xmalloc(w*sizeof(u64));
+  firstg=xmalloc(gcap*sizeof(u64)); cntg=xmalloc(gcap*sizeof(u64));
   switch(T(x)) {
-  case -1: { i32 *p=px(x); GC_RUN(hmul((u32)p[i]),p[first[h]]==p[i]); } break;
-  case -8: { i64 *p=px(x); GC_RUN(hmul((u64)p[i]),p[first[h]]==p[i]); } break;
-  case -2: { double *p=px(x); GC_RUN(fuse_hash_f64_(p[i]),!cmpfft(p[first[h]],p[i])); } break;
-  case -9: { float *p=px(x); GC_RUN(fuse_hash_f32_(p[i]),!cmpfft((double)p[first[h]],(double)p[i])); } break;
-  case -3: { u8 *p=px(x); GC_RUN((u64)p[i],p[first[h]]==p[i]); } break;
-  case -4: { char **p=px(x); GC_RUN(xfnv1a(p[i],strlen(p[i])),!strcmp(p[first[h]],p[i])); } break;
-  case 0:  { K *p=px(x); GC_RUN(khash(p[i]),!kcmpr(p[first[h]],p[i])); } break;
-  default: xfree(cnt); xfree(first); xfree(order); return 0;
+  case -1: { i32 *p=px(x); GC_RUN(hmul((u32)p[i]),p[fi]==p[i]); } break;
+  case -8: { i64 *p=px(x); GC_RUN(hmul((u64)p[i]),p[fi]==p[i]); } break;
+  case -2: { double *p=px(x); GC_RUN(fuse_hash_f64_(p[i]),!cmpfft(p[fi],p[i])); } break;
+  case -9: { float *p=px(x); GC_RUN(fuse_hash_f32_(p[i]),!cmpfft((double)p[fi],(double)p[i])); } break;
+  case -3: { u8 *p=px(x); GC_RUN((u64)p[i],p[fi]==p[i]); } break;
+  case -4: { char **p=px(x); GC_RUN(symh(p[i]),p[fi]==p[i]); } break;
+  case 0:  { K *p=px(x); GC_RUN(khash(p[i]),!kcmpr(p[fi],p[i])); } break;
+  default: xfree(gid); xfree(hv); xfree(firstg); xfree(cntg); return 0;
   }
   r=tn(1,ng);
-  { i32 *p=px(r); for(u64 i=0;i<ng;++i) p[i]=(i32)cnt[order[i]]; }
-  xfree(cnt); xfree(first); xfree(order);
+  { i32 *p=px(r); for(u64 i=0;i<ng;++i) p[i]=(i32)cntg[i]; }
+  xfree(gid); xfree(hv); xfree(firstg); xfree(cntg);
   *out=r;
   return 1;
 }
@@ -318,7 +339,7 @@ static int sort_count_i32_(i32 *p,u64 N,i8 down,K *out) {
   if(!N) { *out=tn(1,0); return 1; }
   for(u64 i=0;i<N;++i) { if(p[i]<min)min=p[i];if(p[i]>max)max=p[i]; }
   u64 range=(u64)((i64)max-(i64)min)+1;
-  if(range>=0x10000000u || range>N*8+1000000) return 0;
+  if(range>=0x10000000u || range>N*8+1000000 || range>N*64) return 0; /* table must stay small relative to N */
   u32 *cnt=xcalloc(range,sizeof(u32));
   for(u64 i=0;i<N;++i) ++cnt[(u32)((i64)p[i]-(i64)min)];
   K r=tn(1,N); i32 *z=px(r); u64 j=0;
@@ -332,13 +353,16 @@ static int sort_count_i32_(i32 *p,u64 N,i8 down,K *out) {
     typedef TY radix_ty_;                                                 \
     radix_ty_ *base=(radix_ty_*)px(r),*src=base;                          \
     radix_ty_ *dst=xmalloc(N*sizeof(radix_ty_)),*tmp=dst;                 \
-    u32 *cnt=xmalloc(65536*sizeof(u32));                                  \
-    for(i32 pass=0;pass<(NPASS);++pass) {                                \
-      i32 sh=pass*16; memset(cnt,0,65536*sizeof(u32));                    \
-      for(u64 z=0;z<N;++z) ++cnt[((KEY(src[z]))>>sh)&0xffff];             \
-      if(down) for(i32 z=65534;z>=0;--z) cnt[z]+=cnt[z+1];                \
-      else for(i32 z=1;z<65536;++z) cnt[z]+=cnt[z-1];                     \
-      for(u64 z=N;z--;) { u32 b=(u32)(((KEY(src[z]))>>sh)&0xffff);        \
+    /* 8-bit digits below 64K elements: a 65536-entry histogram per pass   \
+       cost ~110us per call however short the vector (see sort.c radixgkey) */ \
+    i32 bits_=N<0x10000?8:16, nb_=1<<bits_, mask_=nb_-1, passes_=(NPASS)*(16/bits_); \
+    u32 *cnt=xmalloc((size_t)nb_*sizeof(u32));                             \
+    for(i32 pass=0;pass<passes_;++pass) {                                 \
+      i32 sh=pass*bits_; memset(cnt,0,(size_t)nb_*sizeof(u32));            \
+      for(u64 z=0;z<N;++z) ++cnt[((KEY(src[z]))>>sh)&mask_];              \
+      if(down) for(i32 z=nb_-2;z>=0;--z) cnt[z]+=cnt[z+1];                \
+      else for(i32 z=1;z<nb_;++z) cnt[z]+=cnt[z-1];                       \
+      for(u64 z=N;z--;) { u32 b=(u32)(((KEY(src[z]))>>sh)&mask_);         \
                        dst[--cnt[b]]=src[z]; }                            \
       { radix_ty_ *z=src;src=dst;dst=z; }                                \
     }                                                                     \
@@ -446,7 +470,7 @@ static int top_count_i32_(i32 *p,u32 N,u32 k,i8 down,K *out) {
   if(!k) { *out=tn(1,0); return 1; }
   for(u32 i=0;i<N;++i) { if(p[i]<min)min=p[i];if(p[i]>max)max=p[i]; }
   u64 range=(u64)((i64)max-(i64)min)+1;
-  if(range>0x1000000u || range>(u64)N*8+1000000) return 0;
+  if(range>0x1000000u || range>(u64)N*8+1000000 || range>(u64)N*64) return 0; /* table must stay small relative to N */
   u32 *cnt=xcalloc(range,sizeof(u32)),*cur=xmalloc(range*sizeof(u32));
   for(u32 i=0;i<N;++i) ++cnt[(u32)((i64)p[i]-(i64)min)];
   u32 pos=0;

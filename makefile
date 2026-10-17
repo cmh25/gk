@@ -19,7 +19,7 @@ CCBIN=cc
 endif
 
 LTO := $(shell $(CCBIN) -flto=auto -E -x c /dev/null >/dev/null 2>&1 && echo -flto=auto || echo -flto)
-CC=$(CCBIN) -O3 -march=native $(LTO) $(MEM) -I.
+CC=$(CCBIN) -O3 -march=native -fno-math-errno $(LTO) $(MEM) -I.
 CCD=$(CCBIN) -g -Wall -Wformat=2 -Wextra -Wformat-security -Wno-format-nonliteral -Wpedantic -I.
 CFILES=$(addprefix $(SRC)/,p.c lex.c timer.c k.c main.c repl.c dict.c scope.c fn.c b.c v.c av.c ms.c h.c fe.c lzw.c md5.c sha1.c sha2.c aes256.c io.c irecur.c la.c nt.c ipc.c tmr.c watch.c ffi.c)
 COREFILES=$(CORE)/k.c $(CORE)/v.c $(CORE)/av.c $(CORE)/fuse.c $(CORE)/sort.c $(CORE)/rand.c $(CORE)/sym.c $(CORE)/x.c

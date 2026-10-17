@@ -296,7 +296,7 @@ i32 kcmpr(K a, K x) {
     else if(ta==2) r=cmpfft(fk(a),fk(x));
     else if(ta==3 && ck(a)<ck(x)) r=-1;
     else if(ta==3 && ck(a)>ck(x)) r=1;
-    else if(ta==4) r=strcmp(sk(a),sk(x));
+    else if(ta==4) r=sk(a)==sk(x)?0:strcmp(sk(a),sk(x)); /* interned */
     else if(ta==-1) {
       PAI; PXI;
       for(size_t i=0;;++i) {
@@ -353,7 +353,7 @@ i32 kcmpr(K a, K x) {
         if(i==na && i<nx) { r=-1; break; }
         if(i==nx && i<na) { r= 1; break; }
         if(i==na) break;
-        i32 z=strcmp(pas[i], pxs[i]);
+        i32 z=pas[i]==pxs[i]?0:strcmp(pas[i], pxs[i]); /* interned */
         if(z<0) { r=-1; break; }
         if(z>0) { r= 1; break; }
       }
