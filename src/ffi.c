@@ -18,6 +18,7 @@ GK_API K gk_mkj(int64_t v)     { return tj(v); }
 GK_API K gk_mke(float v)       { return te(v); }
 GK_API K gk_mkc(int v)         { return t(3, (uint8_t)v); }
 GK_API K gk_mks(const char *s) { return t(4, sp((char*)s)); }
+GK_API char *gk_intern(const char *s) { return sp((char*)s); }
 GK_API K gk_mknull(void)       { return null; }
 
 /* ---- make a vector (uninitialized; the author fills it via gk_<t>v) -------

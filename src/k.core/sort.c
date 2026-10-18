@@ -56,8 +56,43 @@ static i32* csortg8(i32 *g, i64 *a, u32 n, i64 min, i64 max, i32 down) {
 #define GT_(x,y) ((x)>(y))
 #define FLT_(x,y) (cmpfft((double)(x),(double)(y))<0)
 #define FGT_(x,y) (cmpfft((double)(x),(double)(y))>0)
-static i32* radixgkey(i32 *g, u64 *key, u32 n, i32 npass, i32 down);
-static i64* radixgkeyj(i64 *g, u64 *key, u64 n, i32 npass, i32 down);
+/* LSD radix grade kernel.  KEY(i) is the u64 sort key of element i.  Integer
+   keys are computed on the fly in every pass (a flip of the sign bit), so a
+   wide-range long grade's only scratch is the index permutation, 4n bytes,
+   like the merge sort it replaced.  Float keys are precomputed into key[]
+   (KEYARR): the NaN/-0 transform run 8 times per element cost 40% on `<f`.
+   NPASS counts 16-bit digits; below 64K elements
+   the digits are 8 bits (twice the passes, a 257-entry histogram): clearing
+   and prefix-summing a 65537-entry histogram per pass is ~90us per call,
+   which dominated grades of small vectors.  Stable: the descending prefix
+   sum + backward fill keeps ties in ascending-index order. */
+#define RADIXG(GT,KEY,NPASS)                                                  \
+  do {                                                                        \
+    i32 bits=n<0x10000?8:16, nb=1<<bits, mask=nb-1, passes=(NPASS)*(16/bits), p, sh; \
+    GT *scratch=xmalloc(n*sizeof(GT)),*count=xmalloc((nb+1)*sizeof(GT));      \
+    GT *src=g,*dst=scratch,*tt;                                               \
+    i64 i; u64 k;                                                             \
+    for(k=0;k<n;k++) g[k]=(GT)k;                                              \
+    for(p=0;p<passes;p++) {                                                   \
+      sh=p*bits;                                                              \
+      memset(count,0,(nb+1)*sizeof(GT));                                      \
+      for(k=0;k<n;k++) count[(KEY(src[k])>>sh)&mask]++;                       \
+      if(down) for(i=nb-1;i>=0;i--) count[i]+=count[i+1];                     \
+      else for(i=1;i<nb;i++) count[i]+=count[i-1];                            \
+      for(i=(i64)n-1;i>=0;i--) dst[--count[(KEY(src[i])>>sh)&mask]]=src[i];   \
+      tt=src; src=dst; dst=tt;                                                \
+    }                                                                         \
+    if(src!=g) memcpy(g,src,n*sizeof(GT));                                    \
+    xfree(scratch); xfree(count);                                             \
+  } while(0)
+/* float keys: NaN below everything (cmpfft ties all NaNs), -0 normalized to +0,
+   sign bit flipped on non-negatives / all bits on negatives -- see the comment
+   at the float grades below */
+static inline u64 keyf64(double v) { u64 u; if(isnan(v)) return 0; if(v==0.0) u=0; else memcpy(&u,&v,sizeof(u)); return u^(((u64)((i64)u>>63))|0x8000000000000000ULL); }
+static inline u64 keyf32(float v)  { u32 u; if(isnan(v)) return 0; if(v==0.0f) u=0; else memcpy(&u,&v,sizeof(u)); return (u64)(u^(((u32)((i32)u>>31))|0x80000000u)); }
+#define KEYI32(i) ((u64)((u32)a[i]^0x80000000u))
+#define KEYI64(i) ((u64)a[i]^0x8000000000000000ULL)
+#define KEYARR(i) key[i]
 
 i32* rcsortg(i32 *g, i32 *a, u32 n, i32 down) {
   i32 i=0,mm1=0,as=0;
@@ -83,15 +118,9 @@ i32* rcsortg(i32 *g, i32 *a, u32 n, i32 down) {
      cheaper for a short vector with a tiny range) */
   if(n<=INSG_N) { if(down) INSG(GT_); else INSG(LT_); }
 
-  /* short-but-sparse: the 8-bit-digit radix (see radixgkey) beats the two
+  /* short-but-sparse: the 8-bit-digit radix (RADIXG) beats the two
      65537-entry histograms below, which cost ~25us per call */
-  if(n<0x10000) {
-    u64 *key=xmalloc(n*sizeof(u64));
-    for(k=0;k<n;k++) key[k]=(u64)((u32)a[k]^0x80000000u);
-    radixgkey(g,key,n,2,down);
-    xfree(key);
-    return g;
-  }
+  if(n<0x10000) { RADIXG(i32,KEYI32,2); return g; }
 
   t=xcalloc(n,sizeof(i32));
   count=xcalloc(0x10001,sizeof(i32));
@@ -125,7 +154,6 @@ i32* rcsortg(i32 *g, i32 *a, u32 n, i32 down) {
  * merge-sort fallback that took 1.3s on 1e7 random longs (int32: 0.16s). */
 i32* rcsortg8(i32 *g, i64 *a, u32 n, i32 down) {
   u32 k;
-  u64 *key;
   i64 max=INT64_MIN,min=INT64_MAX;
   for(k=0;k<n;k++) {
     max = max < a[k] ? a[k] : max;
@@ -135,10 +163,7 @@ i32* rcsortg8(i32 *g, i64 *a, u32 n, i32 down) {
        && (u64)max-(u64)min <= (u64)n*8 + 1000000
        && (u64)max-(u64)min <= (u64)n*64) return csortg8(g,a,n,min,max,down);
   if(n<=INSG_N) { if(down) INSG(GT_); else INSG(LT_); }   /* short and sparse */
-  key=xmalloc(n*sizeof(u64));
-  for(k=0;k<n;k++) key[k]=(u64)a[k]^0x8000000000000000ULL;
-  radixgkey(g,key,n,4,down);
-  xfree(key);
+  RADIXG(i32,KEYI64,4);
   return g;
 }
 
@@ -160,58 +185,22 @@ i32* rcsortg8(i32 *g, i64 *a, u32 n, i32 down) {
    rcsortg's ascending/descending prefix-sum + backward-fill (so ties keep their
    original, ascending-index order — matching the merge sort it replaces). */
 
-/* npass counts 16-bit digits.  Below 64K elements the digits are 8 bits
-   (twice the passes, a 257-entry histogram): clearing and prefix-summing a
-   65537-entry histogram per pass is ~90us per call, which dominated grades of
-   small vectors (grading 10 floats cost 1000x grading 10 ints, and a per-group
-   sort or median over 1e5 groups spent seconds in it). */
-static i32* radixgkey(i32 *g, u64 *key, u32 n, i32 npass, i32 down) {
-  i32 bits=n<0x10000?8:16, nb=1<<bits, mask=nb-1, passes=npass*(16/bits);
-  i32 *scratch=xmalloc(n*sizeof(i32)),*count=xmalloc((nb+1)*sizeof(i32));
-  i32 *src=g,*dst=scratch,*tt,i,p,sh;
-  u32 k;
-  for(k=0;k<n;k++) g[k]=(i32)k;
-  for(p=0;p<passes;p++) {
-    sh=p*bits;
-    memset(count,0,(nb+1)*sizeof(i32));
-    for(k=0;k<n;k++) count[(key[src[k]]>>sh)&mask]++;
-    if(down) for(i=nb-1;i>=0;i--) count[i] += count[i+1];
-    else for(i=1;i<nb;i++) count[i] += count[i-1];
-    for(i=(i32)n-1;i>=0;i--) dst[--count[(key[src[i]]>>sh)&mask]] = src[i];
-    tt=src; src=dst; dst=tt;
-  }
-  if(src!=g) memcpy(g,src,n*sizeof(i32)); /* odd npass leaves result in scratch */
-  xfree(scratch); xfree(count);
-  return g;
-}
-
 i32* rcsortg2(i32 *g, double *a, u32 n, i32 down) {
-  u64 *key,u;
-  double v; u32 k;
+  u64 *key; u32 k;
   if(n<=INSG_N) { if(down) INSG(FGT_); else INSG(FLT_); }
   key=xmalloc(n*sizeof(u64));
-  for(k=0;k<n;k++) {
-    v=a[k];
-    if(isnan(v)) { key[k]=0; continue; }
-    if(v==0.0) u=0; else memcpy(&u,&v,sizeof(u)); /* normalize -0 to +0 */
-    key[k] = u ^ (((u64)((i64)u>>63)) | 0x8000000000000000ULL);
-  }
-  radixgkey(g,key,n,4,down);
+  for(k=0;k<n;k++) key[k]=keyf64(a[k]);
+  RADIXG(i32,KEYARR,4);
   xfree(key);
   return g;
 }
 
 i32* rcsortg9(i32 *g, float *a, u32 n, i32 down) {
-  u64 *key; u32 u,k; float v;
+  u64 *key; u32 k;
   if(n<=INSG_N) { if(down) INSG(FGT_); else INSG(FLT_); }
   key=xmalloc(n*sizeof(u64));
-  for(k=0;k<n;k++) {
-    v=a[k];
-    if(isnan(v)) { key[k]=0; continue; }
-    if(v==0.0f) u=0; else memcpy(&u,&v,sizeof(u)); /* normalize -0 to +0 */
-    key[k] = (u64)(u ^ (((u32)((i32)u>>31)) | 0x80000000u));
-  }
-  radixgkey(g,key,n,2,down);
+  for(k=0;k<n;k++) key[k]=keyf32(a[k]);
+  RADIXG(i32,KEYARR,2);
   xfree(key);
   return g;
 }
@@ -262,7 +251,6 @@ void msortg##N(i32 *g, T a, i32 l, i32 r, i32 down) { \
   xfree(M); M=0; \
 }
 MS(1,i32*,CMP)
-MS(8,i64*,CMP)
 MS(3,char*,CMP)
 MS(0,K*,kcmpr)
 /* sym (-4) grade is handled by the MSD byte-radix below (rsortg4), not a
@@ -310,7 +298,6 @@ void msortg##N##j(i64 *g, T a, i64 l, i64 r, i32 down) { \
   xfree(Mj); Mj=0; \
 }
 MSJ(1,i32*,CMP)
-MSJ(8,i64*,CMP)
 MSJ(3,char*,CMP)
 MSJ(0,K*,kcmpr)
 
@@ -447,61 +434,27 @@ i64* rcsortgj(i64 *g, i32 *a, u64 n, i32 down) {
 }
 
 i64* rcsortg8j(i64 *g, i64 *a, u64 n, i32 down) {
-  u64 k,q;
+  u64 k;
   i64 max=INT64_MIN,min=INT64_MAX;
   for(k=0;k<n;k++) { max = max<a[k]?a[k]:max; min = min>a[k]?a[k]:min; }
   if(n && (u64)max-(u64)min < 0x10000000u-1
        && (u64)max-(u64)min <= (u64)n + 1000000) return csortg8j(g,a,n,min,max,down);
-  { u64 *key=xmalloc(n*sizeof(u64));                 /* see rcsortg8 */
-    for(q=0;q<n;q++) key[q]=(u64)a[q]^0x8000000000000000ULL;
-    radixgkeyj(g,key,n,4,down);
-    xfree(key); }
-  return g;
-}
-
-static i64* radixgkeyj(i64 *g, u64 *key, u64 n, i32 npass, i32 down) {
-  i32 bits=n<0x10000?8:16, nb=1<<bits, mask=nb-1, passes=npass*(16/bits);  /* see radixgkey */
-  i64 *scratch=xmalloc(n*sizeof(i64)),*count=xmalloc((nb+1)*sizeof(i64));
-  i64 *src=g,*dst=scratch,*tt,i; i32 p,sh;
-  u64 k;
-  for(k=0;k<n;k++) g[k]=(i64)k;
-  for(p=0;p<passes;p++) {
-    sh=p*bits;
-    memset(count,0,(nb+1)*sizeof(i64));
-    for(k=0;k<n;k++) count[(key[src[k]]>>sh)&mask]++;
-    if(down) for(i=nb-1;i>=0;i--) count[i] += count[i+1];
-    else for(i=1;i<nb;i++) count[i] += count[i-1];
-    for(i=(i64)n-1;i>=0;i--) dst[--count[(key[src[i]]>>sh)&mask]] = src[i];
-    tt=src; src=dst; dst=tt;
-  }
-  if(src!=g) memcpy(g,src,n*sizeof(i64));
-  xfree(scratch); xfree(count);
+  RADIXG(i64,KEYI64,4);                                 /* see rcsortg8 */
   return g;
 }
 
 i64* rcsortg2j(i64 *g, double *a, u64 n, i32 down) {
-  u64 *key=xmalloc(n*sizeof(u64)),u;
-  double v; u64 k;
-  for(k=0;k<n;k++) {
-    v=a[k];
-    if(isnan(v)) { key[k]=0; continue; }
-    if(v==0.0) u=0; else memcpy(&u,&v,sizeof(u));
-    key[k] = u ^ (((u64)((i64)u>>63)) | 0x8000000000000000ULL);
-  }
-  radixgkeyj(g,key,n,4,down);
+  u64 *key=xmalloc(n*sizeof(u64)),k;
+  for(k=0;k<n;k++) key[k]=keyf64(a[k]);
+  RADIXG(i64,KEYARR,4);
   xfree(key);
   return g;
 }
 
 i64* rcsortg9j(i64 *g, float *a, u64 n, i32 down) {
-  u64 *key=xmalloc(n*sizeof(u64)); u32 u; u64 k; float v;
-  for(k=0;k<n;k++) {
-    v=a[k];
-    if(isnan(v)) { key[k]=0; continue; }
-    if(v==0.0f) u=0; else memcpy(&u,&v,sizeof(u));
-    key[k] = (u64)(u ^ (((u32)((i32)u>>31)) | 0x80000000u));
-  }
-  radixgkeyj(g,key,n,2,down);
+  u64 *key=xmalloc(n*sizeof(u64)),k;
+  for(k=0;k<n;k++) key[k]=keyf32(a[k]);
+  RADIXG(i64,KEYARR,2);
   xfree(key);
   return g;
 }

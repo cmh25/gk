@@ -28,17 +28,14 @@ char *sp(char *s) {
     }
   }
 
-  // 2. Grow at HALF load.  Growing only when full (j==k) let probe chains
-  // run to ~11 strcmps per lookup once a workspace had a few thousand
-  // names; sp() is on every global assignment and every dotted lookup.
-  if(2*j>=k) {
+  // 2. Grow at half load (j advances by 2 per symbol, so j==k is count==k/2)
+  if(j==k) {
     int oldk=k;
     k=k?k*2:2;
     p=xcalloc((size_t)k,sizeof(char*));
     if(!p) { fprintf(stderr, "sp\n"); exit(1); }
 
-    // rehash old entries (every old slot, not the first j: the table is
-    // no longer full when it grows)
+    // rehash every old slot
     for(i=0;i<oldk;++i) {
       t=sh?sh[i]:0;
       if(t) {

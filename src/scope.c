@@ -221,7 +221,7 @@ int scope_vktp(char *x) {
 static struct { char str[256]; size_t len; int nc; char *c[KPCC]; } kpc[KPCN];
 static K ktree_get(char *n) {
   K r=0,q;
-  char s[256],*p,*t,**c;
+  char s[256],*p,*t,*cc[128],**c;             /* 255 chars hold at most 128 components */
   int i,nc;
   size_t len;
   if(!*n) return k_(ktree);
@@ -232,24 +232,13 @@ static K ktree_get(char *n) {
       if(!scope_vktp(n)) return KERR_DOMAIN;
       if(len>255) return KERR_LENGTH;
       memcpy(s,n,len+1);
-      char *cc[KPCC];                           /* parse locally; the slot is only replaced on success */
       nc=0;
-      for(p=strtok_r(s,".",&t);p&&nc<KPCC;p=strtok_r(0,".",&t)) cc[nc++]=sp(p);
-      if(p) {                                   /* more than KPCC components: resolve uncached */
-        memcpy(s,n,len+1);
-        p=strtok_r(s,".",&t);
-        r=dget(ktree,sp(p));
-        while((p=strtok_r(0,".",&t))) {
-          if(!r) return KERR_VALUE;
-          if(0x80!=s(r)) { _k(r); return KERR_VALUE; }
-          q=dget(r,sp(p));
-          _k(r); r=q;
-        }
-        return r?r:KERR_VALUE;
+      for(p=strtok_r(s,".",&t);p&&nc<128;p=strtok_r(0,".",&t)) cc[nc++]=sp(p);
+      c=cc;
+      if(nc<=KPCC) {                            /* short paths are cached; long ones just resolve */
+        memcpy(kpc[h].str,n,len+1); memcpy(kpc[h].c,cc,nc*sizeof(char*));
+        kpc[h].len=len; kpc[h].nc=nc;
       }
-      memcpy(kpc[h].str,n,len+1);
-      memcpy(kpc[h].c,cc,nc*sizeof(char*));
-      kpc[h].len=len; kpc[h].nc=nc; c=kpc[h].c;
     }
   }
   r=nc?dget(ktree,c[0]):0;

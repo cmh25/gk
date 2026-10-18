@@ -1234,7 +1234,7 @@ static K take_(K a, K x) {
     case -4: PRS(c); PXS;
       if(nx&&neg) { u64 w=(nx-c%nx)%nx; i(c,*prs++=pxs[w]; if(++w==nx)w=0;) }
       else if(nx) { u64 w=0; i(c,*prs++=pxs[w]; if(++w==nx)w=0;) }
-      else i(c,*prs++="") /* sp()? */
+      else { char *e=sp(""); i(c,*prs++=e) }       /* interned: symbol = is identity */
       break;
     case  0: PRK(c); PXK;
       if(nx&&neg) { u64 w=(nx-c%nx)%nx; i(c,*prk++=k_(pxk[w]); if(++w==nx)w=0;) }
@@ -2351,7 +2351,7 @@ K first(K x) {
   case -8: PXJ; r=nx?tj(*pxj):tj(0); break;
   case -9: PXE; r=nx?te(*pxe):te(0); break;
   case -3: PXC; r=nx?t(3,(u8)*pxc):t(3,' '); break;
-  case -4: PXS; r=nx?t(4,*pxs):t(4,""); break;
+  case -4: PXS; r=nx?t(4,*pxs):t(4,sp("")); break;   /* interned: symbol = is identity */
   case  0: PXK; r=nx?k_(*pxk):null; break;
   default: return KERR_TYPE;
   }

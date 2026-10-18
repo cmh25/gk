@@ -10,7 +10,6 @@ int* rcsortg2(int *g, double *a, unsigned int n, int down);
 int* rcsortg9(int *g, float *a, unsigned int n, int down);
 int* csortg3(int *g, char *a, u64 n, int down);          /* char counting sort */
 void msortg1(int *g, int *a, int l, int r, int down);
-void msortg8(int *g, i64 *a, int l, int r, int down);
 void msortg3(int *g, char *a, int l, int r, int down);
 void msortg0(int *g, K *a, int l, int r, int down);
 
@@ -21,7 +20,6 @@ i64* rcsortg2j(i64 *g, double *a, u64 n, int down);
 i64* rcsortg9j(i64 *g, float *a, u64 n, int down);
 i64* csortg3j(i64 *g, char *a, u64 n, int down);         /* char counting sort */
 void msortg1j(i64 *g, int *a, i64 l, i64 r, int down);
-void msortg8j(i64 *g, i64 *a, i64 l, i64 r, int down);
 void msortg3j(i64 *g, char *a, i64 l, i64 r, int down);
 void msortg0j(i64 *g, K *a, i64 l, i64 r, int down);
 

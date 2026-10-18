@@ -2553,7 +2553,10 @@ GK_FN K kadd(K x, K y) {
 Mark each exposed function with `GK_FN`.
 `gk_i` `gk_f` `gk_j` `gk_e` `gk_c` `gk_s` read an atom; `gk_iv` `gk_fv` … give a
 typed pointer to a vector's elements; `gk_mki` `gk_mkf` … `gk_mkiv` `gk_mkstr`
-construct atoms and vectors; `gk_err("msg")` raises an error. Build it as a
+construct atoms and vectors; `gk_err("msg")` raises an error. A symbol is an
+interned name and symbols compare by address, so an element you store through
+`gk_sv` must be `gk_intern("name")` (or `gk_s` of a symbol gk gave you), never a
+raw C string. Build it as a
 shared object:
 - Linux: `cc -shared -fPIC f.c -o f.so`
 - macOS: `cc -shared -fPIC -undefined dynamic_lookup f.c -o f.so`

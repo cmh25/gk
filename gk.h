@@ -107,7 +107,7 @@ static inline float gk_e(K x) {                         /* f32  atom value */
 #define gk_jv(x) ((int64_t*)(GK_KO(x)->v))              /* i64    vector elements */
 #define gk_ev(x) ((float*)  (GK_KO(x)->v))              /* f32    vector elements */
 #define gk_cv(x) ((char*)   (GK_KO(x)->v))              /* char   vector elements */
-#define gk_sv(x) ((char**)  (GK_KO(x)->v))              /* symbol vector elements */
+#define gk_sv(x) ((char**)  (GK_KO(x)->v))              /* symbol vector elements: INTERNED pointers only (gk_intern) */
 #define gk_kv(x) ((K*)      (GK_KO(x)->v))              /* K-list elements */
 
 #ifdef __cplusplus
@@ -121,6 +121,9 @@ GK_API K gk_mkj(int64_t v);            /* i64 atom */
 GK_API K gk_mke(float v);              /* f32 atom */
 GK_API K gk_mkc(int v);                /* char atom */
 GK_API K gk_mks(const char *s);        /* symbol atom (interns s) */
+GK_API char *gk_intern(const char *s); /* the interned name for s.  Symbols compare and hash by ADDRESS,
+                                          so every element stored through gk_sv() must come from here
+                                          (or from gk_s() of a symbol gk handed you), never a raw C string */
 GK_API K gk_mknull(void);              /* the null value */
 
 /* ---- make a vector of n elements (uninitialized; fill via gk_<t>v()) ------
