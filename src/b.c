@@ -177,7 +177,10 @@ K draw(K a, K x) {
   if(ta!=0 && ta!=1 && ta!=-1 && ta!=-8) { e=KERR_TYPE; goto cleanup; }
   /* tx==9 (real): draw[n;1.0e] was the one hole in the roll/deal type grid --
      `0?1.0e` worked (v.c's draw) but the named form type-errored */
-  if(tx!=1 && tx!=2 && tx!=8 && tx!=9 && ta!=-1) { e=KERR_TYPE; goto cleanup; }
+  /* tx<=0 with an atom count: n draw list samples the list's items (v.c's draw,
+     the n?list form).  A vector count keeps its each / shaped meaning, so a
+     list right stays a type error there. */
+  if(tx!=1 && tx!=2 && tx!=8 && tx!=9 && ta!=-1 && !(tx<=0 && (ta==0||ta==1))) { e=KERR_TYPE; goto cleanup; }
   switch(ta) {
   case  0: if(na) { e=KERR_TYPE; goto cleanup; } r=k(14,t(1,(u32)n),k_(x)); /* n?x */ break;
   case  1: n=ik(a); r=k(14,t(1,(u32)n),k_(x)); /* n?x */ break;
@@ -462,6 +465,20 @@ K ss(K a, K x) {
   char *pac,*pxc,s0[2];
 
   if(s(a) || s(x)) return KERR_TYPE;
+  if(ta==4) {                      /* symbol subject: search its name (sm already accepts one) */
+    char *sa=sk(a); size_t ln=strlen(sa);
+    K a2=tn(3,(i64)ln); memcpy(px(a2),sa,ln);
+    r=ss(a2,x); _k(a2); return r;
+  }
+  if(ta==-4) {                     /* symbol vector subject: one result per symbol */
+    K *pr; char **pas=px(a); u64 k;
+    r=tn(0,na); pr=px(r);
+    for(k=0;k<na;k++) {
+      K a2=t(4,pas[k]); pr[k]=ss(a2,x); _k(a2);
+      if(E(pr[k])) { K e=pr[k]; pr[k]=0; nr=k; _k(r); return e; }
+    }
+    return knorm(r);
+  }
   if(ta!= 0 && ta!=-3) return KERR_TYPE;
   if(ta== 0 && tx==-4 && na!=nx) return KERR_LENGTH;
   if(ta== 0 && tx== 0 && na!=nx) return KERR_LENGTH;

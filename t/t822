@@ -1,0 +1,84 @@
+/ n?list and n draw list: sample a list's items with replacement, keeping the
+/ list's type (sugar for x n?#x; deal from a list stays x n?-#x).  amend-at
+/ rejects a non-integer index instead of silently returning x unchanged, so
+/ `di` with a float/real index is a type error.  ss accepts a symbol (vector)
+/ subject, as sm already did.
+r:10?"abc"
+#r
+4:r
+&/r lin "abc"
+0?"abc"
+4:0?"abc"
+r:3?`a`b`c
+4:r
+&/r lin `a`b`c
+L:(1;"ab";2.5)
+r:5?L
+#r
+&/r lin L
+4:2?1 2 3j
+4:2?1.5 2.5
+4:2?1.5 2.5e
+#2?(1 2;3 4)
+4:4?(1 2;3 4)
+#2j?"abc"
+4:3 draw "abc"
+#3 draw (1 2;3 4)
+4:2j draw `a`b
+0?()
+@[{3?x};();:]
+@[{3 draw x};();:]
+@[{-3?x};"abc";:]
+@[{3?x};.((`a;1);(`b;2));:]
+@[{3?x};"a";:]
+@[{2 3 draw x};"abc";:]
+#'1 2 draw 3 4
+#?3?-5
+4:2?0
+1 2 3?2
+/ amend-at index type gate
+@[{@[1 1 1;x;:;0]};1.0;:]
+@[{@[1 1 1;x;:;0]};1.0e;:]
+@[{@[1 1 1;x;+;5]};1.0;:]
+@[{@[1 1 1;x;:;0]};1 2.0;:]
+@[{@[1 1 1;x;:;0]};"a";:]
+/ indexed assignment and the deepest level of dot-amend funnel into the same
+/ at-amend path, so they leaked too: a[1.0]:5 returned 5 and left a alone
+a:1 1 1
+@[{a[x]:5};1.0;:]
+@[{a[x]+:5};1.0;:]
+a
+m:(1 2;3 4)
+@[{m[0;x]:9};1.0;:]
+@[{.[(1 2;3 4);x;:;9]};(0;1.0);:]
+@[{.[(1 2;3 4);x;:;9]};(0;"a");:]
+m
+/ a symbol index stays a tolerated miss (indexed-assign contract, t802)
+@[{@[1 1 1;x;:;0]};`a;:]
+@[{@[1 1 1;x;-:]};1.0;:]
+a:1 2 3
+@[{@[`a;x;:;0]};1.0;:]
+a
+@[{1 2 3 di x};1.0;:]
+@[{1 2 3 di x};1.0e;:]
+@[{1 2 3 di x};0.5 1.0;:]
+1 2 3 di 1
+1 2 3 di 1j
+1 2 3 4 5 di 1 3
+1 2 3 di ()
+@[1 1 1;1j;:;0]
+@[1 1 1;nul;:;0]
+@[1 1 1;(0;2);:;0]
+@[1 1 1;0 2;:;7 8]
+/ ss on a symbol subject
+ss[`abcabc;"bc"]
+ss[`abc;"b"]
+ss[`abc;"z"]
+ss[`abcabc`xbc;"bc"]
+ss[`;"a"]
+@[{ss[`abc;x]};"";:]
+ss[`abcabc;`bc]
+ss["ab bc";`bc]
+@[{ss[x;1]};`abc;:]
+sm[`abc;"a*"]
+\\

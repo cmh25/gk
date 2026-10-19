@@ -1350,6 +1350,14 @@ static K kamendi4v_(K d, K i, K f, K y) {
   Ty=ty; if(s(y)) { if(!VST(y)) { e=KERR_TYPE; goto cleanup; } Ty=15; }
   if(s(i)) { e=KERR_TYPE; goto cleanup; }
   if(s(d)) { e=KERR_TYPE; goto cleanup; }
+  /* Index type gate: a float, real or char index used to fall through the
+     typed fast paths below -- their inner switch(ti) has no default -- and
+     return d UNCHANGED, so @[1 1 1;1.0;:;0] silently did nothing (and so did
+     `di` with a float index).  Reject them like plain indexing does
+     (1 1 1@1.0 is a type error).  A symbol index stays a tolerated miss: the
+     indexed-assign contract a[`x]:5 on a vector is a no-op whose value is the
+     RHS (t802). */
+  if(ti==2||ti==-2||ti==9||ti==-9||ti==3||ti==-3) { e=KERR_TYPE; goto cleanup; }
   y=amend_yalias(y); EC(y);   /* y may reach d; d is amended in place */
 
   if(ti==-8 && n(d)<=(u64)INT32_MAX) {

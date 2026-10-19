@@ -845,12 +845,33 @@ and `1 2 3?2.0` both miss (return `3`). The same holds for [`in`](#builtins) and
 [`lin`](#builtins). This is deliberate and differs from the comparison verbs
 `= < >`, which widen and compare by *value* (`1 2 3=1 2 3j` is `1 1 1`).
 
+With an **int or long atom** `a`, `?` is [`draw`](#random) instead: `a?x`
+makes `a` random picks from `!x`, `a?-x` deals `a` distinct picks, `a?0`
+draws floats in `(0,1)` and `a?f` draws floats in `(0,f)`. With a **list**
+`x`, the picks are items of `x`, with replacement, and the result keeps the
+list's type — sugar for `x a?#x`. Deal from a list stays `x a?-#x`.
+
+```
+  r:10?"abc"           / ten picks from a string, e.g. "acbacbcacb"
+  (#r;4:r)             / ten of them, and still a string
+10 -3
+  &/r lin "abc"
+1
+  #3?`a`b`c            / three picks from a symbol vector
+3
+  0?"abc"
+""
+```
+
 <details>
 <summary>spec</summary>
 
 [Dyadic Conformability](#dyadic-conformability)
 
-**Errors:** none — returns `#a` (the count) when `x` is not found.
+**Errors:** none for find — returns `#a` (the count) when `x` is not found.
+For the draw forms, `domain` for a negative or null count, `length` for a deal
+larger than its range or a positive count on an empty list, `type` for a
+dict or an atom that is not a draw range.
 
 </details>
 
@@ -1503,7 +1524,8 @@ To **replace** rather than transform, use the [tetradic form](#q-amend-at) with 
 
 The 3-arg shape `@[f;x;:]` — third argument `:` — is **trap**, not amend; see [Error Trapping](#error-trapping).
 
-**Errors:** `index` when `i` is out of range; whatever error `f` raises.
+**Errors:** `type` when `i` is not an integer index (a float, real, char or
+symbol); `index` when `i` is out of range; whatever error `f` raises.
 
 </details>
 
@@ -1590,7 +1612,9 @@ By reference: `` @[`a;i;f;y] `` updates the named variable in place.
 
 `y` conforms to `i` — one value per selected item, or a scalar broadcast across them. `:` as `f` assigns (replace); any other dyad transforms.
 
-**Errors:** `index` when `i` is out of range; `length` when `y` does not conform to `i`; whatever error `f` raises.
+**Errors:** `type` when `i` is not an integer index (a float, real, char or
+symbol); `index` when `i` is out of range; `length` when `y` does not conform
+to `i`; whatever error `f` raises.
 
 </details>
 
@@ -2426,7 +2450,7 @@ displays (`(2+),`) so they round-trip.
 |---------|-------------|---------|
 | `ic x` | char to int | `ic"A"` → `65` |
 | `ci x` | int to char | `ci 65` → `"A"` |
-| `ss[a;x]` | string/symbol search — start indices (`x` may use `?[^-]`) | `ss["abcabc";"bc"]` → `1 4` |
+| `ss[a;x]` | string/symbol search — start indices of `x` in `a`, which may be a string, a symbol, or a list of either (`x` may use `?[^-]`) | `ss["abcabc";"bc"]` → `1 4` |
 | `sm[a;x]` | string match (glob `*?[^-]`) | |
 | `ssr[a;x;y]` | search `a` for `x`, replace with `y` (`y` may be a function) | |
 
@@ -2506,7 +2530,7 @@ Time builtins use an epoch of **2035-01-01** (Julian day `0` is a Monday).
 
 | Builtin | Description |
 |---------|-------------|
-| `a draw x` | `a` random picks from `!x`; `a draw -x` deals without repeats; `a draw 0` draws floats in `(0,1)` |
+| `a draw x` | `a` random picks from `!x`; `a draw -x` deals without repeats; `a draw 0` draws floats in `(0,1)`; with a list `x`, `a` picks of its items, keeping the list's type (see [`a?x`](#d-find)) |
 
 ### I/O
 

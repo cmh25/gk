@@ -964,6 +964,18 @@ static K draw(K a, K x) {
   cnt=ta==8?jk(a):ji(ik(a));
   if(cnt==J_INF) return KERR_WSFULL;
   if(cnt==J_NULL || cnt==J_NINF) return KERR_DOMAIN;
+  if(tx<=0) {
+    /* n?list (and n draw list): cnt random picks from the items of x, with
+       replacement, keeping x's type -- sugar for x n?#x.  Deal from a list
+       stays spelled x n?-#x.  An empty list has nothing to pick from. */
+    K m,ix;
+    if(cnt<0) return KERR_DOMAIN;
+    if(!nx) return cnt ? KERR_LENGTH : tn(tx<0?-tx:0,0);
+    m=nx>INT32_MAX ? tj((i64)nx) : t(1,(u32)nx);
+    ix=draw(a,m); _k(m); if(E(ix)) return ix;
+    r=at(x,ix); _k(ix);
+    return r;
+  }
   if(tx==1 && (ik(x)==INT32_MIN || ik(x)==INT32_MIN+1))
     return KERR_WSFULL;
   if(tx==8 && (jk(x)==J_NULL || jk(x)==J_NINF))
