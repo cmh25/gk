@@ -721,7 +721,7 @@ that type's **prototype** argument — `f . 0#0` is `f[0]`, `f . 0#0.0` is
 <a id="d-mod-dict"></a>
 #### `a!x` (mod / dict)
 
-Remainder / modulo for numeric `a` and `x` (C-style remainder for negatives). Dictionary-related forms of `!` are covered under [Dictionaries](#dictionaries).
+Remainder / modulo for numeric `a` and `x`: the quotient is floored, so the result takes the sign of the modulus `x` and lies in `[0,x)` for positive `x` (`-5!7` is `2`, `5!-7` is `-2`), the same for floats (`-5.5!2` is `0.5`, not C's `fmod`). Dictionary-related forms of `!` are covered under [Dictionaries](#dictionaries).
 
 ```
   7!3
@@ -730,7 +730,7 @@ Remainder / modulo for numeric `a` and `x` (C-style remainder for negatives). Di
 1.0
 ```
 
-A modulus of zero yields null — `7!0` is `0N`, `7.0!0` is `0n`. The remainder `a - x*trunc(a%x)` is *indeterminate* at `x=0` (the quotient's infinity is multiplied by the zero modulus: `0*0i` has no value), unlike [`%`](#d-divide) and [`div`](#builtins), where the quotient itself diverges and the result is infinity. The float case is exactly IEEE `fmod`.
+A modulus of zero yields null — `7!0` is `0N`, `7.0!0` is `0n`. The remainder `a - x*floor(a%x)` is *indeterminate* at `x=0` (the quotient's infinity is multiplied by the zero modulus: `0*0i` has no value), unlike [`%`](#d-divide) and [`div`](#builtins), where the quotient itself diverges and the result is infinity.
 
 ```
   7!0
