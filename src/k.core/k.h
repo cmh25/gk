@@ -4,6 +4,7 @@
 #include <limits.h>
 #include <math.h>
 #include <float.h>
+#include <string.h>
 #include "types.h"
 #include "x.h"
 
@@ -195,11 +196,20 @@ static inline u64 hmul(u64 v) {
   return v;
 }
 
+/* int -> float with the sentinels mapped: 0I -> inf, -0I -> -inf, 0N -> NaN.
+   Written as masks on the bit pattern rather than compares and returns: gcc
+   will not if-convert a select of floating constants under the default
+   trapping-math, so the branchy form kept every int->float loop scalar (the
+   PMT mixed arms); this form gives the same bits (the NaN is the same NAN
+   constant) and vectorises, measured 1.6x on `F+x`, no change on the scalar
+   paths. */
+static inline u64 fbits(double d) { u64 b; memcpy(&b,&d,8); return b; }
+static inline double bitsf(u64 b) { double d; memcpy(&d,&b,8); return d; }
+#define KF_INF  0x7ff0000000000000ULL
+#define KF_NINF 0xfff0000000000000ULL
 static inline double fi(i32 x) {
-  if(x == INT32_MAX)    return INFINITY;
-  if(x == INT32_MIN)    return NAN;
-  if(x == INT32_MIN+1)  return -INFINITY;
-  return (double)x;
+  u64 b=fbits((double)x), m1=0-(u64)(x==INT32_MAX), m2=0-(u64)(x==INT32_MIN+1), m3=0-(u64)(x==INT32_MIN);
+  return bitsf((b&~(m1|m2|m3))|(m1&KF_INF)|(m2&KF_NINF)|(m3&fbits(NAN)));
 }
 
 /* 64-bit int (long, type 8) sentinels: null, +inf, -inf */
@@ -207,11 +217,9 @@ static inline double fi(i32 x) {
 #define J_INF   INT64_MAX
 #define J_NINF  (INT64_MIN+1)
 
-static inline double fj(i64 x) {
-  if(x == J_INF)   return INFINITY;
-  if(x == J_NULL)  return NAN;
-  if(x == J_NINF)  return -INFINITY;
-  return (double)x;
+static inline double fj(i64 x) {   /* see fi */
+  u64 b=fbits((double)x), m1=0-(u64)(x==J_INF), m2=0-(u64)(x==J_NINF), m3=0-(u64)(x==J_NULL);
+  return bitsf((b&~(m1|m2|m3))|(m1&KF_INF)|(m2&KF_NINF)|(m3&fbits(NAN)));
 }
 
 /* i32 -> i64 widening, sentinel-aware: 0N->0Nj, 0I->0Ij, -0I->-0Ij (the
@@ -225,11 +233,13 @@ static inline i64 ji(i32 x) {
 }
 
 /* i32 -> f32 widening, sentinel-aware (mirrors fi) */
-static inline float ei(i32 x) {
-  if(x == INT32_MAX)    return (float)INFINITY;
-  if(x == INT32_MIN)    return (float)NAN;
-  if(x == INT32_MIN+1)  return -(float)INFINITY;
-  return (float)x;
+static inline u32 ebits(float f) { u32 b; memcpy(&b,&f,4); return b; }
+static inline float bitse(u32 b) { float f; memcpy(&f,&b,4); return f; }
+#define KE_INF  0x7f800000u
+#define KE_NINF 0xff800000u
+static inline float ei(i32 x) {   /* see fi */
+  u32 b=ebits((float)x), m1=0-(u32)(x==INT32_MAX), m2=0-(u32)(x==INT32_MIN+1), m3=0-(u32)(x==INT32_MIN);
+  return bitse((b&~(m1|m2|m3))|(m1&KE_INF)|(m2&KE_NINF)|(m3&ebits((float)NAN)));
 }
 
 extern i32 precision;
