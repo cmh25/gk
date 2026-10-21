@@ -1,0 +1,42 @@
+/ every NaN is one value to = (group), ? (distinct) and the fused #'=x, as it
+/ already was to = ~ ? (find) and lin: the float hashes (v.c hmulf/hmule, k.c
+/ khash, fuse.c fuse_hash_f64_/f32_) read raw bits, so a NaN with the sign bit
+/ set (sqrt of a negative, or whichever NaN operand an instruction propagates)
+/ and the 0n literal fell into different groups and distincts, and the count
+/ differed between the fused and the plain spelling (2026-10-20, found by the
+/ gk-vs-gkpro differential tester).  -0.0 was already canonical.  Both widths,
+/ short and hashed lengths, NaNs first and last.
+p:sqrt -1.5
+x:(0n;p;0n;1.0;p;2.0)
+=x
+#'=x
+#'(=x)
+?x
+x?p
+(0n;p) lin x
+0n=p
+0n~p
+(,p)?0n
+f:x,@[600?1.0;&600?2;:;0n]
+f[7]:p
+#?f
+3#(#'=f)
+3#{#x}'=f
+g:x,@[5000?1.0;&5000?2;:;0n]
+g[7]:p
+#?g
+3#(#'=g)
+3#+/'(1.0+!#g)@=g
+q:sqrt -1.5e
+e:(0ne;q;0ne;1.0e;q)
+=e
+#'=e
+?e
+#?e,@[600?1.0e;&600?2;:;0ne]
+=(600#0n),3#p
+#'=(600#0n),3#p
+#'=(3#p),600#0n
+-0.0 0.0 -0.0?0.0
+?-0.0 0.0 -0.0
+#'=-0.0 0.0 -0.0
+\\

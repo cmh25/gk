@@ -245,12 +245,14 @@ static void gc_grow(u64 **gid, u64 **hv, u64 *w) {
 }
 static inline u64 fuse_hash_f64_(double v) {
   u64 u;
+  if(v!=v) return hmul(0x7ff8000000000000ULL);   /* every NaN is one value to cmpfft, so one hash (as v.c hmulf, k.c khash) */
   if(v==0) v=0.0;
   memcpy(&u,&v,sizeof(u));
   return hmul(u);
 }
 static inline u64 fuse_hash_f32_(float v) {
   u32 u;
+  if(v!=v) return hmul((u64)0x7fc00000u);
   if(v==0) v=0.0f;
   memcpy(&u,&v,sizeof(u));
   return hmul((u64)u);

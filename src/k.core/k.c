@@ -575,11 +575,11 @@ u64 khash(K x) {
   if(s(x)) { r=khashcb(x); --d; return r; }
   switch(tx) {
   case  1: r=r+hmul((u32)ik(x)); break;
-  case  2: f=fk(x); if(f==0) f=0.0; /* -0.0 = 0.0 but bits differ: hash=eq */
-           memcpy(&bits,&f,8); r=r+hmul(bits); break;
+  case  2: f=fk(x); if(f==0) f=0.0; /* -0.0 = 0.0 but bits differ: hash=eq; so do all NaNs */
+           if(f!=f) bits=0x7ff8000000000000ULL; else memcpy(&bits,&f,8); r=r+hmul(bits); break;
   case  8: r=r+hmul((u64)jk(x)); break;
   case  9: ef=ek(x); if(ef==0) ef=0.0f;
-           memcpy(&fb,&ef,4); r=r+hmul((u64)fb); break;
+           if(ef!=ef) fb=0x7fc00000u; else memcpy(&fb,&ef,4); r=r+hmul((u64)fb); break;
   case  3: r=r+hmul((u64)ck(x)); break;
   case  4: GK_WORK(strlen(sk(x))); r=r+xfnv1a(sk(x),strlen(sk(x))); break;
   case  6: case 10: break;
@@ -625,9 +625,9 @@ u64 khash(K x) {
     break;
   }
   case -1: PXI; i(nx,r^=r+hmul((u32)pxi[i])) break;
-  case -2: PXF; i(nx,f=pxf[i]; if(f==0) f=0.0; memcpy(&bits,&f,8); r^=r+hmul(bits)) break;
+  case -2: PXF; i(nx,f=pxf[i]; if(f==0) f=0.0; if(f!=f) bits=0x7ff8000000000000ULL; else memcpy(&bits,&f,8); r^=r+hmul(bits)) break;
   case -8: PXJ; i(nx,r^=r+hmul((u64)pxj[i])) break;
-  case -9: PXE; i(nx,ef=pxe[i]; if(ef==0) ef=0.0f; memcpy(&fb,&ef,4); r^=r+hmul((u64)fb)) break;
+  case -9: PXE; i(nx,ef=pxe[i]; if(ef==0) ef=0.0f; if(ef!=ef) fb=0x7fc00000u; else memcpy(&fb,&ef,4); r^=r+hmul((u64)fb)) break;
   case -3: PXC; r=r+xfnv1a(pxc,nx); break; /* per-char r^=r+hmul(c) mixed
     too weakly: grouping 100k digit strings probed quadratically */
   case -4: PXS; i(nx,u64 l=strlen(pxs[i]); GK_WORK(l); r^=r+xfnv1a(pxs[i],l)) break;

@@ -1,0 +1,20 @@
+/ t828 deep-amend descent regression: kamend3_/kamend4_ held pf=&stack[sp-1]
+/ across stack=xrealloc and read pf->j at the push, a heap-use-after-free that
+/ fires past 32 descent frames (2f53bc0, 2025-12-07). The production binary is
+/ non-ASan so it read freed-but-mapped memory and usually returned the right
+/ value; the real gate is the ASan suite replay (x/make gka), where the unfixed
+/ build aborts on these. Each amend exceeds 32 frames and returns its value.
+.[40{,x}/5;38#,,0;:;99]
+.[40{,x}/5;38#,,0;{x+1}]
+.[40{,x}/5;38#,,0;:;0N]
+.[34{,x}/5;32#,,0;{-x}]
+.[50{,x}/7;48#,,0;:;11]
+.[50{,x}/7;48#,,0;+;1]
+.[64{,x}/0;62#,,0;:;5]
+.[64{,x}/0;62#,,0;{x+1}]
+.[40{,x}/2.5;38#,,0;:;9.5]
+.[40{,x}/2.5;38#,,0;{x*2}]
+.[40{,x}/`a;38#,,0;:;`z]
+.[33{,x}/5;31#,,0;:;7]
+.[33{,x}/5;33#,,0;:;7]
+\\

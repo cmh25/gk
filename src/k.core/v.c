@@ -2549,12 +2549,14 @@ K downgrade(K x) {
    like +0.0 (their bit patterns differ, but they always shared a group). */
 static inline u64 hmulf(double v) {
   u64 b;
+  if(v!=v) return hmul(0x7ff8000000000000ULL);   /* every NaN is one value to cmpfft (and to = ~ ? lin), so one hash: payload and sign bits vary by producer */
   if(v==0) v=0.0;
   memcpy(&b,&v,8);
   return hmul(b);
 }
 static inline u64 hmule(float v) {
   u32 b;
+  if(v!=v) return hmul((u64)0x7fc00000u);
   if(v==0) v=0.0f;
   memcpy(&b,&v,4);
   return hmul((u64)b);

@@ -859,7 +859,7 @@ static K kamendi3d(K d, K i, K f) {
         K k=piu[pf->j++];
         if(s(k)) { e=KERR_TYPE; goto cleanup; }
         if(T(k)==0) {
-          if(sp==sm) { stack=xrealloc(stack,sizeof(sf)*(sm*=2)); }
+          if(sp==sm) stack=xrealloc(stack,sizeof(sf)*(sm*=2));
           stack[sp++]=(sf){k,0};
           goto continue_outer;
         }
@@ -1255,7 +1255,7 @@ static K kamendi4d(K d, K i, K f, K y) {
           K i2=piu[pf->j++];
           if(s(i2)) { e=KERR_TYPE; goto cleanup; }
           if(T(i2)==0) {
-            if(sp==sm) { stack=xrealloc(stack,sizeof(sf)*(sm*=2)); }
+            if(sp==sm) stack=xrealloc(stack,sizeof(sf)*(sm*=2));
             stack[sp++]=(sf){i2,y_,0};
             goto continue_outer;
           }
@@ -1273,7 +1273,7 @@ static K kamendi4d(K d, K i, K f, K y) {
           K y2=pyu[pf->j++];
           if(s(i2)) { e=KERR_TYPE; goto cleanup; }
           if(T(i2)==0 && !s(y2) && T(y2)==0) {
-            if(sp==sm) { stack=xrealloc(stack,sizeof(sf)*(sm*=2)); }
+            if(sp==sm) stack=xrealloc(stack,sizeof(sf)*(sm*=2));
             stack[sp++]=(sf){i2,y2,0};
             goto continue_outer;
           }
@@ -1734,7 +1734,7 @@ static K kamendi4v_(K d, K i, K f, K y) {
             K i2=piu[pf->j++];
             if(s(i2)) { e=KERR_TYPE; goto cleanup; }
             if(T(i2)==0) {
-              if(sp==sm) { stack=xrealloc(stack,sizeof(sf)*(sm*=2)); }
+              if(sp==sm) stack=xrealloc(stack,sizeof(sf)*(sm*=2));
               stack[sp++]=(sf){i2,y_,0};
               goto continue_outer;
             }
@@ -1752,7 +1752,7 @@ static K kamendi4v_(K d, K i, K f, K y) {
             K y2=pyu[pf->j++];
             if(s(i2)) { e=KERR_TYPE; goto cleanup; }
             if(T(i2)==0 && !s(y2) && T(y2)==0) {
-              if(sp==sm) { stack=xrealloc(stack,sizeof(sf)*(sm*=2)); }
+              if(sp==sm) stack=xrealloc(stack,sizeof(sf)*(sm*=2));
               stack[sp++]=(sf){i2,y2,0};
               goto continue_outer;
             }
@@ -2056,7 +2056,7 @@ static K kamend3_(K d, K i, K f) {
           t=dget(d_,sk(i0)); if(!t) t=dnew();
           _k(pf->ri); pf->ri=i0;
           if(n(i2)) {
-            if(sp==sm) { stack=xrealloc(stack,sizeof(sf)*(sm*=2)); }
+            if(sp==sm) stack=xrealloc(stack,sizeof(sf)*(sm*=2));
             stack[sp]=(sf){t, i2, 0, 0, sp-1, 0}; ++sp;
             continue;
           }
@@ -2088,7 +2088,7 @@ static K kamend3_(K d, K i, K f) {
             t=dget(d_,sk(i0)); if(!t) t=null;
             _k(pf->ri); pf->ri=i0;
             if(n(i2)) {
-              if(sp==sm) { stack=xrealloc(stack,sizeof(sf)*(sm*=2)); }
+              if(sp==sm) stack=xrealloc(stack,sizeof(sf)*(sm*=2));
               stack[sp]=(sf){t, i2, 0, 0, sp-1, 0}; ++sp;
               continue;
             }
@@ -2105,7 +2105,7 @@ static K kamend3_(K d, K i, K f) {
               _k(pf->ri); pf->ri=i0;
               if(pf->j>=n(i0)) { _k(i2); e=KERR_INDEX; goto cleanup; }
               t=dget(d_,pi0[pf->j]); if(!t) t=null;
-              if(sp==sm) { stack=xrealloc(stack,sizeof(sf)*(sm*=2)); }
+              if(sp==sm) stack=xrealloc(stack,sizeof(sf)*(sm*=2));
               stack[sp]=(sf){t, i2, 0, 0, sp-1, 0}; ++sp;
               continue;
             }
@@ -2130,7 +2130,7 @@ static K kamend3_(K d, K i, K f) {
               _k(pf->ri); pf->ri=k_(keys);
               if(pf->j>=n(keys)) { _k(i2); e=KERR_INDEX; goto cleanup; }
               t=dget(d_,pk[pf->j]); if(!t) t=null;
-              if(sp==sm) { stack=xrealloc(stack,sizeof(sf)*(sm*=2)); }
+              if(sp==sm) stack=xrealloc(stack,sizeof(sf)*(sm*=2));
               stack[sp]=(sf){t, i2, 0, 0, sp-1, 0}; ++sp;
               continue;
             }
@@ -2210,7 +2210,7 @@ static K kamend3_(K d, K i, K f) {
           if(E(t)){ _k(i2); e=t; goto cleanup; }
           _k(pf->ri); pf->ri=i0;
           if(n(i2)) {
-            if(sp==sm) { stack=xrealloc(stack,sizeof(sf)*(sm*=2)); }
+            if(sp==sm) stack=xrealloc(stack,sizeof(sf)*(sm*=2));
             stack[sp]=(sf){t, i2, 0, 0, sp-1, 0}; ++sp;
             continue;
           }
@@ -2229,7 +2229,7 @@ static K kamend3_(K d, K i, K f) {
           if(E(t)){ _k(i0); _k(i2); e=t; goto cleanup; }
           _k(pf->ri); pf->ri=i0;
           if(n(i2)) {
-            if(sp==sm) { stack=xrealloc(stack,sizeof(sf)*(sm*=2)); }
+            if(sp==sm) stack=xrealloc(stack,sizeof(sf)*(sm*=2));
             stack[sp]=(sf){t, i2, 0, 0, sp-1, 0}; ++sp;
             continue;
           }
@@ -2257,7 +2257,7 @@ static K kamend3_(K d, K i, K f) {
             t=k_(pdu[ik(i0)]);
             _k(pf->ri); pf->ri=i0;
             if(n(i2)) {
-              if(sp==sm) { stack=xrealloc(stack,sizeof(sf)*(sm*=2)); }
+              if(sp==sm) stack=xrealloc(stack,sizeof(sf)*(sm*=2));
               stack[sp]=(sf){t, i2, 0, 0, sp-1, 0}; ++sp;
               continue;
             }
@@ -2273,7 +2273,7 @@ static K kamend3_(K d, K i, K f) {
             t=k_(pdu[jk(i0)]);
             _k(pf->ri); pf->ri=i0;
             if(n(i2)) {
-              if(sp==sm) { stack=xrealloc(stack,sizeof(sf)*(sm*=2)); }
+              if(sp==sm) stack=xrealloc(stack,sizeof(sf)*(sm*=2));
               stack[sp]=(sf){t, i2, 0, 0, sp-1, 0}; ++sp;
               continue;
             }
@@ -2296,7 +2296,7 @@ static K kamend3_(K d, K i, K f) {
             if(n(i2)) {
               if(pf->j>=n(i0)) { _k(i0); _k(i2); e=KERR_INDEX; goto cleanup; }
               _k(pf->ri); pf->ri=i0;
-              if(sp==sm) { stack=xrealloc(stack,sizeof(sf)*(sm*=2)); }
+              if(sp==sm) { i64 pfx=pf-stack; stack=xrealloc(stack,sizeof(sf)*(sm*=2)); pf=&stack[pfx]; }
               stack[sp]=(sf){k_(pdu[pi0[pf->j]]), i2, 0, 0, sp-1, 0}; ++sp;
               continue;
               }
@@ -2313,7 +2313,7 @@ static K kamend3_(K d, K i, K f) {
             if(n(i2)) {
               if(pf->j>=n(i0)) { _k(i0); _k(i2); e=KERR_INDEX; goto cleanup; }
               _k(pf->ri); pf->ri=i0;
-              if(sp==sm) { stack=xrealloc(stack,sizeof(sf)*(sm*=2)); }
+              if(sp==sm) { i64 pfx=pf-stack; stack=xrealloc(stack,sizeof(sf)*(sm*=2)); pf=&stack[pfx]; }
               stack[sp]=(sf){k_(pdu[pj0[pf->j]]), i2, 0, 0, sp-1, 0}; ++sp;
               continue;
               }
@@ -2329,7 +2329,7 @@ static K kamend3_(K d, K i, K f) {
               if(pf->j>=n(d_)) { _k(i0); _k(i2); e=KERR_INDEX; goto cleanup; }
               pf->r=tn(0,n(d_));
               _k(pf->ri); pf->ri=i0;
-              if(sp==sm) { stack=xrealloc(stack,sizeof(sf)*(sm*=2)); }
+              if(sp==sm) { i64 pfx=pf-stack; stack=xrealloc(stack,sizeof(sf)*(sm*=2)); pf=&stack[pfx]; }
               stack[sp]=(sf){k_(pdu[pf->j]), i2, 0, 0, sp-1, 0}; ++sp;
               continue;
             }
@@ -2637,7 +2637,7 @@ static K kamend4_(K d, K i, K f, K y) {
           t=dget(d_,sk(i0)); if(!t) t=dnew();
           _k(pf->ri); pf->ri=i0;
           if(n(i2)) {
-            if(sp==sm) { stack=xrealloc(stack,sizeof(sf)*(sm*=2)); }
+            if(sp==sm) stack=xrealloc(stack,sizeof(sf)*(sm*=2));
             stack[sp]=(sf){t, i2, k_(y_), 0, 0, sp-1, 0}; ++sp;
             continue;
           }
@@ -2689,7 +2689,7 @@ static K kamend4_(K d, K i, K f, K y) {
             t=dget(d_,sk(i0)); if(!t) t=null;
             _k(pf->ri); pf->ri=i0;
             if(n(i2)) {
-              if(sp==sm) { stack=xrealloc(stack,sizeof(sf)*(sm*=2)); }
+              if(sp==sm) stack=xrealloc(stack,sizeof(sf)*(sm*=2));
               /* k_(y_), NOT k_(y): once an ancestor level has scattered, y_
                  is this frame's SLICE of y -- pushing the outermost y put
                  the whole vector back at every leaf below a symbol level
@@ -2716,7 +2716,7 @@ static K kamend4_(K d, K i, K f, K y) {
               _k(pf->ri); pf->ri=i0;
               if(pf->j>=n(i0)) { _k(i2); _k(ym); e=KERR_INDEX; goto cleanup; }
               t=dget(d_,pi0[pf->j]); if(!t) t=null;
-              if(sp==sm) { stack=xrealloc(stack,sizeof(sf)*(sm*=2)); }
+              if(sp==sm) { i64 pfx=pf-stack; stack=xrealloc(stack,sizeof(sf)*(sm*=2)); pf=&stack[pfx]; }
               stack[sp]=(sf){t, i2, k_(ym?pym[pf->j]:y_), 0, 0, sp-1, 0}; ++sp;
               _k(ym);
               continue;
@@ -2748,7 +2748,7 @@ static K kamend4_(K d, K i, K f, K y) {
               _k(pf->ri); pf->ri=k_(keys);
               if(pf->j>=n(keys)) { _k(i2); _k(ym); e=KERR_INDEX; goto cleanup; }
               t=dget(d_,pk[pf->j]); if(!t) t=null;
-              if(sp==sm) { stack=xrealloc(stack,sizeof(sf)*(sm*=2)); }
+              if(sp==sm) { i64 pfx=pf-stack; stack=xrealloc(stack,sizeof(sf)*(sm*=2)); pf=&stack[pfx]; }
               stack[sp]=(sf){t, i2, k_(ym?pym[pf->j]:y_), 0, 0, sp-1, 0}; ++sp;
               _k(ym);
               continue;
@@ -2822,7 +2822,7 @@ static K kamend4_(K d, K i, K f, K y) {
           if(E(t)){ _k(i2); e=t; goto cleanup; }
           _k(pf->ri); pf->ri=i0;
           if(n(i2)) {
-            if(sp==sm) { stack=xrealloc(stack,sizeof(sf)*(sm*=2)); }
+            if(sp==sm) stack=xrealloc(stack,sizeof(sf)*(sm*=2));
             stack[sp]=(sf){t, i2, k_(y_), 0, 0, sp-1, 0}; ++sp;
             continue;
           }
@@ -2841,7 +2841,7 @@ static K kamend4_(K d, K i, K f, K y) {
           if(E(t)){ _k(i0); _k(i2); e=t; goto cleanup; }
           _k(pf->ri); pf->ri=i0;
           if(n(i2)) {
-            if(sp==sm) { stack=xrealloc(stack,sizeof(sf)*(sm*=2)); }
+            if(sp==sm) stack=xrealloc(stack,sizeof(sf)*(sm*=2));
             stack[sp]=(sf){t, i2, k_(y_), 0, 0, sp-1, 0}; ++sp;
             continue;
           }
@@ -2887,7 +2887,7 @@ static K kamend4_(K d, K i, K f, K y) {
             t=k_(pdu[ik(i0)]);
             _k(pf->ri); pf->ri=i0;
             if(n(i2)) {
-              if(sp==sm) { stack=xrealloc(stack,sizeof(sf)*(sm*=2)); }
+              if(sp==sm) stack=xrealloc(stack,sizeof(sf)*(sm*=2));
               stack[sp]=(sf){t, i2, k_(y_), 0, 0, sp-1, 0}; ++sp;
               continue;
             }
@@ -2903,7 +2903,7 @@ static K kamend4_(K d, K i, K f, K y) {
             t=k_(pdu[jk(i0)]);
             _k(pf->ri); pf->ri=i0;
             if(n(i2)) {
-              if(sp==sm) { stack=xrealloc(stack,sizeof(sf)*(sm*=2)); }
+              if(sp==sm) stack=xrealloc(stack,sizeof(sf)*(sm*=2));
               stack[sp]=(sf){t, i2, k_(y_), 0, 0, sp-1, 0}; ++sp;
               continue;
             }
@@ -2928,7 +2928,7 @@ static K kamend4_(K d, K i, K f, K y) {
             if(n(i2)) {
               if(pf->j>=n(i0)) { _k(i0); _k(i2); _k(ym); e=KERR_INDEX; goto cleanup; }
               _k(pf->ri); pf->ri=i0;
-              if(sp==sm) { stack=xrealloc(stack,sizeof(sf)*(sm*=2)); }
+              if(sp==sm) { i64 pfx=pf-stack; stack=xrealloc(stack,sizeof(sf)*(sm*=2)); pf=&stack[pfx]; }
               stack[sp]=(sf){k_(pdu[pi0[pf->j]]), i2, k_(ym?pym[pf->j]:y_), 0, 0, sp-1, 0}; ++sp;
               _k(ym);
               continue;
@@ -2953,7 +2953,7 @@ static K kamend4_(K d, K i, K f, K y) {
             if(n(i2)) {
               if(pf->j>=n(i0)) { _k(i0); _k(i2); _k(ym); e=KERR_INDEX; goto cleanup; }
               _k(pf->ri); pf->ri=i0;
-              if(sp==sm) { stack=xrealloc(stack,sizeof(sf)*(sm*=2)); }
+              if(sp==sm) { i64 pfx=pf-stack; stack=xrealloc(stack,sizeof(sf)*(sm*=2)); pf=&stack[pfx]; }
               stack[sp]=(sf){k_(pdu[pj0[pf->j]]), i2, k_(ym?pym[pf->j]:y_), 0, 0, sp-1, 0}; ++sp;
               _k(ym);
               continue;
@@ -2977,7 +2977,7 @@ static K kamend4_(K d, K i, K f, K y) {
             if(n(i2)) {
               if(pf->j>=n(d_)) { _k(i0); _k(i2); _k(ym); e=KERR_INDEX; goto cleanup; }
               _k(pf->ri); pf->ri=i0;
-              if(sp==sm) { stack=xrealloc(stack,sizeof(sf)*(sm*=2)); }
+              if(sp==sm) { i64 pfx=pf-stack; stack=xrealloc(stack,sizeof(sf)*(sm*=2)); pf=&stack[pfx]; }
               stack[sp]=(sf){k_(pdu[pf->j]), i2, k_(ym?pym[pf->j]:y_), 0, 0, sp-1, 0}; ++sp;
               _k(ym);
               continue;
