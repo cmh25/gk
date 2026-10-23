@@ -209,7 +209,7 @@ static inline double bitsf(u64 b) { double d; memcpy(&d,&b,8); return d; }
 #define KF_NINF 0xfff0000000000000ULL
 static inline double fi(i32 x) {
   u64 b=fbits((double)x), m1=0-(u64)(x==INT32_MAX), m2=0-(u64)(x==INT32_MIN+1), m3=0-(u64)(x==INT32_MIN);
-  return bitsf((b&~(m1|m2|m3))|(m1&KF_INF)|(m2&KF_NINF)|(m3&fbits(NAN)));
+  return bitsf(b^((m1|m2|m3)&(b^((m1&KF_INF)|(m2&KF_NINF)|(m3&fbits(NAN))))));
 }
 
 /* 64-bit int (long, type 8) sentinels: null, +inf, -inf */
@@ -219,7 +219,7 @@ static inline double fi(i32 x) {
 
 static inline double fj(i64 x) {   /* see fi */
   u64 b=fbits((double)x), m1=0-(u64)(x==J_INF), m2=0-(u64)(x==J_NINF), m3=0-(u64)(x==J_NULL);
-  return bitsf((b&~(m1|m2|m3))|(m1&KF_INF)|(m2&KF_NINF)|(m3&fbits(NAN)));
+  return bitsf(b^((m1|m2|m3)&(b^((m1&KF_INF)|(m2&KF_NINF)|(m3&fbits(NAN))))));
 }
 
 /* i32 -> i64 widening, sentinel-aware: 0N->0Nj, 0I->0Ij, -0I->-0Ij (the
@@ -239,7 +239,7 @@ static inline float bitse(u32 b) { float f; memcpy(&f,&b,4); return f; }
 #define KE_NINF 0xff800000u
 static inline float ei(i32 x) {   /* see fi */
   u32 b=ebits((float)x), m1=0-(u32)(x==INT32_MAX), m2=0-(u32)(x==INT32_MIN+1), m3=0-(u32)(x==INT32_MIN);
-  return bitse((b&~(m1|m2|m3))|(m1&KE_INF)|(m2&KE_NINF)|(m3&ebits((float)NAN)));
+  return bitse(b^((m1|m2|m3)&(b^((m1&KE_INF)|(m2&KE_NINF)|(m3&ebits((float)NAN))))));
 }
 
 extern i32 precision;
