@@ -1027,8 +1027,57 @@ static int all_assign_targets_(K *toks, K ntoks, K at, K *base, K *top) {
   return nasn >= (K)(top-base);
 }
 
+/* a statement's last item after the token loop, still a token, reduced to its value: a call
+   node or a name with its error reported at token ei (the subconsole's substitute is then the
+   value), anything else by one reduce step; a bare signal `'"msg"` / `'` raised; a plist or
+   other non-value a parse error */
+static K rlast(K v, K x0, int ei) {
+  char *s; K p;
+  if(!s(v)) return v;
+  if(0x44==s(v)||0x40==s(v)) {
+    v=0x44==s(v)?r44(v):r40(v);
+    if(v && v<EMAX) v=kerror(E[v]);
+    if(v && E(v) && EFLAG && !EXIT && !SIGNAL && strcmp(sk(v),"abort")) {
+      printerror(v,x0,ei);
+      ++ecount;
+      v=repl();
+    }
+  }
+  else {
+    v=reduce(v);
+    if(v&&v<EMAX) v=kerror(E[v]);
+  }
+  if(0x45==s(v)) { /* '"error" */
+    K *pv=px(v);
+    K av=pv[1];
+    K e=pv[2];
+    s=px(av);
+    if(!strcmp(s,"'") && T(e)==-3 && !s(e)) {
+      SIGNAL=1;
+      p=kerror(px(e));
+      _k(v);
+      v=p;
+    }
+    else { _k(v); v=kerror("parse"); }
+  }
+  else if(0x85==s(v)) { /* ' (signal null) */
+    if(DEPTH==1&&!ecount) { _k(v); v=kerror("parse"); }
+    else {
+      s=px(v);
+      if(!strcmp(s,"'")) { /* signal */
+        SIGNAL=1;
+        _k(v);
+        v=kerror("");
+      }
+      else { _k(v); v=kerror("parse"); }
+    }
+  }
+  else if(!VST(v)||0x81==s(v)) { _k(v); v=kerror("parse"); }
+  return v;
+}
+
 K pgreduce_(K x0, int *qp) {
-  char q,*mv,*s;
+  char q,*mv;
   u8 c;
   size_t ma=2;
   static int d;
@@ -2653,7 +2702,22 @@ c3_apply:
               }
             }
           }
-          else _k(t);
+          else {
+            /* the selected item is a value, not a lambda: the adverb applies to it as to any
+               value followed by `av args` -- a data value converges for / and \ and is a rank
+               error otherwise (the 0x45 branch below), a callable goes through fe.  This used to
+               drop t and push nothing, so `(#;,)[0]'(1 2;3 4 5)` and `(1 0 2)[]/0` were silently
+               empty and a statement could evaluate to nothing (t809). */
+            char *pb1=px(b1);
+            if(s(b2)) { b2=reduce(k_(b2)); if(E(b2)||EXIT) { _k(t); _k(b); _k(b0); *pA++=b2; break; } }
+            else b2=k_(b2);
+            if(!s(t)||0x80==s(t)) {
+              if(!strcmp(pb1,"/")) *pA++=loud(vnul(indexconvergeover(t,b2)));
+              else if(!strcmp(pb1,"\\")) *pA++=loud(vnul(indexconvergescan(t,b2)));
+              else { _k(t); _k(b2); *pA++=KERR_RANK; }
+            }
+            else *pA++=loud(vnul(fe(t,0,b2,pb1)));
+          }
           _k(b);
           _k(b0);
         }
@@ -3110,66 +3174,22 @@ c3_apply:
   v=pA>A?*--pA:0;
   if(s(v)) {
     if(0x42==s(v)) v=r42(v);
-    else if(0x83==s(v)) { /* handle things like b:!10;@[`b;0;:;5];b */
-      if(pA>A&&0x44==s(pA[-1])) {
-        K x=r44(*--pA);
-        if(E(x)) v=x;
-        else _k(x); /* discard result */
-        if(v<EMAX) v=kerror(E[v]);
+    else if(0x83==s(v)) {
+      /* `stmt;`: the marker is the statement's value, but the item below it is still
+         evaluated -- `f;` resolves f, `(a:5);` assigns, `(g[];1);` calls g, `'"msg";`
+         signals -- and its error is reported like a last value's.  (It used to be freed
+         unreduced unless it was a call node, and that node's error went unreported: `f;1+1`
+         was 2, `(g[];1);2` never called g.) */
+      if(pA>A) {
+        K x=*--pA;
+        if(0x42==s(x)) x=r42(x);
+        x=rlast(x,x0,i>=2?(int)(i-2):0);
+        if((x&&E(x))||EXIT) v=x; else _k(x);
       }
     }
   }
   while(pA>A) _k(*--pA);
-  if(s(v)) {
-    if(0x44==s(v)) {
-      v=r44(v);
-      if(v && v<EMAX) v=kerror(E[v]);
-      if(v && E(v) && EFLAG && !EXIT && !SIGNAL && strcmp(sk(v),"abort")) {
-        printerror(v,x0,i?i-1:i);
-        ++ecount;
-        v=repl();
-      }
-    }
-    else if(0x40==s(v)) {
-      v=r40(v);
-      if(v && v<EMAX) v=kerror(E[v]);
-      if(v && E(v) && EFLAG && !EXIT && !SIGNAL && strcmp(sk(v),"abort")) {
-        printerror(v,x0,i?i-1:i);
-        ++ecount;
-        v=repl();
-      }
-    }
-    else {
-      v=reduce(v);
-      if(v&&v<EMAX) v=kerror(E[v]);
-    }
-    if(0x45==s(v)) { /* '"error" */
-      K *pv=px(v);
-      K av=pv[1];
-      K e=pv[2];
-      s=px(av);
-      if(!strcmp(s,"'") && T(e)==-3 && !s(e)) {
-        SIGNAL=1;
-        p=kerror(px(e));
-        _k(v);
-        v=p;
-      }
-      else { _k(v); v=kerror("parse"); }
-    }
-    else if(0x85==s(v)) { /* ' (signal null) */
-      if(DEPTH==1&&!ecount) { _k(v); v=kerror("parse"); }
-      else {
-        s=px(v);
-        if(!strcmp(s,"'")) { /* signal */
-          SIGNAL=1;
-          _k(v);
-          v=kerror("");
-        }
-        else { _k(v); v=kerror("parse"); }
-      }
-    }
-    else if(!VST(v)||0x81==s(v)) { _k(v); v=kerror("parse"); }
-  }
+  if(s(v)) v=rlast(v,x0,(int)(i?i-1:i));
   *qp=quiet;
   --d;
   if(A2) xfree(A2);
@@ -5071,6 +5091,8 @@ K pgparse(char *q, int load, K locals) {
         ((K*)px(pz[n(z)-1]))[3]=s->line;
       }
       pv=px(s->values);
+      { u64 mk=n(s->values); int *pi=px(s->index), *pl=px(s->line);   /* the marker's index and line slots: those of the token before it (bc fills the others; an error reported at the marker read them uninitialised) */
+        pi[mk]=mk?pi[mk-1]:0; pl[mk]=mk?pl[mk-1]:0; }
       pv[n(s->values)++]=t(6,st(0x83,0));
     }
     /* check main array resize after potentially adding quiet element */

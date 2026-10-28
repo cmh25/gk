@@ -142,9 +142,7 @@ K dset(K d, char *key, K val) {
    * SHARED dict (r>0) can alias existing tree structure; a fresh r==0 value
    * (e.g. scope_set_'s own gcopy result) is already private, so we skip it and
    * avoid double-copying. */
-  if(d==ktree && 0x80==s(val) && ((ko*)(b(48)&val))->r>0) {
-    cp=kcp(val); if(E(cp)) return cp; val=cp;
-  }
+  int needcp=(d==ktree && 0x80==s(val) && ((ko*)(b(48)&val))->r>0);
   pd=px(d);
   k=pd[0]; v=pd[1]; m=ik(pd[2]);
   pk=px(k); pv=px(v);
@@ -160,10 +158,18 @@ K dset(K d, char *key, K val) {
       hs=(hs+1)&(h-1);
     }
     i = e ? (u64)e-1 : nk;   /* hs is the insert slot when absent */
-    if(i<nk) { _k(pv[i]); pv[i]=k_(val); }
   }
-  else for(i=0;i<nk;i++) if(key==pk[i]) { _k(pv[i]); pv[i]=k_(val); break; }
-  if(i==nk) {
+  else for(i=0;i<nk;i++) if(key==pk[i]) break;
+  if(i<nk) {
+    /* the slot's own dict coming back (an in-place amend's writeback, scope.c)
+     * creates no new reference into the tree: no copy */
+    if(pv[i]!=val) {
+      if(needcp) { cp=kcp(val); if(E(cp)) return cp; val=cp; }
+      _k(pv[i]); pv[i]=k_(val);
+    }
+  }
+  else {
+    if(needcp) { cp=kcp(val); if(E(cp)) return cp; val=cp; }
     /* A dict holds at most INT32_MAX keys: the hash index stores key positions
      * as i32 (dixbuild) and the capacity slot is read back via ik (i32).  Past
      * this the positions/capacity would silently wrap and corrupt the heap, so

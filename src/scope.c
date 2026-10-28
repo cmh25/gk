@@ -451,6 +451,7 @@ static K scope_set_(K s, char *n, K v) {
     }
     _k(d);
     if(!strtok_r(0,".",&rp)) {
+      if(gcopy&&!copy) { K cur=dget(e,sp(t)); if(cur) { if(cur==v) gcopy=0; _k(cur); } }   /* the leaf's own value coming back: see the simple-name branch */
       if(copy||gcopy) { w=kcp(v); if(E(w)) { _k(m); _k(v); return w; } (void)dset(e,sp(t),w); _k(v); }
       else { (void)dset(e,sp(t),v); w=v; }
       K m2=scope_set_(es,sp(u),m);  /* consumes m */
@@ -471,11 +472,15 @@ static K scope_set_(K s, char *n, K v) {
     // .[`;nul;,;"0"]
     // .[`;nul;,]
     if(0x80!=s(psu[1])) { _k(v); return KERR_VALUE; }
-    /* in-place amend writeback: @[`d;ky;:;y] amends the stored dict and
-       assigns the SAME object back (kamendi4).  The shared-dict copy rule
-       exists to stop a fetched dict from aliasing a SECOND slot; storing a
-       slot's own value back creates no new alias, and copying here is what
-       made every by-name dict amend O(n) -- the whole map, per key. */
+    /* in-place amend writeback: d[`a]:y, d[`a]+:y and @[`d;`a;f;y] fetch the
+       stored dict (one extra reference), amend it in place (kamend4/kamendi4
+       copy only when shared beyond that) and assign the SAME object back.
+       The shared-dict copy rule exists to stop a fetched dict from aliasing a
+       SECOND slot (and the tree from containing itself); storing a slot's own
+       value back creates no new alias, and copying it here is what made every
+       by-name dict amend O(n) -- the whole map, per key (dset has the same
+       exemption for its root-node rule). */
+    if(gcopy) { K cur=dget(psu[1],n); if(cur) { if(cur==v) gcopy=0; _k(cur); } }
     if(gcopy) { w=kcp(v); if(E(w)) { _k(v); return w; } (void)dset(psu[1],n,w); _k(v); }
     else { (void)dset(psu[1],n,v); w=v; }
     /* Fire for a write into ANY namespace scope (slot 2 non-null), not just the

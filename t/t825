@@ -1,0 +1,16 @@
+/ a bracket-selected item followed by an adverb: the selected value takes the adverb as any
+/ value does -- data converges for / and \ and is a rank error otherwise, a callable applies.
+/ The statement used to lose its value when the item was not a lambda (t808/t809/t812).
+(#;,)[0]'(1 2;3 4 5)
+(,/;#)[0]'(1 2;3 4)
+(#;,)[0]'[(1 2;3)]
+(+;-)[0]'[1 2;3 4]
+(+;-)[0]/1 2 3
+(+;-)[1]\1 2 3
+(1 0 2)[]/0
+(1 0 2)[]\0
+({x+1};{x-1})[0]'1 2
+@[{(1 2 3)[]'0};0;:]
+@[{(;{})[]'0};0;:]
+@[{#(;{})[]'0};0;:]
+\\

@@ -1,0 +1,17 @@
+/ a statement ending in `;` still evaluates its unconsumed last item and reports its error: a
+/ name, a group, a list, a call node, a signal (pgreduce_ freed them unreduced, and a call
+/ node's error went unreported: f;1+1 was 2, (g[];1);2 never called g)
+@[{f;1+1};0;:]
+@[{(1+f);2};0;:]
+@[{(f;1);2};0;:]
+@[{f[];2};0;:]
+@[{'"boom";1};0;:]
+A:0
+g:{A+:1}
+(g[];1);2
+A
+(A+:1);A
+{(a:5);a}[]
+{x;1}[2]
+x:1 2 3;4
+\\
