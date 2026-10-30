@@ -1275,6 +1275,10 @@ Logical not on `0`/`1` ints (and related cases).
 
 Evaluate a string of code, or apply when `x` has the shape `(f; args)` (see tutorial and IPC docs).
 
+A string evaluates in the scope where `.` runs. Inside a lambda its locals are visible and
+assignable, and a name it assigns becomes a local of that call: `{."a:1"}` means `{a:1}`, and
+`{a:5; ."a+1"}` is 6.
+
 ```
   ."1+2"
 3

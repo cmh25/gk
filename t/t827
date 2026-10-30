@@ -1,0 +1,29 @@
+/ a string evaluated by . runs in the frame of the lambda that runs ., with its locals visible
+/ and assignable: {."a:1"} means {a:1}, and a lexical parent is seen through the closure chain
+/ as any name is.
+f1:{a:1;."a:2";a}
+f1[]
+f2:{."a:2";a}
+f2[]
+f3:{a:1;{."a"}[]}
+f3[]
+f4:{."a:1";{a}[]}
+f4[]
+b:9
+f5:{."b"}
+f5[]
+f6:{b:3;{."b"}[]}
+f6[]
+b
+f7:{a:1;.'("a";"a+1")}
+f7[]
+f8:{a:1;.["a:5"];a}
+f8[]
+g:7
+f9:{a:g;."g:1";a,g}
+f9[]
+f9[]
+g
+f10:{x:.`b;x}
+f10[]
+\\
