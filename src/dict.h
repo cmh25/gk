@@ -27,6 +27,7 @@ void dcheck(K d);
 K dnew(void);
 void dfree(K d);
 K dget(K d, char *key);
+int dkeyok(char *key); /* 1 if key is a name a dict may hold (see dict.c) */
 K dset(K d, char *key, K val);
 K dvals(K d);
 K dkeys(K d);

@@ -114,22 +114,33 @@ K dget(K d, char *key) {
   return 0;
 }
 
+/* One name segment, as the lexer reads a bare name: a letter, then letters or
+ * digits -- n chars, n>0.  No '_' ('_' is the drop verb, so a_b is a _ b), no
+ * '.', nothing else.  dkeyok below is one segment.  (The printer's vname in
+ * k.c is a different, looser test -- whether the bare spelling re-lexes as the
+ * same symbol -- since `a.1 or `a. print bare but can never be names.) */
+int nameseg(char *s, i64 n) {
+  if(n<1||!isalpha((unsigned char)s[0])) return 0;
+  for(i64 i=1;i<n;i++) if(!isalnum((unsigned char)s[i])) return 0;
+  return 1;
+}
+
+/* A dict key is exactly one name segment; the empty symbol is not a key.
+ * Dotted paths are split before they reach a dict, so any other symbol
+ * (`"a b", `$"a-b", `$"a_b", `a.b, `) is a key that name lookup can never
+ * reach -- a point on the k-tree that cannot be traversed, and a column name
+ * that cannot be a file.  Every path that puts a key into a dict checks here:
+ * dset (named and indexed amend, the C API), the make-dict verb (v.c valuecb,
+ * both the triple and the pair form) and db (a dict arriving over the wire). */
+int dkeyok(char *key) { return key && nameseg(key,(i64)strlen(key)); }
+
 K dset(K d, char *key, K val) {
   K k,v,m,*pd,*pv,cp=0;
   char **pk;
   u32 i;
   u64 n;
   gcache_clear();  /* conservative: invalidate cache on any dict modification */
-  /* the empty symbol is not a valid dictionary key.  The index-amend paths
-   * (kamendi*) already reject it, and `d[`]:x` errors, but the named-amend
-   * paths (.[`ns;`;...]) dset it directly -- guard at the single chokepoint
-   * where keys enter a dict so every path is covered. */
-  if(!*key) return kerror("domain");
-  /* a key is one name segment: a letter, then letters/digits/underscores.
-   * Dotted paths are split before dset, so anything else here is a malformed
-   * key (e.g. `$"a-b") that name lookup could never reach. */
-  { char *vp=key; if(!isalpha((unsigned char)*vp)) return kerror("domain");
-    while(*++vp) if(!isalnum((unsigned char)*vp)&&*vp!='_') return kerror("domain"); }
+  if(!dkeyok(key)) return kerror("domain");
   /* top-level single-letter keys are reserved, except 'k' (.k namespace)
    * and 'm' (.m ipc namespace), each of which must be a dict. */
   if(d==ktree && strlen(key)==1

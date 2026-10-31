@@ -1,0 +1,17 @@
+/ symbol print/read round trip.  A symbol prints bare exactly when the lexer
+/ (lex.c gsym_) reads that bare spelling back as the same symbol: a letter or
+/ dot, then letters, digits and single dots, a trailing dot allowed; the empty
+/ symbol is a bare backtick.  Anything else prints quoted.  Both forms re-read
+/ to the same value (k.c vname).  Dict keys are stricter (t828).
+bare:("a";"a.";".k";".k.a";"a.b";"a.1";".";".1";".a.";"abc9";"A";"a.b.c";"a.b.")
+{p:5: . "`",x; (x;p;p~"`",x)}'bare
+quoted:("a b";"1a";"a_b";"a..b";"a-b";"";"a\"b";" ";"9";"..";"a.b c")
+{s:`$x; p:5:s; (x;p;(. p)~s)}'quoted
+&/{s:`$x; (. 5:s)~s}'bare,quoted
+`a.
+`"a."
+`.
+`a.1
+`a. `. `.k `a.b.
+(`a.;1;`.)
+\\

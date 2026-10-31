@@ -81,11 +81,14 @@ GK_API int  gk_isdict(K x)          { return 0x80 == s(x); }
    no compile-time K subtype) should get a 'type error surfaced back into gk,
    not a crash or a silent empty result, so each reader checks the 0x80 dict
    subtype first (the internal idiom; gk_isdict is the public form) and returns
-   KERR_TYPE otherwise. gk_dset returns void (can't signal), so it consumes v
-   per its contract -- no crash, no leak -- and does nothing. */
-GK_API void gk_dset(K d, const char *k, K v) {
-  if(0x80!=s(d)) { _k(v); return; }
-  dset(d, sp((char*)k), v); _k(v);
+   KERR_TYPE otherwise.  gk_dset consumes v per its contract either way -- no
+   crash, no leak -- and returns null, or the error for the shim to return: a
+   'type for a non-dict, a 'domain for a key that is not a name (dict.c
+   dkeyok -- a dict keyed `"a b" is a k-tree point no name can reach). */
+GK_API K gk_dset(K d, const char *k, K v) {
+  if(0x80!=s(d)) { _k(v); return KERR_TYPE; }
+  K e=dset(d, sp((char*)k), v); _k(v);
+  return e;
 }
 GK_API K    gk_dkeys(K d)           { return 0x80==s(d) ? dkeys(d) : KERR_TYPE; }
 GK_API K    gk_dvals(K d)           { return 0x80==s(d) ? knorm(dvals(d)) : KERR_TYPE; }
@@ -96,6 +99,9 @@ GK_API K    gk_dget(K d, const char *k) {
 }
 GK_API K gk_dict(const char **keys, const K *vals, int64_t n) {
   K d = dnew();
-  for(int64_t i = 0; i < n; i++) { dset(d, sp((char*)keys[i]), vals[i]); _k(vals[i]); }
+  for(int64_t i = 0; i < n; i++) {
+    K e = gk_dset(d, keys[i], vals[i]);            /* consumes vals[i] */
+    if(null!=e) { for(int64_t j = i+1; j < n; j++) _k(vals[j]); _k(d); return e; }
+  }
   return d;
 }

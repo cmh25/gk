@@ -1,0 +1,32 @@
+/ dict keys must be names: a letter, then letters/digits, one
+/ segment (dict.c dkeyok).  dset enforced that for named and indexed amend;
+/ the make-dict verb (triple and pair forms) and db now do too, so a dict can
+/ never hold a key that no name reaches on the k-tree (or names a column file).
+@[{.+(`"ab cd"`e`f;1 2 3)};0;:]
+@[{.,(`"a b";1;)};0;:]
+@[{.,`"a b"`x};0;:]
+@[{.,(`a.b;1;)};0;:]
+@[{.,(`;1;)};0;:]
+@[{.,(`"9a";1;)};0;:]
+@[{.,(`$"a-b";1;)};0;:]
+@[{.((`a;1;);(`"b c";2;))};0;:]
+.+(`a`b`c;1 2 3)
+@[{.,(`$"a_b";1;)};0;:]          / no underscores either: _ is the drop verb, a_b lexes as a _ b
+.,(`a1;1;)
+.,`a`x
+d:.,(`c;1;)
+@[{.[`d;`"d d";:;4]};0;:]
+@[{@[d;`"d d";:;4]};0;:]
+@[{x[`"d d"]:4;x};d;:]
+d
+/ a dict arriving over the wire is checked too: patch a key byte in a bd blob
+b:bd .,(`ab;1;)
+db b
+i:*b ss "ab"
+b[i+1]:" "
+@[{db x};b;:]
+c:bd .,(`o;.,(`ab;1;);)
+j:*c ss "ab"
+c[j+1]:"-"
+@[{db x};c;:]
+\\

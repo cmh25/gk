@@ -23,7 +23,7 @@ big:{[m] if[m=1; z1:1; :z1]
  d0:0; d1:1; d2:2; d3:3; d4:33
  r:big 1; a0+d4}
 big 0
-/ dict keys are validated at dset: letter, then letters/digits/underscores
+/ dict keys are validated at dset: letter, then letters/digits (no _: it is the drop verb)
 .[{[u] d:.(); d[`$"a-b"]:9; 0};,nul;:]
 .[{[u] d:.(); d[`$"9x"]:9; 0};,nul;:]
 .[{[u] d:.(); d[`$"_ab"]:9; 0};,nul;:]

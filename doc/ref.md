@@ -1983,6 +1983,18 @@ adverb applied to it, a list built from it, an amend.
 
 A dictionary is a map of symbols to values.
 
+Keys are **names**: a letter followed by letters or digits — one segment, no
+dots, not empty, and no underscores (`_` is the drop verb, so `a_b` is `a _ b`;
+see [doc/k3.md](k3.md)). That is exactly what the lexer reads as a bare name, so
+every key can be written `d.key` and prints bare. A symbol that is not a name
+(`` `"a b" ``, `` `$"a-b" ``, `` `$"a_b" ``, `` `a.b ``, `` ` ``) is a `domain`
+error wherever a key enters a
+dict: `` d[`"a b"]:1 ``, `` @[`d;`"a b";:;1] ``, the make-dict verb
+``.+(`"a b"`c;1 2)`` or ``.,(`"a b";1;)``, a dict arriving through `db`, and the
+[C API](#link-object-code)'s `gk_dset`/`gk_dict`. Such a key would be a point on
+the k-tree that no name can reach — and, where keys name columns on disk, a file
+no name can open.
+
 ### Creation
 
 ```
@@ -2549,6 +2561,7 @@ Time builtins use an epoch of **2035-01-01** (Julian day `0` is a Monday).
 | `6: x` | read bytes from file `x` |
 | `a 6: x` | write bytes `x` to file `a`; `(,a) 6: x` appends |
 
+<a id="link-object-code"></a>
 #### Link Object Code — `f 2: (e;t)`
 
 Loads a shared object and makes one of its exported C functions callable from
@@ -2608,8 +2621,11 @@ GK_FN K row(K a) {  /* .+(`id`name;(7;"abe")) */
 }
 ```
 
-`gk_dnew()` makes an empty dict; `gk_dset(d,key,val)` inserts or updates;
-`gk_dict(keys,vals,n)` is one-call sugar when you already have parallel columns.
+`gk_dnew()` makes an empty dict; `gk_dset(d,key,val)` inserts or updates and
+returns null, or an error value to hand back to gk (`type` for a non-dict,
+`domain` for a key that is not a [name](#dictionaries));
+`gk_dict(keys,vals,n)` is one-call sugar when you already have parallel columns
+and returns the same `domain` error for a bad key.
 Values nest freely — a value may itself be a dict (build the inner one first and
 `gk_dset` it in). To read: `gk_isdict(x)`, `gk_dget(d,key)` (the value, or null if
 absent), `gk_dkeys(d)` (the key symbol vector), `gk_dvals(d)` (the value list).

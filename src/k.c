@@ -169,16 +169,20 @@ void kinit(void) {
   }
 }
 
+/* prints bare?  Exactly when the lexer (lex.c gsym_) reads the bare spelling
+   `s back as this one symbol, so print and read round-trip spelling for
+   spelling: a letter or '.', then letters, digits and single dots (two dots
+   in a row end a bare symbol), a trailing dot allowed; and the empty symbol,
+   which prints as a bare backtick.  Anything else is quoted: `"a b", `"1a".
+   Looser than a dict key (dict.c nameseg): `a.1 and `a. print bare but are
+   not names. */
 static i32 vname(char *s, i32 n) {
-  i32 i,a=1,v=1;
-  if(s[0]=='.'&&n>1) a=0;
-  for(i=0;i<n;i++) {
-    if(a && !isalpha((unsigned char)s[i])) v=0;
-    else if(!isalnum((unsigned char)s[i]) && s[i]!='.') v=0;
-    if(s[i]=='.') a=1;
-    else a=0;
-  }
-  return v;
+  i32 i;
+  if(!n) return 1;
+  if(s[0]!='.'&&!isalpha((unsigned char)s[0])) return 0;
+  for(i=1;i<n;i++)
+    if(!isalnum((unsigned char)s[i]) && (s[i]!='.'||s[i-1]=='.')) return 0;
+  return 1;
 }
 
 static i32 ffix(char *ds, i32 a0) {

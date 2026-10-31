@@ -157,11 +157,16 @@ GK_API K    gk_norm(K x);              /* normalize a built K list to a typed ve
    into the dict, so build a value with gk_mk*() and hand it straight in; do not
    reuse or unref it. To insert a borrowed argument, gk_ref() it first. Keys are
    C strings that the dict interns (copying as needed); you keep your strings.
+   A key must be a NAME -- a letter, then letters or digits (no '_': that is
+   gk's drop verb); not empty, no dots -- so the dict stays reachable by name
+   on the k-tree, as d.key. Any other key
+   is a 'domain error value: gk_dset returns it (the value is still consumed),
+   gk_dict returns it after consuming every value. Return it to raise it.
    The reads return owned values (retained/copied), freed once by gk, like every
    other gk_* return. */
 GK_API K    gk_dnew(void);                 /* a fresh empty dict */
-GK_API void gk_dset(K d, const char *key, K val);  /* insert/update; CONSUMES val */
-GK_API K    gk_dict(const char **keys, const K *vals, int64_t n); /* column sugar over dnew+dset; CONSUMES each val */
+GK_API K    gk_dset(K d, const char *key, K val);  /* insert/update; CONSUMES val; null, or an error value (key not a name) */
+GK_API K    gk_dict(const char **keys, const K *vals, int64_t n); /* column sugar over dnew+dset; CONSUMES each val; error value if a key is not a name */
 GK_API int  gk_isdict(K x);                /* 1 if x is a dict, else 0 */
 GK_API K    gk_dkeys(K d);                 /* key symbol vector (owned) */
 GK_API K    gk_dvals(K d);                 /* value list (owned) */

@@ -491,12 +491,14 @@ K valuecb(K x) {
         t=px(px[i]);
         if(3==n(px[i])&&(!t[2]||s(t[2])||6!=T(t[2]))) { _k(r); return KERR_TYPE; }
         if(s(t[0])||4!=T(t[0])) { _k(r); return KERR_TYPE; }
+        if(!dkeyok(sk(t[0]))) { _k(r); return KERR_DOMAIN; } /* `"a b", `a.b, ` : not a name (dict.c) */
         pk[i]=sk(t[0]);
         pv[i]=k_(t[1]);
       }
       else if(-4==T(px[i])) {
         ts=px(px[i]);
         if(2!=(n(px[i]))) { _k(r); return KERR_VALENCE; }
+        if(!dkeyok(ts[0])) { _k(r); return KERR_DOMAIN; }
         pk[i]=ts[0];
         pv[i]=t(4,ts[1]);
       }

@@ -94,4 +94,6 @@ K kslide(K f, K a, K x, char *av);
 void kdump(i32 l);
 void kdp(K x);
 
+int nameseg(char *s, i64 n); /* dict.c: one name segment (letter, then letters/digits) = a dict key */
+
 #endif /* K__H */

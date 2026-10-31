@@ -31,6 +31,7 @@
 #include "ipc.h"
 #include "tmr.h"
 #include "watch.h"
+#include "dict.h"
 
 #ifdef _WIN32
 #define strtok_r strtok_s
@@ -2431,6 +2432,12 @@ static K deserialize(char **b,u64 *m) {
        left-to-right and short-circuits, so the type test guards the count. */
     if(s(pk[0]) || T(pk[0])!=-4 || s(pk[1]) || T(pk[1])!=0
        || n(pk[0])!=n(pk[1])) { _k(r); return KERR_TYPE; }
+    /* Every key must be a name (dict.c dkeyok), as the make-dict verb and
+       dset require: a blob can carry any symbol, and a dict keyed `"a b" is
+       a k-tree point no name can reach.  bd never ships one, so bd/db stay
+       symmetric. */
+    { char **pks=px(pk[0]); u64 nk0=n(pk[0]);
+      for(u64 kj=0;kj<nk0;kj++) if(!dkeyok(pks[kj])) { _k(r); return KERR_DOMAIN; } }
     /* dicts ship 3 payload slots; the in-memory form carries a 4th (the
        hash-index cache, dict.c).  Re-add it as null -- and drop any crafted
        extra slots from a hostile blob, which dget/dset would otherwise
