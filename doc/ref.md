@@ -1126,9 +1126,9 @@ First item of `x`.
 - atom → `x` unchanged
 - vector / list → first item
 - empty vector → the type's fill element (`0`, `0.0`, `" "`)
-- empty list `()` → `()`
+- empty list `()` → `nul`
 
-**Errors:** none — empty aggregates return the type fill or `()`.
+**Errors:** none — empty aggregates return the type fill or `nul`.
 
 </details>
 
@@ -2740,7 +2740,7 @@ slice) as one vector of that type — `c` char, `i` int, `j` i64, `e` f32,
 | `lu x` | LU decomposition `(+P;L;U)` |
 | `ldu x` | LDU decomposition `(+P;L;D;U)` |
 | `qr x` | QR decomposition `(Q;R)` |
-| `svd x` | singular value decomposition `(U;S;+V)` |
+| `svd x` | singular value decomposition `(U;S;+V)`; the matrix is scaled by a power of two first, so entries near `1e300` or `1e-300` decompose; `domain` for a `0n`/`0i` entry, `limit` if the iteration does not converge |
 | `inv x` | matrix inverse |
 | `det x` | determinant |
 | `rref x` | reduced row echelon form |

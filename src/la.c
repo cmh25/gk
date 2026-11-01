@@ -7,6 +7,7 @@
 #include "k.h"
 
 /* svd stuff based on numerical recipes */
+#define SVD_ITS 30
 static K svdcmp(double **a, int m, int n, double *w, double **v, double *t) {
   int flag,i,its,j,jj,k,l,nm,nm1=n-1,mm1=m-1;
   double c=0.0,f,h,s,x,y,z;
@@ -103,7 +104,7 @@ static K svdcmp(double **a, int m, int n, double *w, double **v, double *t) {
   }
   /* diagonalization of the bidigonal form */
   for(k = n - 1; k >= 0; k--) { /* loop over singlar values */
-    for(its = 0; its < 30; its++) { /* loop over allowed iterations */
+    for(its = 0; its < SVD_ITS; its++) { /* loop over allowed iterations */
       flag = 1;
       for (l = k; l >= 0; l--) {
         nm = l - 1;
@@ -139,7 +140,7 @@ static K svdcmp(double **a, int m, int n, double *w, double **v, double *t) {
         }
         break;
       }
-      if(its == 30) return kerror("limit");
+      if(its == SVD_ITS-1) return kerror("limit");
       x = w[l];  /* shift from bottom 2-by-2 minor */
       nm = k - 1;
       y = w[nm];
@@ -336,6 +337,28 @@ static int la_mixedrows(K x) {
   return mix;
 }
 
+/* one right-hand side against the factored design, V (Sinv (Ut a)): three dot each-lefts
+   (the strict fold), knorm, the zero clamp; all 0n when a singular value is below TOL.
+   The matrix form calls this per row on ONE factorization -- it used to recurse per row
+   and redo the SVD of the design every time (inv 300 = 54 s, inv 1000 = 107 min). */
+static K lsq_solve(K a, K Ut, K Sinv, K V, int any_zero, u64 n) {
+  K e=0, Uy=0, Su=0, Vy=0, r=0;
+  if(any_zero) { r=tn(2,n); double *pr=px(r); i(n,pr[i]=NAN) return r; }
+  { u64 dsub; int didx=bi_lookup(R_DOT,&dsub); K mul=t(1,st(dsub,didx)); /* int-index dot */
+    Uy=avdo(mul,k_(Ut),k_(a),"\\"); EC(Uy);
+    Su=avdo(mul,k_(Sinv),Uy,"\\"); EC(Su);
+    Vy=avdo(mul,k_(V),Su,"\\"); EC(Vy); }
+  r=knorm(Vy);
+  /* zero-clamp tiny noise in final result, relative to its largest entry */
+  { double EPS = DBL_EPSILON * 1e6, mx = 0.0;
+    if(r && !s(r) && T(r)==-2) { double *pr = px(r);
+      for(u64 i=0; i<n(r); i++) if(fabs(pr[i]) > mx) mx = fabs(pr[i]);
+      for(u64 i=0; i<n(r); i++) if(fabs(pr[i]) < EPS*mx) pr[i] = 0.0; } }
+  return r;
+cleanup:
+  return e;
+}
+
 K lsq_(K a, K x) {
   { int _f=la_tflags(a)|la_tflags(x); if(_f&8) return KERR_STACK; if(_f&3) {
       K _a=la_widen(a), _x=la_widen(x);
@@ -345,13 +368,16 @@ K lsq_(K a, K x) {
       K _q=la_narrow(_r); _k(_r); return _q; } }
   if(la_mixedrows(x)) {
     K _x=la_widen_int(x); if(E(_x)) return _x; K _r=lsq_(a,_x); _k(_x); return _r; }
-  K e=0, svdres=0, *psv, U=0, S=0, V=0, Sinv=0, Ut=0, Uy=0, Su=0, Vy=0, r=0, t=0;
+  K e=0, svdres=0, *psv, U=0, S=0, V=0, Sinv=0, Ut=0, r=0, t=0;
   u64 i,j,n;
 
   if(s(a)||s(x)) return kerror("type");
   if(tx) return kerror("type");
   if(ta&&ta!=-1&&ta!=-2) return kerror("type");
 
+  /* the design is x transposed: a lsq x solves b x = a (b a row vector), so a has one
+     element per column of x and the solution one per row; a list a is one such solve
+     per row of a, all on the one factorization below */
   K x0=k_(x);
   x=k(1,0,k_(x)); /* transpose */
   if(E(x)) { _k(x0); return x; }
@@ -359,41 +385,23 @@ K lsq_(K a, K x) {
 
   if(!na||!nx) { _k(x); _k(x0); return kerror("length"); }
 
-  if(ta==0) {
-    _k(x);
-    K *pak=px(a);
-    r=tn(0,na);
-    K *prk=px(r);
-    for(i=0;i<na;++i) {
-      t=lsq_(pak[i],x0);
-      if(E(t)) { _k(r); _k(x0); return t; }
-      prk[i]=t;
-    }
-    _k(x0);
-    return r;
-  }
-  _k(x0);
-
-  if(ta!=-1&&ta!=-2) { _k(x); return kerror("type"); }
-
   /* design matrix: x (mxn) */
   K *pxk = px(x);
   u64 m = n(x);
-  if(T(pxk[0])>0) { _k(x); return kerror("length"); }
+  if(T(pxk[0])>0) { _k(x); _k(x0); return kerror("length"); }
   u64 ncols = n(pxk[0]);
   for(i=0;i<m;i++){
     K row = pxk[i];
-    if(s(row) || (T(row)!=-1 && T(row)!=-2)) { _k(x); return kerror("type"); }
-    if((u64)n(row)!=ncols) { _k(x); return kerror("length"); }
+    if(s(row) || (T(row)!=-1 && T(row)!=-2)) { _k(x); _k(x0); return kerror("type"); }
+    if((u64)n(row)!=ncols) { _k(x); _k(x0); return kerror("length"); }
   }
 
-  /* rhs: a (mxk) */
-  if(T(a)>0 || T(a)<-2) { _k(x); return kerror("type"); }
-  if((u64)n(a)!=m) { _k(x); return kerror("length"); }
+  /* rhs: a (m) -- the rows of a list a are checked one by one below */
+  if(ta!=0 && (u64)n(a)!=m) { _k(x); _k(x0); return kerror("length"); }
 
   /* svd of design matrix */
   svdres = svd_(x);
-  if(E(svdres)) { _k(x); return svdres; }
+  if(E(svdres)) { _k(x); _k(x0); return svdres; }
   psv = px(svdres);
   U = k_(psv[0]); S = k_(psv[1]);
   V = k(1,0,k_(psv[2])); /* V' -> V */
@@ -401,10 +409,12 @@ K lsq_(K a, K x) {
 
   n = n(S);
 
-  /* build Sinv */
+  /* build Sinv: a singular value below TOL of the largest is zero (relative, as svd_'s clamp) */
   Sinv = tn(0,n);
   int any_zero = 0;
-  double TOL = 1e-12;
+  double TOL = 1e-12, smax = 0.0;
+  for(i=0;i<n;i++) { double s = fabs(((double*)px(((K*)px(S))[i]))[i]); if(s > smax) smax = s; }
+  TOL *= smax;
   for(i=0;i<n;i++) {
     K row = tn(2,n);
     double *p = px(row);
@@ -419,32 +429,24 @@ K lsq_(K a, K x) {
   }
   _k(S);
 
-  /* if any singular value is approx 0, return all 0n */
-  if(any_zero) {
-    r=tn(2,n);
-    double *pr=px(r);
-    i(n,pr[i]=NAN)
-    _k(Sinv); _k(U); _k(V); _k(x);
-    return r;
-  }
+  if(!any_zero) { Ut=k(1,0,U); U=0; EC(Ut); }   /* U' (the transpose consumes U) */
 
-  u64 dsub; int didx=bi_lookup(R_DOT,&dsub); K mul=t(1,st(dsub,didx)); /* int-index dot */
-  Ut=k(1,0,U); EC(Ut);
-  Uy=avdo(mul,Ut,k_(a),"\\"); EC(Uy);
-  Su=avdo(mul,Sinv,Uy,"\\"); EC(Su);
-  Vy=avdo(mul,V,Su,"\\"); EC(Vy);
-  r=knorm(Vy);
-
-  /* zero-clamp tiny noise in final result */
-  double EPS = DBL_EPSILON * 1e6;
-  if(r && !s(r) && T(r)==-2) {
-    double *pr = px(r);
-    for(u64 i=0; i<n(r); i++)
-      if(fabs(pr[i]) < EPS) pr[i] = 0.0;
+  if(ta==0) {   /* a list of right-hand sides: a row of the result per row of a */
+    K *pak=px(a);
+    r=tn(0,na);
+    K *prk=px(r);
+    for(i=0;i<na;++i) {
+      K row=pak[i];
+      if(!s(row) && (T(row)==-1||T(row)==-2) && (u64)n(row)==m) t=lsq_solve(row,Ut,Sinv,V,any_zero,n);
+      else t=lsq_(row,x0);   /* a nested or odd row: the general call, and its error */
+      if(E(t)) { _k(r); r=0; e=t; goto cleanup; }
+      prk[i]=t;
+    }
   }
+  else { r=lsq_solve(a,Ut,Sinv,V,any_zero,n); EC(r); }
 
 cleanup:
-  _k(x);
+  _k(U); _k(Ut); _k(Sinv); _k(V); _k(x); _k(x0);
   if(e) return e;
   return r;
 }
@@ -498,7 +500,12 @@ static void canonicalize_svd(K U, K S, K V) {
     }
   }
 
-  /* 3. canonicalize nullspace (degenerate zero singular values) */
+  /* 3. canonicalize nullspace (degenerate zero singular values): relative to the largest
+     singular value, as svd_'s clamp (an absolute tol made every column of a matrix below
+     1e-12 a basis vector) */
+  { double smax=0.0;
+    for(j=0;j<n;j++){ double s=fabs(((double*)px(((K*)px(S))[j]))[j]); if(s>smax) smax=s; }
+    tol*=smax; }
   for(j=0;j<n;j++){
     double s=((double*)px(((K*)px(S))[j]))[j];
     if(fabs(s)<tol){
@@ -585,9 +592,18 @@ K svd_(K x) {
     }
   }
 
-  /* 3) svd on mmxnn with mm >= nn */
-  z = svdcmp(a,(int)mm,(int)nn,w,v,rv1);
-  if(E(z)) { e=z; goto cleanup; }
+  /* 3) svd on mmxnn with mm >= nn.  The matrix is scaled by a power of two first: the
+        bidiagonal QR iteration overflowed for entries near 1e300 and underflowed near
+        1e-300 and reported NaN factors as success.  A power of two is exact, so ordinary
+        magnitudes give the same bits as before; the singular values are scaled back.  A
+        0n or 0i entry has no decomposition: domain. */
+  { double amax=0.0; int ex=0;
+    for(i=0;i<mm;i++) for(j=0;j<nn;j++) { double av=fabs(a[i][j]); if(!(av<=DBL_MAX)) { e=kerror("domain"); goto cleanup; } if(av>amax) amax=av; }
+    if(amax>0.0) { frexp(amax,&ex); if(ex) for(i=0;i<mm;i++) for(j=0;j<nn;j++) a[i][j]=ldexp(a[i][j],-ex); }
+    z = svdcmp(a,(int)mm,(int)nn,w,v,rv1);
+    if(E(z)) { e=z; goto cleanup; }
+    if(ex) for(i=0;i<nn;i++) w[i]=ldexp(w[i],ex);
+  }
 
   /* 4) nonnegative singular values + same sign in U/V columns */
   for(i=0;i<nn;i++) {
@@ -631,9 +647,11 @@ K svd_(K x) {
     for(j=0; j<nn; j++)
       if(fabs(a[i][j]) < EPS) a[i][j] = 0.0;
 
-  /* clamp singular values */
-  for(i=0; i<nn; i++)
-    if(fabs(w[i]) < EPS) w[i] = 0.0;
+  /* clamp singular values: relative to the largest (an absolute EPS zeroed every value
+     of a matrix below 1e-10, which the scaling above now decomposes correctly) */
+  { double wmax=0.0;
+    for(i=0; i<nn; i++) if(fabs(w[i]) > wmax) wmax=fabs(w[i]);
+    for(i=0; i<nn; i++) if(fabs(w[i]) < EPS*wmax) w[i] = 0.0; }
 
   /* clamp V (nxn) */
   for(i=0; i<nn; i++)
@@ -1461,6 +1479,68 @@ static void mul_pack_rows(K v, double *out, u64 rows, u64 cols) {
   }
 }
 
+/* The micro-tile: BM rows by NR columns of accumulators, held in vector registers across a
+ * k block.  x86 (AVX-512, 32 ZMM registers): 8 x 16.  aarch64 (NEON, 32 x 128-bit
+ * registers): 8 x 16 doubles would be 64 accumulators and spills, so 4 x 8 for f64; f32
+ * keeps 8 x 16.  Every element is one chain in k order whatever the shape, so the bits are
+ * the same on both.  K-blocking: the k loop runs in blocks of MUL_KCF doubles (MUL_KCE
+ * floats), loading each C tile, accumulating the block in k order and storing it back, so a
+ * B panel block (KC x BN values) stays in L2 across the strips and an A strip block (KC x BM)
+ * in L1 across the panel's micro-tiles; the chain per element is the same sequence of fused
+ * multiply-adds, only passing through C between blocks, so the bits are unchanged.  B is
+ * packed panel-major (each BN-column panel a contiguous K x BN block) so a micro-tile reads
+ * B with a stride of BN whatever N is.  Measured on gkpro (the same kernel on a pool),
+ * 2026-10-31: see gkpro's la.c. */
+#ifndef MUL_BMF
+#if defined(__aarch64__) || defined(MUL_TILE4)
+#define MUL_BMF 4
+#define MUL_NRF 8
+#define MUL_BME 8
+#define MUL_NRE 16
+#else
+#define MUL_BMF 8
+#define MUL_NRF 16
+#define MUL_BME 8
+#define MUL_NRE 16
+#endif
+#endif
+#ifndef MUL_KCF
+#define MUL_KCF 256
+#endif
+#ifndef MUL_KCE
+#if defined(__aarch64__)
+#define MUL_KCE 512
+#else
+#define MUL_KCE 256
+#endif
+#endif
+/* B panel-major: panel p (columns p*BN .. p*BN+BN-1) is a contiguous K x BN block at
+ * out + p*K*BN; the last panel is narrower but keeps the BN stride. */
+static void mul_pack_panels(K v, double *out, u64 rows, u64 cols, u64 BN) {
+  K *pv = px(v);
+  for(u64 k = 0; k < rows; k++) {
+    K row = pv[k];
+    for(u64 jj = 0; jj < cols; jj += BN) {
+      u64 pw = jj + BN < cols ? BN : cols - jj;
+      double *dst = out + (jj / BN) * rows * BN + k * BN;
+      if(T(row) == -2) memcpy(dst, (double*)px(row) + jj, pw * sizeof(double));
+      else { i32 *src = (i32*)px(row) + jj; for(u64 j = 0; j < pw; j++) dst[j] = fi(src[j]); }
+    }
+  }
+}
+static void mul_pack_panels_e(K v, float *out, u64 rows, u64 cols, u64 BN) {
+  K *pv = px(v);
+  for(u64 k = 0; k < rows; k++) {
+    K row = pv[k];
+    for(u64 jj = 0; jj < cols; jj += BN) {
+      u64 pw = jj + BN < cols ? BN : cols - jj;
+      float *dst = out + (jj / BN) * rows * BN + k * BN;
+      if(T(row) == -9) memcpy(dst, (float*)px(row) + jj, pw * sizeof(float));
+      else { i32 *src = (i32*)px(row) + jj; for(u64 j = 0; j < pw; j++) dst[j] = ei(src[j]); }
+    }
+  }
+}
+
 /* Attempt the rectangular F64/I32 fast path. Returns 0 if inputs aren't
  * eligible so the caller falls through to the generic path; otherwise
  * returns a K result (possibly an error K).
@@ -1492,10 +1572,38 @@ static K mul_try_f64_fast(K a, K x) {
   if(Ka != Kb)                             return 0;
   if(!a_f64 && !x_f64)                     return 0;
 
-  enum { BM = 8, BN = 128, NR = 16 };
+  enum { BM = MUL_BMF, BN = 128, NR = MUL_NRF };
+#if MUL_BMF==4
   #define MICRO_8x16(c_rows_, a_strip_, b_panel_, K_, N_, jr_) do {        \
-    double c0[NR] = {0}, c1[NR] = {0}, c2[NR] = {0}, c3[NR] = {0};         \
-    double c4[NR] = {0}, c5[NR] = {0}, c6[NR] = {0}, c7[NR] = {0};         \
+    double c0[NR], c1[NR], c2[NR], c3[NR];                                 \
+    for(u64 j_ = 0; j_ < NR; j_++) c0[j_] = (c_rows_)[0][(jr_) + j_];      \
+    for(u64 j_ = 0; j_ < NR; j_++) c1[j_] = (c_rows_)[1][(jr_) + j_];      \
+    for(u64 j_ = 0; j_ < NR; j_++) c2[j_] = (c_rows_)[2][(jr_) + j_];      \
+    for(u64 j_ = 0; j_ < NR; j_++) c3[j_] = (c_rows_)[3][(jr_) + j_];      \
+    for(u64 k_ = 0; k_ < (K_); k_++) {                                     \
+      const double *b_ = (b_panel_) + k_ * (N_);                           \
+      const double *a_ = (a_strip_) + k_ * BM;                             \
+      for(u64 j_ = 0; j_ < NR; j_++) c0[j_] += a_[0] * b_[j_];             \
+      for(u64 j_ = 0; j_ < NR; j_++) c1[j_] += a_[1] * b_[j_];             \
+      for(u64 j_ = 0; j_ < NR; j_++) c2[j_] += a_[2] * b_[j_];             \
+      for(u64 j_ = 0; j_ < NR; j_++) c3[j_] += a_[3] * b_[j_];             \
+    }                                                                      \
+    for(u64 j_ = 0; j_ < NR; j_++) (c_rows_)[0][(jr_) + j_] = c0[j_];      \
+    for(u64 j_ = 0; j_ < NR; j_++) (c_rows_)[1][(jr_) + j_] = c1[j_];      \
+    for(u64 j_ = 0; j_ < NR; j_++) (c_rows_)[2][(jr_) + j_] = c2[j_];      \
+    for(u64 j_ = 0; j_ < NR; j_++) (c_rows_)[3][(jr_) + j_] = c3[j_];      \
+  } while(0)
+#else
+  #define MICRO_8x16(c_rows_, a_strip_, b_panel_, K_, N_, jr_) do {        \
+    double c0[NR], c1[NR], c2[NR], c3[NR], c4[NR], c5[NR], c6[NR], c7[NR]; \
+    for(u64 j_ = 0; j_ < NR; j_++) c0[j_] = (c_rows_)[0][(jr_) + j_];      \
+    for(u64 j_ = 0; j_ < NR; j_++) c1[j_] = (c_rows_)[1][(jr_) + j_];      \
+    for(u64 j_ = 0; j_ < NR; j_++) c2[j_] = (c_rows_)[2][(jr_) + j_];      \
+    for(u64 j_ = 0; j_ < NR; j_++) c3[j_] = (c_rows_)[3][(jr_) + j_];      \
+    for(u64 j_ = 0; j_ < NR; j_++) c4[j_] = (c_rows_)[4][(jr_) + j_];      \
+    for(u64 j_ = 0; j_ < NR; j_++) c5[j_] = (c_rows_)[5][(jr_) + j_];      \
+    for(u64 j_ = 0; j_ < NR; j_++) c6[j_] = (c_rows_)[6][(jr_) + j_];      \
+    for(u64 j_ = 0; j_ < NR; j_++) c7[j_] = (c_rows_)[7][(jr_) + j_];      \
     for(u64 k_ = 0; k_ < (K_); k_++) {                                     \
       const double *b_ = (b_panel_) + k_ * (N_);                           \
       const double *a_ = (a_strip_) + k_ * BM;                             \
@@ -1517,6 +1625,7 @@ static K mul_try_f64_fast(K a, K x) {
     for(u64 j_ = 0; j_ < NR; j_++) (c_rows_)[6][(jr_) + j_] = c6[j_];      \
     for(u64 j_ = 0; j_ < NR; j_++) (c_rows_)[7][(jr_) + j_] = c7[j_];      \
   } while(0)
+#endif
 
   /* Pack A into BM-row strips, k-major within each strip:
    *   Ap[strip * BM * Ka + k * BM + i_local] = A[strip*BM + i_local][k]
@@ -1530,7 +1639,7 @@ static K mul_try_f64_fast(K a, K x) {
   u64 M_pad = ((M + BM - 1) / BM) * BM;
   double *A  = (double*)malloc(M     * Ka * sizeof(double));
   double *Ap = (double*)malloc(M_pad * Ka * sizeof(double));
-  double *B  = (double*)malloc(Kb    * N  * sizeof(double));
+  double *B  = (double*)malloc(((N + BN - 1) / BN) * BN * Kb * sizeof(double));   /* panel-major */
   double **C = (double**)malloc(M * sizeof(double*));
   if(!A || !Ap || !B || !C) {
     free(A); free(Ap); free(B); free(C);
@@ -1538,7 +1647,7 @@ static K mul_try_f64_fast(K a, K x) {
   }
 
   mul_pack_rows(a, A, M,  Ka);
-  mul_pack_rows(x, B, Kb, N);
+  mul_pack_panels(x, B, Kb, N, BN);
   for(u64 ii = 0; ii < M; ii += BM) {
     u64 bm = ii + BM > M ? M - ii : BM;
     double *strip = Ap + ii * Ka;
@@ -1552,31 +1661,34 @@ static K mul_try_f64_fast(K a, K x) {
   for(u64 i = 0; i < M; i++) {
     pr[i] = tn(2, N);
     C[i] = (double*)px(pr[i]);
+    memset(C[i], 0, N * sizeof(double));   /* accumulated block by block */
   }
 
   for(u64 jj = 0; jj < N; jj += BN) {
     u64 jend = jj + BN < N ? jj + BN : N;
+    const double *bp = B + (jj / BN) * Ka * BN;   /* this panel's K x BN block */
+    for(u64 k0 = 0; k0 < Ka; k0 += MUL_KCF) {
+    u64 kb = k0 + MUL_KCF < Ka ? MUL_KCF : Ka - k0;
     for(u64 ii = 0; ii < M; ii += BM) {
       u64 iend = ii + BM < M ? ii + BM : M;
       u64 bm = iend - ii;
-      const double *a_strip = Ap + ii * Ka;
+      const double *a_strip = Ap + ii * Ka + k0 * BM;
 
       for(u64 jr = jj; jr < jend; jr += NR) {
         u64 jrend = jr + NR < jend ? jr + NR : jend;
         u64 nri = jrend - jr;
 
         if(bm == BM && nri == NR) {
-          /* Hot path: full-size BM x NR micro-tile. Compile-time dims let
-           * the compiler unroll the inner loops and keep all 16 row
-           * accumulator pairs live in ZMM registers across the k loop. */
-          MICRO_8x16(C + ii, a_strip, B + jr, Ka, N, jr);
+          /* Hot path: full-size BM x NR micro-tile over this k block; the row
+           * accumulators stay in vector registers across the block. */
+          MICRO_8x16(C + ii, a_strip, bp + k0 * BN + (jr - jj), kb, BN, jr);
         } else {
           /* Edge tile: variable bm x nri, falls back to a scalar-ish loop. */
           double cc[BM][NR];
           for(u64 i = 0; i < bm; i++)
-            for(u64 j = 0; j < nri; j++) cc[i][j] = 0.0;
-          for(u64 k = 0; k < Ka; k++) {
-            const double *b_row = B + k * N + jr;
+            for(u64 j = 0; j < nri; j++) cc[i][j] = C[ii + i][jr + j];
+          for(u64 k = 0; k < kb; k++) {
+            const double *b_row = bp + (k0 + k) * BN + (jr - jj);
             const double *a_col = a_strip + k * BM;
             for(u64 i = 0; i < bm; i++) {
               double a_ik = a_col[i];
@@ -1589,6 +1701,7 @@ static K mul_try_f64_fast(K a, K x) {
           }
         }
       }
+    }
     }
   }
 
@@ -1650,10 +1763,38 @@ static K mul_try_f32_fast(K a, K x) {
   if(Ka != Kb)                               return 0;
   if(!a_f32 && !x_f32)                       return 0;
 
-  enum { BM = 8, BN = 128, NR = 16 };
+  enum { BM = MUL_BME, BN = 128, NR = MUL_NRE };
+#if MUL_BME==4
   #define MICRO_8x16E(c_rows_, a_strip_, b_panel_, K_, N_, jr_) do {        \
-    float c0[NR] = {0}, c1[NR] = {0}, c2[NR] = {0}, c3[NR] = {0};           \
-    float c4[NR] = {0}, c5[NR] = {0}, c6[NR] = {0}, c7[NR] = {0};           \
+    float c0[NR], c1[NR], c2[NR], c3[NR];                                 \
+    for(u64 j_ = 0; j_ < NR; j_++) c0[j_] = (c_rows_)[0][(jr_) + j_];      \
+    for(u64 j_ = 0; j_ < NR; j_++) c1[j_] = (c_rows_)[1][(jr_) + j_];      \
+    for(u64 j_ = 0; j_ < NR; j_++) c2[j_] = (c_rows_)[2][(jr_) + j_];      \
+    for(u64 j_ = 0; j_ < NR; j_++) c3[j_] = (c_rows_)[3][(jr_) + j_];      \
+    for(u64 k_ = 0; k_ < (K_); k_++) {                                     \
+      const float *b_ = (b_panel_) + k_ * (N_);                           \
+      const float *a_ = (a_strip_) + k_ * BM;                             \
+      for(u64 j_ = 0; j_ < NR; j_++) c0[j_] += a_[0] * b_[j_];             \
+      for(u64 j_ = 0; j_ < NR; j_++) c1[j_] += a_[1] * b_[j_];             \
+      for(u64 j_ = 0; j_ < NR; j_++) c2[j_] += a_[2] * b_[j_];             \
+      for(u64 j_ = 0; j_ < NR; j_++) c3[j_] += a_[3] * b_[j_];             \
+    }                                                                      \
+    for(u64 j_ = 0; j_ < NR; j_++) (c_rows_)[0][(jr_) + j_] = c0[j_];      \
+    for(u64 j_ = 0; j_ < NR; j_++) (c_rows_)[1][(jr_) + j_] = c1[j_];      \
+    for(u64 j_ = 0; j_ < NR; j_++) (c_rows_)[2][(jr_) + j_] = c2[j_];      \
+    for(u64 j_ = 0; j_ < NR; j_++) (c_rows_)[3][(jr_) + j_] = c3[j_];      \
+  } while(0)
+#else
+  #define MICRO_8x16E(c_rows_, a_strip_, b_panel_, K_, N_, jr_) do {        \
+    float c0[NR], c1[NR], c2[NR], c3[NR], c4[NR], c5[NR], c6[NR], c7[NR]; \
+    for(u64 j_ = 0; j_ < NR; j_++) c0[j_] = (c_rows_)[0][(jr_) + j_];      \
+    for(u64 j_ = 0; j_ < NR; j_++) c1[j_] = (c_rows_)[1][(jr_) + j_];      \
+    for(u64 j_ = 0; j_ < NR; j_++) c2[j_] = (c_rows_)[2][(jr_) + j_];      \
+    for(u64 j_ = 0; j_ < NR; j_++) c3[j_] = (c_rows_)[3][(jr_) + j_];      \
+    for(u64 j_ = 0; j_ < NR; j_++) c4[j_] = (c_rows_)[4][(jr_) + j_];      \
+    for(u64 j_ = 0; j_ < NR; j_++) c5[j_] = (c_rows_)[5][(jr_) + j_];      \
+    for(u64 j_ = 0; j_ < NR; j_++) c6[j_] = (c_rows_)[6][(jr_) + j_];      \
+    for(u64 j_ = 0; j_ < NR; j_++) c7[j_] = (c_rows_)[7][(jr_) + j_];      \
     for(u64 k_ = 0; k_ < (K_); k_++) {                                      \
       const float *b_ = (b_panel_) + k_ * (N_);                            \
       const float *a_ = (a_strip_) + k_ * BM;                              \
@@ -1675,11 +1816,12 @@ static K mul_try_f32_fast(K a, K x) {
     for(u64 j_ = 0; j_ < NR; j_++) (c_rows_)[6][(jr_) + j_] = c6[j_];      \
     for(u64 j_ = 0; j_ < NR; j_++) (c_rows_)[7][(jr_) + j_] = c7[j_];      \
   } while(0)
+#endif
 
   u64 M_pad = ((M + BM - 1) / BM) * BM;
   float *A  = (float*)malloc(M     * Ka * sizeof(float));
   float *Ap = (float*)malloc(M_pad * Ka * sizeof(float));
-  float *B  = (float*)malloc(Kb    * N  * sizeof(float));
+  float *B  = (float*)malloc(((N + BN - 1) / BN) * BN * Kb * sizeof(float));   /* panel-major */
   float **C = (float**)malloc(M * sizeof(float*));
   if(!A || !Ap || !B || !C) {
     free(A); free(Ap); free(B); free(C);
@@ -1687,7 +1829,7 @@ static K mul_try_f32_fast(K a, K x) {
   }
 
   mul_pack_rows_e(a, A, M,  Ka);
-  mul_pack_rows_e(x, B, Kb, N);
+  mul_pack_panels_e(x, B, Kb, N, BN);
   for(u64 ii = 0; ii < M; ii += BM) {
     u64 bm = ii + BM > M ? M - ii : BM;
     float *strip = Ap + ii * Ka;
@@ -1701,27 +1843,34 @@ static K mul_try_f32_fast(K a, K x) {
   for(u64 i = 0; i < M; i++) {
     pr[i] = tn(9, N);
     C[i] = (float*)px(pr[i]);
+    memset(C[i], 0, N * sizeof(float));   /* accumulated block by block */
   }
 
   for(u64 jj = 0; jj < N; jj += BN) {
     u64 jend = jj + BN < N ? jj + BN : N;
+    const float *bp = B + (jj / BN) * Ka * BN;   /* this panel's K x BN block */
+    for(u64 k0 = 0; k0 < Ka; k0 += MUL_KCE) {
+    u64 kb = k0 + MUL_KCE < Ka ? MUL_KCE : Ka - k0;
     for(u64 ii = 0; ii < M; ii += BM) {
       u64 iend = ii + BM < M ? ii + BM : M;
       u64 bm = iend - ii;
-      const float *a_strip = Ap + ii * Ka;
+      const float *a_strip = Ap + ii * Ka + k0 * BM;
 
       for(u64 jr = jj; jr < jend; jr += NR) {
         u64 jrend = jr + NR < jend ? jr + NR : jend;
         u64 nri = jrend - jr;
 
         if(bm == BM && nri == NR) {
-          MICRO_8x16E(C + ii, a_strip, B + jr, Ka, N, jr);
+          /* Hot path: full-size BM x NR micro-tile over this k block; the row
+           * accumulators stay in vector registers across the block. */
+          MICRO_8x16E(C + ii, a_strip, bp + k0 * BN + (jr - jj), kb, BN, jr);
         } else {
+          /* Edge tile: variable bm x nri, falls back to a scalar-ish loop. */
           float cc[BM][NR];
           for(u64 i = 0; i < bm; i++)
-            for(u64 j = 0; j < nri; j++) cc[i][j] = 0.0f;
-          for(u64 k = 0; k < Ka; k++) {
-            const float *b_row = B + k * N + jr;
+            for(u64 j = 0; j < nri; j++) cc[i][j] = C[ii + i][jr + j];
+          for(u64 k = 0; k < kb; k++) {
+            const float *b_row = bp + (k0 + k) * BN + (jr - jj);
             const float *a_col = a_strip + k * BM;
             for(u64 i = 0; i < bm; i++) {
               float a_ik = a_col[i];
@@ -1734,6 +1883,7 @@ static K mul_try_f32_fast(K a, K x) {
           }
         }
       }
+    }
     }
   }
 

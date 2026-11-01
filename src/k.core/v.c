@@ -2372,19 +2372,18 @@ K first(K x) {
 
 K recip(K x) {
   K r=0;
+  i32 *pxi;
   i64 *pxj;
   float *pxe,*pre;
-  double f,*prf;
+  double f,*prf,*pxf;
   if(s(x)) return KERR_TYPE;
   switch(tx) {
   case  1: f=1.0/fi(ik(x)); r=t2(f); break;
   case  2: f=1.0/fk(x); r=t2(f); break;
   case  8: f=1.0/fj(jk(x)); r=t2(f); break;
   case  9: r=te(1.0f/ek(x)); break;
-  case -1:
-  case -2: if(!nx) { r=tn(2,0); break; } /* each() of an empty gives an
-             untyped (); the result type is float regardless */
-           r=each(4,0,x); break;
+  case -1: PRF(nx); PXI; i(nx,prf[i]=1.0/fi(pxi[i])) break;
+  case -2: PRF(nx); PXF; i(nx,prf[i]=1.0/pxf[i]) break;
   case -8: PRF(nx); PXJ; i(nx,prf[i]=1.0/fj(pxj[i])) break;
   case -9: PRE(nx); PXE; i(nx,pre[i]=1.0f/pxe[i]) break;
   case  0: r=irecur1(recip,x); break;

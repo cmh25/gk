@@ -1128,59 +1128,60 @@ K cond_(K x) {
   return r;
 }
 
+/* YYYYMMDD of a Julian day number; a date outside the int range is 0N */
+static i32 dj1(i32 v) {
+  i64 g,b,c,d,e,m,ymd; i32 year,month,day;
+  g = (i64)v + 32044 + 2464329; /* 20350101 */
+  b = (4*g+3)/146097;
+  c = g - (b*146097)/4;
+  d = (4*c+3)/1461;
+  e = c - (1461*d)/4;
+  m = (5*e+2)/153;
+  day   = (i32)(e-(153*m+2)/5+1);
+  month = (i32)(m+3-12*(m/10));
+  year  = (i32)(b*100+d-4800+m/10);
+  // encode YMD in 64-bit, then clamp to 32-bit range
+  ymd = (i64)year * 10000 + (i64)month * 100 + day;
+  return (ymd<INT32_MIN || ymd>INT32_MAX) ? INT32_MIN : (i32)ymd;
+}
 K dj(K x) {
   K r=0;
-  i32 year,month,day;
-  i64 g,b,c,d,e,m;
+  i32 *pri,*pxi;
   if(s(x)) return KERR_TYPE;
   switch(tx) {
-  case  1:
-    g = (i64)ik(x)+ 32044 + 2464329; /* 20350101 */
-    b = (4*g+3)/146097;
-    c = g - (b*146097)/4;
-    d = (4*c+3)/1461;
-    e = c - (1461*d)/4;
-    m = (5*e+2)/153;
-    day   = (i32)(e-(153*m+2)/5+1);
-    month = (i32)(m+3-12*(m/10));
-    year  = (i32)(b*100+d-4800+m/10);
-    // encode YMD in 64-bit, then clamp to 32-bit range
-    i64 ymd64 = (i64)year * 10000 + (i64)month * 100 + day;
-    if(ymd64<INT32_MIN || ymd64>INT32_MAX) r=t(1, (u32)INT32_MIN);
-    else r=t(1, (u32)(i32)ymd64);
-    break;
-  case -1: r=avdo(biv("dj"),0,k_(x),"'"); break;
+  case  1: r=t(1,(u32)dj1(ik(x))); break;
+  case -1: PRI(nx); PXI; i(nx,pri[i]=dj1(pxi[i])) break;
   case  0: r=irecur1(dj,x); break;
   default: return KERR_TYPE;
   }
   return knorm(r);
 }
 
+/* Julian day number of a YYYYMMDD date */
+static i32 jd1(i32 dv) {
+  i32 year,month,day; i64 g,y,m,val;
+  /* A sentinel is not a YYYYMMDD date.  Decomposing one gave a
+     plausible-looking day number instead of a null: jd 0N -> -79179540,
+     jd 0I -> 77692941, jd -0I -> -79179539.  The inverse dj lands on 0N for
+     these already (via its out-of-range clamp), so mirror that here. */
+  if(dv==INT32_MIN||dv==INT32_MAX||dv==INT32_MIN+1) return INT32_MIN;
+  year = dv/10000;
+  month = (dv/100)%100;
+  day = dv%100;
+  g = (14-month)/12;
+  y = (i64)year+4800-g;
+  m = month+12*g-3;
+  val = (i64)day + (153*m+2)/5 + y*365 + y/4 - y/100 + y/400 - 32045 - 2464329;
+  // val is days; it already fits in 64-bit. pack to i32 domain.
+  return (val<INT32_MIN || val>INT32_MAX) ? INT32_MIN : (i32)val;
+}
 K jd(K x) {
   K r=0;
-  i32 year,month,day;
-  i64 g,y,m,val;
+  i32 *pri,*pxi;
   if(s(x)) return KERR_TYPE;
   switch(tx) {
-  case  1: {
-    i32 dv=ik(x);
-    /* A sentinel is not a YYYYMMDD date.  Decomposing one gave a
-       plausible-looking day number instead of a null: jd 0N -> -79179540,
-       jd 0I -> 77692941, jd -0I -> -79179539.  The inverse dj lands on 0N for
-       these already (via its out-of-range clamp), so mirror that here. */
-    if(dv==INT32_MIN||dv==INT32_MAX||dv==INT32_MIN+1) { r=t(1,(u32)INT32_MIN); break; }
-    year = dv/10000;
-    month = (dv/100)%100;
-    day = dv%100;
-    g = (14-month)/12;
-    y = (i64)year+4800-g;
-    m = month+12*g-3;
-    val = (i64)day + (153*m+2)/5 + y*365 + y/4 - y/100 + y/400 - 32045 - 2464329;
-    // val is days; it already fits in 64-bit. pack to i32 domain.
-    if(val<INT32_MIN || val>INT32_MAX) r=t(1, (u32)INT32_MIN);
-    else r=t(1, (u32)(i32)val); }
-    break;
-  case -1: r=avdo(biv("jd"),0,k_(x),"'"); break;
+  case  1: r=t(1,(u32)jd1(ik(x))); break;
+  case -1: PRI(nx); PXI; i(nx,pri[i]=jd1(pxi[i])) break;
   case  0: r=irecur1(jd,x); break;
   default: return KERR_TYPE;
   }
