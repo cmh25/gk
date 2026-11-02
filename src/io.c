@@ -24,6 +24,7 @@
 #include "b.h"
 #include "ms.h"
 #include "ipc.h"
+#include "dict.h"
 
 static K ferr(char *f, i32 e) {
   K r;
@@ -226,17 +227,270 @@ static K readall_(FILE *fp, size_t bs, char **pb, size_t *pn) {
   return null;
 }
 
+/* ---- delimited text (csv), RFC 4180 ----
+   (s;d)0:f   d a char: the field delimiter; no header -> list of columns
+   (s;,d)0:f  d enlisted: the first record names the columns -> dict
+   s is the fixed-width letter string (I J E F C S; blank skips a field).
+   A field that starts with a quote runs to the next lone quote; a doubled
+   quote inside it is a literal quote; delimiters and line breaks inside
+   quotes are data.  Outside quotes LF or CRLF ends a record, empty lines are
+   skipped, and a record with the wrong field count is a length error.
+   The tokenizer works over a byte range from an explicit position, so a
+   chunked reader could drive it; this one runs it once over the file. */
+typedef struct { char *s; u64 n; } csvf;
+
+/* One field at *pp.  A quoted field is unescaped in place (the write cursor
+   never passes the read cursor, so bytes past the field's original end are
+   untouched).  *last is set when the field ended its record (line break or
+   end of buffer).  parse error for a quote that never closes, or a closing
+   quote followed by anything but a delimiter or line break. */
+static K csvfld_(char **pp, char *end, char d, csvf *f, int *last) {
+  char *p=*pp,*w;
+  *last=0;
+  if(p<end && *p=='"') {
+    f->s=w=++p;
+    for(;;) {
+      if(p>=end) return KERR_PARSE;
+      if(*p=='"') {
+        if(p+1<end && p[1]=='"') { *w++='"'; p+=2; continue; }
+        ++p; break;
+      }
+      *w++=*p++;
+    }
+    f->n=(u64)(w-f->s);
+    if(p>=end) { *last=1; *pp=end; return null; }
+    if(*p==d) { *pp=p+1; return null; }
+    if(*p=='\n') { *last=1; *pp=p+1; return null; }
+    if(*p=='\r' && (p+1==end || p[1]=='\n')) { *last=1; *pp=(p+1==end)?end:p+2; return null; }
+    return KERR_PARSE;
+  }
+  f->s=p;
+  while(p<end && *p!=d && *p!='\n') ++p;
+  f->n=(u64)(p-f->s);
+  if(p<end && *p==d) { *pp=p+1; return null; }
+  if(f->n && f->s[f->n-1]=='\r') f->n--;   /* CRLF */
+  *last=1;
+  *pp=(p<end)?p+1:end;
+  return null;
+}
+
+/* One record into f[0..*nf): more than nmax fields is a length error (the
+   caller checks for fewer). */
+static K csvrow_(char **pp, char *end, char d, csvf *f, u64 nmax, u64 *nf) {
+  u64 k=0; int last=0; K e;
+  do {
+    if(k>=nmax) return KERR_LENGTH;
+    e=csvfld_(pp,end,d,&f[k],&last); if(E(e)) return e;
+    ++k;
+  } while(!last);
+  *nf=k;
+  return null;
+}
+
+static char* csvskip_(char *p, char *end) {   /* skip empty lines */
+  for(;;) {
+    if(p<end && *p=='\n') { ++p; continue; }
+    if(p+1<end && *p=='\r' && p[1]=='\n') { p+=2; continue; }
+    if(p+1==end && *p=='\r') return end;
+    return p;
+  }
+}
+
+/* NUL-terminate a field in place, trimmed of blanks (the byte after a field
+   is always a consumed delimiter, line break, quote or the buffer's own
+   terminator, so the write is in bounds and clobbers nothing unread) */
+static char* csvtrim_(csvf *f) {
+  char *s=f->s,*e=s+f->n;
+  while(s<e && isspace((unsigned char)*s)) ++s;
+  while(e>s && isspace((unsigned char)e[-1])) --e;
+  *e=0;
+  return s;
+}
+
+/* p: the letter string; n: its non-blank count; z0[0..N): the file bytes
+   (writable scratch, N+1 allocated).  Columns grow by doubling; each column's
+   count is set on every exit so a partial result frees cleanly. */
+static K csvread_(K p, u32 n, char d, int hdr, char *z0, size_t N) {
+  K r=0,e=0,*prk=0;
+  char *ppc=px(p),*z=z0,*end=z0+N,*s;
+  char **hk=0;              /* header names, interned, one per kept column */
+  u64 nl=n(p),m=256,k=0,nf,i,j;
+  csvf *f=xmalloc((nl+1)*sizeof(csvf));
+  if(hdr) {
+    z=csvskip_(z,end);
+    if(z>=end) { e=KERR_LENGTH; goto cleanup; }   /* no header record */
+    e=csvrow_(&z,end,d,f,nl,&nf); if(E(e)) goto cleanup;
+    if(nf!=nl) { e=KERR_LENGTH; goto cleanup; }
+    hk=xmalloc((n+1)*sizeof(char*));
+    for(i=0,j=0;i<nl;i++) {
+      if(ppc[i]==' ') continue;
+      s=csvtrim_(&f[i]);
+      if(!dkeyok(s)) { e=KERR_DOMAIN; goto cleanup; }  /* a column name must be a name (dict.c) */
+      hk[j++]=sp(s);
+    }
+  }
+  r=tn(0,n); prk=px(r);
+  for(i=0,j=0;i<nl;i++) {
+    switch(ppc[i]) {
+    case 'I': prk[j++]=tn(1,m); break;
+    case 'J': prk[j++]=tn(8,m); break;
+    case 'E': prk[j++]=tn(9,m); break;
+    case 'F': prk[j++]=tn(2,m); break;
+    case 'C': prk[j++]=tn(0,m); break;
+    case 'S': prk[j++]=tn(4,m); break;
+    }
+  }
+  for(;;) {
+    z=csvskip_(z,end);
+    if(z>=end) break;
+    e=csvrow_(&z,end,d,f,nl,&nf); if(E(e)) goto cleanup;
+    if(nf!=nl) { e=KERR_LENGTH; goto cleanup; }
+    if(k==m) {
+      if(m>=(u64)VMAX/2) { e=KERR_WSFULL; goto cleanup; }
+      m<<=1;
+      for(j=0;j<n;j++) prk[j]=kresize(prk[j],m);
+    }
+    for(i=0,j=0;i<nl;i++) {
+      switch(ppc[i]) {
+      case 'I': ((i32*)px(prk[j]))[k]=xatoi(csvtrim_(&f[i])); j++; break;
+      case 'J': ((i64*)px(prk[j]))[k]=xatol(csvtrim_(&f[i])); j++; break;
+      case 'E': ((float*)px(prk[j]))[k]=xstrtoe(csvtrim_(&f[i])); j++; break;
+      case 'F': ((double*)px(prk[j]))[k]=xstrtod(csvtrim_(&f[i])); j++; break;
+      case 'C': ((K*)px(prk[j]))[k]=tnv(3,(i64)f[i].n,xmemdup0(f[i].s,f[i].n)); j++; break;
+      case 'S': ((char**)px(prk[j]))[k]=sp(csvtrim_(&f[i])); j++; break;
+      }
+    }
+    ++k;
+  }
+  for(j=0;j<n;j++) n(prk[j])=k;
+  if(hdr) {      /* the columns move into a dict keyed by the header */
+    K dd=dnew();
+    for(j=0;j<n;j++) {
+      e=dset(dd,hk[j],prk[j]);
+      if(E(e)) { for(i=j;i<n;i++) _k(prk[i]); n(r)=0; _k(r); _k(dd); r=0; goto cleanup; }
+      _k(prk[j]);   /* the dict's reference is the only one now */
+    }
+    n(r)=0; _k(r); r=dd;
+  }
+  xfree(f); if(hk) xfree(hk);
+  return r;
+cleanup:
+  if(r) { for(j=0;j<n;j++) n(prk[j])=k; _k(r); }
+  xfree(f); if(hk) xfree(hk);
+  return e;
+}
+
+/* ---- csv writer: f 0: d ----
+   A dict of equal-length columns: a header of the keys, then one record per
+   row.  Numbers print as 5: does at \p (no j/e suffix); nulls are empty
+   fields; float infinities are inf/-inf (what 0: reads back, and what other
+   tools read); a string or symbol is quoted when it holds the delimiter, a
+   quote, CR or LF, with inner quotes doubled. */
+typedef struct { char *b; size_t n,c; } csvb;
+static void cput_(csvb *o, const char *s, size_t n) {
+  if(o->n+n+1>o->c) { while(o->n+n+1>o->c) o->c<<=1; o->b=xrealloc(o->b,o->c); }
+  memcpy(o->b+o->n,s,n); o->n+=n;
+}
+static void cputc_(csvb *o, char c) { cput_(o,&c,1); }
+static void cputq_(csvb *o, const char *s, size_t n, char d) {
+  size_t i; int q=0;
+  for(i=0;i<n;i++) if(s[i]==d||s[i]=='"'||s[i]=='\n'||s[i]=='\r') { q=1; break; }
+  if(!q) { cput_(o,s,n); return; }
+  cputc_(o,'"');
+  for(i=0;i<n;i++) { if(s[i]=='"') cputc_(o,'"'); cputc_(o,s[i]); }
+  cputc_(o,'"');
+}
+static void cputf_(csvb *o, double f, int e32) {
+  char ds[256];
+  if(isnan(f)) return;
+  if(isinf(f)) { if(f>0) cput_(o,"inf",3); else cput_(o,"-inf",4); return; }
+  if(e32) kfmte(ds,(float)f); else kfmtf(ds,f);
+  cput_(o,ds,strlen(ds));
+}
+static K cputa_(csvb *o, K x, char d) {   /* an atom (or string) in a list column */
+  char ds[32];
+  if(s(x)) return KERR_TYPE;
+  switch(T(x)) {
+  case 1: if(ik(x)!=INT32_MIN) { sprintf(ds,"%d",ik(x)); cput_(o,ds,strlen(ds)); } break;
+  case 8: if(jk(x)!=J_NULL) { sprintf(ds,"%lld",(long long)jk(x)); cput_(o,ds,strlen(ds)); } break;
+  case 2: cputf_(o,fk(x),0); break;
+  case 9: cputf_(o,(double)ek(x),1); break;
+  case 3: { char c=(char)ck(x); cputq_(o,&c,1,d); break; }
+  case 4: cputq_(o,sk(x),strlen(sk(x)),d); break;
+  case 6: break;
+  case -3: cputq_(o,px(x),(size_t)n(x),d); break;
+  default: return KERR_TYPE;
+  }
+  return null;
+}
+static K cputcell_(csvb *o, K c, u64 i, char d) {   /* row i of column c */
+  char ds[32];
+  switch(T(c)) {
+  case -1: { i32 v=((i32*)px(c))[i]; if(v!=INT32_MIN) { sprintf(ds,"%d",v); cput_(o,ds,strlen(ds)); } break; }
+  case -8: { i64 v=((i64*)px(c))[i]; if(v!=J_NULL) { sprintf(ds,"%lld",(long long)v); cput_(o,ds,strlen(ds)); } break; }
+  case -2: cputf_(o,((double*)px(c))[i],0); break;
+  case -9: cputf_(o,(double)((float*)px(c))[i],1); break;
+  case -3: cputq_(o,(char*)px(c)+i,1,d); break;
+  case -4: { char *s=((char**)px(c))[i]; cputq_(o,s,strlen(s),d); break; }
+  case  0: return cputa_(o,((K*)px(c))[i],d);
+  default: return KERR_TYPE;
+  }
+  return null;
+}
+/* the whole text into a fresh buffer (*pb, *pn bytes, NUL-terminated) */
+static K csvtext_(K x, char d, char **pb, size_t *pn) {
+  K *pd=px(x),*pv,e; char **pk; u64 ncol,nrow=0,i,j; csvb o;
+  pk=px(pd[0]); pv=px(pd[1]); ncol=n(pd[0]);
+  for(i=0;i<ncol;i++) {
+    K c=pv[i];
+    if(s(c)||T(c)>0) return KERR_TYPE;      /* a column is a vector or a list */
+    if(i==0) nrow=n(c); else if(n(c)!=nrow) return KERR_LENGTH;
+  }
+  o.c=4096; o.n=0; o.b=xmalloc(o.c);
+  if(ncol) {
+    for(i=0;i<ncol;i++) { if(i) cputc_(&o,d); cputq_(&o,pk[i],strlen(pk[i]),d); }
+    cputc_(&o,'\n');
+  }
+  for(j=0;j<nrow;j++) {
+    for(i=0;i<ncol;i++) {
+      if(i) cputc_(&o,d);
+      e=cputcell_(&o,pv[i],j,d);
+      if(E(e)) { xfree(o.b); return e; }
+    }
+    cputc_(&o,'\n');
+  }
+  o.b[o.n]=0;
+  *pb=o.b; *pn=o.n;
+  return null;
+}
+static K csvwrite_(K a, K x) {
+  K e; char *b; size_t n; FILE *fp=0;
+  e=csvtext_(x,',',&b,&n); if(E(e)) return e;
+  e=fopen_(a,"wb",&fp); if(E(e)) { xfree(b); return e; }
+  e=fwclose_(b,n,fp);      /* consumes fp; catches disk full */
+  xfree(b);
+  return e;
+}
+
 static K b0colon(K x) {
   K *pxk,r=null;
-  char *pc;
+  if(x && 0x80==s(x)) {    /* ` 0: dict -- csv to the console */
+    char *b; size_t n;
+    K e=csvtext_(x,',',&b,&n); if(E(e)) return e;
+    fwrite(b,1,n,stdout); xfree(b);
+    return null;
+  }
   if(!x || s(x)) return KERR_TYPE;
   switch(tx) {
   case  3: printf("%c",ck(x)); break;
-  case -3: pc=px(x); i(nx,putchar(pc[i])) break;
+  /* whole strings per fwrite, not putchar per byte: stdout is _IONBF (main.c),
+     so each putchar was a write syscall -- a 400KB `0:json x through a pty
+     and rlwrap looked hung */
+  case -3: fwrite(px(x),1,nx,stdout); break;
   case  0:
     PXK;
     i(nx,if(s(pxk[i])||-3!=T(pxk[i])) return KERR_TYPE)
-    i(nx,pc=px(pxk[i]);j(n(pxk[i]),putchar(pc[j])) putchar('\n'))
+    i(nx,fwrite(px(pxk[i]),1,n(pxk[i]),stdout); putchar('\n'))
     break;
   default: r=KERR_TYPE;
   }
@@ -327,13 +581,15 @@ static K zerocolon2(K a, K x) {
                         is then in bounds by construction. */
   u64 k,m;           /* row index / row count -- must be 64-bit (>2^32 rows) */
   char *ppc,*z,*pz,*z0=0,g;
-  i32 *pqi;
+  i32 *pqi=0;
+  char dl=0; int hdr=0,csv=0;   /* the delimited-text (csv) form of the schema */
 
-  if(s(a) || s(x)) return KERR_TYPE;
+  if(s(a) || (s(x) && 0x80!=s(x))) return KERR_TYPE;
   if((ta==4&&!strlen(sk(a))) || (ta==-3&&!na)) return b0colon(x);
 
   switch(ta) {
   case -3: case 3: case 4:  /* file write */
+    if(0x80==s(x)) { e=csvwrite_(a,x); if(E(e)) return e; break; }  /* a dict of columns -> csv */
     switch(tx) {
     case 0:  /* mixed list of lines */
       EC(fopen_(a,"wb",&fp));
@@ -361,22 +617,32 @@ static K zerocolon2(K a, K x) {
     } break;
   case 0:  /* file read with schema */
     if(na!=2) return KERR_LENGTH;
+    if(s(x)) return KERR_TYPE;
     pak=px(a);
     p=pak[0]; q=pak[1];
     if(s(p)||T(p)!=-3) return KERR_TYPE;
-    if(s(q)||T(q)!=-1) return KERR_TYPE;
-    if(n(p)!=n(q)) return KERR_LENGTH;
+    if(s(q)) return KERR_TYPE;
 
     ppc=px(p);
-    pqi=px(q);
     i(n(p),if(!strchr("IJEFCS ",ppc[i])) return KERR_TYPE)
-
     n=0; i(n(p),if(ppc[i]!=' ') ++n)
-    L=0; i(n(q),
-      if(pqi[i]<0||pqi[i]==INT32_MAX) return KERR_INT;
-      if((u64)pqi[i]>UINT64_MAX-L) return KERR_WSFULL;
-      L+=(u64)pqi[i])
     VSIZE((i32)n);
+
+    if(T(q)==3 || (T(q)==-3 && n(q)==1)) {
+      /* (s;d) with a char d: delimited text (csv); d enlisted: header record */
+      csv=1; hdr=(T(q)==-3);
+      dl = T(q)==3 ? (char)ck(q) : *(char*)px(q);
+      if(dl=='"'||dl=='\n'||dl=='\r') return KERR_DOMAIN;
+    }
+    else {
+      if(T(q)!=-1) return KERR_TYPE;
+      if(n(p)!=n(q)) return KERR_LENGTH;
+      pqi=px(q);
+      L=0; i(n(q),
+        if(pqi[i]<0||pqi[i]==INT32_MAX) return KERR_INT;
+        if((u64)pqi[i]>UINT64_MAX-L) return KERR_WSFULL;
+        L+=(u64)pqi[i])
+    }
 
     if(tx==0) {
       if(nx!=3) return KERR_TYPE;
@@ -409,6 +675,7 @@ static K zerocolon2(K a, K x) {
       return KERR_LENGTH;
     }
 
+    if(csv) { r=csvread_(p,n,dl,hdr,z0,N); break; }
     if(!L) { fclose(fp); xfree(z0); return KERR_TYPE; }
     m=0;
     for(char *zr=z0; zr<z0+N;) {

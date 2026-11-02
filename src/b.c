@@ -32,6 +32,7 @@
 #include "tmr.h"
 #include "watch.h"
 #include "dict.h"
+#include "json.h"
 
 #ifdef _WIN32
 #define strtok_r strtok_s
@@ -68,7 +69,7 @@ const binfo1 BMONAD[] = {
   {&R_MD5,md5_},{&R_SHA1,sha1_},{&R_SHA2,sha2_},{&R_SVD,svd_},{&R_LU,lu_},
   {&R_QR,qr_},{&R_LDU,ldu_},{&R_RREF,rref_},{&R_DET,det_},{&R_MAG,mag_},
   {&R_PRIME,prime_},{&R_FACTOR,factor_},{&R_GETENV,getenv_},{&R_EXIT,exit_},
-  {&R_TIMER,timer_},{&R_WATCH,watch_},
+  {&R_TIMER,timer_},{&R_WATCH,watch_},{&R_JSON,json_},
 };
 const int NBDYAD=sizeof(BDYAD)/sizeof(*BDYAD);
 const int NBMONAD=sizeof(BMONAD)/sizeof(*BMONAD);

@@ -2500,6 +2500,7 @@ displays (`(2+),`) so they round-trip.
 | `val x` | valence of a function | `val{x+y}` → `2` |
 | `4: x` | type code of `x` | `4:1 2 3` → `-1` |
 | `5: x` | printable form of `x` | `5:1 2 3` → `"1 2 3"` |
+| `json x` | JSON text from data, or data from JSON text when `x` is a string — see [JSON](#json) | `json 1 2 3` → `"[1,2,3]"` |
 | `md5 x` | MD5 digest (hex string) | `md5"abc"` → `"900150983cd24fb0d6963f7d28e17f72"` |
 | `sha1 x` | SHA-1 digest | |
 | `sha2 x` | SHA-256 digest | |
@@ -2528,6 +2529,49 @@ captured starts from the value it was sent with — two processes never share
 mutable state through a wire. Nested captures, a captured function and a
 captured closure all travel.
 
+<a id="json"></a>
+#### JSON
+
+`json x` converts in both directions, chosen by the argument's type: a string
+(char vector) is **parsed** as JSON text; anything else is **serialized** to
+JSON text.
+
+| JSON | gk |
+|------|----|
+| object | dict — every key must be a [name](#dictionaries), `domain` error otherwise |
+| array | list; an all-numeric array is a typed vector of its widest member (int < long < float), with `null` as that type's null |
+| string | char vector (`\uXXXX` and surrogate pairs decode to UTF-8) |
+| number | int if it fits `i32`, long if it fits `i64`, else float; a fraction or exponent is always a float |
+| `true` `false` | `1` `0` |
+| `null` | `nul` |
+
+```
+  j:json "{\"id\":3000000000,\"tags\":[\"a\",\"b\"],\"v\":[1,2.5,null]}"
+  j.id
+3000000000j
+  j.v
+1 2.5 0n
+  json j
+"{\"id\":3000000000,\"tags\":[\"a\",\"b\"],\"v\":[1.0,2.5,null]}"
+```
+
+Unlike a source literal, where a bare `3000000000` saturates to `0I`, a JSON
+integer widens to whatever holds it: JSON carries 64-bit ids and has no `j`.
+
+**Writing.** A dict is an object, a list or vector an array, a char vector a
+string, a symbol a string, a char atom a one-character string, `nul` is
+`null`. Integers write as digits (a null as `null`). Floats print as
+[`5:`](#conversion-and-serialization) does at the current `\p` precision,
+always with a point or exponent so they read back as floats; a float null or
+infinity, which JSON cannot spell, writes as `null`. Anything else — a
+function, a handle — is a `type` error. A round trip loses what JSON cannot
+carry: booleans come back as ints, symbols as strings, a long that fits `i32`
+as an int, an `f32` as a float.
+
+**Errors:** `parse` for malformed text, including anything after the value;
+`domain` for an object key that is not a name; `type` for a value with no
+JSON form; `stack` for nesting deeper than 2048 levels.
+
 ### Time
 
 Time builtins use an epoch of **2035-01-01** (Julian day `0` is a Monday).
@@ -2554,6 +2598,8 @@ Time builtins use an epoch of **2035-01-01** (Julian day `0` is a Monday).
 |---------|-------------|
 | `0: x` | read lines from file `x` |
 | `a 0: x` | write lines `x` to file `a` (file on the left) |
+| `(s;d) 0: x` | read delimited text (CSV) with schema `s` — see [Delimited Records](#delimited-records) |
+| `a 0: d` | write a dict of columns `d` to file `a` as CSV |
 | `1: x` | read k data from file `x` |
 | `a 1: x` | write k data `x` to file `a` |
 | `2: x` | read serialized k data from file `x` |
@@ -2722,6 +2768,71 @@ slice) as one vector of that type — `c` char, `i` int, `j` i64, `e` f32,
 "j"1:"longs.bin"
 1 2 3000000000j
 ```
+
+<a id="delimited-records"></a>
+#### Delimited Records (CSV)
+
+Dyadic `0:` with a `(types;delimiter)` left argument loads **delimited text**
+— CSV and its relatives. `types` is the fixed-width letter string (`I` `J` `E`
+`F` `C` `S`, blank skips a field, with the meanings above); the delimiter is a
+char: `","` for CSV, `"\t"` for tab-separated, any byte but a quote or a line
+break.
+
+```
+("ISF";",")0:"data.csv"          / no header: a list of columns
+("ISF";,",")0:"data.csv"         / enlisted delimiter: the first record is a header -> dict
+("ISF";",")0:("data.csv";b;n)    / a byte slice, as for fixed width
+```
+
+A one-letter schema must be enlisted — `(,"I";",")` — because `("I";",")` is
+the two-character string `"I,"`, which `0:` takes for a file name to write.
+
+With the header form the result is a dict keyed by the header names (trimmed
+of blanks), one column per non-blank letter, so `d.price` is a column. Each
+name must be a [name](#dictionaries), `domain` error otherwise: read without
+the header and name the columns yourself.
+
+The grammar is RFC 4180: a field that starts with `"` runs to the next lone
+`"`, a doubled `""` inside it is a literal quote, and delimiters and line
+breaks inside quotes are data. Outside quotes `LF` or `CRLF` ends a record,
+empty lines are skipped, and every record must have exactly `#types` fields
+(`length` error otherwise). Numeric fields are trimmed and parsed leniently as
+for fixed width: an empty field is the column's null, `inf` or `0I` the
+infinity. `C` keeps a field's text as is; `S` trims it.
+
+```
+/ data.csv:
+/   id,name,price
+/   1,"Smith, John",1.5
+/   2,Jane,
+  d:("ISF";,",")0:"data.csv"
+  d.name
+`"Smith, John" `Jane
+  d.price
+1.5 0n
+```
+
+**Writing — `f 0: d`.** With a dict on the right, `0:` writes it as CSV: a
+header of the keys, then one record per row, comma-separated. Every value must
+be a vector or list of the same length (`length` error otherwise; a column item
+with no text form is a `type` error). Numbers print as `5:` does at the current
+`\p`, without the `j`/`e` type suffixes; a null is an empty field; a float
+infinity is `inf`/`-inf`; a string or symbol is quoted when it holds a comma, a
+quote, or a line break, with inner quotes doubled. Records end in `LF`.
+`` ` 0: d `` prints the same text to the console.
+
+```
+  "out.csv" 0: d
+  0:"out.csv"
+("id,name,price"
+ "1,\"Smith, John\",1.5"
+ "2,Jane,")
+```
+
+**Errors:** `type` for a delimiter that is not a char, a bad letter, or a
+non-dict write; `domain` for a quote or line break as the delimiter; `parse`
+for a quote that never closes, or a closing quote followed by anything but a
+delimiter or line break; `length` for a record with the wrong field count.
 
 ### System
 

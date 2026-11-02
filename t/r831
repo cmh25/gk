@@ -1,0 +1,82 @@
+.((`id
+   1 2 3 4
+   )
+  (`name
+   `"Smith, John" `Jane `"multi\nline" `Ann
+   )
+  (`price
+   1.5 2.25 0.5 1000
+   )
+  (`qty
+   10 0N 3 0I
+   )
+  (`note
+   ("he said \"hi\""
+    ""
+    ,"x"
+    "trailing")
+   ))
+`"Smith, John" `Jane `"multi\nline" `Ann
+10 0N 3 0I
+(0N 1 2 3 4
+ `name `"Smith, John" `Jane `"multi\nline" `Ann
+ 0n 1.5 2.25 0.5 1000
+ 0N 10 0N 3 0I
+ ("note"
+  "he said \"hi\""
+  ""
+  ,"x"
+  "trailing"))
+.((`id
+   1 2 3 4
+   )
+  (`price
+   1.5 2.25 0.5 1000
+   ))
+(,`"Smith, John"
+ ,"he said \"hi\"")
+(1 3000000000 0Nj
+ 1.5 2 0ne
+ 2.5 0i 0n)
+("id,name,price,qty,note"
+ "1,\"Smith, John\",1.5,10,\"he said \"\"hi\"\"\""
+ "2,Jane,2.25,,"
+ "3,\"multi"
+ "line\",0.5,3,x"
+ "4,Ann,1000.0,2147483647,trailing")
+1
+("n,f,s,g"
+ "1,1.5,a,1"
+ ",,b c,\"x,y\""
+ "2147483647,inf,c,"
+ "5,-inf,\"d\"\"e\",2.5")
+.((`n
+   1 0N 0I 5
+   )
+  (`f
+   1.5 0n 0i -0i
+   )
+  (`s
+   `a `"b c" `c `"d\"e"
+   )
+  (`g
+   (,"1"
+    "x,y"
+    ""
+    "2.5")
+   ))
+(,"x"
+ "0.333"
+ "1.0")
+id,name,price,qty,note
+1,"Smith, John",1.5,10,"he said ""hi"""
+2,Jane,2.25,,
+3,"multi
+line",0.5,3,x
+4,Ann,1000.0,2147483647,trailing
+(1;"domain")
+(1;"length")
+(1;"parse")
+(1;"domain")
+(1;"length")
+(1;"type")

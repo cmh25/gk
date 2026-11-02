@@ -1,0 +1,36 @@
+/ csv (2026-11-01): (s;d)0:f reads delimited text, RFC 4180 -- a field starting with a
+/ quote runs to the next lone quote, "" inside it is a literal quote, delimiters and line
+/ breaks inside quotes are data, LF or CRLF ends a record, empty lines are skipped, and a
+/ wrong field count is a length error.  An enlisted delimiter makes the first record a
+/ header and the result a dict (names only: domain otherwise).  f 0:dict writes a dict of
+/ columns back: header, comma, quoting as needed, nulls empty, inf/-inf, numbers as 5:
+/ prints them at \p with no j/e suffix.  ` 0:dict prints the same text.
+a:("ISFIC";,",")0:"c0.csv"
+a
+a.name
+a.qty
+("ISFIC";",")0:"c0.csv"
+("I F  ";,",")0:"c0.csv"
+(" S  C";",")0:("c0.csv";23;39)
+b:("JEF";"\t")0:"c1.tsv"
+b
+"z831" 0:a
+0:"z831"
+a~("ISFIC";,",")0:"z831"
+d:.+(`n`f`s`g;(1 0N 0I 5;1.5 0n 0i -0i;(`a;`$"b c";`c;`$"d\"e");(1;"x,y";nul;2.5e)))
+"z831" 0:d
+0:"z831"
+("IFSC";,",")0:"z831"
+\p 3
+"z831" 0:.+(,`x;,1 3%3)
+0:"z831"
+\p 7
+` 0:a
+.[0:;(("IS";,",");"c2.csv");:]
+.[0:;(("IS";",");"c3.csv");:]
+.[0:;(("IS";",");"c4.csv");:]
+.[0:;(("IS";"\"");"c0.csv");:]
+.[0:;("z831";.+(`a`b;(1 2;,3)));:]
+.[0:;("z831";.+(`a`b;(1 2;{x})));:]
+del "z831"
+\\

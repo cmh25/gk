@@ -1,0 +1,7 @@
+id,name,price,qty,note
+1,"Smith, John",1.5,10,"he said ""hi"""
+2,Jane,2.25,,
+3,"multi
+line",0.5,3,x
+
+4, Ann ,1e3,2147483647,"trailing"

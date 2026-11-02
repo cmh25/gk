@@ -138,6 +138,7 @@ void help(int a) {
 "      zb b (compress bytes)   and bz z (decompress bytes)\n"
 "      kv v (list from vector) and vk k (vector from list)\n"
 "      val f (valence of fun)\n"
+"      json s (data from json text) and json d (json text from data)\n"
 "      md5 x (128-bit), sha1 x (160-bit), sha2 x (256-bit)\n"
 "        x is type -3 4 -4 0\n"
 "      (iv;key) encrypt x, (iv;key) decrypt x (aes256)\n"
@@ -181,6 +182,8 @@ void help(int a) {
 "\n"
 " (type;width)0:f   fixedwidth text(IJEFCS )\n"
 " (type;width)1:f   fixedwidth data(cbsijef CS)\n"
+" (type;delim)0:f   delimited text (csv); (type;,delim)0:f header -> dict\n"
+" f 0:dict          csv from a dict of columns\n"
 " blank skips. f can be (f;index;length).\n");
   }
   else if(a=='-') {
