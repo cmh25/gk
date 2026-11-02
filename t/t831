@@ -5,6 +5,13 @@
 / header and the result a dict (names only: domain otherwise).  f 0:dict writes a dict of
 / columns back: header, comma, quoting as needed, nulls empty, inf/-inf, numbers as 5:
 / prints them at \p with no j/e suffix.  ` 0:dict prints the same text.
+/ The inputs are written here so the bytes are the same on every platform (a checkout can
+/ turn LF into CRLF, and a line break inside quotes is data).
+"c0.csv" 0:("id,name,price,qty,note";"1,\"Smith, John\",1.5,10,\"he said \"\"hi\"\"\"";"2,Jane,2.25,,";"3,\"multi\nline\",0.5,3,x";"";"4, Ann ,1e3,2147483647,\"trailing\"")
+"c1.tsv" 0:("1\t1.5\t2.5\r";"3000000000\t2\t1e400\r";"\t0N\t\r")
+"c2.csv" 0:("a b,c";"1,2")
+"c3.csv" 0:("a,b";"1,x";,"2")
+"c4.csv" 0:("a,b";"1,\"abc")
 a:("ISFIC";,",")0:"c0.csv"
 a
 a.name
@@ -33,4 +40,9 @@ d:.+(`n`f`s`g;(1 0N 0I 5;1.5 0n 0i -0i;(`a;`$"b c";`c;`$"d\"e");(1;"x,y";nul;2.5
 .[0:;("z831";.+(`a`b;(1 2;,3)));:]
 .[0:;("z831";.+(`a`b;(1 2;{x})));:]
 del "z831"
+del "c0.csv"
+del "c1.tsv"
+del "c2.csv"
+del "c3.csv"
+del "c4.csv"
 \\
