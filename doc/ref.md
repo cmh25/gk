@@ -2500,7 +2500,8 @@ displays (`(2+),`) so they round-trip.
 | `val x` | valence of a function | `val{x+y}` → `2` |
 | `4: x` | type code of `x` | `4:1 2 3` → `-1` |
 | `5: x` | printable form of `x` | `5:1 2 3` → `"1 2 3"` |
-| `json x` | JSON text from data, or data from JSON text when `x` is a string — see [JSON](#json) | `json 1 2 3` → `"[1,2,3]"` |
+| `jk x` | JSON text from data — see [JSON](#json) | `jk 1 2 3` → `"[1,2,3]"` |
+| `kj t` | data from JSON text | `kj "[1,2,3]"` → `1 2 3` |
 | `md5 x` | MD5 digest (hex string) | `md5"abc"` → `"900150983cd24fb0d6963f7d28e17f72"` |
 | `sha1 x` | SHA-1 digest | |
 | `sha2 x` | SHA-256 digest | |
@@ -2532,9 +2533,10 @@ captured closure all travel.
 <a id="json"></a>
 #### JSON
 
-`json x` converts in both directions, chosen by the argument's type: a string
-(char vector) is **parsed** as JSON text; anything else is **serialized** to
-JSON text.
+`jk x` **serializes** data `x` to JSON text, a char vector; `kj t` **parses**
+JSON text `t` into data. The names read like [`bd`/`db`](#conversion-and-serialization):
+JSON from k, k from JSON. A string is just data to `jk`, so `jk "hello"` is
+`"\"hello\""`.
 
 | JSON | gk |
 |------|----|
@@ -2546,12 +2548,12 @@ JSON text.
 | `null` | `nul` |
 
 ```
-  j:json "{\"id\":3000000000,\"tags\":[\"a\",\"b\"],\"v\":[1,2.5,null]}"
+  j:kj "{\"id\":3000000000,\"tags\":[\"a\",\"b\"],\"v\":[1,2.5,null]}"
   j.id
 3000000000j
   j.v
 1 2.5 0n
-  json j
+  jk j
 "{\"id\":3000000000,\"tags\":[\"a\",\"b\"],\"v\":[1.0,2.5,null]}"
 ```
 
@@ -2568,9 +2570,27 @@ function, a handle — is a `type` error. A round trip loses what JSON cannot
 carry: booleans come back as ints, symbols as strings, a long that fits `i32`
 as an int, an `f32` as a float.
 
-**Errors:** `parse` for malformed text, including anything after the value;
-`domain` for an object key that is not a name; `type` for a value with no
-JSON form; `stack` for nesting deeper than 2048 levels.
+**Layout.** The text is compact. `\j n` (a [system command](#system-commands),
+like `\p`) indents it by `n` spaces per level for reading: one member per
+line, a space after the colon, a typed vector still on one line, an empty
+object or array still `{}` or `[]`. `\j 0` restores compact text. `jk kj t`
+reformats JSON text `t` either way.
+
+```
+  \j 2
+  `0:,jk .+(`id`tags`v;(3000000000j;`a`b;1 2.5 0n))
+{
+  "id": 3000000000,
+  "tags": ["a","b"],
+  "v": [1.0,2.5,null]
+}
+  \j 0
+```
+
+**Errors:** `kj`: `parse` for malformed text, including anything after the
+value; `domain` for an object key that is not a name; `type` for an argument
+that is not a string. `jk`: `type` for a value with no JSON form. Either way,
+`stack` for nesting deeper than 2048 levels.
 
 ### Time
 
@@ -2891,6 +2911,7 @@ like any single-letter top-level name.
 | `\t expr` | time expression |
 | `\p n` | set print precision (`\p` queries); f64 round-trips at `\p 17`, f32 at `\p 9` |
 | `\zc n` | zero-clamp: print near-zero floats as `0.0` (`\zc` queries) |
+| `\j n` | indent for [`jk`](#json) text: `n` spaces per level, `0` (the default) compact (`\j` queries) |
 | `\e n` | error flag: `1` = suspend into a debug sub-REPL on error (`\e` queries) |
 | `\d ns` | change current namespace (`\d` queries) |
 | `\m i PORT`, `\m f PORT` | start IPC listener, inline/forking (`\m` queries) — see [IPC](#ipc) |

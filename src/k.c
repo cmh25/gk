@@ -36,6 +36,7 @@ extern long gk_budget;      /* per-eval loop budget (p.c); reset in repl.c */
 #endif
 char *E[EMAX]={"nyi","rank","length","type","value","range","domain","valence","index","int","parse","stack","reserved","wsfull"};
 i32 zeroclamp;
+i32 jindent;   /* \j: spaces per level in json text, 0 = compact */
 
 /* RSP stack guard (see k.h).  EVAL margin is generous because stack_low() is
  * probed only every 8th level (perf -- see the guard sites), so up to 8 levels'
@@ -93,7 +94,7 @@ void stack_guard_init(void) {
 static char *P=":+-*%&|<>=~.!@?#_^,$'/\\";
 
 /* reserved symbols */
-char *R_NUL,*R_DRAW,*R_DOT,*R_VS,*R_SV,*R_ATAN2,*R_DIV,*R_AND,*R_OR,*R_SHIFT,*R_ROT,*R_XOR,*R_HYPOT,*R_ENCRYPT,*R_DECRYPT,*R_SETENV,*R_RENAME,*R_SQR,*R_ABS,*R_SLEEP,*R_IC,*R_CI,*R_DJ,*R_JD,*R_LT,*R_LOG,*R_EXP,*R_SQRT,*R_FLOOR,*R_CEIL,*R_SIN,*R_COS,*R_TAN,*R_ASIN,*R_ACOS,*R_ATAN,*R_AT,*R_SS,*R_SM,*R_LSQ,*R_SINH,*R_COSH,*R_TANH,*R_ERF,*R_ERFC,*R_GAMMA,*R_LGAMMA,*R_RINT,*R_TRUNC,*R_NOT,*R_KV,*R_VK,*R_VAL,*R_BD,*R_DB,*R_HB,*R_BH,*R_ZB,*R_BZ,*R_MD5,*R_SHA1,*R_SHA2,*R_GETENV,*R_SVD,*R_LU,*R_QR,*R_LDU,*R_RREF,*R_DET,*R_MAG,*R_PRIME,*R_FACTOR,*R_GCD,*R_LCM,*R_MODINV,*R_EXIT,*R_DEL,*R_DO,*R_WHILE,*R_IF,*R_IN,*R_DVL,*R_BIN,*R_BINL,*R_LIN,*R_DV,*R_DI,*R_GTIME,*R_LTIME,*R_TL,*R_MUL,*R_INV,*R_CHOOSE,*R_ROUND,*R_SSR,*R_EP,*R_TIMER,*R_WATCH,*R_JSON;
+char *R_NUL,*R_DRAW,*R_DOT,*R_VS,*R_SV,*R_ATAN2,*R_DIV,*R_AND,*R_OR,*R_SHIFT,*R_ROT,*R_XOR,*R_HYPOT,*R_ENCRYPT,*R_DECRYPT,*R_SETENV,*R_RENAME,*R_SQR,*R_ABS,*R_SLEEP,*R_IC,*R_CI,*R_DJ,*R_JD,*R_LT,*R_LOG,*R_EXP,*R_SQRT,*R_FLOOR,*R_CEIL,*R_SIN,*R_COS,*R_TAN,*R_ASIN,*R_ACOS,*R_ATAN,*R_AT,*R_SS,*R_SM,*R_LSQ,*R_SINH,*R_COSH,*R_TANH,*R_ERF,*R_ERFC,*R_GAMMA,*R_LGAMMA,*R_RINT,*R_TRUNC,*R_NOT,*R_KV,*R_VK,*R_VAL,*R_BD,*R_DB,*R_HB,*R_BH,*R_ZB,*R_BZ,*R_MD5,*R_SHA1,*R_SHA2,*R_GETENV,*R_SVD,*R_LU,*R_QR,*R_LDU,*R_RREF,*R_DET,*R_MAG,*R_PRIME,*R_FACTOR,*R_GCD,*R_LCM,*R_MODINV,*R_EXIT,*R_DEL,*R_DO,*R_WHILE,*R_IF,*R_IN,*R_DVL,*R_BIN,*R_BINL,*R_LIN,*R_DV,*R_DI,*R_GTIME,*R_LTIME,*R_TL,*R_MUL,*R_INV,*R_CHOOSE,*R_ROUND,*R_SSR,*R_EP,*R_TIMER,*R_WATCH,*R_JK,*R_KJ;
 
 /* reserved names -- single source of truth.  kinit() interns each name into
    its R_* global, kreserved() scans it, and scope_init() builds the .r
@@ -124,7 +125,7 @@ static const struct { char **p; const char *nm; } RTAB[] = {
   {&R_DV,"dv"},{&R_DI,"di"},{&R_GTIME,"gtime"},{&R_LTIME,"ltime"},
   {&R_TL,"tl"},{&R_MUL,"mul"},{&R_INV,"inv"},{&R_CHOOSE,"choose"},
   {&R_ROUND,"round"},{&R_SSR,"ssr"},{&R_EP,"ep"},{&R_TIMER,"timer"},
-  {&R_WATCH,"watch"},{&R_JSON,"json"},
+  {&R_WATCH,"watch"},{&R_JK,"jk"},{&R_KJ,"kj"},
 };
 static const i32 NRTAB=sizeof(RTAB)/sizeof(*RTAB);
 i32 kreserved_n(void) { return NRTAB; }
@@ -265,7 +266,7 @@ static void pja(K x, char *s, char *e) {
    differ per format).  ds is a 256-byte scratch. */
 void kfmtf(char *ds, double f) {
   if(zeroclamp && f!=0.0 && fabs(f)<1e-12) f=0.0;
-  sprintf(ds,"%0.*g",precision,f);
+  snprintf(ds,256,"%0.*g",precision,f);
   if(!strchr(ds,'.')&&!strchr(ds,'e')) snprintf(ds+strlen(ds),256-strlen(ds),".0");
 }
 /* f32: at most 9 significant digits (FLT_DECIMAL_DIG); no `e` suffix */
@@ -273,7 +274,7 @@ void kfmte(char *ds, float f) {
   int p32 = precision<9?precision:9;
   double d=(double)f;
   if(zeroclamp && d!=0.0 && fabs(d)<1e-12) d=0.0;
-  sprintf(ds,"%0.*g",p32,d);
+  snprintf(ds,256,"%0.*g",p32,d);
   if(!strchr(ds,'.')&&!strchr(ds,'e')) snprintf(ds+strlen(ds),256-strlen(ds),".0");
 }
 static void pf_(double f) {

@@ -3252,6 +3252,14 @@ K pgreduce(K x, int p) {
         r=null;
         continue;
       }
+      else if(ck(values[1])==242) { /* \j */
+        a=values[0];
+        if(!s(a)&&ta==1) { jindent=ik(a); if(jindent>16) jindent=16; if(jindent<0) jindent=0; }
+        else if(ta==6) printf("%d\n",jindent);
+        else { r=kerror("parse"); continue; }
+        r=null;
+        continue;
+      }
       else if(ck(values[1])==247) { /* \e */
         a=values[0];
         if(!s(a)&&ta==1) EFLAG=ik(a);

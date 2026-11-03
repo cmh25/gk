@@ -3,6 +3,7 @@
 
 #include "k.h"
 
-K json_(K x);   /* json x: parse a char vector, serialize anything else */
+K jk_(K x);   /* jk x: JSON text from data */
+K kj_(K x);   /* kj t: data from JSON text */
 
 #endif /* JSON_H */

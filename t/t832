@@ -1,54 +1,73 @@
-/ json (2026-11-01): json x parses JSON text (a char vector) into gk data and serializes
-/ anything else as JSON text.  object -> dict (keys must be names), array -> list, an
-/ all-numeric array -> typed vector of the widest member with null as its null,
-/ string -> chars, number -> int if it fits i32, long if i64, else float (a fraction or
-/ exponent is always a float), true/false -> 1/0, null -> nul.  Writing: numbers as 5:
-/ prints them at \p (a float always carries a point or exponent; nulls and infinities ->
-/ null), symbols and char atoms -> strings, functions -> type error.
-j:json "{\"a\":1,\"b\":[1,2.5,null],\"c\":\"x\\ny\",\"d\":{\"e\":true,\"f\":null},\"g\":[],\"h\":\"\"}"
+/ jk/kj (2026-11-01): jk x serializes gk data as JSON text (json from k); kj t parses
+/ JSON text (a char vector) into gk data (k from json) -- the bd/db naming, one verb
+/ each way, so a string is just data to jk.  Reading: object -> dict (keys must be
+/ names), array -> list, an all-numeric array -> typed vector of the widest member with
+/ null as its null, string -> chars, number -> int if it fits i32, long if i64, else
+/ float (a fraction or exponent is always a float), true/false -> 1/0, null -> nul.
+/ Writing: numbers as 5: prints them at \p (a float always carries a point or exponent;
+/ nulls and infinities -> null), symbols and char atoms -> strings, functions -> type error.
+j:kj "{\"a\":1,\"b\":[1,2.5,null],\"c\":\"x\\ny\",\"d\":{\"e\":true,\"f\":null},\"g\":[],\"h\":\"\"}"
 j
 j.b
 j.d
-json j
-json "[1,2,3]"
-json "[1,3000000000]"
-json "[1,30000000000000000000]"
-json "3000000000"
-json "2147483647"
-json "-2147483648"
-json "[1.0,2]"
-json "1e400"
-json "[null,null]"
-json "[true,false,null]"
-json "[[1,2],[3,4]]"
-json "[\"a\",\"b\"]"
-json "\"\\u00e9\\ud83d\\ude00\\u0041\\t\""
-json "  42  "
-json 1 2 3
-json 1.5 2.0
-json 1.5e
-json 0N 0I 3
-json 0N 5j
-json (1;"two";`three;3.0;nul)
-json `a`b
-json .+(`a`b;(1 2;"hi"))
-json "{}"
-json "[]"
-json ()
-json ,("\"",(ci 1),"\\")
+jk j
+kj "[1,2,3]"
+kj "[1,3000000000]"
+kj "[1,30000000000000000000]"
+kj "3000000000"
+kj "2147483647"
+kj "-2147483648"
+kj "[1.0,2]"
+kj "1e400"
+kj "[null,null]"
+kj "[true,false,null]"
+kj "[[1,2],[3,4]]"
+kj "[\"a\",\"b\"]"
+kj "\"\\u00e9\\ud83d\\ude00\\u0041\\t\""
+kj "  42  "
+jk 1 2 3
+jk 1.5 2.0
+jk 1.5e
+jk 0N 0I 3
+jk 0N 5j
+jk (1;"two";`three;3.0;nul)
+jk `a`b
+jk .+(`a`b;(1 2;"hi"))
+kj "{}"
+kj "[]"
+jk ()
+jk ,("\"",(ci 1),"\\")
 \p 3
-json 1%3
+jk 1%3
 5:1%3
 \p 7
-@[json;"x";:]
-@[json;"[1,2";:]
-@[json;"{\"a b\":1}";:]
-@[json;"{\"a_b\":1}";:]
-@[json;"[1,]";:]
-@[json;"01";:]
-@[json;"\"abc";:]
-@[json;"";:]
-@[json;"1 2";:]
-@[json;{x};:]
-json json "[[[[[[[[1]]]]]]]]"
+\j 2
+\j
+jk .+(`a`b`c;(1;1 2 3;.+(`d`e;("x";()))))
+`0:,jk kj "{\"a\":[{\"b\":1},2],\"c\":{},\"d\":[]}"
+jk ()
+jk .()
+\j 0
+jk .+(`a`b;(1;,2))
+@[kj;"x";:]
+@[kj;"[1,2";:]
+@[kj;"{\"a b\":1}";:]
+@[kj;"{\"a_b\":1}";:]
+@[kj;"[1,]";:]
+@[kj;"01";:]
+@[kj;"\"abc";:]
+@[kj;"";:]
+@[kj;"1 2";:]
+@[jk;{x};:]
+jk kj "[[[[[[[[1]]]]]]]]"
+jk "hello"
+jk ""
+jk "a"
+jk "[draft] x"
+jk kj "\"hello\""
+jk kj "\"123\""
+kj jk "hello"
+@[kj;1 2;:]
+@[kj;`a;:]
+@[kj;();:]
 \\

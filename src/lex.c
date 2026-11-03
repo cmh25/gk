@@ -722,6 +722,25 @@ static int gback(pgs *pgs, int load) {
       else return -1;                              /* malformed (cf. \p) */
     }
   }
+  else if(S3(p)&&p[1]=='j'&&p[2]&&strchr(" \n\t",p[2])) {   /* \j [n]: json indent */
+    push(pgs,T015,242);
+    p+=2;
+    if(*p) {
+      while(*p&&isblank((unsigned char)*p))++p;
+      q=p;
+      if(*p&&isdigit((unsigned char)*p)) {
+        while(*p&&isdigit((unsigned char)*p))++p;
+        if(*p&&!strchr(" \n\t/",*p)) return -1;   /* junk after the digits */
+        if(*p) {
+          c=*p; *p=0;
+          push(pgs,T014,t(1,(u32)xatoi(q)));
+          *p=c;
+        }
+      }
+      else if(!*p||*p=='\n') push(pgs,T014,null);  /* no argument -> query */
+      else return -1;                              /* malformed (cf. \p) */
+    }
+  }
   else if(S3(p)&&p[1]=='e'&&p[2]&&strchr(" \n\t",p[2])) {
     push(pgs,T015,247);
     p+=2;

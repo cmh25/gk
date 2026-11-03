@@ -1,7 +1,8 @@
 /* json: JSON text <-> gk data (RFC 8259).
 
-   json x   x a char vector (or char atom): parse the text
-   json x   anything else: serialize x as JSON text, a char vector
+   jk x   serialize x as JSON text, a char vector (json from k)
+   kj t   t a char vector (or char atom): parse the JSON text (k from json)
+   -- the bd/db naming: one verb each way, so jk of a string is a JSON string
 
    read   object -> dict (every key must be a name: domain error otherwise,
                     the same rule as every other way into a dict, dict.c)
@@ -237,13 +238,17 @@ static K jparse_(char *p, u64 n) {
 }
 
 /* --------------------------------------------------------------- write */
-typedef struct { char *b; size_t n,c; } jb;
+typedef struct { char *b; size_t n,c; i32 ind; } jb;   /* ind: \j spaces per level, 0 = compact */
 
 static void jput_(jb *o, const char *s, size_t n) {
   if(o->n+n+1>o->c) { while(o->n+n+1>o->c) o->c<<=1; o->b=xrealloc(o->b,o->c); }
   memcpy(o->b+o->n,s,n); o->n+=n;
 }
 static void jputc_(jb *o, char c) { jput_(o,&c,1); }
+static void jnl_(jb *o, i32 d) {   /* a line break and d levels of indent (nothing when compact) */
+  if(!o->ind) return;
+  jputc_(o,'\n'); for(i32 i=0;i<d*o->ind;i++) jputc_(o,' ');
+}
 static void jputs_(jb *o, const char *s, size_t n) {   /* a string literal */
   static const char hx[]="0123456789abcdef";
   size_t i; char u[6]={'\\','u','0','0',0,0};
@@ -290,9 +295,11 @@ static K jwrite_(jb *o, K x, i32 d) {
     jputc_(o,'{');
     for(i=0;i<nn;i++) {
       if(i) jputc_(o,',');
-      jputs_(o,pk[i],strlen(pk[i])); jputc_(o,':');
+      jnl_(o,d);
+      jputs_(o,pk[i],strlen(pk[i])); jputc_(o,':'); if(o->ind) jputc_(o,' ');
       e=jwrite_(o,pv[i],d); if(E(e)) return e;
     }
+    if(nn) jnl_(o,d-1);
     jputc_(o,'}');
     return null;
   }
@@ -315,7 +322,8 @@ static K jwrite_(jb *o, K x, i32 d) {
     K *p=px(x);
     if(++d>JDEPTH || (!(d&7)&&stack_low())) return KERR_STACK;
     jputc_(o,'[');
-    for(i=0;i<n(x);i++) { if(i) jputc_(o,','); e=jwrite_(o,p[i],d); if(E(e)) return e; }
+    for(i=0;i<n(x);i++) { if(i) jputc_(o,','); jnl_(o,d); e=jwrite_(o,p[i],d); if(E(e)) return e; }
+    if(n(x)) jnl_(o,d-1);
     jputc_(o,']');
     break;
   }
@@ -324,11 +332,15 @@ static K jwrite_(jb *o, K x, i32 d) {
   return null;
 }
 
-K json_(K x) {
-  jb o; K e;
+K kj_(K x) {
   if(!s(x) && T(x)==-3) return jparse_(px(x),n(x));
   if(!s(x) && T(x)==3) { char c=(char)ck(x); return jparse_(&c,1); }
-  o.c=256; o.n=0; o.b=xmalloc(o.c);
+  return KERR_TYPE;
+}
+
+K jk_(K x) {
+  jb o; K e;
+  o.c=256; o.n=0; o.b=xmalloc(o.c); o.ind=jindent;
   e=jwrite_(&o,x,0);
   if(E(e)) { xfree(o.b); return e; }
   o.b[o.n]=0;

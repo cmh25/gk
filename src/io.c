@@ -484,7 +484,7 @@ static K b0colon(K x) {
   switch(tx) {
   case  3: printf("%c",ck(x)); break;
   /* whole strings per fwrite, not putchar per byte: stdout is _IONBF (main.c),
-     so each putchar was a write syscall -- a 400KB `0:json x through a pty
+     so each putchar was a write syscall -- a 400KB `0:jk x through a pty
      and rlwrap looked hung */
   case -3: fwrite(px(x),1,nx,stdout); break;
   case  0:
