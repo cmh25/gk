@@ -1,7 +1,7 @@
 / Stevan Apter show function (nsl.com)
 show0:{[t]                           / show
  if[(@*t[])|1<#?#'t[]                / if not a table
-  :((-|/#'$k)$k:!t),/" : ",/5:'t[]]  / use dict display
+  :((-|/#'$k)$k:!t),'" : ",/5:'t[]]  / use dict display
  i:(^t[])1                           / count
  j:@[t;nul;{(1|i)#x}]                / empty
  f:{$[4:x;x;1_,/" ",/x]}             / nested
