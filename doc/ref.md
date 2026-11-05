@@ -2834,12 +2834,14 @@ infinity. `C` keeps a field's text as is; `S` trims it.
 
 **Writing — `f 0: d`.** With a dict on the right, `0:` writes it as CSV: a
 header of the keys, then one record per row, comma-separated. Every value must
-be a vector or list of the same length (`length` error otherwise; a column item
-with no text form is a `type` error). Numbers print as `5:` does at the current
-`\p`, without the `j`/`e` type suffixes; a null is an empty field; a float
-infinity is `inf`/`-inf`; a string or symbol is quoted when it holds a comma, a
-quote, or a line break, with inner quotes doubled. Records end in `LF`.
-`` ` 0: d `` prints the same text to the console.
+be a vector or list of the same length (`length` error otherwise; an atom
+value, or a column item with no text form, is a `type` error). A dict of atoms
+is a record, not a table: `.+(!d;,'d[])` makes it the one-row table that
+writes as one record. Numbers print as `5:` does at the current `\p`, without
+the `j`/`e` type suffixes; a null is an empty field; a float infinity is
+`inf`/`-inf`; a string or symbol is quoted when it holds a comma, a quote, or a
+line break, with inner quotes doubled. Records end in `LF`. `` ` 0: d `` prints
+the same text to the console.
 
 ```
   "out.csv" 0: d

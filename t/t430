@@ -59,4 +59,11 @@ t:d
 t[`d]:t[`a]%t`b
 if[c<101;show t]
 
+"record"
+r:.()
+r.a:1
+r.b:2.5
+r.c:`x
+if[c<101;show r]
+
 \\
