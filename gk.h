@@ -145,6 +145,7 @@ GK_API K gk_mkstrn(const char *s, int64_t n);  /* from s[0..n) */
 
 /* ---- utilities ------------------------------------------------------------ */
 GK_API K    gk_err(const char *msg);   /* an error value; return it to raise in gk */
+GK_API int  gk_iserr(K x);             /* 1 if x is an error value (one a gk_* call handed back); return it to raise it */
 GK_API K    gk_ref(K x);               /* retain (bump refcount); returns x */
 GK_API void gk_unref(K x);             /* release (drop refcount) */
 GK_API K    gk_norm(K x);              /* normalize a built K list to a typed vector */
@@ -171,6 +172,19 @@ GK_API int  gk_isdict(K x);                /* 1 if x is a dict, else 0 */
 GK_API K    gk_dkeys(K d);                 /* key symbol vector (owned) */
 GK_API K    gk_dvals(K d);                 /* value list (owned) */
 GK_API K    gk_dget(K d, const char *key); /* value for key, or the null value */
+
+/* ---- lambdas -------------------------------------------------------------- */
+/* A lambda ({..}) reaches a 2:-linked function like any other value. The shim
+   cannot call it, but it can read it: its source text, and the value any name
+   denotes inside it. gk_fnget resolves a name the way the body would -- the
+   lambda's own frame, then the function it was written in (its closure), out
+   to the globals -- so a lambda defined inside a function carries that
+   function's locals. That is what lets a shim compile a lambda's body for
+   another engine (a GPU, a JIT) with its free variables bound.
+   A lambda reports gk_t(x)==GK_LIST (like a dict); gk_isfn tells it apart. */
+GK_API int  gk_isfn(K x);                    /* 1 if x is a lambda, else 0 */
+GK_API K    gk_fntext(K f);                  /* its source text "{..}" as a char vector (owned); 'type error if f is not a lambda */
+GK_API K    gk_fnget(K f, const char *name); /* the value name denotes inside f (owned); 'value error if undefined, 'type error if f is not a lambda */
 
 #ifdef __cplusplus
 }

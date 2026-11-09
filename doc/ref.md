@@ -2703,6 +2703,24 @@ unref it); `gk_ref()` a borrowed argument first if you mean to store it. Keys ar
 C strings the dict interns. `gk_dvals` normalizes its result, so a homogeneous
 value column comes back as a typed vector (a mixed column stays a general list).
 
+**Lambdas.** A lambda passed to a linked function arrives as a value the shim
+cannot call but can read: `gk_isfn(x)` tells a lambda apart (like a dict it
+reports `gk_t(x)==GK_LIST`), `gk_fntext(f)` is its source text as a char vector,
+and `gk_fnget(f,name)` is the value `name` denotes inside it, resolved the way
+the body would see it: the lambda's own frame, then the function it was written
+in, out to the globals (a value error if undefined, which the shim returns to
+raise it; `gk_iserr(x)` tells an error value apart). So a lambda written inside
+a function carries that function's locals, and a shim can compile the body for
+another engine with its free variables bound:
+
+```c
+GK_FN K cu(K f, K x) {           /* g:{a:..;b:..;cu[{a[x]+b[x]};!n]} */
+  K text = gk_fntext(f);         /* "{a[x]+b[x]}" */
+  K a = gk_fnget(f, "a");        /* g's local a */
+  ...
+}
+```
+
 `domain error` if `f` can't be loaded or `e` can't be resolved within it (an OS
 message may also appear); `type error` if `f`, `e`, or `t` are not as described.
 
@@ -2972,7 +2990,8 @@ ext/
       bignum.so       / the 2:-linked shim (GMP big integers)
     cuda/
       load.k
-      cuda.so         / GPU f32 matmul via cuBLAS
+      cuda.so         / GPU f32 matmul via cuBLAS; exec[f;x]: a scalar lambda as
+                      / a CUDA kernel (NVRTC) over a 1D/2D/3D grid, +/ reductions; info[]
   mac/                / macOS examples
     accelerate/
       load.k

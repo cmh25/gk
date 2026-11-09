@@ -13,15 +13,27 @@
 #include <cuda_runtime.h>
 #include <cublas_v2.h>
 #include "gk.h"
+#include <stdlib.h>
 
 /* One cuBLAS handle for the process. cublasCreate is expensive (tens of ms)
    and materializes the CUDA context, so we make it once -- ideally via
    ginit[] before timing, but gmul[] also creates it lazily if you skip that. */
 static cublasHandle_t g_handle = 0;
 
+/* Release the device before the process exits, while gk's terminal is still open: left to
+   exit_group, the driver's teardown runs after fds 0-2 are closed (~50 ms), and a wrapper
+   like rlwrap reports a pty read error on a still-live child.  atexit from the .so runs at
+   gk's dlclose (link_shutdown), before exit(). */
+static void g_shutdown(void) {
+  if (g_handle) { cublasDestroy(g_handle); g_handle = 0; }
+  cudaDeviceReset();
+}
+
 static cublasStatus_t ensure_handle(void) {
   if (g_handle) return CUBLAS_STATUS_SUCCESS;
-  return cublasCreate(&g_handle);
+  cublasStatus_t s = cublasCreate(&g_handle);
+  if (s == CUBLAS_STATUS_SUCCESS) atexit(g_shutdown);
+  return s;
   /* To trade f32 precision for tensor-core speed, add after create:
      cublasSetMathMode(g_handle, CUBLAS_TF32_TENSOR_OP_MATH);
      -- much faster, but only 10-bit mantissa, so it stops matching CPU mul. */

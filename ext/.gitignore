@@ -4,3 +4,4 @@
 *.obj
 *.exp
 *.lib
+*.o

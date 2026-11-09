@@ -5,6 +5,7 @@
  * The public surface is declared in gk.h. */
 #include "k.h"
 #include "dict.h"
+#include "fn.h"
 #include <string.h>
 
 #define GK_NO_K_TYPEDEF   /* use k.h's K, not gk.h's, to avoid a typedef clash */
@@ -64,6 +65,7 @@ GK_API K gk_mkstrn(const char *s, int64_t n) {
 
 /* ---- utilities ------------------------------------------------------------ */
 GK_API K    gk_err(const char *msg) { return kerror((char*)msg); }
+GK_API int  gk_iserr(K x)           { return E(x); }
 GK_API K    gk_ref(K x)             { return k_(x); }
 GK_API void gk_unref(K x)           { _k(x); }
 GK_API K    gk_norm(K x)            { return knorm(x); }
@@ -104,4 +106,25 @@ GK_API K gk_dict(const char **keys, const K *vals, int64_t n) {
     if(null!=e) { for(int64_t j = i+1; j < n; j++) _k(vals[j]); _k(d); return e; }
   }
   return d;
+}
+
+/* ---- lambdas -------------------------------------------------------------- */
+/* A lambda is a 0xc3-subtyped 4-list [text; parse; scope; valence] (fn.c). Its
+   scope slot is the frame the body runs in, parented to the frame it was
+   defined in (fncp_ keeps that parent on a copy), so a scope_get through it
+   resolves a name exactly as the body would: own params and locals, then the
+   enclosing function's locals, then the globals. A freshly copied lambda may
+   carry a null scope until first use; fnd realizes it, as fne_ does before a
+   call. A miss is a value error, as for any undefined name in gk: the shim
+   returns it to raise it (gk_iserr tells an error value apart). */
+GK_API int gk_isfn(K x) { return 0xc3 == s(x); }
+GK_API K   gk_fntext(K f) {
+  if(0xc3!=s(f)) return KERR_TYPE;
+  return k_(((K*)px(f))[0]);
+}
+GK_API K   gk_fnget(K f, const char *name) {
+  if(0xc3!=s(f)) return KERR_TYPE;
+  K *pf=px(f);
+  if(6==T(pf[2])) { K e=fnd(f); if(e) return e; }
+  return scope_get(pf[2], t(4, sp((char*)name)));
 }
