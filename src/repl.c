@@ -86,6 +86,7 @@ static int poll_getc(void) {
 #endif
 
 int ecount;
+static int noscript; /* the command-line script could not be opened */
 static int pcount,scount,ccount,qcount;
 int DEPTH;
 int REPL;
@@ -170,7 +171,11 @@ K load(char *fn, int load) {
 #endif
     }
   }
-  if(!fp) { fprintf(stderr,"%s: %s\n",fn,xstrerror(errno)); fileline=fileline0; return null; }
+  if(!fp) {
+    fprintf(stderr,"%s: %s\n",fn,xstrerror(errno)); fileline=fileline0;
+    if(load==1) noscript=1;
+    return null;
+  }
   fn=rfn;  /* commit the resolved path (package entry, or GKPATH hit) */
   b=xmalloc(m+2);
   pcount=scount=ccount=qcount=0;
@@ -357,7 +362,7 @@ static K repl_(void) {
       xfree(b);
       return null;
     }
-    if(c==EOF) { xfree(b); EXIT=t(1,0); return null; } /* have to unwind to free memory */
+    if(c==EOF) { xfree(b); EXIT=t(1,ecount||(noscript&&!isatty(STDIN_FILENO))?1:0); return null; }
     b[i]=0;
     if(!strcmp(b+j,"\\")) { xfree(b); H=0; return kerror("abort"); }
     if(!pcount&&!scount&&!ccount&&!qcount) break;

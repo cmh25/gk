@@ -260,8 +260,9 @@ Most dyadic verbs operate element-wise on vectors and recurse into lists.
 
 A vector's length is a 64-bit count, so vectors are not capped at the 32-bit
 `2^31` limit familiar from older k implementations. The ceiling is `2^56`
-elements; an operation that would exceed it (or simply run out of memory) fails
-with `wsfull` rather than truncating or wrapping.
+elements; an operation that would exceed it fails with `wsfull` rather than
+truncating or wrapping. (Actually running out of memory is a different matter:
+it ends the process — see [Errors](#errors).)
 
 Because a length can exceed the 32-bit integer range, the verbs that *produce* a
 count or an index return an **i64** (`j`) instead of an i32 once the relevant
@@ -1341,7 +1342,7 @@ Other types follow [Dictionaries](#dictionaries) and implementation rules.
 
 **Errors:** `domain` when an integer count/radix is negative or an integer
 sentinel; `wsfull` when the product of the radices cannot be represented or
-allocated.
+is past the vector limit.
 
 </details>
 
@@ -2962,6 +2963,21 @@ $ gk prog.k -- -q --          / .z.i is ("-q";"--")
 $ gk -- prog.k one            / prog.k runs; .z.i is ,,"one"
 ```
 
+**Exit status.** `\\` and end of input exit `0`, and `exit n` exits `n`. Two
+cases exit `1`, so that a shell, makefile or CI job can tell a script failed:
+
+- the command-line script could not be opened and input then ends (at a
+  terminal gk starts the REPL after reporting it, and that session exits `0`);
+- input ends while an error console (the `>` prompt) is still open — a script
+  or piped input hit an error and nothing resolved it.
+
+```
+$ gk -q job.k </dev/null || echo failed
+```
+
+A [trapped](#error-trapping) error opens no console and does not affect the
+status; neither does an error you leave with `\` before input ends.
+
 ### Load path (`GKPATH`)
 
 `\l` first tries the name as given (so absolute and cwd-relative paths work
@@ -3170,6 +3186,14 @@ Equivalent CLI flags at startup:
 ```
 gk -i 5555 -f 5556 [script]
 ```
+
+> **Warning: a listener is remote code execution by design.** It accepts
+> connections on **every** network interface, with no authentication, and the
+> default [handlers](#handlers) evaluate whatever a peer sends — including
+> `\` system commands and file I/O, with your privileges. Only listen on a
+> network where you trust every host that can reach the port (firewall it
+> otherwise), or replace `.m.g` and `.m.s` with handlers that accept only
+> what you intend to serve.
 
 #### Inline
 
@@ -3613,7 +3637,15 @@ b+:`
 | `parse` | syntax error |
 | `stack` | recursion too deep |
 | `reserved` | assignment to a reserved name (a builtin name — see `!.r` — or a single-letter top-level name, `.k`/`.m` namespace) |
-| `wsfull` | workspace full — allocation too large or out of memory |
+| `wsfull` | workspace full — the requested size is beyond what a vector can hold |
+
+**Running out of memory is fatal.** `wsfull` is an ordinary, trappable error
+only when a size is rejected up front (a count past the vector limit, an
+unrepresentable shape). When the system actually refuses an allocation, gk
+prints `wsfull` and **exits** with status `1` — the session and its workspace
+are gone, and an [error trap](#error-trapping) does not catch it. On Linux the
+kernel may instead kill the process outright, with no message. Save anything
+you cannot recompute before an operation that might not fit.
 
 ### Error Trapping
  The result is **`(0;result)`** on success or **`(1;error)`** if `f x` errors.
