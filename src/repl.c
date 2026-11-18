@@ -397,7 +397,7 @@ static K repl_(void) {
   else if(r) {
 #ifdef FUZZING
     gk_budget=GK_BUDGET;
-    gk_alloc_budget=GK_ALLOC_BUDGET;
+    gk_alloc_budget=gk_alloc_cap;   /* see repl() */
     gk_work=GK_WORK_BUDGET;
 #endif
     int opencode0=opencode; opencode=1;
@@ -409,7 +409,29 @@ static K repl_(void) {
   return r;
 }
 
+#ifdef FUZZING
+/* A subconsole opens in place: the eval that raised the error is suspended
+ * under it with its allocations still live.  If every statement typed into the
+ * subconsole got a fresh GK_ALLOC_BUDGET, an input could raise an error inside
+ * a big allocation, repeat that from the subconsole, and so on -- one budget
+ * per nesting level, all of it pinned.  AFL found that: 129 consoles deep at
+ * 49MB each ran the process into the -m address-space cap, where the next
+ * stack page fails to map and the kernel sends SIGSEGV (a crash report with no
+ * bug behind it).  So a subconsole's statements draw on what the suspended
+ * eval had left, and the total across all levels stays within one budget. */
+static K repl1(void);
 K repl(void) {
+  long cap0=gk_alloc_cap, left0=gk_alloc_budget;
+  K r;
+  if(DEPTH) gk_alloc_cap=left0;
+  r=repl1();
+  gk_alloc_cap=cap0; gk_alloc_budget=left0;
+  return r;
+}
+static K repl1(void) {
+#else
+K repl(void) {
+#endif
   K r; //,os=0;
   int repl0;
   while(1) {

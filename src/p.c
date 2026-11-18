@@ -47,6 +47,7 @@ K EXIT;
 #ifdef FUZZING
 long gk_budget=GK_BUDGET;
 long gk_alloc_budget=GK_ALLOC_BUDGET;
+long gk_alloc_cap=GK_ALLOC_BUDGET;
 long gk_work=GK_WORK_BUDGET;
 #endif
 int opencode=1;

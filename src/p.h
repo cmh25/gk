@@ -97,6 +97,7 @@ extern long gk_budget;
  * top-level eval; on overrun take xmalloc's existing OOM path (printf+exit(1)),
  * just reached in ms instead of after seconds of thrashing.  FUZZING-only. */
 extern long gk_alloc_budget;
+extern long gk_alloc_cap;   /* what a statement at this console level starts with; repl.c */
 #define GK_ALLOC_BUDGET (64L*1024*1024)
 #endif
 extern int gline,glinei,gline0,gline0i,fileline,filevirtual;
