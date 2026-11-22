@@ -10,4 +10,11 @@ permix.gi 10
 \d permix
 a:"charles"
 a permix@#a
+/ edge cases: one permutation of nothing, one of a single item
+permix 0
+permix 1
+permix 2
+"" permix 0
+(,"a") permix 1
+#'permix'!7
 \\
