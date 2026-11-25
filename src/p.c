@@ -3828,18 +3828,21 @@ static K listbc(pgs *s, pn *a, int t) {
   pz=px(z);
   for(i=0;i<a->m;i++) {
     if(!a->a[i]) continue;
-    vm=256;
+    vm=8;
     pz[k]=tn(0,7);
     K values=tn(0,vm); n(values)=0;
     K index=tn(1,vm); n(index)=0;
 
-    char *q=s->p;
-    if(opencode) stmt=ksplit(q,"\r\n");
+    if(s->stmt) stmt=k_(s->stmt);
     else {
-      char q0=q[strlen(q)-1];
-      q[strlen(q)-1]='}';
-      stmt=ksplit(q,"\r\n");
-      q[strlen(q)-1]=q0;
+      char *q=s->p;
+      if(opencode) stmt=ksplit(q,"\r\n");
+      else {
+        char q0=q[strlen(q)-1];
+        q[strlen(q)-1]='}';
+        stmt=ksplit(q,"\r\n");
+        q[strlen(q)-1]=q0;
+      }
     }
 
     K line=tn(1,vm); n(line)=0;
@@ -5043,6 +5046,7 @@ K pgparse(char *q, int load, K locals) {
     stmt=ksplit(q,"\r\n");
     q[strlen(q)-1]=q0;
   }
+  s->stmt=stmt;
   e=lex(s,load);
   if(e) goto cleanup;
   if(s->tc<1) { e=KERR_PARSE; goto cleanup; }

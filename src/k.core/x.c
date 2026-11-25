@@ -185,6 +185,13 @@ static uint64_t buddy_alloc(uint32_t lv) {
   return 0;  /* out of arena memory */
 }
 
+/* can level lv be served at all? */
+static inline int buddy_room(uint32_t lv) {
+  uint32_t i;
+  for(i = lv; i < BUDDY_LEVELS; i++) if(buddy_fl[i]) return 1;
+  return !buddy_arena || buddy_used + (BUDDY_MIN << lv) <= BUDDY_SIZE;
+}
+
 /* free to level lv */
 static inline void buddy_free(uint32_t lv, uint64_t x) {
   GK_POISON((void*)x, BUDDY_MIN << lv); /* the whole block is dead: a read or
@@ -218,7 +225,7 @@ void* xmalloc(size_t s) {
     return (char*)p + 8;
   }
 
-  uint64_t block = buddy_alloc(lv);
+  uint64_t block = buddy_room(lv) ? buddy_alloc(lv) : 0;
   if(!block) {
     /* fallback to system malloc */
     void *p = malloc(s + 8);

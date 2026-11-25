@@ -64,6 +64,7 @@ typedef struct {
   int node_count;  /* number of nodes in the array */
   int node_max;    /* maximum capacity of nodes array */
   char *file;      /* filename */
+  K stmt;          /* the source split into lines */
   K locals;
   int overflow;    /* set by mark_lvalues when a statement's parse tree exceeds
                       maxr depth; pgparse turns it into a "stack" error */
